@@ -1,0 +1,804 @@
+2025-12-06 13:56:29 - com.smboutique.api.ApiApplication - Starting ApiApplication v0.0.1-SNAPSHOT using Java 21.0.9 with PID 116527 (/home/maitre/SMBOUTIQUE_V2/backend/target/backend-0.0.1-SNAPSHOT.jar started by maitre in /home/maitre/SMBOUTIQUE_V2)
+2025-12-06 13:56:29 - com.smboutique.api.ApiApplication - Running with Spring Boot v3.3.0, Spring v6.1.8
+2025-12-06 13:56:29 - com.smboutique.api.ApiApplication - No active profile set, falling back to 1 default profile: "default"
+2025-12-06 13:56:31 - o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-12-06 13:56:31 - o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 292 ms. Found 28 JPA repository interfaces.
+2025-12-06 13:56:32 - o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8085 (http)
+2025-12-06 13:56:32 - o.a.catalina.core.StandardService - Starting service [Tomcat]
+2025-12-06 13:56:32 - o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.24]
+2025-12-06 13:56:33 - o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2025-12-06 13:56:33 - o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 3481 ms
+2025-12-06 13:56:33 - o.s.o.j.LocalContainerEntityManagerFactoryBean - Building JPA container EntityManagerFactory for persistence unit 'default'
+2025-12-06 13:56:33 - o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-12-06 13:56:33 - org.hibernate.Version - HHH000412: Hibernate ORM core version 6.5.2.Final
+2025-12-06 13:56:33 - o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2025-12-06 13:56:34 - o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-12-06 13:56:34 - com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-12-06 13:56:34 - com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@68c4db77
+2025-12-06 13:56:34 - com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-12-06 13:56:34 - org.hibernate.orm.deprecation - HHH90000025: MySQL8Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2025-12-06 13:56:34 - org.hibernate.orm.deprecation - HHH90000026: MySQL8Dialect has been deprecated; use org.hibernate.dialect.MySQLDialect instead
+2025-12-06 13:56:37 - o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-12-06 13:56:37 - o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-12-06 13:56:37 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:37 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:37 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:38 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:38 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:38 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:38 - c.s.api.security.AuthTokenFilter - Filter 'authTokenFilter' configured for use
+2025-12-06 13:56:38 - c.s.api.security.AuthTokenFilter - Filter 'authenticationJwtTokenFilter' configured for use
+2025-12-06 13:56:38 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:38 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:38 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:38 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:38 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:38 - o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2025-12-06 13:56:38 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.s.c.a.a.c.InitializeAuthenticationProviderBeanManagerConfigurer$InitializeAuthenticationProviderManagerConfigurer - Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2025-12-06 13:56:39 - o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used for username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider.
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:39 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:40 - o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-12-06 13:56:40 - o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@551566a, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@3e3b5ff5, org.springframework.security.web.context.SecurityContextHolderFilter@2213c8fe, org.springframework.security.web.header.HeaderWriterFilter@7e3cea61, org.springframework.web.filter.CorsFilter@2078869b, org.springframework.security.web.authentication.logout.LogoutFilter@3e62fe4d, com.smboutique.api.security.AuthTokenFilter@74ea1cd0, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@1db30771, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@4da584e, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@3fdb6ae4, org.springframework.security.web.session.SessionManagementFilter@7d726fa1, org.springframework.security.web.access.ExceptionTranslationFilter@7e3f4f0, org.springframework.security.web.access.intercept.AuthorizationFilter@ad620fd]
+2025-12-06 13:56:41 - o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8085 (http) with context path '/'
+2025-12-06 13:56:41 - com.smboutique.api.ApiApplication - Started ApiApplication in 13.309 seconds (process running for 14.166)
+2025-12-06 13:56:41 - c.s.api.config.DataInitializer - Starting data initialization...
+2025-12-06 13:56:41 - c.s.api.config.DataInitializer - Initializing permissions...
+2025-12-06 13:56:41 - o.s.orm.jpa.JpaTransactionManager - Creating new transaction with name [org.springframework.data.jpa.repository.support.SimpleJpaRepository.count]: PROPAGATION_REQUIRED,ISOLATION_DEFAULT,readOnly
+2025-12-06 13:56:41 - o.s.orm.jpa.JpaTransactionManager - Opened new EntityManager [SessionImpl(355794326<open>)] for JPA transaction
+2025-12-06 13:56:41 - o.s.orm.jpa.JpaTransactionManager - Exposing JPA transaction as JDBC [org.springframework.orm.jpa.vendor.HibernateJpaDialect$HibernateConnectionHandle@319267ad]
+2025-12-06 13:56:41 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 13:56:41 - org.hibernate.SQL - 
+    select
+        count(*) 
+    from
+        permission p1_0
+2025-12-06 13:56:41 - o.s.orm.jpa.JpaTransactionManager - Initiating transaction commit
+2025-12-06 13:56:41 - o.s.orm.jpa.JpaTransactionManager - Committing JPA transaction on EntityManager [SessionImpl(355794326<open>)]
+2025-12-06 13:56:41 - o.s.orm.jpa.JpaTransactionManager - Closing JPA EntityManager [SessionImpl(355794326<open>)] after transaction
+2025-12-06 13:56:41 - c.s.api.config.DataInitializer - Permissions already exist, skipping initialization
+2025-12-06 13:56:41 - c.s.api.config.DataInitializer - Initializing roles...
+2025-12-06 13:56:41 - o.s.orm.jpa.JpaTransactionManager - Creating new transaction with name [org.springframework.data.jpa.repository.support.SimpleJpaRepository.count]: PROPAGATION_REQUIRED,ISOLATION_DEFAULT,readOnly
+2025-12-06 13:56:41 - o.s.orm.jpa.JpaTransactionManager - Opened new EntityManager [SessionImpl(916237775<open>)] for JPA transaction
+2025-12-06 13:56:41 - o.s.orm.jpa.JpaTransactionManager - Exposing JPA transaction as JDBC [org.springframework.orm.jpa.vendor.HibernateJpaDialect$HibernateConnectionHandle@625cb9b]
+2025-12-06 13:56:41 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 13:56:41 - org.hibernate.SQL - 
+    select
+        count(*) 
+    from
+        role r1_0
+2025-12-06 13:56:41 - o.s.orm.jpa.JpaTransactionManager - Initiating transaction commit
+2025-12-06 13:56:41 - o.s.orm.jpa.JpaTransactionManager - Committing JPA transaction on EntityManager [SessionImpl(916237775<open>)]
+2025-12-06 13:56:41 - o.s.orm.jpa.JpaTransactionManager - Closing JPA EntityManager [SessionImpl(916237775<open>)] after transaction
+2025-12-06 13:56:41 - c.s.api.config.DataInitializer - Roles already exist, skipping initialization
+2025-12-06 13:56:41 - c.s.api.config.DataInitializer - Initializing superadmin...
+2025-12-06 13:56:41 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:56:41 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 13:56:41 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2025-12-06 13:56:41 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-06 13:56:41 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-06 13:56:41 - c.s.api.config.DataInitializer - Superadmin already exists, skipping initialization
+2025-12-06 13:56:41 - c.s.api.config.DataInitializer - Data initialization completed.
+2025-12-06 13:57:04 - o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-12-06 13:57:04 - com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2025-12-06 13:57:04 - com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2025-12-06 13:58:52 - com.smboutique.api.ApiApplication - Starting ApiApplication v0.0.1-SNAPSHOT using Java 21.0.9 with PID 118135 (/home/maitre/SMBOUTIQUE_V2/backend/target/backend-0.0.1-SNAPSHOT.jar started by maitre in /home/maitre/SMBOUTIQUE_V2)
+2025-12-06 13:58:52 - com.smboutique.api.ApiApplication - Running with Spring Boot v3.3.0, Spring v6.1.8
+2025-12-06 13:58:52 - com.smboutique.api.ApiApplication - No active profile set, falling back to 1 default profile: "default"
+2025-12-06 13:58:53 - o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-12-06 13:58:53 - o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 189 ms. Found 28 JPA repository interfaces.
+2025-12-06 13:58:54 - o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8085 (http)
+2025-12-06 13:58:54 - o.a.catalina.core.StandardService - Starting service [Tomcat]
+2025-12-06 13:58:54 - o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.24]
+2025-12-06 13:58:54 - o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2025-12-06 13:58:54 - o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 2446 ms
+2025-12-06 13:58:55 - o.s.o.j.LocalContainerEntityManagerFactoryBean - Building JPA container EntityManagerFactory for persistence unit 'default'
+2025-12-06 13:58:55 - o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-12-06 13:58:55 - org.hibernate.Version - HHH000412: Hibernate ORM core version 6.5.2.Final
+2025-12-06 13:58:55 - o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2025-12-06 13:58:55 - o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-12-06 13:58:56 - com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-12-06 13:58:56 - com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@13b29b34
+2025-12-06 13:58:56 - com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-12-06 13:58:56 - org.hibernate.orm.deprecation - HHH90000025: MySQL8Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2025-12-06 13:58:56 - org.hibernate.orm.deprecation - HHH90000026: MySQL8Dialect has been deprecated; use org.hibernate.dialect.MySQLDialect instead
+2025-12-06 13:58:58 - o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-12-06 13:58:58 - o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-12-06 13:58:58 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:58 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:58 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:58 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:58 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:58 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:58 - c.s.api.security.AuthTokenFilter - Filter 'authTokenFilter' configured for use
+2025-12-06 13:58:58 - c.s.api.security.AuthTokenFilter - Filter 'authenticationJwtTokenFilter' configured for use
+2025-12-06 13:58:58 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:58 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:58 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:58:59 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.s.c.a.a.c.InitializeAuthenticationProviderBeanManagerConfigurer$InitializeAuthenticationProviderManagerConfigurer - Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2025-12-06 13:59:00 - o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used for username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider.
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:00 - o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-12-06 13:59:01 - o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@f67053, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@69160a0c, org.springframework.security.web.context.SecurityContextHolderFilter@418ee41b, org.springframework.security.web.header.HeaderWriterFilter@7d97eeb4, org.springframework.web.filter.CorsFilter@1884db6f, org.springframework.security.web.authentication.logout.LogoutFilter@4805d11b, com.smboutique.api.security.AuthTokenFilter@5e8f0c54, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@1bf00a6f, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@10260f02, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@4da584e, org.springframework.security.web.session.SessionManagementFilter@24cc60ef, org.springframework.security.web.access.ExceptionTranslationFilter@3e909075, org.springframework.security.web.access.intercept.AuthorizationFilter@4a9463b2]
+2025-12-06 13:59:01 - o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8085 (http) with context path '/'
+2025-12-06 13:59:01 - com.smboutique.api.ApiApplication - Started ApiApplication in 10.136 seconds (process running for 10.743)
+2025-12-06 13:59:01 - c.s.api.config.DataInitializer - Starting data initialization...
+2025-12-06 13:59:01 - c.s.api.config.DataInitializer - Initializing permissions...
+2025-12-06 13:59:01 - o.s.orm.jpa.JpaTransactionManager - Creating new transaction with name [org.springframework.data.jpa.repository.support.SimpleJpaRepository.count]: PROPAGATION_REQUIRED,ISOLATION_DEFAULT,readOnly
+2025-12-06 13:59:01 - o.s.orm.jpa.JpaTransactionManager - Opened new EntityManager [SessionImpl(1214001623<open>)] for JPA transaction
+2025-12-06 13:59:01 - o.s.orm.jpa.JpaTransactionManager - Exposing JPA transaction as JDBC [org.springframework.orm.jpa.vendor.HibernateJpaDialect$HibernateConnectionHandle@5d3b2d9a]
+2025-12-06 13:59:01 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 13:59:01 - org.hibernate.SQL - 
+    select
+        count(*) 
+    from
+        permission p1_0
+2025-12-06 13:59:01 - o.s.orm.jpa.JpaTransactionManager - Initiating transaction commit
+2025-12-06 13:59:01 - o.s.orm.jpa.JpaTransactionManager - Committing JPA transaction on EntityManager [SessionImpl(1214001623<open>)]
+2025-12-06 13:59:01 - o.s.orm.jpa.JpaTransactionManager - Closing JPA EntityManager [SessionImpl(1214001623<open>)] after transaction
+2025-12-06 13:59:01 - c.s.api.config.DataInitializer - Permissions already exist, skipping initialization
+2025-12-06 13:59:01 - c.s.api.config.DataInitializer - Initializing roles...
+2025-12-06 13:59:01 - o.s.orm.jpa.JpaTransactionManager - Creating new transaction with name [org.springframework.data.jpa.repository.support.SimpleJpaRepository.count]: PROPAGATION_REQUIRED,ISOLATION_DEFAULT,readOnly
+2025-12-06 13:59:01 - o.s.orm.jpa.JpaTransactionManager - Opened new EntityManager [SessionImpl(240805199<open>)] for JPA transaction
+2025-12-06 13:59:01 - o.s.orm.jpa.JpaTransactionManager - Exposing JPA transaction as JDBC [org.springframework.orm.jpa.vendor.HibernateJpaDialect$HibernateConnectionHandle@75e032af]
+2025-12-06 13:59:01 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 13:59:01 - org.hibernate.SQL - 
+    select
+        count(*) 
+    from
+        role r1_0
+2025-12-06 13:59:01 - o.s.orm.jpa.JpaTransactionManager - Initiating transaction commit
+2025-12-06 13:59:01 - o.s.orm.jpa.JpaTransactionManager - Committing JPA transaction on EntityManager [SessionImpl(240805199<open>)]
+2025-12-06 13:59:01 - o.s.orm.jpa.JpaTransactionManager - Closing JPA EntityManager [SessionImpl(240805199<open>)] after transaction
+2025-12-06 13:59:01 - c.s.api.config.DataInitializer - Roles already exist, skipping initialization
+2025-12-06 13:59:01 - c.s.api.config.DataInitializer - Initializing superadmin...
+2025-12-06 13:59:01 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 13:59:01 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 13:59:01 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2025-12-06 13:59:01 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-06 13:59:01 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-06 13:59:01 - c.s.api.config.DataInitializer - Superadmin already exists, skipping initialization
+2025-12-06 13:59:01 - c.s.api.config.DataInitializer - Data initialization completed.
+2025-12-06 13:59:26 - o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-12-06 13:59:26 - com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2025-12-06 13:59:26 - com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2025-12-06 17:31:19 - com.smboutique.api.ApiApplication - Starting ApiApplication v0.0.1-SNAPSHOT using Java 21.0.9 with PID 198967 (/home/maitre/SMBOUTIQUE_V2/backend/target/backend-0.0.1-SNAPSHOT.jar started by maitre in /home/maitre/SMBOUTIQUE_V2)
+2025-12-06 17:31:19 - com.smboutique.api.ApiApplication - Running with Spring Boot v3.3.0, Spring v6.1.8
+2025-12-06 17:31:19 - com.smboutique.api.ApiApplication - No active profile set, falling back to 1 default profile: "default"
+2025-12-06 17:31:21 - o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-12-06 17:31:21 - o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 277 ms. Found 28 JPA repository interfaces.
+2025-12-06 17:31:23 - o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8085 (http)
+2025-12-06 17:31:23 - o.a.catalina.core.StandardService - Starting service [Tomcat]
+2025-12-06 17:31:23 - o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.24]
+2025-12-06 17:31:23 - o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2025-12-06 17:31:23 - o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 3372 ms
+2025-12-06 17:31:23 - o.s.o.j.LocalContainerEntityManagerFactoryBean - Building JPA container EntityManagerFactory for persistence unit 'default'
+2025-12-06 17:31:23 - o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-12-06 17:31:23 - org.hibernate.Version - HHH000412: Hibernate ORM core version 6.5.2.Final
+2025-12-06 17:31:23 - o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2025-12-06 17:31:24 - o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-12-06 17:31:24 - com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-12-06 17:31:25 - com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@6282f1eb
+2025-12-06 17:31:25 - com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-12-06 17:31:25 - org.hibernate.orm.deprecation - HHH90000025: MySQL8Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2025-12-06 17:31:25 - org.hibernate.orm.deprecation - HHH90000026: MySQL8Dialect has been deprecated; use org.hibernate.dialect.MySQLDialect instead
+2025-12-06 17:31:27 - o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-12-06 17:31:28 - o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-12-06 17:31:28 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:28 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:28 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:28 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:28 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:28 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:28 - c.s.api.security.AuthTokenFilter - Filter 'authTokenFilter' configured for use
+2025-12-06 17:31:28 - c.s.api.security.AuthTokenFilter - Filter 'authenticationJwtTokenFilter' configured for use
+2025-12-06 17:31:28 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:28 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:28 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:28 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:28 - o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:29 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.s.c.a.a.c.InitializeAuthenticationProviderBeanManagerConfigurer$InitializeAuthenticationProviderManagerConfigurer - Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2025-12-06 17:31:30 - o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used for username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider.
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:30 - o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-12-06 17:31:31 - o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@2bcfdefe, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@2cfc81f8, org.springframework.security.web.context.SecurityContextHolderFilter@7e3f4f0, org.springframework.security.web.header.HeaderWriterFilter@1bf00a6f, org.springframework.web.filter.CorsFilter@3a1c65ac, org.springframework.security.web.authentication.logout.LogoutFilter@6e12d8be, com.smboutique.api.security.AuthTokenFilter@51751265, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@7e3cea61, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@33bc7565, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@5ff24b0f, org.springframework.security.web.session.SessionManagementFilter@52e67513, org.springframework.security.web.access.ExceptionTranslationFilter@418ee41b, org.springframework.security.web.access.intercept.AuthorizationFilter@2004e611]
+2025-12-06 17:31:31 - o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8085 (http) with context path '/'
+2025-12-06 17:31:32 - com.smboutique.api.ApiApplication - Started ApiApplication in 13.348 seconds (process running for 14.289)
+2025-12-06 17:31:32 - c.s.api.config.DataInitializer - Starting data initialization...
+2025-12-06 17:31:32 - c.s.api.config.DataInitializer - Initializing permissions...
+2025-12-06 17:31:32 - o.s.orm.jpa.JpaTransactionManager - Creating new transaction with name [org.springframework.data.jpa.repository.support.SimpleJpaRepository.count]: PROPAGATION_REQUIRED,ISOLATION_DEFAULT,readOnly
+2025-12-06 17:31:32 - o.s.orm.jpa.JpaTransactionManager - Opened new EntityManager [SessionImpl(2033585919<open>)] for JPA transaction
+2025-12-06 17:31:32 - o.s.orm.jpa.JpaTransactionManager - Exposing JPA transaction as JDBC [org.springframework.orm.jpa.vendor.HibernateJpaDialect$HibernateConnectionHandle@421a752b]
+2025-12-06 17:31:32 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 17:31:32 - org.hibernate.SQL - 
+    select
+        count(*) 
+    from
+        permission p1_0
+2025-12-06 17:31:32 - o.s.orm.jpa.JpaTransactionManager - Initiating transaction commit
+2025-12-06 17:31:32 - o.s.orm.jpa.JpaTransactionManager - Committing JPA transaction on EntityManager [SessionImpl(2033585919<open>)]
+2025-12-06 17:31:32 - o.s.orm.jpa.JpaTransactionManager - Closing JPA EntityManager [SessionImpl(2033585919<open>)] after transaction
+2025-12-06 17:31:32 - c.s.api.config.DataInitializer - Permissions already exist, skipping initialization
+2025-12-06 17:31:32 - c.s.api.config.DataInitializer - Initializing roles...
+2025-12-06 17:31:32 - o.s.orm.jpa.JpaTransactionManager - Creating new transaction with name [org.springframework.data.jpa.repository.support.SimpleJpaRepository.count]: PROPAGATION_REQUIRED,ISOLATION_DEFAULT,readOnly
+2025-12-06 17:31:32 - o.s.orm.jpa.JpaTransactionManager - Opened new EntityManager [SessionImpl(1723433077<open>)] for JPA transaction
+2025-12-06 17:31:32 - o.s.orm.jpa.JpaTransactionManager - Exposing JPA transaction as JDBC [org.springframework.orm.jpa.vendor.HibernateJpaDialect$HibernateConnectionHandle@20e27a41]
+2025-12-06 17:31:32 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 17:31:32 - org.hibernate.SQL - 
+    select
+        count(*) 
+    from
+        role r1_0
+2025-12-06 17:31:32 - o.s.orm.jpa.JpaTransactionManager - Initiating transaction commit
+2025-12-06 17:31:32 - o.s.orm.jpa.JpaTransactionManager - Committing JPA transaction on EntityManager [SessionImpl(1723433077<open>)]
+2025-12-06 17:31:32 - o.s.orm.jpa.JpaTransactionManager - Closing JPA EntityManager [SessionImpl(1723433077<open>)] after transaction
+2025-12-06 17:31:32 - c.s.api.config.DataInitializer - Roles already exist, skipping initialization
+2025-12-06 17:31:32 - c.s.api.config.DataInitializer - Initializing superadmin...
+2025-12-06 17:31:32 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:31:32 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 17:31:32 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2025-12-06 17:31:32 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-06 17:31:32 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-06 17:31:32 - c.s.api.config.DataInitializer - Superadmin already exists, skipping initialization
+2025-12-06 17:31:32 - c.s.api.config.DataInitializer - Data initialization completed.
+2025-12-06 17:31:47 - o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-12-06 17:31:47 - com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2025-12-06 17:31:47 - com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2025-12-06 17:38:09 - com.smboutique.api.ApiApplication - Starting ApiApplication v0.0.1-SNAPSHOT using Java 21.0.9 with PID 204457 (/home/maitre/SMBOUTIQUE_V2/backend/target/backend-0.0.1-SNAPSHOT.jar started by maitre in /home/maitre/SMBOUTIQUE_V2)
+2025-12-06 17:38:09 - com.smboutique.api.ApiApplication - Running with Spring Boot v3.3.0, Spring v6.1.8
+2025-12-06 17:38:09 - com.smboutique.api.ApiApplication - No active profile set, falling back to 1 default profile: "default"
+2025-12-06 17:38:11 - o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-12-06 17:38:11 - o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 276 ms. Found 28 JPA repository interfaces.
+2025-12-06 17:38:12 - o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8085 (http)
+2025-12-06 17:38:12 - o.a.catalina.core.StandardService - Starting service [Tomcat]
+2025-12-06 17:38:12 - o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.24]
+2025-12-06 17:38:12 - o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2025-12-06 17:38:12 - o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 3318 ms
+2025-12-06 17:38:13 - o.s.o.j.LocalContainerEntityManagerFactoryBean - Building JPA container EntityManagerFactory for persistence unit 'default'
+2025-12-06 17:38:13 - o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-12-06 17:38:13 - org.hibernate.Version - HHH000412: Hibernate ORM core version 6.5.2.Final
+2025-12-06 17:38:13 - o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2025-12-06 17:38:14 - o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-12-06 17:38:14 - com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-12-06 17:38:14 - com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@1bb172dd
+2025-12-06 17:38:14 - com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-12-06 17:38:14 - org.hibernate.orm.deprecation - HHH90000025: MySQL8Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2025-12-06 17:38:14 - org.hibernate.orm.deprecation - HHH90000026: MySQL8Dialect has been deprecated; use org.hibernate.dialect.MySQLDialect instead
+2025-12-06 17:38:17 - o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-12-06 17:38:17 - o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-12-06 17:38:17 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:17 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:17 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:18 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:18 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:18 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:18 - c.s.api.security.AuthTokenFilter - Filter 'authTokenFilter' configured for use
+2025-12-06 17:38:18 - c.s.api.security.AuthTokenFilter - Filter 'authenticationJwtTokenFilter' configured for use
+2025-12-06 17:38:18 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:18 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:18 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:18 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:18 - o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2025-12-06 17:38:18 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.s.c.a.a.c.InitializeAuthenticationProviderBeanManagerConfigurer$InitializeAuthenticationProviderManagerConfigurer - Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2025-12-06 17:38:19 - o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used for username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider.
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:19 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:20 - o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-12-06 17:38:21 - o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@396eceda, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@2e300294, org.springframework.security.web.context.SecurityContextHolderFilter@4f2e6db7, org.springframework.security.web.header.HeaderWriterFilter@3a235a93, org.springframework.web.filter.CorsFilter@7890189, org.springframework.security.web.authentication.logout.LogoutFilter@2bcfdefe, com.smboutique.api.security.AuthTokenFilter@403ba39f, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@46a6368f, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@2213c8fe, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@4584940b, org.springframework.security.web.session.SessionManagementFilter@60b73425, org.springframework.security.web.access.ExceptionTranslationFilter@5df3f854, org.springframework.security.web.access.intercept.AuthorizationFilter@431a9a71]
+2025-12-06 17:38:21 - o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8085 (http) with context path '/'
+2025-12-06 17:38:21 - com.smboutique.api.ApiApplication - Started ApiApplication in 13.023 seconds (process running for 14.199)
+2025-12-06 17:38:21 - c.s.api.config.DataInitializer - Starting data initialization...
+2025-12-06 17:38:21 - c.s.api.config.DataInitializer - Initializing permissions...
+2025-12-06 17:38:21 - o.s.orm.jpa.JpaTransactionManager - Creating new transaction with name [org.springframework.data.jpa.repository.support.SimpleJpaRepository.count]: PROPAGATION_REQUIRED,ISOLATION_DEFAULT,readOnly
+2025-12-06 17:38:21 - o.s.orm.jpa.JpaTransactionManager - Opened new EntityManager [SessionImpl(664939184<open>)] for JPA transaction
+2025-12-06 17:38:21 - o.s.orm.jpa.JpaTransactionManager - Exposing JPA transaction as JDBC [org.springframework.orm.jpa.vendor.HibernateJpaDialect$HibernateConnectionHandle@4a3e3ce3]
+2025-12-06 17:38:21 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 17:38:21 - org.hibernate.SQL - 
+    select
+        count(*) 
+    from
+        permission p1_0
+2025-12-06 17:38:21 - o.s.orm.jpa.JpaTransactionManager - Initiating transaction commit
+2025-12-06 17:38:21 - o.s.orm.jpa.JpaTransactionManager - Committing JPA transaction on EntityManager [SessionImpl(664939184<open>)]
+2025-12-06 17:38:21 - o.s.orm.jpa.JpaTransactionManager - Closing JPA EntityManager [SessionImpl(664939184<open>)] after transaction
+2025-12-06 17:38:21 - c.s.api.config.DataInitializer - Permissions already exist, skipping initialization
+2025-12-06 17:38:21 - c.s.api.config.DataInitializer - Initializing roles...
+2025-12-06 17:38:21 - o.s.orm.jpa.JpaTransactionManager - Creating new transaction with name [org.springframework.data.jpa.repository.support.SimpleJpaRepository.count]: PROPAGATION_REQUIRED,ISOLATION_DEFAULT,readOnly
+2025-12-06 17:38:21 - o.s.orm.jpa.JpaTransactionManager - Opened new EntityManager [SessionImpl(1808758228<open>)] for JPA transaction
+2025-12-06 17:38:21 - o.s.orm.jpa.JpaTransactionManager - Exposing JPA transaction as JDBC [org.springframework.orm.jpa.vendor.HibernateJpaDialect$HibernateConnectionHandle@3c41f6be]
+2025-12-06 17:38:21 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 17:38:21 - org.hibernate.SQL - 
+    select
+        count(*) 
+    from
+        role r1_0
+2025-12-06 17:38:21 - o.s.orm.jpa.JpaTransactionManager - Initiating transaction commit
+2025-12-06 17:38:21 - o.s.orm.jpa.JpaTransactionManager - Committing JPA transaction on EntityManager [SessionImpl(1808758228<open>)]
+2025-12-06 17:38:21 - o.s.orm.jpa.JpaTransactionManager - Closing JPA EntityManager [SessionImpl(1808758228<open>)] after transaction
+2025-12-06 17:38:21 - c.s.api.config.DataInitializer - Roles already exist, skipping initialization
+2025-12-06 17:38:21 - c.s.api.config.DataInitializer - Initializing superadmin...
+2025-12-06 17:38:21 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2025-12-06 17:38:21 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06 17:38:21 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2025-12-06 17:38:21 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-06 17:38:21 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-06 17:38:21 - c.s.api.config.DataInitializer - Superadmin already exists, skipping initialization
+2025-12-06 17:38:21 - c.s.api.config.DataInitializer - Data initialization completed.
+2025-12-06 17:38:40 - o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-12-06 17:38:40 - com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2025-12-06 17:38:40 - com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.

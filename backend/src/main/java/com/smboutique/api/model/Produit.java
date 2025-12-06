@@ -1,0 +1,50 @@
+package com.smboutique.api.model;
+
+import jakarta.persistence.*;
+import lombok.Data;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Entity
+@Data
+@Table(name = "tbl_product")
+@EntityListeners(AuditingEntityListener.class)
+public class Produit {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id_produit")
+    private Long id;
+
+    @Column(name = "nom_produit")
+    private String nomProduit;
+
+    @ManyToOne
+    @JoinColumn(name = "id_unite")
+    private Unite unite;
+
+    @Column(name = "product_image")
+    private String productImage;
+
+    @Column(name = "prix_detail")
+    private Integer prixDetail;
+
+    @Column(name = "prix_en_gros")
+    private Integer prixEnGros;
+
+    @Column(name = "prix_achat")
+    private Integer prixAchat;
+
+    @Column(name = "alerte_stock")
+    private Integer alerteStock;
+
+    @CreatedDate
+    @Column(name = "date_creation", updatable = false)
+    private LocalDateTime dateCreation;
+
+    @OneToMany(mappedBy = "produit", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Stock> stocks;
+}

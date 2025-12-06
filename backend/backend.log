@@ -1,0 +1,272 @@
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.3.0)
+
+2025-12-06T14:01:35.567+01:00  INFO 119631 --- [smboutique-backend] [           main] com.smboutique.api.ApiApplication        : Starting ApiApplication v0.0.1-SNAPSHOT using Java 21.0.9 with PID 119631 (/home/maitre/SMBOUTIQUE_V2/backend/target/backend-0.0.1-SNAPSHOT.jar started by maitre in /home/maitre/SMBOUTIQUE_V2/backend)
+2025-12-06T14:01:35.570+01:00 DEBUG 119631 --- [smboutique-backend] [           main] com.smboutique.api.ApiApplication        : Running with Spring Boot v3.3.0, Spring v6.1.8
+2025-12-06T14:01:35.571+01:00  INFO 119631 --- [smboutique-backend] [           main] com.smboutique.api.ApiApplication        : No active profile set, falling back to 1 default profile: "default"
+2025-12-06T14:01:36.827+01:00  INFO 119631 --- [smboutique-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-12-06T14:01:37.005+01:00  INFO 119631 --- [smboutique-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 169 ms. Found 28 JPA repository interfaces.
+2025-12-06T14:01:37.928+01:00  INFO 119631 --- [smboutique-backend] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8085 (http)
+2025-12-06T14:01:37.945+01:00  INFO 119631 --- [smboutique-backend] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2025-12-06T14:01:37.945+01:00  INFO 119631 --- [smboutique-backend] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.24]
+2025-12-06T14:01:37.984+01:00  INFO 119631 --- [smboutique-backend] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2025-12-06T14:01:37.984+01:00  INFO 119631 --- [smboutique-backend] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 2291 ms
+2025-12-06T14:01:38.185+01:00 DEBUG 119631 --- [smboutique-backend] [           main] j.LocalContainerEntityManagerFactoryBean : Building JPA container EntityManagerFactory for persistence unit 'default'
+2025-12-06T14:01:38.203+01:00  INFO 119631 --- [smboutique-backend] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-12-06T14:01:38.291+01:00  INFO 119631 --- [smboutique-backend] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.5.2.Final
+2025-12-06T14:01:38.344+01:00  INFO 119631 --- [smboutique-backend] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2025-12-06T14:01:38.754+01:00  INFO 119631 --- [smboutique-backend] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-12-06T14:01:38.785+01:00  INFO 119631 --- [smboutique-backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2025-12-06T14:01:39.018+01:00  INFO 119631 --- [smboutique-backend] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@248b2b61
+2025-12-06T14:01:39.022+01:00  INFO 119631 --- [smboutique-backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2025-12-06T14:01:39.064+01:00  WARN 119631 --- [smboutique-backend] [           main] org.hibernate.orm.deprecation            : HHH90000025: MySQL8Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2025-12-06T14:01:39.067+01:00  WARN 119631 --- [smboutique-backend] [           main] org.hibernate.orm.deprecation            : HHH90000026: MySQL8Dialect has been deprecated; use org.hibernate.dialect.MySQLDialect instead
+2025-12-06T14:01:41.048+01:00  INFO 119631 --- [smboutique-backend] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-12-06T14:01:41.257+01:00  INFO 119631 --- [smboutique-backend] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-12-06T14:01:41.351+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:41.391+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:41.474+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:41.533+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:41.594+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:41.606+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:41.699+01:00 DEBUG 119631 --- [smboutique-backend] [           main] c.s.api.security.AuthTokenFilter         : Filter 'authTokenFilter' configured for use
+2025-12-06T14:01:41.699+01:00 DEBUG 119631 --- [smboutique-backend] [           main] c.s.api.security.AuthTokenFilter         : Filter 'authenticationJwtTokenFilter' configured for use
+2025-12-06T14:01:41.737+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:41.759+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:41.766+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:41.787+01:00  INFO 119631 --- [smboutique-backend] [           main] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+2025-12-06T14:01:42.049+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.372+01:00  WARN 119631 --- [smboutique-backend] [           main] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06T14:01:42.373+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.375+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.387+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.388+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.395+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.405+01:00  WARN 119631 --- [smboutique-backend] [           main] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06T14:01:42.417+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.418+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.420+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.454+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.455+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.458+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.469+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.470+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.490+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.491+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.494+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.497+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.518+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.532+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.545+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.549+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.563+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.573+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.587+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.592+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.688+01:00  INFO 119631 --- [smboutique-backend] [           main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2025-12-06T14:01:42.690+01:00  WARN 119631 --- [smboutique-backend] [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used for username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider.
+2025-12-06T14:01:42.713+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.715+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.717+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.737+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.756+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.777+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.781+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.811+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.813+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.833+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.834+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.852+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.853+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.856+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.859+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.885+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.889+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.916+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.917+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.936+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.937+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.939+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.942+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.957+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.959+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.978+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:42.982+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:43.003+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:43.004+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:43.027+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:43.032+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:43.047+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:43.048+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:43.064+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:43.065+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:43.080+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:43.081+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:43.099+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:43.100+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:43.161+01:00  WARN 119631 --- [smboutique-backend] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-12-06T14:01:43.651+01:00  INFO 119631 --- [smboutique-backend] [           main] o.s.s.web.DefaultSecurityFilterChain     : Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@4f2e6db7, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@16e17e6b, org.springframework.security.web.context.SecurityContextHolderFilter@4b01dd26, org.springframework.security.web.header.HeaderWriterFilter@3c7dbf1f, org.springframework.web.filter.CorsFilter@46a6368f, org.springframework.security.web.authentication.logout.LogoutFilter@7e3f4f0, com.smboutique.api.security.AuthTokenFilter@63541960, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@69628b3f, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@22a9170c, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@69f564ab, org.springframework.security.web.session.SessionManagementFilter@7d97eeb4, org.springframework.security.web.access.ExceptionTranslationFilter@17b65876, org.springframework.security.web.access.intercept.AuthorizationFilter@60b73425]
+2025-12-06T14:01:43.953+01:00  INFO 119631 --- [smboutique-backend] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8085 (http) with context path '/'
+2025-12-06T14:01:43.971+01:00  INFO 119631 --- [smboutique-backend] [           main] com.smboutique.api.ApiApplication        : Started ApiApplication in 9.113 seconds (process running for 9.701)
+2025-12-06T14:01:43.974+01:00  INFO 119631 --- [smboutique-backend] [           main] c.smboutique.api.config.DataInitializer  : Starting data initialization...
+2025-12-06T14:01:43.974+01:00  INFO 119631 --- [smboutique-backend] [           main] c.smboutique.api.config.DataInitializer  : Initializing permissions...
+2025-12-06T14:01:43.979+01:00 DEBUG 119631 --- [smboutique-backend] [           main] o.s.orm.jpa.JpaTransactionManager        : Creating new transaction with name [org.springframework.data.jpa.repository.support.SimpleJpaRepository.count]: PROPAGATION_REQUIRED,ISOLATION_DEFAULT,readOnly
+2025-12-06T14:01:43.980+01:00 DEBUG 119631 --- [smboutique-backend] [           main] o.s.orm.jpa.JpaTransactionManager        : Opened new EntityManager [SessionImpl(434612827<open>)] for JPA transaction
+2025-12-06T14:01:43.985+01:00 DEBUG 119631 --- [smboutique-backend] [           main] o.s.orm.jpa.JpaTransactionManager        : Exposing JPA transaction as JDBC [org.springframework.orm.jpa.vendor.HibernateJpaDialect$HibernateConnectionHandle@3683c47f]
+2025-12-06T14:01:44.001+01:00  WARN 119631 --- [smboutique-backend] [           main] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06T14:01:44.053+01:00 DEBUG 119631 --- [smboutique-backend] [           main] org.hibernate.SQL                        : 
+    select
+        count(*) 
+    from
+        permission p1_0
+Hibernate: 
+    select
+        count(*) 
+    from
+        permission p1_0
+2025-12-06T14:01:44.058+01:00 DEBUG 119631 --- [smboutique-backend] [           main] o.s.orm.jpa.JpaTransactionManager        : Initiating transaction commit
+2025-12-06T14:01:44.058+01:00 DEBUG 119631 --- [smboutique-backend] [           main] o.s.orm.jpa.JpaTransactionManager        : Committing JPA transaction on EntityManager [SessionImpl(434612827<open>)]
+2025-12-06T14:01:44.059+01:00 DEBUG 119631 --- [smboutique-backend] [           main] o.s.orm.jpa.JpaTransactionManager        : Closing JPA EntityManager [SessionImpl(434612827<open>)] after transaction
+2025-12-06T14:01:44.060+01:00  INFO 119631 --- [smboutique-backend] [           main] c.smboutique.api.config.DataInitializer  : Permissions already exist, skipping initialization
+2025-12-06T14:01:44.060+01:00  INFO 119631 --- [smboutique-backend] [           main] c.smboutique.api.config.DataInitializer  : Initializing roles...
+2025-12-06T14:01:44.060+01:00 DEBUG 119631 --- [smboutique-backend] [           main] o.s.orm.jpa.JpaTransactionManager        : Creating new transaction with name [org.springframework.data.jpa.repository.support.SimpleJpaRepository.count]: PROPAGATION_REQUIRED,ISOLATION_DEFAULT,readOnly
+2025-12-06T14:01:44.060+01:00 DEBUG 119631 --- [smboutique-backend] [           main] o.s.orm.jpa.JpaTransactionManager        : Opened new EntityManager [SessionImpl(1832808974<open>)] for JPA transaction
+2025-12-06T14:01:44.060+01:00 DEBUG 119631 --- [smboutique-backend] [           main] o.s.orm.jpa.JpaTransactionManager        : Exposing JPA transaction as JDBC [org.springframework.orm.jpa.vendor.HibernateJpaDialect$HibernateConnectionHandle@1305f8e3]
+2025-12-06T14:01:44.061+01:00  WARN 119631 --- [smboutique-backend] [           main] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06T14:01:44.062+01:00 DEBUG 119631 --- [smboutique-backend] [           main] org.hibernate.SQL                        : 
+    select
+        count(*) 
+    from
+        role r1_0
+Hibernate: 
+    select
+        count(*) 
+    from
+        role r1_0
+2025-12-06T14:01:44.063+01:00 DEBUG 119631 --- [smboutique-backend] [           main] o.s.orm.jpa.JpaTransactionManager        : Initiating transaction commit
+2025-12-06T14:01:44.063+01:00 DEBUG 119631 --- [smboutique-backend] [           main] o.s.orm.jpa.JpaTransactionManager        : Committing JPA transaction on EntityManager [SessionImpl(1832808974<open>)]
+2025-12-06T14:01:44.064+01:00 DEBUG 119631 --- [smboutique-backend] [           main] o.s.orm.jpa.JpaTransactionManager        : Closing JPA EntityManager [SessionImpl(1832808974<open>)] after transaction
+2025-12-06T14:01:44.064+01:00  INFO 119631 --- [smboutique-backend] [           main] c.smboutique.api.config.DataInitializer  : Roles already exist, skipping initialization
+2025-12-06T14:01:44.064+01:00  INFO 119631 --- [smboutique-backend] [           main] c.smboutique.api.config.DataInitializer  : Initializing superadmin...
+2025-12-06T14:01:44.066+01:00 DEBUG 119631 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-06T14:01:44.072+01:00  WARN 119631 --- [smboutique-backend] [           main] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-06T14:01:44.136+01:00 DEBUG 119631 --- [smboutique-backend] [           main] org.hibernate.SQL                        : 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+Hibernate: 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2025-12-06T14:01:44.154+01:00 DEBUG 119631 --- [smboutique-backend] [           main] org.hibernate.SQL                        : 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+Hibernate: 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-06T14:01:44.164+01:00 DEBUG 119631 --- [smboutique-backend] [           main] org.hibernate.SQL                        : 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+Hibernate: 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-06T14:01:44.168+01:00  INFO 119631 --- [smboutique-backend] [           main] c.smboutique.api.config.DataInitializer  : Superadmin already exists, skipping initialization
+2025-12-06T14:01:44.168+01:00  INFO 119631 --- [smboutique-backend] [           main] c.smboutique.api.config.DataInitializer  : Data initialization completed.

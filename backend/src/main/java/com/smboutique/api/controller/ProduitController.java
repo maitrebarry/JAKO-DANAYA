@@ -1,0 +1,202 @@
+package com.smboutique.api.controller;
+
+import com.smboutique.api.model.Magasin;
+import com.smboutique.api.model.Produit;
+import com.smboutique.api.model.Stock;
+import com.smboutique.api.model.Unite;
+import com.smboutique.api.model.Utilisateur;
+import com.smboutique.api.service.ProduitService;
+import com.smboutique.api.repository.MagasinRepository;
+import com.smboutique.api.service.StockService;
+import com.smboutique.api.service.UniteService;
+import com.smboutique.api.service.UtilisateurService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/produits")
+@CrossOrigin(origins = "*")
+public class ProduitController {
+
+    private static final String UPLOAD_DIR = "uploads/products/";
+
+    @Autowired
+    private ProduitService produitService;
+
+    @Autowired
+    private UtilisateurService utilisateurService;
+
+    @Autowired
+    private UniteService uniteService;
+
+    @Autowired
+    private StockService stockService;
+
+    @Autowired
+    private MagasinRepository magasinRepository;
+
+    private Utilisateur getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null) {
+            throw new RuntimeException("Utilisateur authentifié introuvable");
+        }
+        return utilisateurService.findByEmail(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("Utilisateur authentifié introuvable"));
+    }
+
+    private boolean isSuperAdmin(Utilisateur user) {
+        if (user == null) return false;
+        boolean hasRole = user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
+        boolean hasType = "SUPERADMIN".equalsIgnoreCase(user.getTypeUtilisateur());
+        return hasRole || hasType;
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
+    public List<Produit> getAllProduits() {
+        Utilisateur user = getCurrentUser();
+        if (isSuperAdmin(user)) {
+            return produitService.findAll();
+        } else {
+            return produitService.findByBoutiqueId(user.getBoutique().getId());
+        }
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Produit> getProduitById(@PathVariable Long id) {
+        Optional<Produit> produitOpt = produitService.findById(id);
+        return produitOpt
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping
+    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
+    public Produit createProduit(@RequestParam("nomProduit") String nomProduit,
+                                 @RequestParam("productImage") String productImage,
+                                 @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
+                                 @RequestParam("prixEnGros") String prixEnGros,
+                                 @RequestParam("prixDetail") String prixDetail,
+                                 @RequestParam("prixAchat") String prixAchat,
+                                 @RequestParam("alerteStock") String alerteStock,
+                                 @RequestParam("uniteId") String uniteId,
+                                 @RequestParam("magasinIds") List<Long> magasinIds) throws IOException {
+        Produit produit = new Produit();
+        produit.setNomProduit(nomProduit);
+
+        // Handle image
+        if (imageFile != null && !imageFile.isEmpty()) {
+            String fileName = UUID.randomUUID().toString() + "_" + imageFile.getOriginalFilename();
+            Path uploadPath = Paths.get(UPLOAD_DIR);
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+            Files.write(uploadPath.resolve(fileName), imageFile.getBytes());
+            produit.setProductImage(fileName);
+        } else if (productImage != null && !productImage.trim().isEmpty()) {
+            produit.setProductImage(productImage);
+        }
+
+        produit.setPrixEnGros(prixEnGros.isEmpty() ? null : Integer.valueOf(prixEnGros));
+        produit.setPrixDetail(prixDetail.isEmpty() ? null : Integer.valueOf(prixDetail));
+        produit.setPrixAchat(prixAchat.isEmpty() ? null : Integer.valueOf(prixAchat));
+        produit.setAlerteStock(alerteStock.isEmpty() ? null : Integer.valueOf(alerteStock));
+
+        if (uniteId != null && !uniteId.isEmpty()) {
+            Unite unite = uniteService.findById(Long.parseLong(uniteId))
+                    .orElseThrow(() -> new IllegalArgumentException("Unité non trouvée"));
+            produit.setUnite(unite);
+        }
+
+        Produit savedProduit = produitService.save(produit);
+
+        // Créer les stocks pour les magasins sélectionnés
+        if (magasinIds != null && !magasinIds.isEmpty()) {
+            for (Long magasinId : magasinIds) {
+                Stock stock = new Stock();
+                stock.setProduit(savedProduit);
+                Magasin magasin = magasinRepository.findById(magasinId)
+                        .orElseThrow(() -> new IllegalArgumentException("Magasin non trouvé"));
+                stock.setMagasin(magasin);
+                stock.setQuantiteDisponible(0);
+                stockService.saveStock(stock);
+            }
+        }
+
+        return savedProduit;
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Produit> updateProduit(@PathVariable Long id,
+                                                 @RequestParam("nomProduit") String nomProduit,
+                                                 @RequestParam("productImage") String productImage,
+                                                 @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
+                                                 @RequestParam("prixEnGros") String prixEnGros,
+                                                 @RequestParam("prixDetail") String prixDetail,
+                                                 @RequestParam("prixAchat") String prixAchat,
+                                                 @RequestParam("alerteStock") String alerteStock,
+                                                 @RequestParam("uniteId") String uniteId) throws IOException {
+        Optional<Produit> produitOpt = produitService.findById(id);
+
+        return produitOpt
+                .map(produit -> {
+                    produit.setNomProduit(nomProduit);
+
+                    // Handle image
+                    if (imageFile != null && !imageFile.isEmpty()) {
+                        try {
+                            String fileName = UUID.randomUUID().toString() + "_" + imageFile.getOriginalFilename();
+                            Path uploadPath = Paths.get(UPLOAD_DIR);
+                            if (!Files.exists(uploadPath)) {
+                                Files.createDirectories(uploadPath);
+                            }
+                            Files.write(uploadPath.resolve(fileName), imageFile.getBytes());
+                            produit.setProductImage(fileName);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    } else if (productImage != null && !productImage.trim().isEmpty()) {
+                        produit.setProductImage(productImage);
+                    }
+
+                    produit.setPrixEnGros(prixEnGros.isEmpty() ? null : Integer.valueOf(prixEnGros));
+                    produit.setPrixDetail(prixDetail.isEmpty() ? null : Integer.valueOf(prixDetail));
+                    produit.setPrixAchat(prixAchat.isEmpty() ? null : Integer.valueOf(prixAchat));
+                    produit.setAlerteStock(alerteStock.isEmpty() ? null : Integer.valueOf(alerteStock));
+
+                    if (uniteId != null && !uniteId.isEmpty()) {
+                        Unite unite = uniteService.findById(Long.parseLong(uniteId))
+                                .orElseThrow(() -> new IllegalArgumentException("Unité non trouvée"));
+                        produit.setUnite(unite);
+                    }
+
+                    return ResponseEntity.ok(produitService.save(produit));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProduit(@PathVariable Long id) {
+        Optional<Produit> produitOpt = produitService.findById(id);
+
+        return produitOpt
+                .map(produit -> {
+                    produitService.deleteById(id);
+                    return ResponseEntity.ok().<Void>build();
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+}

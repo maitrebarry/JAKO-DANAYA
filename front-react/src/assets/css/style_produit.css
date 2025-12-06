@@ -1,0 +1,144 @@
+/* Product Grid Styles */
+.product-grid {
+  margin-top: 20px;
+}
+
+.product-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  height: 100%;
+  position: relative;
+}
+
+.product-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.product-card .card-img-top {
+  height: 200px;
+  object-fit: contain;
+  background: white;
+}
+
+.icon-group {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.product-card:hover .icon-group {
+  opacity: 1;
+}
+
+.icon-group button {
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.detail-icon {
+  color: #007bff;
+}
+
+.detail-icon:hover {
+  background-color: #007bff;
+  color: white;
+}
+
+.edit-icon {
+  color: #ffc107;
+}
+
+.edit-icon:hover {
+  background-color: #ffc107;
+  color: white;
+}
+
+.delete-icon {
+  color: #dc3545;
+}
+
+.delete-icon:hover {
+  background-color: #dc3545;
+  color: white;
+}
+
+.product-details {
+  padding: 15px;
+}
+
+.product-details .card-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.stars {
+  margin-bottom: 10px;
+}
+
+.stars span {
+  font-size: 14px;
+}
+
+.product-details p {
+  margin-bottom: 5px;
+  font-size: 14px;
+  color: #666;
+}
+
+.product-details p:last-child {
+  margin-bottom: 0;
+}
+
+/* Search styles */
+.position-relative {
+  position: relative;
+}
+
+.product-show {
+  left: 15px;
+  color: #6c757d;
+}
+
+/* Breadcrumb styles */
+.page-breadcrumb {
+  background-color: #f8f9fa;
+  padding: 10px 0;
+  border-radius: 5px;
+}
+
+.breadcrumb-title {
+  font-weight: 600;
+  color: #495057;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+  content: "/";
+  color: #6c757d;
+}
+
+.breadcrumb-item a {
+  color: #007bff;
+  text-decoration: none;
+}
+
+.breadcrumb-item.active {
+  color: #6c757d;
+}

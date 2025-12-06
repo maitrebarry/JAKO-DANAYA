@@ -1,0 +1,67 @@
+package com.smboutique.api.model;
+
+import jakarta.persistence.*;
+import lombok.Data;
+import java.time.LocalDateTime;
+import java.util.Set;
+
+@Entity
+@Data
+@Table(name = "utilisateur")
+public class Utilisateur {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id_utilisateur")
+    private Long id;
+
+    @Column(name = "nom_utilisateur")
+    private String nom;
+
+    @Column(name = "prenom_utilisateur")
+    private String prenom;
+
+    @Column(name = "Contact_utilisateur")
+    private String contact;
+
+    private String email;
+
+    @Column(name = "psedeau_utilisateur")
+    private String pseudo;
+
+    @Column(name = "mot_de_passe_utilisateur")
+    private String motDePasse;
+
+    private String adresse;
+    private String avatar;
+
+    @Column(name = "type_utilisateur")
+    private String typeUtilisateur;
+
+    private String statut;
+
+    @Column(name = "reset_token")
+    private String resetToken;
+
+    @Column(name = "reset_token_expire")
+    private LocalDateTime resetTokenExpire;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "boutique_id")
+    private Boutique boutique;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "utilisateur_roles",
+        joinColumns = @JoinColumn(name = "utilisateur_id"),
+        inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private Set<Role> roles;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "utilisateur_permissions",
+        joinColumns = @JoinColumn(name = "utilisateur_id"),
+        inverseJoinColumns = @JoinColumn(name = "permission_id")
+    )
+    private Set<Permission> permissions;
+}
