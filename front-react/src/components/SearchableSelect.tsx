@@ -41,7 +41,7 @@ const SearchableSelect: React.FC<Props> = ({ options, value, onChange, placehold
     return () => window.removeEventListener('click', onClick);
   }, []);
 
-  const toggleOpen = () => setOpen(prev => !prev);
+  // toggleOpen removed — using setOpen(true/false) explicitly in event handlers
 
   const handleSelect = (opt: Option) => {
     if (opt.disabled) return;
