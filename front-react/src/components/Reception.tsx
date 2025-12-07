@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useUser } from '../contexts/UserContext';
+import SearchableSelect from './SearchableSelect';
 
 interface CommandeData {
   id: number;
@@ -303,21 +304,12 @@ const Reception: React.FC = () => {
               <div className="card-body">
                 <div className="form-group mb-4">
                   <label htmlFor="commande_select">Sélectionnez une commande :</label>
-                  <select
-                    className="form-select"
-                    name="id_commande_fournisseur"
-                    id="commande_select"
-                    value={selectedCommande?.id || ''}
-                    onChange={(e) => handleCommandeChange(e.target.value)}
-                    required
-                  >
-                    <option value="">-- Sélectionnez une commande --</option>
-                    {commandes.map((cmd) => (
-                      <option key={cmd.id} value={cmd.id}>
-                        {cmd.reference} - {cmd.pourcentageRecu.toFixed(1)}% reçu
-                      </option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    options={(commandes || []).map(cmd => ({ value: cmd.id, label: `${cmd.reference} - ${cmd.pourcentageRecu.toFixed(1)}% reçu` }))}
+                    value={selectedCommande?.id ?? null}
+                    onChange={(val) => handleCommandeChange(String(val || ''))}
+                    placeholder="Rechercher par référence..."
+                  />
                 </div>
                 <hr className="mt-5" />
                 <div className="table-responsive">

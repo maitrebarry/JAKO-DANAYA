@@ -6,6 +6,9 @@ import com.smboutique.api.model.Fournisseur;
 import com.smboutique.api.model.Stock;
 import com.smboutique.api.model.Utilisateur;
 import com.smboutique.api.repository.LigneCommandeRepository;
+import com.smboutique.api.model.Paiement;
+import com.smboutique.api.service.PaiementService;
+import java.time.LocalDateTime;
 import com.smboutique.api.dto.CommandeFournisseurDTO;
 import com.smboutique.api.service.CommandeFournisseurService;
 import com.smboutique.api.service.UtilisateurService;
@@ -30,6 +33,9 @@ public class CommandeFournisseurController {
 
     @Autowired
     private UtilisateurService utilisateurService;
+
+    @Autowired
+    private PaiementService paiementService;
 
     private Utilisateur getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -92,20 +98,27 @@ public class CommandeFournisseurController {
         if (!isSuperAdmin(current) && (current.getBoutique() == null || !current.getBoutique().getId().equals(boutiqueId))) {
             return List.of();
         }
-        System.out.println("Reception: Fetching commandes for boutiqueId: " + boutiqueId);
+        // Return all commandes for the boutique (including fully-paid). Filtering for unpaid commandes
+        // is handled by the /boutique/{boutiqueId}/a-payer endpoint (used by the payment UI select).
         List<CommandeFournisseur> commandes = commandeFournisseurService.findAllByBoutiqueId(boutiqueId);
-        System.out.println("Reception: Found " + commandes.size() + " commandes for boutique " + boutiqueId);
-
-        // Debug: Afficher les détails de chaque commande
-        for (CommandeFournisseur cmd : commandes) {
-            System.out.println("Commande " + cmd.getId() + " - Reference: " + cmd.getReference() + " - Boutique: " + (cmd.getBoutique() != null ? cmd.getBoutique().getId() : "null"));
-            boolean hasItems = hasItemsToReceive(cmd);
-            System.out.println("  Has items to receive: " + hasItems);
-        }
-
-        // Ne pas filtrer ici: cet endpoint doit retourner TOUTES les commandes de la boutique
-        System.out.println("Reception: Returning all commandes for boutique " + boutiqueId + ": " + commandes.size());
         return commandes.stream().map(this::convertToDTO).collect(java.util.stream.Collectors.toList());
+    }
+
+    @GetMapping("/boutique/{boutiqueId}/a-payer")
+    public List<CommandeFournisseurDTO> getAllCommandeFournisseursNonPayeesByBoutique(@PathVariable Long boutiqueId) {
+        Utilisateur current = getCurrentUser();
+        if (!isSuperAdmin(current) && (current.getBoutique() == null || !current.getBoutique().getId().equals(boutiqueId))) {
+            return List.of();
+        }
+        List<CommandeFournisseur> commandes = commandeFournisseurService.findAllByBoutiqueId(boutiqueId);
+        List<CommandeFournisseur> nonPayees = commandes.stream()
+                .filter(cmd -> {
+                    Integer paie = cmd.getPaie() != null ? cmd.getPaie() : 0;
+                    Integer total = cmd.getTotal() != null ? cmd.getTotal() : 0;
+                    return paie < total;
+                })
+                .collect(java.util.stream.Collectors.toList());
+        return nonPayees.stream().map(this::convertToDTO).collect(java.util.stream.Collectors.toList());
     }
 
     @GetMapping("/{id}")
@@ -173,14 +186,41 @@ public class CommandeFournisseurController {
             return ResponseEntity.status(403).build();
         }
 
-        return commandeFournisseurService.findByIdAndBoutiqueId(id, boutiqueId)
-                .map(cmd -> {
-                    int montant = request.getMontant() != null ? request.getMontant() : 0;
-                    Integer paieExistante = cmd.getPaie() != null ? cmd.getPaie() : 0;
-                    cmd.setPaie(paieExistante + montant);
-                    return ResponseEntity.ok(commandeFournisseurService.save(cmd));
-                })
-                .orElse(ResponseEntity.notFound().build());
+        java.util.Optional<CommandeFournisseur> cmdOpt = commandeFournisseurService.findByIdAndBoutiqueId(id, boutiqueId);
+        if (!cmdOpt.isPresent()) {
+            return ResponseEntity.notFound().build();
+        }
+        CommandeFournisseur cmd = cmdOpt.get();
+        int montant = request.getMontant() != null ? request.getMontant() : 0;
+        Integer paieExistante = cmd.getPaie() != null ? cmd.getPaie() : 0;
+        Integer totalCommande = cmd.getTotal() != null ? cmd.getTotal() : 0;
+        if (montant <= 0) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (paieExistante + montant > totalCommande) {
+            return ResponseEntity.badRequest().build();
+        }
+        // Persist a Paiement record for historization
+        try {
+            Paiement paiement = new Paiement();
+            paiement.setMontantPaye(montant);
+            paiement.setReference(request.getReference());
+            if (request.getDate() != null && !request.getDate().trim().isEmpty()) {
+                try {
+                    paiement.setDatePaie(LocalDateTime.parse(request.getDate()));
+                } catch (Exception ex) {
+                    paiement.setDatePaie(LocalDateTime.now());
+                }
+            } else {
+                paiement.setDatePaie(LocalDateTime.now());
+            }
+            paiement.setCommandeFournisseur(cmd);
+            paiementService.save(paiement);
+        } catch (Exception e) {
+            System.out.println("Warning: unable to persist paiement record: " + e.getMessage());
+        }
+        cmd.setPaie(paieExistante + montant);
+        return ResponseEntity.ok(commandeFournisseurService.save(cmd));
     }
 
     @PostMapping("/{id}/reception")
@@ -204,6 +244,8 @@ public class CommandeFournisseurController {
 
     public static class PaiementRequest {
         private Integer montant;
+        private String reference;
+        private String date;
 
         public Integer getMontant() {
             return montant;
@@ -211,6 +253,22 @@ public class CommandeFournisseurController {
 
         public void setMontant(Integer montant) {
             this.montant = montant;
+        }
+
+        public String getReference() {
+            return reference;
+        }
+
+        public void setReference(String reference) {
+            this.reference = reference;
+        }
+
+        public String getDate() {
+            return date;
+        }
+
+        public void setDate(String date) {
+            this.date = date;
         }
     }
 
@@ -292,10 +350,11 @@ public class CommandeFournisseurController {
             dto.setFournisseur(fournisseurDTO);
         }
 
-        // Calculate percentages (mock values for now - would need proper business logic)
+        // Calculate percentages (reused logic)
         dto.setPourcentageRecu(calculatePourcentageRecu(commande));
-        dto.setPourcentagePaye(calculatePourcentagePaye(commande));
-        dto.setMontantPaye(calculateMontantPaye(commande));
+        double pourcentagePaye = calculatePourcentagePaye(commande, dto.getTotal());
+        dto.setPourcentagePaye(pourcentagePaye);
+        dto.setMontantPaye(commande.getPaie() != null ? commande.getPaie() : 0);
 
         return dto;
     }
@@ -320,15 +379,9 @@ public class CommandeFournisseurController {
         return (double) totalLivre / totalCommande * 100.0;
     }
 
-    private double calculatePourcentagePaye(CommandeFournisseur commande) {
-        // TODO: Implement proper calculation based on payments made vs total
-        // For now, return 0 since nothing is paid
-        return 0.0;
-    }
-
-    private double calculateMontantPaye(CommandeFournisseur commande) {
-        // TODO: Implement proper calculation based on actual payments
-        // For now, return 0 since nothing is paid
-        return 0.0;
+    private double calculatePourcentagePaye(CommandeFournisseur commande, double total) {
+        if (total == 0.0) return 0.0;
+        Integer paie = commande.getPaie() != null ? commande.getPaie() : 0;
+        return (double) paie / total * 100.0;
     }
 }
