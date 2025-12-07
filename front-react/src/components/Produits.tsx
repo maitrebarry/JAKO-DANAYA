@@ -43,7 +43,7 @@ const Produits: React.FC = () => {
       alerteStock: '',
       uniteId: ''
     });
-    setSelectedMagasins([]);
+    setSelectedMagasins(magasins && magasins.length > 0 ? magasins.map(m => m.id) : []);
     setImageType('url');
     setImageFile(null);
   };
@@ -87,6 +87,10 @@ const Produits: React.FC = () => {
       if (!res.ok) throw new Error('Erreur lors du chargement des magasins');
       const data = await res.json();
       setMagasins(data);
+      // default selected magasins to all if none selected and not editing
+      if ((!selectedMagasins || selectedMagasins.length === 0) && !editing) {
+        setSelectedMagasins(data.map((m: any) => m.id));
+      }
     } catch (err: any) {
       setError(err.message || 'Erreur inconnue');
     }
@@ -108,6 +112,18 @@ const Produits: React.FC = () => {
       return;
     }
 
+    // Validate price relationship: prixAchat < prixEnGros < prixDetail
+    const prixAchatVal = newProduit.prixAchat ? parseInt(newProduit.prixAchat, 10) : null;
+    const prixEnGrosVal = newProduit.prixEnGros ? parseInt(newProduit.prixEnGros, 10) : null;
+    const prixDetailVal = newProduit.prixDetail ? parseInt(newProduit.prixDetail, 10) : null;
+    if (prixAchatVal !== null && prixEnGrosVal !== null && prixAchatVal >= prixEnGrosVal) {
+      setMessage("Le prix d'achat doit être inférieur au prix en gros.");
+      return;
+    }
+    if (prixEnGrosVal !== null && prixDetailVal !== null && prixEnGrosVal >= prixDetailVal) {
+      setMessage("Le prix en gros doit être inférieur au prix détail.");
+      return;
+    }
     setCreating(true);
     setMessage('');
     try {
@@ -383,6 +399,12 @@ const Produits: React.FC = () => {
                       alerteStock: produit.alerteStock?.toString() || '',
                       uniteId: produit.unite?.id ? produit.unite.id.toString() : ''
                     });
+                    // set selected magasins for editing: if produit provides stocks, use them, else select all
+                    if (produit.stocks && produit.stocks.length > 0) {
+                      setSelectedMagasins(produit.stocks.map((s: any) => s.magasin?.id).filter(Boolean));
+                    } else {
+                      setSelectedMagasins(magasins.map((m: any) => m.id));
+                    }
                     setImageType(produit.productImage && produit.productImage.startsWith('http') ? 'url' : 'file');
                     setImageFile(null); // Reset file input
                     setShowModal(true);

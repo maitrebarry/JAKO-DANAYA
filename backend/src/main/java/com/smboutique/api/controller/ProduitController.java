@@ -86,7 +86,7 @@ public class ProduitController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
-    public Produit createProduit(@RequestParam("nomProduit") String nomProduit,
+    public ResponseEntity<?> createProduit(@RequestParam("nomProduit") String nomProduit,
                                  @RequestParam("productImage") String productImage,
                                  @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
                                  @RequestParam("prixEnGros") String prixEnGros,
@@ -94,7 +94,7 @@ public class ProduitController {
                                  @RequestParam("prixAchat") String prixAchat,
                                  @RequestParam("alerteStock") String alerteStock,
                                  @RequestParam("uniteId") String uniteId,
-                                 @RequestParam("magasinIds") List<Long> magasinIds) throws IOException {
+                                 @RequestParam(value = "magasinIds", required = false) List<Long> magasinIds) throws IOException {
         Produit produit = new Produit();
         produit.setNomProduit(nomProduit);
 
@@ -122,9 +122,24 @@ public class ProduitController {
             produit.setUnite(unite);
         }
 
+        // Validate price constraints: prixAchat < prixEnGros < prixDetail
+        Integer pa = produit.getPrixAchat();
+        Integer peg = produit.getPrixEnGros();
+        Integer pd = produit.getPrixDetail();
+        if (pa != null && peg != null && pa >= peg) {
+            java.util.Map<String, Object> err = new java.util.HashMap<>();
+            err.put("error", "Le prix d'achat doit être inférieur au prix en gros.");
+            return ResponseEntity.badRequest().body(err);
+        }
+        if (peg != null && pd != null && peg >= pd) {
+            java.util.Map<String, Object> err = new java.util.HashMap<>();
+            err.put("error", "Le prix en gros doit être inférieur au prix détail.");
+            return ResponseEntity.badRequest().body(err);
+        }
+
         Produit savedProduit = produitService.save(produit);
 
-        // Créer les stocks pour les magasins sélectionnés
+        // Créer les stocks pour les magasins sélectionnés ou pour tous les magasins de la boutique si non précisé
         if (magasinIds != null && !magasinIds.isEmpty()) {
             for (Long magasinId : magasinIds) {
                 Stock stock = new Stock();
@@ -136,12 +151,27 @@ public class ProduitController {
                 stockService.saveStock(stock);
             }
         }
+        else {
+            // No magasin specified -> create stock entries for all boutique magasins
+            Utilisateur currentUser = getCurrentUser();
+            if (currentUser != null && currentUser.getBoutique() != null) {
+                Long boutiqueId = currentUser.getBoutique().getId();
+                List<Magasin> magasins = magasinRepository.findByBoutiqueId(boutiqueId);
+                for (Magasin mg : magasins) {
+                    Stock stock = new Stock();
+                    stock.setProduit(savedProduit);
+                    stock.setMagasin(mg);
+                    stock.setQuantiteDisponible(0);
+                    stockService.saveStock(stock);
+                }
+            }
+        }
 
-        return savedProduit;
+        return ResponseEntity.ok(savedProduit);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Produit> updateProduit(@PathVariable Long id,
+    public ResponseEntity<?> updateProduit(@PathVariable Long id,
                                                  @RequestParam("nomProduit") String nomProduit,
                                                  @RequestParam("productImage") String productImage,
                                                  @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
@@ -176,6 +206,21 @@ public class ProduitController {
                     produit.setPrixEnGros(prixEnGros.isEmpty() ? null : Integer.valueOf(prixEnGros));
                     produit.setPrixDetail(prixDetail.isEmpty() ? null : Integer.valueOf(prixDetail));
                     produit.setPrixAchat(prixAchat.isEmpty() ? null : Integer.valueOf(prixAchat));
+
+                    // Validate price constraints: prixAchat < prixEnGros < prixDetail
+                    Integer pa = produit.getPrixAchat();
+                    Integer peg = produit.getPrixEnGros();
+                    Integer pd = produit.getPrixDetail();
+                    if (pa != null && peg != null && pa >= peg) {
+                        java.util.Map<String, Object> err = new java.util.HashMap<>();
+                        err.put("error", "Le prix d'achat doit être inférieur au prix en gros.");
+                        return ResponseEntity.badRequest().body(err);
+                    }
+                    if (peg != null && pd != null && peg >= pd) {
+                        java.util.Map<String, Object> err = new java.util.HashMap<>();
+                        err.put("error", "Le prix en gros doit être inférieur au prix détail.");
+                        return ResponseEntity.badRequest().body(err);
+                    }
                     produit.setAlerteStock(alerteStock.isEmpty() ? null : Integer.valueOf(alerteStock));
 
                     if (uniteId != null && !uniteId.isEmpty()) {
@@ -223,3 +268,8 @@ public class ProduitController {
         }
     }
 }
+
+
+
+
+
