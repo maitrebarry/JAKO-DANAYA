@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface UniteRepository extends JpaRepository<Unite, Long> {
 	List<Unite> findAllByBoutiqueId(Long boutiqueId);
 	Optional<Unite> findByIdAndBoutiqueId(Long id, Long boutiqueId);
+    Optional<Unite> findByLibelle(String libelle);
 }

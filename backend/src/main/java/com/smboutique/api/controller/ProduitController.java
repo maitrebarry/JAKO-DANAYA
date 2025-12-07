@@ -25,7 +25,6 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-// Template download endpoint removed (static file in front-react/public).
 
 @RestController
 @RequestMapping("/api/produits")
@@ -33,7 +32,6 @@ import java.util.UUID;
 public class ProduitController {
 
     private static final String UPLOAD_DIR = "uploads/products/";
-
     @Autowired
     private ProduitService produitService;
 
@@ -65,10 +63,17 @@ public class ProduitController {
         return hasRole || hasType;
     }
 
+    private boolean hasPermission(Utilisateur user, String permissionName) {
+        if (user == null) return false;
+        return user.getPermissions().stream().anyMatch(p -> p.getName().equals(permissionName));
+    }
+
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
     public List<Produit> getAllProduits() {
         Utilisateur user = getCurrentUser();
+        if (!hasPermission(user, "PRODUIT_LECTURE")) {
+            return List.of(); // Return empty list if no permission
+        }
         if (isSuperAdmin(user)) {
             return produitService.findAll();
         } else {
@@ -83,9 +88,9 @@ public class ProduitController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+                    
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
     public ResponseEntity<?> createProduit(@RequestParam("nomProduit") String nomProduit,
                                  @RequestParam("productImage") String productImage,
                                  @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
@@ -95,6 +100,10 @@ public class ProduitController {
                                  @RequestParam("alerteStock") String alerteStock,
                                  @RequestParam("uniteId") String uniteId,
                                  @RequestParam(value = "magasinIds", required = false) List<Long> magasinIds) throws IOException {
+        Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "PRODUIT_CREER")) {
+            return ResponseEntity.status(403).body("Permission manquante : PRODUIT_CREER");
+        }
         Produit produit = new Produit();
         produit.setNomProduit(nomProduit);
 
@@ -179,7 +188,8 @@ public class ProduitController {
                                                  @RequestParam("prixDetail") String prixDetail,
                                                  @RequestParam("prixAchat") String prixAchat,
                                                  @RequestParam("alerteStock") String alerteStock,
-                                                 @RequestParam("uniteId") String uniteId) throws IOException {
+                                                 @RequestParam("uniteId") String uniteId,
+                                                 @RequestParam(value = "magasinIds", required = false) List<Long> magasinIds) throws IOException {
         Optional<Produit> produitOpt = produitService.findById(id);
 
         return produitOpt
@@ -202,6 +212,7 @@ public class ProduitController {
                     } else if (productImage != null && !productImage.trim().isEmpty()) {
                         produit.setProductImage(productImage);
                     }
+                    
 
                     produit.setPrixEnGros(prixEnGros.isEmpty() ? null : Integer.valueOf(prixEnGros));
                     produit.setPrixDetail(prixDetail.isEmpty() ? null : Integer.valueOf(prixDetail));
@@ -229,7 +240,31 @@ public class ProduitController {
                         produit.setUnite(unite);
                     }
 
-                    return ResponseEntity.ok(produitService.save(produit));
+                    Produit saved = produitService.save(produit);
+                    if (magasinIds != null) {
+                        for (Long mgid : magasinIds) {
+                            if (mgid == null) continue;
+                            Optional<Stock> existingStock = stockService.getStockByProduitAndMagasin(saved.getId(), mgid);
+                            if (!existingStock.isPresent()) {
+                                Optional<Magasin> magasinOpt = magasinRepository.findById(mgid);
+                                if (magasinOpt.isPresent()) {
+                                    Stock s = new Stock();
+                                    s.setProduit(saved);
+                                    s.setMagasin(magasinOpt.get());
+                                    s.setQuantiteDisponible(0);
+                                    stockService.saveStock(s);
+                                }
+                            }
+                        }
+                        List<Stock> existingStocks = stockService.getStocksByProduit(saved.getId());
+                        for (Stock st : existingStocks) {
+                            if (st.getMagasin() != null && !magasinIds.contains(st.getMagasin().getId())) {
+                                stockService.deleteStock(st.getId());
+                            }
+                        }
+                    }
+
+                    return ResponseEntity.ok(saved);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

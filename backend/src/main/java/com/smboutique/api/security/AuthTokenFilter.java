@@ -45,9 +45,9 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } else {
                 if (jwt == null) {
-                    logger.debug("Authorization header missing or not a Bearer token");
+                    logger.debug("Authorization header missing or not a Bearer token for request " + request.getMethod() + " " + request.getRequestURI());
                 } else {
-                    logger.debug("JWT validation failed for token");
+                    logger.debug("JWT validation failed for token for request " + request.getMethod() + " " + request.getRequestURI());
                 }
             }
         } catch (Exception e) {

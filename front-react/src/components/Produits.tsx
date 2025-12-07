@@ -31,6 +31,8 @@ const Produits: React.FC = () => {
   const [editing, setEditing] = useState<any>(null);
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState('');
+  const [isFormValid, setIsFormValid] = useState(false);
+  const [formErrors, setFormErrors] = useState<string[]>([]);
   const [search, setSearch] = useState('');
 
   const resetForm = () => {
@@ -47,6 +49,28 @@ const Produits: React.FC = () => {
     setImageType('url');
     setImageFile(null);
   };
+
+  // Validate form in real-time: name, unit and price constraints
+  useEffect(() => {
+    const errors: string[] = [];
+    if (!newProduit.nomProduit.trim()) {
+      errors.push('Le nom est obligatoire.');
+    }
+    if (!newProduit.uniteId) {
+      errors.push('Sélectionnez une unité.');
+    }
+    const prixAchatVal = newProduit.prixAchat ? parseInt(newProduit.prixAchat, 10) : null;
+    const prixEnGrosVal = newProduit.prixEnGros ? parseInt(newProduit.prixEnGros, 10) : null;
+    const prixDetailVal = newProduit.prixDetail ? parseInt(newProduit.prixDetail, 10) : null;
+    if (prixAchatVal !== null && prixEnGrosVal !== null && prixAchatVal >= prixEnGrosVal) {
+      errors.push("Le prix d'achat doit être inférieur au prix en gros.");
+    }
+    if (prixEnGrosVal !== null && prixDetailVal !== null && prixEnGrosVal >= prixDetailVal) {
+      errors.push("Le prix en gros doit être inférieur au prix détail.");
+    }
+    setFormErrors(errors);
+    setIsFormValid(errors.length === 0);
+  }, [newProduit, selectedMagasins]);
 
   const fetchProduits = async () => {
     try {
@@ -453,7 +477,7 @@ const Produits: React.FC = () => {
               <div className="row g-3">
                 <div className="col-md-6">
                   <label className="form-label">Nom</label>
-                  <input type="text" className="form-control" value={newProduit.nomProduit} onChange={(e) => setNewProduit({ ...newProduit, nomProduit: e.target.value })} />
+                  <input type="text" className={`form-control ${!newProduit.nomProduit.trim() && formErrors.includes('Le nom est obligatoire.') ? 'is-invalid' : ''}`} value={newProduit.nomProduit} onChange={(e) => setNewProduit({ ...newProduit, nomProduit: e.target.value })} />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label">Image produit</label>
@@ -509,15 +533,15 @@ const Produits: React.FC = () => {
                 </div>
                 <div className="col-md-4">
                   <label className="form-label">Prix en gros</label>
-                  <input type="number" className="form-control" value={newProduit.prixEnGros} onChange={(e) => setNewProduit({ ...newProduit, prixEnGros: e.target.value })} />
+                  <input type="number" className={`form-control ${formErrors.some(e => e.includes('prix en gros')) ? 'is-invalid' : ''}`} value={newProduit.prixEnGros} onChange={(e) => setNewProduit({ ...newProduit, prixEnGros: e.target.value })} />
                 </div>
                 <div className="col-md-4">
                   <label className="form-label">Prix détail</label>
-                  <input type="number" className="form-control" value={newProduit.prixDetail} onChange={(e) => setNewProduit({ ...newProduit, prixDetail: e.target.value })} />
+                  <input type="number" className={`form-control ${formErrors.some(e => e.includes('prix détail')) ? 'is-invalid' : ''}`} value={newProduit.prixDetail} onChange={(e) => setNewProduit({ ...newProduit, prixDetail: e.target.value })} />
                 </div>
                 <div className="col-md-4">
                   <label className="form-label">Prix d'achat</label>
-                  <input type="number" className="form-control" value={newProduit.prixAchat} onChange={(e) => setNewProduit({ ...newProduit, prixAchat: e.target.value })} />
+                  <input type="number" className={`form-control ${formErrors.some(e => e.includes("prix d'achat")) ? 'is-invalid' : ''}`} value={newProduit.prixAchat} onChange={(e) => setNewProduit({ ...newProduit, prixAchat: e.target.value })} />
                 </div>
                 <div className="col-md-4">
                   <label className="form-label">Alerte stock</label>
@@ -525,7 +549,7 @@ const Produits: React.FC = () => {
                 </div>
                 <div className="col-md-6">
                   <label className="form-label">Unité</label>
-                  <select className="form-control" value={newProduit.uniteId} onChange={(e) => setNewProduit({ ...newProduit, uniteId: e.target.value })}>
+                  <select className={`form-control ${!newProduit.uniteId && formErrors.includes('Sélectionnez une unité.') ? 'is-invalid' : ''}`} value={newProduit.uniteId} onChange={(e) => setNewProduit({ ...newProduit, uniteId: e.target.value })}>
                     <option value="">Sélectionner une unité</option>
                     {unites.map((u: any) => (
                       <option key={u.id} value={u.id}>{u.libelle}</option>
@@ -563,7 +587,16 @@ const Produits: React.FC = () => {
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={() => { setShowModal(false); setEditing(null); resetForm(); }}>Annuler</button>
-              <button type="button" className="btn btn-primary" onClick={handleCreateOrUpdate} disabled={creating}>
+              <div className="me-auto">
+                {formErrors.length > 0 && (
+                  <div className="alert alert-danger p-2 m-0" style={{ minWidth: '300px' }}>
+                    <ul className="mb-0">
+                      {formErrors.map((err, idx) => <li key={idx}>{err}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+              <button type="button" className="btn btn-primary" onClick={handleCreateOrUpdate} disabled={!isFormValid || creating} title={formErrors.length > 0 ? formErrors.join('; ') : ''}>
                 {creating ? (editing ? 'Modification...' : 'Création...') : (editing ? 'Modifier' : 'Créer')}
               </button>
             </div>

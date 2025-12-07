@@ -10,4 +10,5 @@ public interface ProduitService {
     Produit save(Produit produit);
     void deleteById(Long id);
     List<Produit> findByBoutiqueId(Long boutiqueId);
+    com.smboutique.api.dto.ImportResult importFromExcel(org.springframework.web.multipart.MultipartFile file, com.smboutique.api.model.Utilisateur currentUser) throws Exception;
 }

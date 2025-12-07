@@ -39,6 +39,7 @@ com/smboutique/api/repository/ProduitRepository.class
 com/smboutique/api/service/impl/ReceptionServiceImpl.class
 com/smboutique/api/repository/RoleRepository.class
 com/smboutique/api/security/JwtUtils.class
+com/smboutique/api/service/PdfService.class
 com/smboutique/api/service/LigneCommandeClientService.class
 com/smboutique/api/model/UtilisationPertes.class
 com/smboutique/api/service/CommandeFournisseurService.class
@@ -95,6 +96,8 @@ com/smboutique/api/model/Inventaire.class
 com/smboutique/api/security/WebSecurityConfig.class
 com/smboutique/api/repository/MagasinRepository.class
 com/smboutique/api/dto/ReceptionDTO.class
+com/smboutique/api/service/impl/PdfServiceImpl.class
+com/smboutique/api/dto/ReceptionListDTO.class
 com/smboutique/api/controller/VenteController.class
 com/smboutique/api/model/Depense.class
 com/smboutique/api/service/LigneCommandeService.class
@@ -131,6 +134,7 @@ com/smboutique/api/repository/CommandeClientRepository.class
 com/smboutique/api/dto/ProduitDTO$UniteDTO.class
 com/smboutique/api/model/LigneLivraison.class
 com/smboutique/api/model/Reception.class
+com/smboutique/api/dto/ImportResult.class
 com/smboutique/api/service/BoutiqueService.class
 com/smboutique/api/controller/MouvementController.class
 com/smboutique/api/service/ProduitService.class
@@ -154,6 +158,7 @@ com/smboutique/api/service/impl/UtilisateurServiceImpl.class
 com/smboutique/api/service/impl/CommandeClientServiceImpl.class
 com/smboutique/api/service/CommandeClientService.class
 com/smboutique/api/service/impl/LivraisonServiceImpl.class
+com/smboutique/api/exception/ImportValidationException.class
 com/smboutique/api/service/impl/CommandeFournisseurServiceImpl.class
 com/smboutique/api/model/CommandeFournisseur.class
 com/smboutique/api/service/ReceptionService.class

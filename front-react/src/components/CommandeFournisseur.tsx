@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import SearchableSelect from './SearchableSelect';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 
@@ -38,17 +40,62 @@ const CommandeFournisseur: React.FC = () => {
   const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedFournisseur, setSelectedFournisseur] = useState('');
+  const { id } = useParams();
+  const [isEditMode, setIsEditMode] = useState(false);
   const [reference, setReference] = useState('');
   const [dateCommande, setDateCommande] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedStockOption, setSelectedStockOption] = useState<string | number | null>(null);
 
   useEffect(() => {
-    fetchStocks();
-    fetchFournisseurs();
-    generateReference();
-    setDateCommande(new Date().toISOString().slice(0, 16));
-  }, []);
+    (async () => {
+      const s = await fetchStocks();
+      await fetchFournisseurs();
+      generateReference();
+      setDateCommande(new Date().toISOString().slice(0, 16));
+      if (id) {
+        setIsEditMode(true);
+        await fetchCommandeForEdit(parseInt(id), s);
+      }
+    })();
+  }, [id]);
+
+  const fetchCommandeForEdit = async (commandeId: number, loadedStocks?: Stock[]) => {
+    try {
+      const token = localStorage.getItem('smb_token');
+      const res = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${commandeId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Erreur lors du chargement de la commande');
+      const data = await res.json();
+      // populate form
+      setReference(data.reference || '');
+      // convert server date to yyyy-MM-ddTHH:mm
+      if (data.dateCommande) {
+        const d = new Date(data.dateCommande);
+        const dt = d.toISOString().slice(0,16);
+        setDateCommande(dt);
+      }
+      setSelectedFournisseur(data.fournisseur?.id ? String(data.fournisseur.id) : '');
+      // build cart from lignes
+      if (data.lignes) {
+        const stocksRef = loadedStocks && loadedStocks.length > 0 ? loadedStocks : stocks;
+        const loadedCart = data.lignes.map((l: any) => {
+          const stockId = l.stock?.id;
+          const stockInfo = stocksRef ? stocksRef.find(s => s.id === stockId) : undefined;
+          const nomProduit = stockInfo?.produit?.nomProduit || (l.stock?.produit?.nomProduit || 'Produit inconnu');
+          const basePrice = stockInfo?.produit?.prixAchat || (l.stock?.produit?.prixAchat || 0);
+          const prix = l.newPrice || basePrice;
+          const quantite = l.quantite || 1;
+          return { id_stock: stockId, nom: nomProduit, quantite, prix, montant: prix * quantite };
+        });
+        setCart(loadedCart);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erreur inconnue');
+    }
+  };
 
   const generateReference = () => {
     const now = new Date();
@@ -65,6 +112,7 @@ const CommandeFournisseur: React.FC = () => {
       if (!res.ok) throw new Error('Erreur lors du chargement des stocks');
       const data = await res.json();
       setStocks(data);
+      return data;
     } catch (err: any) {
       setError(err.message || 'Erreur inconnue');
     } finally {
@@ -180,8 +228,10 @@ const CommandeFournisseur: React.FC = () => {
 
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch('http://localhost:8085/api/commandes-fournisseurs', {
-        method: 'POST',
+      const url = isEditMode && id ? `http://localhost:8085/api/commandes-fournisseurs/${id}` : 'http://localhost:8085/api/commandes-fournisseurs';
+      const method = isEditMode && id ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
@@ -191,16 +241,78 @@ const CommandeFournisseur: React.FC = () => {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || 'Erreur lors de la création de la commande');
+        if (errData && errData.error) {
+          if (errData.blockedLignes) {
+            // blockedLignes can be array of ids or objects
+            const blockedLabels: string[] = [];
+            errData.blockedLignes.forEach((item: any) => {
+              if (typeof item === 'object') {
+                blockedLabels.push(item.name ? `${item.name} (stockId: ${item.id})` : `Ligne ${item.id}`);
+              } else {
+                const id = parseInt(String(item));
+                const it = cart.find(c => c.id_stock === id);
+                if (it) blockedLabels.push(`${it.nom} (stockId: ${id})`);
+                else {
+                  const st = stocks.find(s => s.id === id);
+                  if (st) blockedLabels.push(`${st.produit?.nomProduit || 'Produit inconnu'} (stockId: ${id})`);
+                  else blockedLabels.push(`Ligne ${id}`);
+                }
+              }
+            });
+            await Swal.fire('Erreur', `${errData.error}: ${blockedLabels.join(', ')}`, 'error');
+          } else {
+            await Swal.fire('Erreur', errData.error, 'error');
+          }
+          return;
+        }
+        throw new Error(`Erreur lors de la ${isEditMode ? 'modification' : 'création'}`);
       }
 
-      Swal.fire('Succès', 'Commande créée avec succès', 'success');
+      const saved = await res.json().catch(() => ({}));
+      Swal.fire('Succès', `Commande ${isEditMode ? 'modifiée' : 'créée'} avec succès`, 'success');
+      // In edit mode, validate the response contains saved lignes matching our cart
+      if (isEditMode && saved && saved.lignes) {
+        const savedStockIds = saved.lignes.map((l: any) => l.stock?.id).filter(Boolean);
+        const missing = produitsSelectionnes.filter((ps: any) => !savedStockIds.includes(ps.id_stock));
+        if (missing.length > 0) {
+          const missingLabels = missing.map((m: any) => {
+            const c = cart.find(c => c.id_stock === m.id_stock);
+            return c ? `${c.nom} (stockId:${m.id_stock})` : `stockId:${m.id_stock}`;
+          });
+          Swal.fire('Attention', `Les produits suivants n'ont pas été enregistrés: ${missingLabels.join(', ')}`, 'warning');
+        }
+      }
       // Reset form
       setCart([]);
       setSelectedFournisseur('');
       generateReference();
+      if (isEditMode) {
+        // navigate back to listes after edit
+        navigate('/liste-commandes');
+      }
     } catch (err: any) {
       Swal.fire('Erreur', err.message || 'Erreur inconnue', 'error');
+    }
+  };
+
+  const openPdfPrint = async (commandeId?: number) => {
+    const idToOpen = commandeId || (id ? parseInt(id) : null);
+    if (!idToOpen) {
+      Swal.fire('Erreur', 'Impossible d\'afficher le PDF : id manquant', 'error');
+      return;
+    }
+    try {
+      const token = localStorage.getItem('smb_token');
+      const res = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${idToOpen}/pdf`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Impossible de charger le PDF');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (err: any) {
+      Swal.fire('Erreur', err.message || 'Erreur lors de l\'ouverture du PDF', 'error');
     }
   };
 
@@ -232,6 +344,11 @@ const CommandeFournisseur: React.FC = () => {
                     <button className="btn btn-outline-primary mb-3 mb-lg-0 me-2" onClick={() => navigate('/liste-commandes')}>
                       <i className='bx bx-list-ul'></i> Liste Commande
                     </button>
+                    {isEditMode && id && (
+                      <button className="btn btn-outline-secondary mb-3 mb-lg-0 me-2" onClick={() => openPdfPrint(parseInt(id))}>
+                        <i className='bx bx-printer'></i> Imprimer
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -264,15 +381,33 @@ const CommandeFournisseur: React.FC = () => {
                       <h6>Produits disponibles</h6>
                     </div>
                     <div className="card-body">
-                      <div className="d-flex justify-content-between align-items-center mb-3">
-                        <select className="form-control" onChange={(e) => { handleProductSelect(e.target.value); e.target.value = ''; }}>
-                          <option value="">Sélectionner un produit</option>
-                        {stocks.map(stock => (
-                          <option key={stock.id} value={stock.id}>
-                            {stock.produit?.nomProduit || 'Produit inconnu'} - {(stock.produit?.prixAchat || 0)} FCFA - {stock.magasin?.nom || 'Dépôt inconnu'} (Stock: {stock.quantiteDisponible || 0})
-                          </option>
-                        ))}
-                        </select>
+                      <div className="d-flex justify-content-between align-items-center mb-3" style={{ gap: 8 }}>
+                        <div style={{ flex: 1 }}>
+                          <SearchableSelect
+                            options={stocks.map((stock) => ({
+                              value: stock.id,
+                              label: `${stock.produit?.nomProduit || 'Produit inconnu'} - ${(stock.produit?.prixAchat || 0)} FCFA - ${stock.magasin?.nom || 'Dépôt inconnu'} (Stock: ${stock.quantiteDisponible || 0})`
+                              // Note: we intentionally allow selection even when quantiteDisponible is 0
+                            }))}
+                            value={selectedStockOption}
+                            onChange={(val) => {
+                              // reflect the choice in the select briefly
+                              setSelectedStockOption(val);
+                              if (val !== null) {
+                                // show an info if the selected stock is out of stock
+                                // const st = stocks.find(s => s.id === Number(val));
+                                // if (st && (st.quantiteDisponible === 0 || st.quantiteDisponible === undefined)) {
+                                //   Swal.fire('Note', 'Ce produit est actuellement en rupture de stock sur ce magasin. Vous pouvez quand même l\'approvisionner.', 'info');
+                                // }
+                                handleProductSelect(String(val));
+                                // reset selection to allow reselecting the same product later
+                                setTimeout(() => setSelectedStockOption(null), 0);
+                              }
+                            }}
+                            placeholder="Sélectionner un produit"
+                            allowClear={true}
+                          />
+                        </div>
                         <button 
                           className="btn btn-outline-secondary btn-sm ms-2" 
                           onClick={() => {
@@ -396,7 +531,7 @@ const CommandeFournisseur: React.FC = () => {
                 <div className="col-12 text-center">
                   {cart.length > 0 && (
                     <button className="btn btn-primary" onClick={handleSubmit}>
-                      Passer la commande
+                      {isEditMode ? 'Modifier la commande' : 'Passer la commande'}
                     </button>
                   )}
                 </div>

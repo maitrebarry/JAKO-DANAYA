@@ -1,6 +1,7 @@
 package com.smboutique.api.controller;
 
 import com.smboutique.api.dto.ReceptionDTO;
+import com.smboutique.api.dto.ReceptionListDTO;
 import com.smboutique.api.model.Reception;
 import com.smboutique.api.model.LigneCommande;
 import com.smboutique.api.model.LigneReception;
@@ -8,21 +9,24 @@ import com.smboutique.api.model.Produit;
 import com.smboutique.api.model.Stock;
 import com.smboutique.api.model.Boutique;
 import com.smboutique.api.model.CommandeFournisseur;
+import com.smboutique.api.model.Utilisateur;
 import com.smboutique.api.service.BoutiqueService;
 import com.smboutique.api.service.ReceptionService;
 import com.smboutique.api.service.CommandeFournisseurService;
 import com.smboutique.api.service.LigneReceptionService;
 import com.smboutique.api.service.StockService;
 import com.smboutique.api.service.ProduitService;
+import com.smboutique.api.service.UtilisateurService;
 import com.smboutique.api.repository.LigneCommandeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatter;
 
 @RestController
@@ -51,9 +55,67 @@ public class ReceptionController {
     @Autowired
     private LigneCommandeRepository ligneCommandeRepository;
 
+    @Autowired
+    private UtilisateurService utilisateurService;
+
+    private Utilisateur getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null) {
+            throw new RuntimeException("Utilisateur authentifié introuvable");
+        }
+        return utilisateurService.findByEmail(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("Utilisateur authentifié introuvable"));
+    }
+
+    private boolean isSuperAdmin(Utilisateur user) {
+        if (user == null) return false;
+        boolean hasRole = user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
+        boolean hasType = "SUPERADMIN".equalsIgnoreCase(user.getTypeUtilisateur());
+        return hasRole || hasType;
+    }
+
+    private boolean hasPermission(Utilisateur user, String permissionName) {
+        if (user == null) return false;
+        return user.getPermissions().stream().anyMatch(p -> p.getName().equals(permissionName));
+    }
+
     @GetMapping
     public List<Reception> getAllReceptions() {
-        return receptionService.findAll();
+        Utilisateur user = getCurrentUser();
+        if (!hasPermission(user, "RECEPTION_LECTURE")) {
+            return List.of(); // Return empty list if no permission
+        }
+        if (isSuperAdmin(user)) {
+            return receptionService.findAll();
+        } else {
+            return receptionService.findUnfinishedReceptionsByBoutiqueId(user.getBoutique().getId());
+        }
+    }
+
+    @GetMapping("/unfinished")
+    public List<ReceptionListDTO> getUnfinishedReceptions() {
+        Utilisateur user = getCurrentUser();
+        if (!hasPermission(user, "RECEPTION_LECTURE")) {
+            return List.of(); // Return empty list if no permission
+        }
+        if (isSuperAdmin(user)) {
+            return receptionService.findUnfinishedReceptionsList();
+        } else {
+            return receptionService.findUnfinishedReceptionsListByBoutiqueId(user.getBoutique().getId());
+        }
+    }
+
+    @GetMapping("/finished")
+    public List<ReceptionListDTO> getFinishedReceptions() {
+        Utilisateur user = getCurrentUser();
+        if (!hasPermission(user, "RECEPTION_LECTURE")) {
+            return List.of(); // Return empty list if no permission
+        }
+        if (isSuperAdmin(user)) {
+            return receptionService.findFinishedReceptionsList();
+        } else {
+            return receptionService.findFinishedReceptionsListByBoutiqueId(user.getBoutique().getId());
+        }
     }
 
     @GetMapping("/{id}")
@@ -65,19 +127,38 @@ public class ReceptionController {
 
     @PostMapping
     public Reception createReception(@RequestBody Reception reception) {
+        Utilisateur user = getCurrentUser();
+        if (!hasPermission(user, "RECEPTION_ECRITURE")) {
+            throw new RuntimeException("Permission insuffisante pour créer une réception");
+        }
+        // Assigner automatiquement la boutique de l'utilisateur connecté
+        reception.setBoutique(user.getBoutique());
         return receptionService.save(reception);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Reception> updateReception(@PathVariable Long id, @RequestBody Reception receptionDetails) {
-        return receptionService.findById(id)
-                .map(reception -> {
-                    reception.setReference(receptionDetails.getReference());
-                    reception.setDateReception(receptionDetails.getDateReception());
-                    reception.setCommandeFournisseur(receptionDetails.getCommandeFournisseur());
-                    return ResponseEntity.ok(receptionService.save(reception));
-                })
-                .orElse(ResponseEntity.notFound().build());
+        Utilisateur user = getCurrentUser();
+        if (!hasPermission(user, "RECEPTION_ECRITURE")) {
+            return ResponseEntity.status(403).build(); // Forbidden
+        }
+
+        Optional<Reception> receptionOpt = receptionService.findById(id);
+        if (receptionOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Reception reception = receptionOpt.get();
+
+        // Vérifier que la réception appartient à la boutique de l'utilisateur (sauf superadmin)
+        if (!isSuperAdmin(user) && !reception.getBoutique().getId().equals(user.getBoutique().getId())) {
+            return ResponseEntity.status(403).build(); // Forbidden
+        }
+
+        reception.setReference(receptionDetails.getReference());
+        reception.setDateReception(receptionDetails.getDateReception());
+        reception.setCommandeFournisseur(receptionDetails.getCommandeFournisseur());
+        return ResponseEntity.ok(receptionService.save(reception));
     }
 
     @DeleteMapping("/{id}")
@@ -88,6 +169,48 @@ public class ReceptionController {
                     return ResponseEntity.ok().<Void>build();
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/detail")
+    public ResponseEntity<ReceptionDTO> getReceptionDetail(@PathVariable Long id) {
+        Optional<Reception> receptionOpt = receptionService.findById(id);
+        if (receptionOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        Reception reception = receptionOpt.get();
+        ReceptionDTO dto = new ReceptionDTO();
+        dto.setId(reception.getId());
+        dto.setReference(reception.getReference());
+        dto.setDateReception(reception.getDateReception().toString());
+        dto.setIdCommandeFournisseur(reception.getCommandeFournisseur().getId());
+        dto.setReferenceCommande(reception.getCommandeFournisseur().getReference());
+        dto.setFournisseur(reception.getCommandeFournisseur().getFournisseur().getNom() + " " + reception.getCommandeFournisseur().getFournisseur().getPrenom());
+        dto.setIdBoutique(reception.getBoutique().getId());
+
+        // Get lignesCommande
+        List<LigneCommande> lignesCommande = ligneCommandeRepository.findByCommandeFournisseurId(reception.getCommandeFournisseur().getId());
+        // Get lignesReception
+        List<LigneReception> lignesReception = ligneReceptionService.findByReceptionId(reception.getId());
+
+        List<ReceptionDTO.LigneReceptionDTO> lignesDTO = new ArrayList<>();
+        for (LigneCommande lc : lignesCommande) {
+            ReceptionDTO.LigneReceptionDTO ligneDTO = new ReceptionDTO.LigneReceptionDTO();
+            ligneDTO.setIdProduit(lc.getStock().getProduit().getId());
+            ligneDTO.setDesignation(lc.getStock().getProduit().getNomProduit());
+            ligneDTO.setDepot(""); // Assuming no depot
+            ligneDTO.setStock(0); // Assuming no stock
+            ligneDTO.setQteCommande(lc.getQuantite());
+            // Find qteRecue
+            Integer qteRecue = lignesReception.stream()
+                .filter(lr -> lr.getProduit().getId().equals(lc.getStock().getProduit().getId()))
+                .mapToInt(LigneReception::getQuantiteRecu)
+                .sum();
+            ligneDTO.setQteRecue(qteRecue);
+            ligneDTO.setReceptionActuelle(lc.getQuantite() - qteRecue);
+            lignesDTO.add(ligneDTO);
+        }
+        dto.setLignesReception(lignesDTO);
+        return ResponseEntity.ok(dto);
     }
 
     @GetMapping("/commande/{commandeId}/articles")
@@ -191,18 +314,6 @@ public class ReceptionController {
                     if (produitOpt.isPresent()) {
                         ligneReception.setProduit(produitOpt.get());
 
-                        // Mettre à jour le stock
-                        Optional<Stock> stockOpt = stockService.getStockByProduitAndMagasin(
-                            ligneDTO.getIdProduit(),
-                            commande.getBoutique().getId() // Supposons que le stock est dans la boutique de la commande
-                        );
-
-                        if (stockOpt.isPresent()) {
-                            Stock stock = stockOpt.get();
-                            stock.setQuantiteDisponible(stock.getQuantiteDisponible() + ligneDTO.getReceptionActuelle());
-                            stockService.saveStock(stock);
-                        }
-
                         // Mettre à jour la quantité livrée dans la ligne de commande
                         List<LigneCommande> lignesCommande = ligneCommandeRepository.findByCommandeFournisseurId(commande.getId());
                         for (LigneCommande ligneCommande : lignesCommande) {
@@ -211,6 +322,13 @@ public class ReceptionController {
                                 Integer quantiteLivreActuelle = ligneCommande.getQuantiteLivre() != null ? ligneCommande.getQuantiteLivre() : 0;
                                 ligneCommande.setQuantiteLivre(quantiteLivreActuelle + ligneDTO.getReceptionActuelle());
                                 ligneCommandeRepository.save(ligneCommande);
+                                // Update stock using stock attached to the LigneCommande
+                                if (ligneCommande.getStock() != null && ligneDTO.getReceptionActuelle() != null && ligneDTO.getReceptionActuelle() > 0) {
+                                    Stock stock = ligneCommande.getStock();
+                                    Integer currentQty = stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0;
+                                    stock.setQuantiteDisponible(currentQty + ligneDTO.getReceptionActuelle());
+                                    stockService.saveStock(stock);
+                                }
                                 break; // Sortir de la boucle une fois la ligne trouvée et mise à jour
                             }
                         }

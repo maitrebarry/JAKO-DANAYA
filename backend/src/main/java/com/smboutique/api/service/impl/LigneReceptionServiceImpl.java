@@ -20,6 +20,11 @@ public class LigneReceptionServiceImpl implements LigneReceptionService {
     }
 
     @Override
+    public List<LigneReception> findByReceptionId(Long receptionId) {
+        return ligneReceptionRepository.findByReceptionId(receptionId);
+    }
+
+    @Override
     public Optional<LigneReception> findById(Long id) {
         return ligneReceptionRepository.findById(id);
     }

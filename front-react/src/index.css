@@ -1,0 +1,28 @@
+/* Tab styles */
+.tabs {
+  display: flex;
+  margin-bottom: 20px;
+}
+
+.tab-button {
+  padding: 10px 20px;
+  border: 1px solid #ddd;
+  background: #f8f9fa;
+  cursor: pointer;
+  border-radius: 4px 4px 0 0;
+  margin-right: 5px;
+}
+
+.tab-button.active {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.tab-button:hover {
+  background: #e9ecef;
+}
+
+.tab-button.active:hover {
+  background: #0056b3;
+}

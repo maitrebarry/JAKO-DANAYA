@@ -52,6 +52,11 @@ public class StockController {
         return hasRole || hasType;
     }
 
+    private boolean hasPermission(Utilisateur user, String permissionName) {
+        if (user == null) return false;
+        return user.getPermissions().stream().anyMatch(p -> p.getName().equals(permissionName));
+    }
+
     private StockDTO convertToDTO(Stock stock) {
         StockDTO dto = new StockDTO();
         dto.setId(stock.getId());
@@ -77,9 +82,11 @@ public class StockController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
     public List<StockDTO> getAllStocks() {
         Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "INVENTAIRE_LECTURE")) {
+            return List.of(); // Return empty list if no permission
+        }
         System.out.println("Current user: " + current.getEmail() + ", Boutique: " + (current.getBoutique() != null ? current.getBoutique().getId() : "null"));
         
         List<Stock> stocks;
@@ -99,6 +106,10 @@ public class StockController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Stock> getStockById(@PathVariable Long id) {
+        Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "INVENTAIRE_LECTURE")) {
+            return ResponseEntity.status(403).build();
+        }
         Optional<Stock> stockOpt = stockService.getStockById(id);
         return stockOpt
                 .map(ResponseEntity::ok)
@@ -106,8 +117,11 @@ public class StockController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
     public Stock createStock(@RequestBody Stock stock) {
+        Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "INVENTAIRE_CREER")) {
+            throw new RuntimeException("Permission manquante : INVENTAIRE_CREER");
+        }
         if (stock.getProduit() != null && stock.getProduit().getId() != null) {
             Produit produit = produitService.findById(stock.getProduit().getId())
                     .orElseThrow(() -> new IllegalArgumentException("Produit non trouvé"));
@@ -123,6 +137,10 @@ public class StockController {
 
     @PutMapping("/{id}")
     public ResponseEntity<Stock> updateStock(@PathVariable Long id, @RequestBody Stock stockDetails) {
+        Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "INVENTAIRE_MODIFIER")) {
+            return ResponseEntity.status(403).build();
+        }
         Optional<Stock> stockOpt = stockService.getStockById(id);
 
         return stockOpt

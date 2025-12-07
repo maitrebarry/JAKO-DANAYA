@@ -6,9 +6,13 @@ import Configuration from './components/Configuration';
 import Fournisseurs from './components/Fournisseurs';
 import Produits from './components/Produits';
 import CommandeFournisseur from './components/CommandeFournisseur';
+import CommandeApercu from './components/CommandeApercu';
 import ListeCommandes from './components/ListeCommandes';
 import Reception from './components/Reception';
 import PaiementCommande from './components/PaiementCommande';
+import ListeReceptions from './components/ListeReceptions';
+import DetailReception from './components/DetailReception';
+import ListePaiements from './components/ListePaiements';
 import { UserProvider } from './contexts/UserContext';
 
 // Composant pour protéger les routes
@@ -64,6 +68,14 @@ function App() {
             }
           />
           <Route 
+            path="/commandes/update/:id" 
+            element={
+              <PrivateRoute>
+                <Layout><CommandeFournisseur /></Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route 
             path="/liste-commandes" 
             element={
               <PrivateRoute>
@@ -80,10 +92,42 @@ function App() {
             }
           />
           <Route 
+            path="/commandes/appercu/:id" 
+            element={
+              <PrivateRoute>
+                <Layout><CommandeApercu /></Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route 
             path="/commandes/paiement/:id" 
             element={
               <PrivateRoute>
                 <Layout><PaiementCommande /></Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route 
+            path="/liste-receptions" 
+            element={
+              <PrivateRoute>
+                <Layout><ListeReceptions /></Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route 
+            path="/receptions/:id" 
+            element={
+              <PrivateRoute>
+                <Layout><DetailReception /></Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route 
+            path="/liste-paiements" 
+            element={
+              <PrivateRoute>
+                <Layout><ListePaiements /></Layout>
               </PrivateRoute>
             }
           />

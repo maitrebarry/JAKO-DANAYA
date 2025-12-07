@@ -39,6 +39,11 @@ public class FournisseurController {
                 .orElseThrow(() -> new RuntimeException("Utilisateur authentifié introuvable"));
     }
 
+    private boolean hasPermission(Utilisateur user, String permissionName) {
+        if (user == null) return false;
+        return user.getPermissions().stream().anyMatch(p -> p.getName().equals(permissionName));
+    }
+
     private boolean isSuperAdmin(Utilisateur user) {
         if (user == null) return false;
         boolean hasRole = user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
@@ -47,9 +52,11 @@ public class FournisseurController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
     public List<Fournisseur> getAllFournisseurs() {
         Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "FOURNISSEUR_LECTURE")) {
+            return List.of(); // Return empty list if no permission
+        }
         if (isSuperAdmin(current)) {
             return fournisseurService.findAll();
         }
@@ -62,6 +69,9 @@ public class FournisseurController {
     @GetMapping("/{id}")
     public ResponseEntity<Fournisseur> getFournisseurById(@PathVariable Long id) {
         Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "FOURNISSEUR_LECTURE")) {
+            return ResponseEntity.status(403).build();
+        }
         Optional<Fournisseur> fournisseurOpt = isSuperAdmin(current)
                 ? fournisseurService.findById(id)
                 : (current.getBoutique() == null ? Optional.empty() : fournisseurService.findByIdAndBoutiqueId(id, current.getBoutique().getId()));
@@ -72,9 +82,11 @@ public class FournisseurController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
     public Fournisseur createFournisseur(@RequestBody Fournisseur fournisseur) {
         Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "FOURNISSEUR_CREER")) {
+            throw new RuntimeException("Permission manquante : FOURNISSEUR_CREER");
+        }
         if (!isSuperAdmin(current)) {
             fournisseur.setBoutique(current.getBoutique());
         } else if (fournisseur.getBoutique() != null && fournisseur.getBoutique().getId() != null) {
@@ -88,6 +100,9 @@ public class FournisseurController {
     @PutMapping("/{id}")
     public ResponseEntity<Fournisseur> updateFournisseur(@PathVariable Long id, @RequestBody Fournisseur fournisseurDetails) {
         Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "FOURNISSEUR_MODIFIER")) {
+            return ResponseEntity.status(403).build();
+        }
         Optional<Fournisseur> fournisseurOpt = isSuperAdmin(current)
                 ? fournisseurService.findById(id)
                 : (current.getBoutique() == null ? Optional.empty() : fournisseurService.findByIdAndBoutiqueId(id, current.getBoutique().getId()));
@@ -116,6 +131,9 @@ public class FournisseurController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteFournisseur(@PathVariable Long id) {
         Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "FOURNISSEUR_SUPPRIMER")) {
+            return ResponseEntity.status(403).build();
+        }
         Optional<Fournisseur> fournisseurOpt = isSuperAdmin(current)
                 ? fournisseurService.findById(id)
                 : (current.getBoutique() == null ? Optional.empty() : fournisseurService.findByIdAndBoutiqueId(id, current.getBoutique().getId()));

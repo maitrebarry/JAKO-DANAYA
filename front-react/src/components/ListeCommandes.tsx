@@ -99,7 +99,7 @@ const ListeCommandes: React.FC = () => {
 
   const showActionMenu = () => {
     if (!selectedCommande) {
-      Swal.fire('Erreur', 'Veuillez sélectionner une commande', 'warning');
+      // Swal.fire('Erreur', 'Veuillez sélectionner une commande', 'warning');
       return;
     }
 
@@ -153,7 +153,7 @@ const ListeCommandes: React.FC = () => {
         navigate(`/commandes/appercu/${selectedCommande.id_commande_fournisseur}`);
         break;
       case 'print':
-        window.open(`/api/commandes-fournisseurs/${selectedCommande.id_commande_fournisseur}/pdf`, '_blank');
+        openCommandePdf(selectedCommande.id_commande_fournisseur);
         break;
       case 'payment':
         navigate(`/commandes/paiement/${selectedCommande.id_commande_fournisseur}`);
@@ -175,6 +175,22 @@ const ListeCommandes: React.FC = () => {
           handleDelete(selectedCommande.id_commande_fournisseur);
         }
         break;
+    }
+  };
+
+  const openCommandePdf = async (commandeId: number) => {
+    try {
+      const token = localStorage.getItem('smb_token');
+      const res = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${commandeId}/pdf`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Impossible de charger le PDF');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (err: any) {
+      Swal.fire('Erreur', err.message || 'Erreur lors du téléchargement du PDF', 'error');
     }
   };
 

@@ -32,10 +32,16 @@ public class CommandeFournisseurController {
     private LigneCommandeRepository ligneCommandeRepository;
 
     @Autowired
+    private com.smboutique.api.repository.StockRepository stockRepository;
+
+    @Autowired
     private UtilisateurService utilisateurService;
 
     @Autowired
     private PaiementService paiementService;
+
+    @Autowired
+    private com.smboutique.api.service.PdfService pdfService;
 
     private Utilisateur getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -137,6 +143,19 @@ public class CommandeFournisseurController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/{id}/pdf")
+    public void getCommandePdf(@PathVariable Long id, jakarta.servlet.http.HttpServletResponse response) {
+        try {
+            pdfService.writeCommandePdf(id, response);
+        } catch (Exception e) {
+            try {
+                response.sendError(500, e.getMessage());
+            } catch (java.io.IOException ioEx) {
+                // ignore
+            }
+        }
+    }
+
     @PostMapping
     public CommandeFournisseur createCommandeFournisseur(@RequestBody CommandeFournisseurRequest request) {
         // Get current user
@@ -232,12 +251,30 @@ public class CommandeFournisseurController {
                             Long ligneId = l.getLigneId();
                             if (ligneId == null) return;
                             ligneCommandeRepository.findById(ligneId).ifPresent(existing -> {
-                                existing.setQuantiteLivre(l.getQuantiteLivre() != null ? l.getQuantiteLivre() : existing.getQuantiteLivre());
+                                Integer newQteLivre = l.getQuantiteLivre() != null ? l.getQuantiteLivre() : existing.getQuantiteLivre();
+                                Integer oldQteLivre = existing.getQuantiteLivre() != null ? existing.getQuantiteLivre() : 0;
+                                int delta = (newQteLivre != null ? newQteLivre : 0) - oldQteLivre;
+                                // update delivered quantity on ligne
+                                existing.setQuantiteLivre(newQteLivre);
                                 ligneCommandeRepository.save(existing);
+
+                                // If more items were received (delta > 0), update stock's quantiteDisponible
+                                if (delta > 0 && existing.getStock() != null && existing.getStock().getId() != null) {
+                                    Long stockId = existing.getStock().getId();
+                                    if (stockId != null) {
+                                        stockRepository.findById(stockId).ifPresent(stock -> {
+                                            Integer currentQty = stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0;
+                                            stock.setQuantiteDisponible(currentQty + delta);
+                                            stockRepository.save(stock);
+                                        });
+                                    }
+                                }
                             });
                         });
                     }
-                    return ResponseEntity.ok(cmd);
+                    // Persist potential changes on the commande (if necessary, save the command)
+                    CommandeFournisseur updated = commandeFournisseurService.save(cmd);
+                    return ResponseEntity.ok(updated);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -306,15 +343,119 @@ public class CommandeFournisseurController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CommandeFournisseur> updateCommandeFournisseur(@PathVariable Long id, @RequestBody CommandeFournisseur commandeFournisseurDetails) {
+    public ResponseEntity<?> updateCommandeFournisseur(@PathVariable Long id, @RequestBody CommandeFournisseurRequest request) {
+        Utilisateur current = getCurrentUser();
         return commandeFournisseurService.findById(id)
-                .map(commandeFournisseur -> {
-                    commandeFournisseur.setReference(commandeFournisseurDetails.getReference());
-                    commandeFournisseur.setDateCommande(commandeFournisseurDetails.getDateCommande());
-                    commandeFournisseur.setTotal(commandeFournisseurDetails.getTotal());
-                    commandeFournisseur.setPaie(commandeFournisseurDetails.getPaie());
-                    commandeFournisseur.setFournisseur(commandeFournisseurDetails.getFournisseur());
-                    return ResponseEntity.ok(commandeFournisseurService.save(commandeFournisseur));
+                .map(commande -> {
+                    // simple permission check: if not superAdmin and not same boutique, forbid
+                    if (!isSuperAdmin(current) && (current.getBoutique() == null || !current.getBoutique().getId().equals(commande.getBoutique().getId()))) {
+                        return ResponseEntity.status(403).body("Accès refusé");
+                    }
+
+                    // Update main fields
+                    commande.setReference(request.getReference());
+                    try {
+                        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+                        commande.setDateCommande(java.time.LocalDateTime.parse(request.getDateCommande().replace('T', ' '), formatter));
+                    } catch (Exception ex) {
+                        // ignore parse error, don't update date
+                    }
+                    commande.setTotal((int) request.getTotal());
+
+                    // update fournisseur if provided
+                    if (request.getFournisseur() != null && request.getFournisseur().getId() != null) {
+                        Fournisseur f = new Fournisseur();
+                        f.setId(request.getFournisseur().getId());
+                        commande.setFournisseur(f);
+                    }
+
+                    // Process lignes: add/update/delete
+                    List<com.smboutique.api.model.LigneCommande> existingLignes = ligneCommandeRepository.findByCommandeFournisseurId(commande.getId());
+                    java.util.Map<Long, com.smboutique.api.model.LigneCommande> existingByStock = new java.util.HashMap<>();
+                    for (com.smboutique.api.model.LigneCommande l : existingLignes) {
+                        if (l.getStock() != null && l.getStock().getId() != null) {
+                            existingByStock.put(l.getStock().getId(), l);
+                        }
+                    }
+
+                    java.util.Set<Long> incomingStockIds = new java.util.HashSet<>();
+                    if (request.getProduitsSelectionnes() != null) {
+                        for (CommandeFournisseurRequest.ProduitSelectionne ps : request.getProduitsSelectionnes()) {
+                            if (ps == null || ps.getId_stock() == null) continue;
+                            Long stokId = ps.getId_stock();
+                            incomingStockIds.add(stokId);
+                            com.smboutique.api.model.LigneCommande existing = existingByStock.get(stokId);
+                            if (existing != null) {
+                                // update quantities/prices
+                                existing.setQuantite(ps.getQuantite());
+                                existing.setNewPrice((int) ps.getPrix());
+                                ligneCommandeRepository.save(existing);
+                                // also update the in-memory commande.lignes if present
+                                if (commande.getLignes() != null) {
+                                    for (com.smboutique.api.model.LigneCommande lc : commande.getLignes()) {
+                                        if (lc.getId() != null && lc.getId().equals(existing.getId())) {
+                                            lc.setQuantite(existing.getQuantite());
+                                            lc.setNewPrice(existing.getNewPrice());
+                                            break;
+                                        }
+                                    }
+                                }
+                            } else {
+                                // create new ligne
+                                com.smboutique.api.model.LigneCommande newL = new com.smboutique.api.model.LigneCommande();
+                                java.util.Optional<Stock> stockOpt = stockRepository.findById(java.util.Objects.requireNonNull(stokId));
+                                if (!stockOpt.isPresent()) {
+                                    continue; // skip invalid stock id
+                                }
+                                Stock s = stockOpt.get();
+                                newL.setStock(s);
+                                newL.setQuantite(ps.getQuantite());
+                                newL.setNewPrice((int) ps.getPrix());
+                                newL.setCommandeFournisseur(commande);
+                                // add to commande.lignes so cascade will persist it when saving commande
+                                if (commande.getLignes() == null) commande.setLignes(new java.util.ArrayList<>());
+                                commande.getLignes().add(newL);
+                            }
+                        }
+                    }
+
+                    // delete those existing lignes not present in incomingStockIds (if allowed)
+                    java.util.List<java.util.Map<String, Object>> blockedDeletes = new java.util.ArrayList<>();
+                    for (com.smboutique.api.model.LigneCommande l : existingLignes) {
+                        Long stockId = l.getStock() != null ? l.getStock().getId() : null;
+                        if (stockId == null) continue;
+                        if (!incomingStockIds.contains(stockId)) {
+                            Integer qteLivre = l.getQuantiteLivre() != null ? l.getQuantiteLivre() : 0;
+                            if (qteLivre > 0) {
+                                java.util.Map<String, Object> b = new java.util.HashMap<>();
+                                b.put("id", l.getId());
+                                String name = null;
+                                if (l.getStock() != null && l.getStock().getProduit() != null) {
+                                    name = l.getStock().getProduit().getNomProduit();
+                                }
+                                b.put("name", name != null ? name : "");
+                                blockedDeletes.add(b);
+                            } else {
+                                // remove from parent's collection to trigger orphanRemoval
+                                if (commande.getLignes() != null) {
+                                    commande.getLignes().removeIf(existing -> existing.getId() != null && existing.getId().equals(l.getId()));
+                                }
+                            }
+                        }
+                    }
+
+                    if (!blockedDeletes.isEmpty()) {
+                        java.util.Map<String, Object> err = new java.util.HashMap<>();
+                        err.put("error", "Impossible de supprimer certaines lignes car des quantités ont déjà été réceptionnées");
+                        err.put("blockedLignes", blockedDeletes);
+                        return ResponseEntity.badRequest().body(err);
+                    }
+
+                    // Save the commande, with orphanRemoval active the deleted lignes will be removed in DB
+                    CommandeFournisseur updated = commandeFournisseurService.save(commande);
+                    // Log summary
+                    System.out.println("[UPDATE COMMANDE] id=" + commande.getId() + " saved with lignes=" + (updated.getLignes() == null ? 0 : updated.getLignes().size()));
+                    return ResponseEntity.ok(updated);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

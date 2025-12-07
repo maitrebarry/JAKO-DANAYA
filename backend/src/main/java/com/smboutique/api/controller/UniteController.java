@@ -1,14 +1,13 @@
 package com.smboutique.api.controller;
 
 import com.smboutique.api.model.Boutique;
-import com.smboutique.api.model.Utilisateur;
 import com.smboutique.api.model.Unite;
+import com.smboutique.api.model.Utilisateur;
 import com.smboutique.api.service.BoutiqueService;
 import com.smboutique.api.service.UniteService;
 import com.smboutique.api.service.UtilisateurService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -46,10 +45,17 @@ public class UniteController {
         return hasRole || hasType;
     }
 
+    private boolean hasPermission(Utilisateur user, String permissionName) {
+        if (user == null) return false;
+        return user.getPermissions().stream().anyMatch(p -> p.getName().equals(permissionName));
+    }
+
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
     public List<Unite> getAllUnites() {
         Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "PRODUIT_LECTURE")) {
+            return List.of(); // Return empty list if no permission
+        }
         if (isSuperAdmin(current)) {
             return uniteService.findAll();
         }
@@ -72,9 +78,11 @@ public class UniteController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
     public Unite createUnite(@RequestBody Unite unite) {
         Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "PRODUIT_CREER")) {
+            throw new RuntimeException("Permission manquante : PRODUIT_CREER");
+        }
         if (!isSuperAdmin(current)) {
             unite.setBoutique(current.getBoutique());
         } else if (unite.getBoutique() != null && unite.getBoutique().getId() != null) {

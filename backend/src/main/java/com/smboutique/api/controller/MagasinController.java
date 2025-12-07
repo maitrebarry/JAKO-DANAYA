@@ -6,7 +6,6 @@ import com.smboutique.api.service.MagasinService;
 import com.smboutique.api.service.UtilisateurService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -40,10 +39,17 @@ public class MagasinController {
         return hasRole || hasType;
     }
 
+    private boolean hasPermission(Utilisateur user, String permissionName) {
+        if (user == null) return false;
+        return user.getPermissions().stream().anyMatch(p -> p.getName().equals(permissionName));
+    }
+
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
     public List<Magasin> getAllMagasins() {
         Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "INVENTAIRE_LECTURE")) {
+            return List.of(); // Return empty list if no permission
+        }
         if (isSuperAdmin(current)) {
             return magasinService.findAll();
         }
@@ -56,6 +62,9 @@ public class MagasinController {
     @GetMapping("/{id}")
     public ResponseEntity<Magasin> getMagasinById(@PathVariable Long id) {
         Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "INVENTAIRE_LECTURE")) {
+            return ResponseEntity.status(403).build();
+        }
         return magasinService.findById(id)
                 .map(magasin -> {
                     if (!isSuperAdmin(current)) {
@@ -69,9 +78,11 @@ public class MagasinController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
     public Magasin createMagasin(@RequestBody Magasin magasin) {
         Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "INVENTAIRE_CREER")) {
+            throw new RuntimeException("Permission manquante : INVENTAIRE_CREER");
+        }
         if (!isSuperAdmin(current)) {
             magasin.setBoutique(current.getBoutique());
         }
@@ -81,6 +92,9 @@ public class MagasinController {
     @PutMapping("/{id}")
     public ResponseEntity<Magasin> updateMagasin(@PathVariable Long id, @RequestBody Magasin magasinDetails) {
         Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "INVENTAIRE_MODIFIER")) {
+            return ResponseEntity.status(403).build();
+        }
         return magasinService.findById(id)
                 .map(magasin -> {
                     if (!isSuperAdmin(current)) {
@@ -102,6 +116,9 @@ public class MagasinController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteMagasin(@PathVariable Long id) {
         Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "INVENTAIRE_SUPPRIMER")) {
+            return ResponseEntity.status(403).build();
+        }
         return magasinService.findById(id)
                 .map(magasin -> {
                     if (!isSuperAdmin(current)) {

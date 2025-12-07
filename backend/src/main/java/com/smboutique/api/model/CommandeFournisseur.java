@@ -32,6 +32,6 @@ public class CommandeFournisseur {
     @JoinColumn(name = "id_boutique")
     private Boutique boutique;
 
-    @OneToMany(mappedBy = "commandeFournisseur", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "commandeFournisseur", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
     private java.util.List<LigneCommande> lignes;
 }

@@ -71,11 +71,7 @@ public class AuthController {
                 .map(Permission::getName)
                 .collect(Collectors.toSet());
 
-        utilisateur.getRoles().forEach(role -> {
-            role.getPermissions().forEach(permission -> {
-                permissions.add(permission.getName());
-            });
-        });
+        // Removed role permissions aggregation to use only direct permissions from utilisateur_permission table
 
         Map<String, Object> response = new HashMap<>();
         response.put("user", Map.of(

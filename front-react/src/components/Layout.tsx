@@ -234,14 +234,14 @@ const Sidebar = () => {
                 </Link>
               </li>
               <li>
-                <a href="#" className="side-nav-link" style={{ paddingLeft: '40px' }}>
+                <Link to="/liste-receptions" className="side-nav-link" style={{ paddingLeft: '40px' }}>
                   <span>Liste des receptions</span>
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="side-nav-link" style={{ paddingLeft: '40px' }}>
+                <Link to="/liste-paiements" className="side-nav-link" style={{ paddingLeft: '40px' }}>
                   <span>Liste des paiements</span>
-                </a>
+                </Link>
               </li>
             </ul>
           </li>

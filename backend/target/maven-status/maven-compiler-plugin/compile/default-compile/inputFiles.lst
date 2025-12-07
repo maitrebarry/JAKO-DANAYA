@@ -27,9 +27,12 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/UtilisationPertesController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/VenteController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/CommandeFournisseurDTO.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/ImportResult.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/ProduitDTO.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/ReceptionDTO.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/ReceptionListDTO.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/StockDTO.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/exception/ImportValidationException.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Boutique.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Caisse.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/ClientGrossiste.java
@@ -111,6 +114,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/MouvementService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/PaiementClientService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/PaiementService.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/PdfService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/PermissionService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/ProduitService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/ReceptionService.java
@@ -138,6 +142,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/MouvementServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/PaiementClientServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/PaiementServiceImpl.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/PdfServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/ProduitServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/ReceptionServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/StockServiceImpl.java
