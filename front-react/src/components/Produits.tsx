@@ -303,6 +303,11 @@ const Produits: React.FC = () => {
                   setIsImporting(true);
                   try {
                     const token = localStorage.getItem('smb_token');
+                    if (!token) {
+                      setImportErrors(['Token manquant. Veuillez vous reconnecter.']);
+                      setIsImporting(false);
+                      return;
+                    }
                     const xhr = new XMLHttpRequest();
                     xhr.open('POST', 'http://localhost:8085/api/produits/import', true);
                     xhr.setRequestHeader('Authorization', `Bearer ${token}`);
@@ -319,6 +324,10 @@ const Produits: React.FC = () => {
                         setMessage(`Import réussi : ${res.processedCount} produits importés.`);
                         fetchProduits();
                         setShowImportModal(false);
+                      } else if (xhr.status === 401) {
+                        setImportErrors(['Authentification nécessaire : token invalide ou expiré. Veuillez vous reconnecter.']);
+                      } else if (xhr.status === 403) {
+                        setImportErrors(['Accès refusé : vous n\'avez pas les droits pour importer des produits.']);
                       } else {
                         try {
                           const res = JSON.parse(xhr.responseText);
@@ -335,6 +344,7 @@ const Produits: React.FC = () => {
                     xhr.send(fd);
                   } catch (err: any) {
                     setImportErrors([err.message || 'Erreur inconnue']);
+                    setIsImporting(false);
                   }
                 }}>Importer</button>
               </div>
