@@ -25,6 +25,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+// Template download endpoint removed (static file in front-react/public).
 
 @RestController
 @RequestMapping("/api/produits")
@@ -198,5 +199,27 @@ public class ProduitController {
                     return ResponseEntity.ok().<Void>build();
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    // The template endpoint was removed: the static template is now served by the front-end from `front-react/public/produits_template.xlsx`.
+
+    @PostMapping("/import")
+    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
+    public ResponseEntity<?> importFromExcel(@RequestParam("file") MultipartFile file) {
+        Utilisateur current = getCurrentUser();
+        try {
+            com.smboutique.api.dto.ImportResult result = produitService.importFromExcel(file, current);
+            return ResponseEntity.ok(result);
+        } catch (com.smboutique.api.exception.ImportValidationException ve) {
+            java.util.Map<String, Object> err = new java.util.HashMap<>();
+            err.put("error", "Validation failed");
+            err.put("errors", ve.getErrors());
+            return ResponseEntity.badRequest().body(err);
+        } catch (Exception e) {
+            java.util.Map<String, Object> err = new java.util.HashMap<>();
+            err.put("error", "Import failed");
+            err.put("details", e.getMessage());
+            return ResponseEntity.internalServerError().body(err);
+        }
     }
 }
