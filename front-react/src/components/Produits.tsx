@@ -11,6 +11,11 @@ const Produits: React.FC = () => {
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importProgress, setImportProgress] = useState<number>(0);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [isImporting, setIsImporting] = useState<boolean>(false);
   const [detailProduit, setDetailProduit] = useState<any>(null);
   const [newProduit, setNewProduit] = useState({
     nomProduit: '',
@@ -219,6 +224,11 @@ const Produits: React.FC = () => {
                       <i className='bx bxs-plus-square'></i> Ajouter un article
                     </button>
                   </div>
+                  <div className="me-3">
+                    <button className="btn btn-outline-primary mb-3 mb-lg-0" onClick={() => setShowImportModal(true)}>
+                      <i className='bx bx-import'></i> Import Excel
+                    </button>
+                  </div>
                   <div className="flex-grow-1">
                     <form className="float-lg-end">
                       <div className="row row-cols-lg-auto g-2">
@@ -248,6 +258,90 @@ const Produits: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Import modal */}
+      {showImportModal && (
+        <div className="modal show d-block" tabIndex={-1} role="dialog">
+          <div className="modal-dialog modal-lg" role="document">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Importer des produits (Excel)</h5>
+                <button type="button" className="btn-close" aria-label="Close" onClick={() => setShowImportModal(false)}></button>
+              </div>
+                <div className="modal-body">
+                <p>Vous pouvez télécharger le modèle de fichier ci-dessous et le remplir avec vos produits.</p>
+                  <div className="mb-3">
+                    <a className="btn btn-sm btn-secondary" href="/produits_template.xlsx" download> Télécharger le modèle </a>
+                  </div>
+                <div className="mb-3">
+                  <input type="file" accept=".xlsx,.xls" onChange={(e) => setImportFile(e.target.files ? e.target.files[0] : null)} />
+                </div>
+                {isImporting && (
+                  <div className="mb-3">Traitement en cours, veuillez patienter...</div>
+                )}
+                {importProgress > 0 && (
+                  <div className="mb-3">
+                    <div className="progress">
+                      <div className="progress-bar" role="progressbar" style={{ width: `${importProgress}%` }}>{importProgress}%</div>
+                    </div>
+                  </div>
+                )}
+                {importErrors.length > 0 && (
+                  <div className="alert alert-danger">
+                    <ul>
+                      {importErrors.map((e, idx) => (<li key={idx}>{e}</li>))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowImportModal(false)}>Fermer</button>
+                <button type="button" className="btn btn-primary" onClick={async () => {
+                  if (!importFile) { setMessage('Sélectionnez un fichier à importer'); return; }
+                  setImportProgress(0);
+                  setImportErrors([]);
+                  setIsImporting(true);
+                  try {
+                    const token = localStorage.getItem('smb_token');
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', 'http://localhost:8085/api/produits/import', true);
+                    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+                    xhr.upload.onprogress = (e) => {
+                      if (e.lengthComputable) {
+                        const percentComplete = Math.round((e.loaded / e.total) * 100);
+                        setImportProgress(percentComplete);
+                      }
+                    };
+                    xhr.onload = async () => {
+                      setIsImporting(false);
+                      if (xhr.status === 200) {
+                        const res = JSON.parse(xhr.responseText);
+                        setMessage(`Import réussi : ${res.processedCount} produits importés.`);
+                        fetchProduits();
+                        setShowImportModal(false);
+                      } else {
+                        try {
+                          const res = JSON.parse(xhr.responseText);
+                          if (res.errors) setImportErrors(res.errors);
+                          else if (res.details) setImportErrors([res.details]);
+                          else setImportErrors([xhr.responseText]);
+                        } catch (err) {
+                          setImportErrors([xhr.responseText || 'Erreur lors de l\'import']);
+                        }
+                      }
+                    };
+                    const fd = new FormData();
+                    fd.append('file', importFile);
+                    xhr.send(fd);
+                  } catch (err: any) {
+                    setImportErrors([err.message || 'Erreur inconnue']);
+                  }
+                }}>Importer</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Affichage des produits en cartes */}
       <div className="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 row-cols-xxl-5 product-grid">
