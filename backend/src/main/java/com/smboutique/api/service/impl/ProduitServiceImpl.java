@@ -9,6 +9,7 @@ import com.smboutique.api.repository.MagasinRepository;
 import com.smboutique.api.repository.ProduitRepository;
 import com.smboutique.api.service.ProduitService;
 import com.smboutique.api.dto.ImportResult;
+import com.smboutique.api.dto.ProduitCreateDTO;
 import org.springframework.transaction.annotation.Transactional;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -43,6 +44,48 @@ public class ProduitServiceImpl implements ProduitService {
     @Override
     public Produit save(Produit produit) {
         return produitRepository.save(produit);
+    }
+
+    @Override
+    @Transactional
+    public Produit create(ProduitCreateDTO dto, Long boutiqueId) {
+        Produit produit = new Produit();
+        produit.setNomProduit(dto.getNomProduit());
+        produit.setProductImage(dto.getProductImage());
+        produit.setPrixDetail(dto.getPrixDetail());
+        produit.setPrixEnGros(dto.getPrixEnGros());
+        produit.setPrixAchat(dto.getPrixAchat());
+        produit.setAlerteStock(dto.getAlerteStock());
+
+        // Plus d'unité de base obligatoire - seulement conditionnement optionnel
+
+        // Gestion du conditionnement
+        if (dto.getUniteConditionnementId() != null) {
+            Unite unite = uniteRepository.findById(dto.getUniteConditionnementId()).orElse(null);
+            produit.setUnite(unite);
+        }
+        int nombreUnites = dto.getNombreUnitesParConditionnement() != null ? dto.getNombreUnitesParConditionnement() : 1;
+        produit.setNombreUnitesParConditionnement(nombreUnites);
+
+        // Calcul du stock réel en unité de base
+        int stockReel = (dto.getQuantiteInitiale() != null ? dto.getQuantiteInitiale() : 0) * nombreUnites;
+
+        // Sauvegarder le produit d'abord
+        Produit savedProduit = produitRepository.save(produit);
+
+        // Créer le stock initial pour le magasin par défaut de la boutique
+        // Supposons qu'il y a un magasin par défaut ou on en crée un
+        List<Magasin> magasins = magasinRepository.findByBoutiqueId(boutiqueId);
+        if (!magasins.isEmpty()) {
+            Magasin magasin = magasins.get(0); // Prendre le premier magasin
+            Stock stock = new Stock();
+            stock.setProduit(savedProduit);
+            stock.setMagasin(magasin);
+            stock.setQuantiteDisponible(stockReel);
+            stockService.saveStock(stock);
+        }
+
+        return savedProduit;
     }
 
     @Override
@@ -85,9 +128,13 @@ public class ProduitServiceImpl implements ProduitService {
                         errors.add("Ligne " + (r+1) + ": nomProduit requis");
                         throw new com.smboutique.api.exception.ImportValidationException(errors);
                     }
-                    String uniteLib = getStringCell(row, colIndex.getOrDefault("unite", -1));
-                    Integer uniteIdInt = getIntegerCell(row, colIndex.getOrDefault("uniteId", -1));
                     Integer prixAchat = getIntegerCell(row, colIndex.getOrDefault("prixAchat", -1));
+
+                    // Nouveaux champs pour conditionnements et stock initial
+                    Long uniteId = getLongCell(row, colIndex.getOrDefault("id_unite", -1));
+                    Integer nombreUnitesParConditionnement = getIntegerCell(row, colIndex.getOrDefault("nombreUnitesParConditionnement", -1));
+                    Integer quantiteInitiale = getIntegerCell(row, colIndex.getOrDefault("quantiteInitiale", -1));
+
                     // Create produit
                     Produit produit = new Produit();
                     produit.setNomProduit(nomProduit);
@@ -154,38 +201,46 @@ public class ProduitServiceImpl implements ProduitService {
                         throw new com.smboutique.api.exception.ImportValidationException(errors);
                     }
                     produit.setAlerteStock(alerteStock);
-                    Unite unite = null;
-                    if (uniteIdInt != null) {
-                        Long uid = uniteIdInt.longValue();
-                        unite = uniteRepository.findById(uid).orElse(null);
-                        if (unite == null) {
-                            errors.add("Ligne " + (r+1) + ": uniteId introuvable: " + uid);
+
+                    // Définir les conditionnements si fournis
+                    if (uniteId != null) {
+                        Optional<Unite> uniteOpt = uniteRepository.findById(uniteId);
+                        if (uniteOpt.isPresent()) {
+                            Unite unite = uniteOpt.get();
+                            produit.setUnite(unite);
+                            produit.setUniteConditionnement(unite.getLibelle());
+                            if (nombreUnitesParConditionnement != null && nombreUnitesParConditionnement > 0) {
+                                produit.setNombreUnitesParConditionnement(nombreUnitesParConditionnement);
+                            } else {
+                                errors.add("Ligne " + (r+1) + ": nombreUnitesParConditionnement requis quand id_unite est fourni");
+                                throw new com.smboutique.api.exception.ImportValidationException(errors);
+                            }
+                        } else {
+                            errors.add("Ligne " + (r+1) + ": id_unite '" + uniteId + "' non trouvé");
                             throw new com.smboutique.api.exception.ImportValidationException(errors);
                         }
                     }
-                    if (unite == null && uniteLib != null && !uniteLib.isEmpty()) {
-                        Optional<Unite> uniteOpt = uniteRepository.findByLibelle(uniteLib);
-                        if (!uniteOpt.isPresent()) {
-                            unite = new Unite();
-                            unite.setLibelle(uniteLib);
-                            if (currentUser != null && currentUser.getBoutique() != null) {
-                                unite.setBoutique(currentUser.getBoutique());
-                            }
-                            unite = uniteRepository.save(unite);
-                        } else {
-                            unite = uniteOpt.get();
-                        }
-                    }
-                    if (unite != null) produit.setUnite(unite);
+
                     Produit saved = produitRepository.save(produit);
 
                     // Create stock for user's boutique/store(s) if magazin id(s) provided
                     // For now: if header magasinId present, create stock
                     String magasinIdsStr = getStringCell(row, colIndex.getOrDefault("magasinIds", -1));
+
+                    // Calculer la quantité réelle initiale
+                    int quantiteReel = 0;
+                    if (quantiteInitiale != null && quantiteInitiale > 0) {
+                        if (nombreUnitesParConditionnement != null && nombreUnitesParConditionnement > 0) {
+                            quantiteReel = quantiteInitiale * nombreUnitesParConditionnement;
+                        } else {
+                            quantiteReel = quantiteInitiale;
+                        }
+                    }
+
                     if (magasinIdsStr != null && !magasinIdsStr.isEmpty()) {
                         String[] parts = magasinIdsStr.split(",");
                         for (String p : parts) {
-                            try { 
+                            try {
                                 // Try parsing as integer (excel numeric) or long string
                                 Long mgid;
                                 try {
@@ -199,7 +254,7 @@ public class ProduitServiceImpl implements ProduitService {
                                     Stock stock = new Stock();
                                     stock.setProduit(saved);
                                     stock.setMagasin(magasinOpt.get());
-                                    stock.setQuantiteDisponible(0);
+                                    stock.setQuantiteDisponible(quantiteReel);
                                     stockService.saveStock(stock);
                                 } else {
                                     errors.add("Ligne " + (r+1) + ": magasinId introuvable: " + mgid);
@@ -219,7 +274,7 @@ public class ProduitServiceImpl implements ProduitService {
                                 Stock stock = new Stock();
                                 stock.setProduit(saved);
                                 stock.setMagasin(mg);
-                                stock.setQuantiteDisponible(0);
+                                stock.setQuantiteDisponible(quantiteReel);
                                 stockService.saveStock(stock);
                             }
                         }
@@ -257,5 +312,15 @@ public class ProduitServiceImpl implements ProduitService {
             return (int) c.getNumericCellValue();
         }
         try { return Integer.parseInt(getStringCell(row, idx)); } catch (Exception e) { return null; }
+    }
+
+    private Long getLongCell(Row row, Integer idx) {
+        if (idx == null || idx < 0) return null;
+        Cell c = row.getCell(idx);
+        if (c == null) return null;
+        if (c.getCellType() == CellType.NUMERIC) {
+            return (long) c.getNumericCellValue();
+        }
+        try { return Long.parseLong(getStringCell(row, idx)); } catch (Exception e) { return null; }
     }
 }

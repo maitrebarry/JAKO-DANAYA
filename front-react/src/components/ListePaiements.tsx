@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 
 interface PaiementData {
@@ -19,7 +18,6 @@ interface PaiementData {
 }
 
 const ListePaiements: React.FC = () => {
-  const navigate = useNavigate();
   const { currentBoutique } = useUser();
   const [paiements, setPaiements] = useState<PaiementData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -44,11 +42,11 @@ const ListePaiements: React.FC = () => {
     }
   };
 
-  const handleDetail = (id: number) => {
+  const handleDetail = (_id: number) => {
     // Navigate to detail if exists
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (_id: number) => {
     // Implement delete
   };
 

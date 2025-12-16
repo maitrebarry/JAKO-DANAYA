@@ -64,7 +64,7 @@ public class DataInitializer implements CommandLineRunner {
         }
         initializePermissions();
         initializeRoles();
-//        initializeBoutique();
+        initializeBoutique();
         initializeSuperAdmin();
 //        initializeTestData();
         logger.info("Data initialization completed.");
@@ -235,20 +235,20 @@ public class DataInitializer implements CommandLineRunner {
         logger.debug("Role {} created with {} permissions", name, permissions.size());
     }
 
-//    private void initializeBoutique() {
-//        logger.info("Initializing boutique...");
-//        if (boutiqueRepository.count() == 0) {
-//            Boutique boutique = new Boutique();
-//            boutique.setNom("Boutique Principale");
-//            boutique.setQuartier("Centre-ville");
-//            boutique.setAdresse("123 Rue de la Boutique");
-//            boutique.setTelephone("+225 01 02 03 04 05");
-//            boutiqueRepository.save(boutique);
-//            logger.info("Default boutique created");
-//        } else {
-//            logger.info("Boutique already exists, skipping initialization");
-//        }
-//    }
+    private void initializeBoutique() {
+        logger.info("Initializing boutique...");
+        if (boutiqueRepository.count() == 0) {
+            Boutique boutique = new Boutique();
+            boutique.setNom("Boutique Principale");
+            boutique.setQuartier("Centre-ville");
+            boutique.setAdresse("123 Rue de la Boutique");
+            boutique.setTelephone("+225 01 02 03 04 05");
+            boutiqueRepository.save(boutique);
+            logger.info("Default boutique created");
+        } else {
+            logger.info("Boutique already exists, skipping initialization");
+        }
+    }
 
     private void initializeSuperAdmin() {
         logger.info("Initializing superadmin...");

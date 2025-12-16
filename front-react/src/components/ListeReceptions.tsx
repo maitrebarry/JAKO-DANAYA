@@ -54,7 +54,7 @@ const ListeReceptions: React.FC = () => {
     navigate(`/receptions/${id}`);
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (_id: number) => {
     // Implement delete with confirmation
   };
 

@@ -20,7 +20,7 @@ product_names = [
 unit_labels = ["Pièce","Boîte","Kg","Litre","Pack","Mètre"]
 
 # Headers
-headers = ["nomProduit", "productImage", "uniteId", "unite", "prixAchat", "prixDetail", "prixEnGros", "alerteStock", "magasinIds"]
+headers = ["nomProduit", "productImage", "prixAchat", "prixDetail", "prixEnGros", "alerteStock", "id_unite", "nombreUnitesParConditionnement", "quantiteInitiale", "magasinIds"]
 
 wb = Workbook()
 sheet = wb.active
@@ -36,22 +36,33 @@ for r in range(1, 51):
     name = product_names[(r-1) % len(product_names)]
     # image placeholder
     image_url = f"https://via.placeholder.com/600x400.png?text={quote_plus(name)}"
-    unit_id = ((r-1) % 6) + 1
-    unit_label = unit_labels[(r-1) % len(unit_labels)]
     prixAchat = 500 + r*10
     prixDetail = 800 + r*12
     prixEnGros = 700 + r*11
     alerteStock = 5 + (r % 10)
+
+    # Conditionnements pour certains produits (tous les 3 produits)
+    id_unite = ""
+    nombreUnitesParConditionnement = ""
+    quantiteInitiale = 10 + (r % 20)  # Stock initial par défaut
+
+    if r % 3 == 0:  # Tous les 3 produits ont un conditionnement
+        # Distribuer les identifiants d'unité 1..6 cycliquement
+        id_unite = ((r - 1) % len(unit_labels)) + 1
+        nombreUnitesParConditionnement = 6 + (r % 18)  # 6 à 24 unités par conditionnement
+        quantiteInitiale = 2 + (r % 8)  # 2 à 10 conditionnements en stock
+
     # Write to sheet
     sheet.cell(row=row_index, column=1, value=name)
     sheet.cell(row=row_index, column=2, value=image_url)
-    sheet.cell(row=row_index, column=3, value=unit_id)
-    sheet.cell(row=row_index, column=4, value=unit_label)
-    sheet.cell(row=row_index, column=5, value=prixAchat)
-    sheet.cell(row=row_index, column=6, value=prixDetail)
-    sheet.cell(row=row_index, column=7, value=prixEnGros)
-    sheet.cell(row=row_index, column=8, value=alerteStock)
-    sheet.cell(row=row_index, column=9, value="")
+    sheet.cell(row=row_index, column=3, value=prixAchat)
+    sheet.cell(row=row_index, column=4, value=prixDetail)
+    sheet.cell(row=row_index, column=5, value=prixEnGros)
+    sheet.cell(row=row_index, column=6, value=alerteStock)
+    sheet.cell(row=row_index, column=7, value=id_unite)
+    sheet.cell(row=row_index, column=8, value=nombreUnitesParConditionnement)
+    sheet.cell(row=row_index, column=9, value=quantiteInitiale)
+    sheet.cell(row=row_index, column=10, value="")
 
 # ensure public folder
 outdir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'front-react', 'public')

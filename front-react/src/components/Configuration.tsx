@@ -811,7 +811,7 @@ const Unite = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [newUnite, setNewUnite] = useState({ libelle: '', symbole: '', conversionUnite: '', boutiqueId: '' });
+  const [newUnite, setNewUnite] = useState({ libelle: '', symbole: '', /* conversionUnite: '', */ boutiqueId: '' });
   const [editingUnite, setEditingUnite] = useState<any>(null);
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState('');
@@ -829,7 +829,7 @@ const Unite = () => {
     setNewUnite({
       libelle: '',
       symbole: '',
-      conversionUnite: '',
+      /* conversionUnite: '', */
       boutiqueId: isSuperAdmin() ? '' : (currentBoutique?.id?.toString() || '')
     });
   };
@@ -880,11 +880,11 @@ const Unite = () => {
       setMessage('Veuillez remplir tous les champs.');
       return;
     }
-    const parsedConversion = parseFloat(newUnite.conversionUnite as any);
+    /* const parsedConversion = parseFloat(newUnite.conversionUnite as any);
     if (isNaN(parsedConversion) || parsedConversion <= 0) {
       setMessage('Conversion invalide. Saisir un nombre positif.');
       return;
-    }
+    } */
     if (isSuperAdmin() && !newUnite.boutiqueId) {
       setMessage('Sélectionnez une boutique.');
       return;
@@ -899,7 +899,7 @@ const Unite = () => {
       const payload: any = {
         libelle: newUnite.libelle,
         symbole: newUnite.symbole,
-        conversionUnite: parsedConversion
+        /* conversionUnite: parsedConversion */
       };
       if (newUnite.boutiqueId) {
         payload.boutique = { id: newUnite.boutiqueId };
@@ -957,7 +957,7 @@ const Unite = () => {
   };
 
   const filteredUnites = unites.filter((unite: any) => {
-    const target = `${unite.libelle || ''} ${unite.symbole || ''} ${unite.conversionUnite || ''} ${unite.boutique?.nom || ''}`.toLowerCase();
+    const target = `${unite.libelle || ''} ${unite.symbole || ''} /* ${unite.conversionUnite || ''} */ ${unite.boutique?.nom || ''}`.toLowerCase();
     return target.includes(search.toLowerCase());
   });
 
@@ -992,7 +992,7 @@ const Unite = () => {
                 <th>N°</th>
                 <th>Libellé</th>
                 <th>Symbole</th>
-                <th>Conversion</th>
+                {/* <th>Conversion</th> */}
                 <th>Boutique</th>
                 <th>Actions</th>
               </tr>
@@ -1003,10 +1003,10 @@ const Unite = () => {
                   <td>{index + 1}</td>
                   <td>{unite.libelle}</td>
                   <td>{unite.symbole}</td>
-                  <td>{unite.conversionUnite}</td>
+                  {/* <td>{unite.conversionUnite}</td> */}
                   <td>{unite.boutique?.nom || 'N/A'}</td>
                   <td>
-                    <button className="btn btn-sm btn-warning me-2" title="Modifier" onClick={() => { setEditingUnite(unite); setNewUnite({ libelle: unite.libelle || '', symbole: unite.symbole || '', conversionUnite: `${unite.conversionUnite ?? ''}`, boutiqueId: unite.boutique?.id ? unite.boutique.id.toString() : (currentBoutique?.id?.toString() || '') }); setShowModal(true); }}><i className="ti ti-pencil"></i></button>
+                    <button className="btn btn-sm btn-warning me-2" title="Modifier" onClick={() => { setEditingUnite(unite); setNewUnite({ libelle: unite.libelle || '', symbole: unite.symbole || '', /* conversionUnite: `${unite.conversionUnite ?? ''}`, */ boutiqueId: unite.boutique?.id ? unite.boutique.id.toString() : (currentBoutique?.id?.toString() || '') }); setShowModal(true); }}><i className="ti ti-pencil"></i></button>
                     <button className="btn btn-sm btn-danger" title="Supprimer" onClick={() => handleDelete(unite.id)}><i className="ti ti-trash"></i></button>
                   </td>
                 </tr>
@@ -1045,7 +1045,7 @@ const Unite = () => {
                   placeholder="Ex: kg"
                 />
               </div>
-              <div className="mb-3">
+              {/* <div className="mb-3">
                 <label className="form-label">Conversion</label>
                 <input
                   type="number"
@@ -1056,7 +1056,7 @@ const Unite = () => {
                   min="0"
                   step="0.0001"
                 />
-              </div>
+              </div> */}
               <div className="mb-3">
                 <label className="form-label">Boutique</label>
                 {isSuperAdmin() ? (

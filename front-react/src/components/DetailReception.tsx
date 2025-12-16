@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useUser } from '../contexts/UserContext';
 
 interface LigneReceptionDTO {
   idProduit: number;
@@ -26,7 +25,6 @@ interface ReceptionDetail {
 const DetailReception: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentBoutique } = useUser();
   const [detail, setDetail] = useState<ReceptionDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

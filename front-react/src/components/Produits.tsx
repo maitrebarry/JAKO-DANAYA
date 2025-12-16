@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import '../assets/css/style_produit.css';
 
 const Produits: React.FC = () => {
+  const navigate = useNavigate();
   const [produits, setProduits] = useState<any[]>([]);
   const [unites, setUnites] = useState<any[]>([]);
   const [magasins, setMagasins] = useState<any[]>([]);
@@ -24,16 +26,21 @@ const Produits: React.FC = () => {
     prixDetail: '',
     prixAchat: '',
     alerteStock: '',
-    uniteId: ''
+    uniteConditionnementId: '',
+    nombreUnitesParConditionnement: '',
+    quantiteInitiale: ''
   });
-  const [imageType, setImageType] = useState<'url' | 'file'>('url');
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [editing, setEditing] = useState<any>(null);
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState('');
   const [isFormValid, setIsFormValid] = useState(false);
   const [formErrors, setFormErrors] = useState<string[]>([]);
+  const selectedUnite = unites.find((u: any) => u.id.toString() === newProduit.uniteConditionnementId);
   const [search, setSearch] = useState('');
+  const [filterUnite, setFilterUnite] = useState('');
+  const [imageType, setImageType] = useState<'url' | 'file'>('url');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [showNombreUnites, setShowNombreUnites] = useState(false);
 
   const resetForm = () => {
     setNewProduit({
@@ -43,11 +50,15 @@ const Produits: React.FC = () => {
       prixDetail: '',
       prixAchat: '',
       alerteStock: '',
-      uniteId: ''
+      uniteConditionnementId: '',
+      nombreUnitesParConditionnement: '',
+      quantiteInitiale: ''
     });
+    // default selected magasins to all magasins if available
     setSelectedMagasins(magasins && magasins.length > 0 ? magasins.map(m => m.id) : []);
     setImageType('url');
     setImageFile(null);
+    setShowNombreUnites(false);
   };
 
   // Validate form in real-time: name, unit and price constraints
@@ -55,9 +66,6 @@ const Produits: React.FC = () => {
     const errors: string[] = [];
     if (!newProduit.nomProduit.trim()) {
       errors.push('Le nom est obligatoire.');
-    }
-    if (!newProduit.uniteId) {
-      errors.push('Sélectionnez une unité.');
     }
     const prixAchatVal = newProduit.prixAchat ? parseInt(newProduit.prixAchat, 10) : null;
     const prixEnGrosVal = newProduit.prixEnGros ? parseInt(newProduit.prixEnGros, 10) : null;
@@ -68,6 +76,13 @@ const Produits: React.FC = () => {
     if (prixEnGrosVal !== null && prixDetailVal !== null && prixEnGrosVal >= prixDetailVal) {
       errors.push("Le prix en gros doit être inférieur au prix détail.");
     }
+    // conditionnement validation
+    if (newProduit.uniteConditionnementId && (!newProduit.nombreUnitesParConditionnement || parseInt(newProduit.nombreUnitesParConditionnement) <= 0)) {
+      errors.push("Le nombre d'unités par conditionnement doit être supérieur à 0.");
+    }
+    if (!newProduit.quantiteInitiale || parseInt(newProduit.quantiteInitiale) < 0) {
+      errors.push('La quantité initiale doit être >= 0.');
+    }
     setFormErrors(errors);
     setIsFormValid(errors.length === 0);
   }, [newProduit, selectedMagasins]);
@@ -75,9 +90,17 @@ const Produits: React.FC = () => {
   const fetchProduits = async () => {
     try {
       const token = localStorage.getItem('smb_token');
+      if (!token) {
+        navigate('/');
+        return;
+      }
       const res = await fetch('http://localhost:8085/api/produits', {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (res.status === 401) {
+        navigate('/');
+        return;
+      }
       if (!res.ok) throw new Error('Erreur lors du chargement des produits');
       const data = await res.json();
       setProduits(data);
@@ -91,9 +114,17 @@ const Produits: React.FC = () => {
   const fetchUnites = async () => {
     try {
       const token = localStorage.getItem('smb_token');
+      if (!token) {
+        navigate('/');
+        return;
+      }
       const res = await fetch('http://localhost:8085/api/unites', {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (res.status === 401) {
+        navigate('/');
+        return;
+      }
       if (!res.ok) throw new Error('Erreur lors du chargement des unités');
       const data = await res.json();
       setUnites(data);
@@ -105,9 +136,17 @@ const Produits: React.FC = () => {
   const fetchMagasins = async () => {
     try {
       const token = localStorage.getItem('smb_token');
+      if (!token) {
+        navigate('/');
+        return;
+      }
       const res = await fetch('http://localhost:8085/api/magasins', {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (res.status === 401) {
+        navigate('/');
+        return;
+      }
       if (!res.ok) throw new Error('Erreur lors du chargement des magasins');
       const data = await res.json();
       setMagasins(data);
@@ -120,23 +159,57 @@ const Produits: React.FC = () => {
     }
   };
 
+  const handleShowDetail = async (produit: any) => {
+    try {
+      const token = localStorage.getItem('smb_token');
+      if (!token) {
+        navigate('/');
+        return;
+      }
+      const res = await fetch(`http://localhost:8085/api/produits/${produit.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.status === 401) {
+        navigate('/');
+        return;
+      }
+      if (res.ok) {
+        const data = await res.json();
+        setDetailProduit(data);
+        setShowDetailModal(true);
+        return;
+      }
+    } catch (err) {
+      console.error('Erreur lors du chargement des détails du produit', err);
+      setMessage('Impossible de charger le détail du produit.');
+    }
+    setDetailProduit(produit);
+    setShowDetailModal(true);
+  };
+
   useEffect(() => {
     fetchProduits();
     fetchUnites();
     fetchMagasins();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCreateOrUpdate = async () => {
+    // client-side guard (useEffect also handles real-time validation)
     if (!newProduit.nomProduit.trim()) {
       setMessage('Le nom est obligatoire.');
       return;
     }
-    if (!newProduit.uniteId) {
-      setMessage('Sélectionnez une unité.');
+    // Validation conditionnement
+    if (newProduit.uniteConditionnementId && (!newProduit.nombreUnitesParConditionnement || parseInt(newProduit.nombreUnitesParConditionnement) <= 0)) {
+      setMessage(`Le nombre d'unités par conditionnement doit être supérieur à 0.`);
       return;
     }
-
-    // Validate price relationship: prixAchat < prixEnGros < prixDetail
+    if (!newProduit.quantiteInitiale || parseInt(newProduit.quantiteInitiale) < 0) {
+      setMessage('La quantité initiale doit être >= 0.');
+      return;
+    }
+    // price relationships
     const prixAchatVal = newProduit.prixAchat ? parseInt(newProduit.prixAchat, 10) : null;
     const prixEnGrosVal = newProduit.prixEnGros ? parseInt(newProduit.prixEnGros, 10) : null;
     const prixDetailVal = newProduit.prixDetail ? parseInt(newProduit.prixDetail, 10) : null;
@@ -148,41 +221,53 @@ const Produits: React.FC = () => {
       setMessage("Le prix en gros doit être inférieur au prix détail.");
       return;
     }
+
     setCreating(true);
     setMessage('');
     try {
       const token = localStorage.getItem('smb_token');
-      const method = editing ? 'PUT' : 'POST';
+      if (!token) {
+        navigate('/');
+        return;
+      }
       const url = editing ? `http://localhost:8085/api/produits/${editing.id}` : 'http://localhost:8085/api/produits';
-
       const formData = new FormData();
       formData.append('nomProduit', newProduit.nomProduit);
-      formData.append('productImage', newProduit.productImage);
-      if (imageFile) {
-        formData.append('imageFile', imageFile);
+      // Always send productImage to satisfy backend required param
+      if (imageType === 'url') {
+        formData.append('productImage', newProduit.productImage || '');
+      } else {
+        formData.append('productImage', '');
+        if (imageFile) {
+          formData.append('imageFile', imageFile);
+        }
       }
-      formData.append('prixEnGros', newProduit.prixEnGros);
-      formData.append('prixDetail', newProduit.prixDetail);
-      formData.append('prixAchat', newProduit.prixAchat);
-      formData.append('alerteStock', newProduit.alerteStock);
-      formData.append('uniteId', newProduit.uniteId);
-      selectedMagasins.forEach(id => formData.append('magasinIds', id.toString()));
+      formData.append('prixEnGros', newProduit.prixEnGros || '');
+      formData.append('prixDetail', newProduit.prixDetail || '');
+      formData.append('prixAchat', newProduit.prixAchat || '');
+      formData.append('alerteStock', newProduit.alerteStock || '');
+      if (selectedMagasins.length > 0) formData.append('magasinIds', selectedMagasins.join(','));
+      if (newProduit.uniteConditionnementId) formData.append('uniteConditionnementId', newProduit.uniteConditionnementId.toString());
+      if (newProduit.nombreUnitesParConditionnement) formData.append('nombreUnitesParConditionnement', newProduit.nombreUnitesParConditionnement);
+      if (newProduit.quantiteInitiale) formData.append('quantiteInitiale', newProduit.quantiteInitiale);
 
       const res = await fetch(url, {
-        method,
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
+        method: editing ? 'PUT' : 'POST',
+        headers: { Authorization: `Bearer ${token}` },
         body: formData
       });
+      if (res.status === 401) {
+        navigate('/');
+        return;
+      }
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || `Erreur lors de la ${editing ? 'modification' : 'création'}`);
+        throw new Error(errData.error || `Erreur lors de la création`);
       }
       setShowModal(false);
       resetForm();
       setEditing(null);
-      setMessage(`Produit ${editing ? 'modifié' : 'créé'} avec succès !`);
+      setMessage(editing ? 'Produit modifié avec succès !' : 'Produit créé avec succès !');
       fetchProduits();
       setTimeout(() => setMessage(''), 3000);
     } catch (err: any) {
@@ -206,10 +291,18 @@ const Produits: React.FC = () => {
     if (!result.isConfirmed) return;
     try {
       const token = localStorage.getItem('smb_token');
+      if (!token) {
+        navigate('/');
+        return;
+      }
       const res = await fetch(`http://localhost:8085/api/produits/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (res.status === 401) {
+        navigate('/');
+        return;
+      }
       if (!res.ok) throw new Error('Erreur lors de la suppression');
       setMessage('Produit supprimé avec succès !');
       fetchProduits();
@@ -221,7 +314,9 @@ const Produits: React.FC = () => {
 
   const filtered = produits.filter((p: any) => {
     const target = `${p.nomProduit || ''} ${p.unite?.libelle || ''}`.toLowerCase();
-    return target.includes(search.toLowerCase());
+    const matchesSearch = target.includes(search.toLowerCase());
+    const matchesUnite = filterUnite === '' || p.unite?.id.toString() === filterUnite;
+    return matchesSearch && matchesUnite;
   });
 
   if (loading) return <div>Chargement...</div>;
@@ -246,12 +341,10 @@ const Produits: React.FC = () => {
           </nav>
         </div>
         <div className="ms-auto">
-          <div className="btn-group">
-           
-          </div>
+          <div className="btn-group" />
         </div>
       </div>
-      {/* End breadcrumb */}
+
       <hr />
       <div className="row">
         <div className="col-12">
@@ -260,7 +353,14 @@ const Produits: React.FC = () => {
               <div className="row">
                 <div className="col-12 d-flex align-items-center">
                   <div className="me-3">
-                    <button className="btn btn-primary mb-3 mb-lg-0" onClick={() => { setEditing(null); resetForm(); setShowModal(true); }}>
+                    <button
+                      className="btn btn-primary mb-3 mb-lg-0"
+                      onClick={() => {
+                        setEditing(null);
+                        resetForm();
+                        setShowModal(true);
+                      }}
+                    >
                       <i className='bx bxs-plus-square'></i> Ajouter un article
                     </button>
                   </div>
@@ -287,7 +387,12 @@ const Produits: React.FC = () => {
                           </div>
                         </div>
                         <div className="col-12">
-                          <button type="button" className="btn btn-primary">Rechercher</button>
+                          <select className="form-control" value={filterUnite} onChange={(e) => setFilterUnite(e.target.value)}>
+                            <option value="">Toutes les unités</option>
+                            {unites.map((unite: any) => (
+                              <option key={unite.id} value={unite.id}>{unite.libelle}</option>
+                            ))}
+                          </select>
                         </div>
                       </div>
                     </form>
@@ -306,19 +411,27 @@ const Produits: React.FC = () => {
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Importer des produits (Excel)</h5>
-                <button type="button" className="btn-close" aria-label="Close" onClick={() => setShowImportModal(false)}></button>
+                <button type="button" className="btn-close" aria-label="Close" onClick={() => setShowImportModal(false)} />
               </div>
-                <div className="modal-body">
+              <div className="modal-body">
                 <p>Vous pouvez télécharger le modèle de fichier ci-dessous et le remplir avec vos produits.</p>
-                  <div className="mb-3">
-                    <a className="btn btn-sm btn-secondary" href="/produits_template.xlsx" download> Télécharger le modèle </a>
-                  </div>
+                <div className="mb-3">
+                  <a className="btn btn-sm btn-secondary" href="/produits_template.xlsx" download> Télécharger le modèle </a>
+                </div>
+                {/* <div className="alert alert-info small" role="note">
+                  <p className="mb-1 fw-bold">Colonnes attendues (respecter l'entête) :</p>
+                  <ul className="mb-0 ps-3">
+                    <li><code>nomProduit</code> (obligatoire)</li>
+                    <li><code>productImage</code> (URL ou nom de fichier existant)</li>
+                    <li><code>prixAchat</code>, <code>prixEnGros</code>, <code>prixDetail</code></li>
+                    <li><code>alerteStock</code>, <code>id_unite</code> (identifiant de l'unité), <code>nombreUnitesParConditionnement</code></li>
+                    <li><code>quantiteInitiale</code> (conditionnements) et <code>magasinIds</code> séparés par des virgules</li>
+                  </ul>
+                </div> */}
                 <div className="mb-3">
                   <input type="file" accept=".xlsx,.xls" onChange={(e) => setImportFile(e.target.files ? e.target.files[0] : null)} />
                 </div>
-                {isImporting && (
-                  <div className="mb-3">Traitement en cours, veuillez patienter...</div>
-                )}
+                {isImporting && <div className="mb-3">Traitement en cours, veuillez patienter...</div>}
                 {importProgress > 0 && (
                   <div className="mb-3">
                     <div className="progress">
@@ -399,14 +512,14 @@ const Produits: React.FC = () => {
           <div key={produit.id} className="col">
             <div className="card product-card position-relative">
               <img
-                src={produit.productImage ? (produit.productImage.startsWith('http') ? produit.productImage : `http://localhost:8085/uploads/products/${produit.productImage}`) : 'https://via.placeholder.com/200x200?text=No+Image'}
+                src={produit.productImage || 'https://via.placeholder.com/200x200?text=No+Image'}
                 className="card-img-top"
                 alt={produit.nomProduit}
                 onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/200x200?text=No+Image'; }}
               />
 
               <div className="icon-group">
-                <button className="detail-icon" title="Détails" onClick={() => { setDetailProduit(produit); setShowDetailModal(true); }}>
+                <button className="detail-icon" title="Détails" onClick={() => handleShowDetail(produit)}>
                   <i className="bx bx-show"></i>
                 </button>
                 <button
@@ -421,16 +534,24 @@ const Produits: React.FC = () => {
                       prixDetail: produit.prixDetail?.toString() || '',
                       prixAchat: produit.prixAchat?.toString() || '',
                       alerteStock: produit.alerteStock?.toString() || '',
-                      uniteId: produit.unite?.id ? produit.unite.id.toString() : ''
+                      uniteConditionnementId: produit.unite?.id?.toString() || '',
+                      nombreUnitesParConditionnement: produit.nombreUnitesParConditionnement?.toString() || '',
+                      quantiteInitiale: produit.quantiteInitialeConditionnements?.toString() || ''
                     });
-                    // set selected magasins for editing: if produit provides stocks, use them, else select all
-                    if (produit.stocks && produit.stocks.length > 0) {
-                      setSelectedMagasins(produit.stocks.map((s: any) => s.magasin?.id).filter(Boolean));
+                    // set selected magasins for editing using magasinIds provided by backend
+                    if (produit.magasinIds && produit.magasinIds.length > 0) {
+                      setSelectedMagasins(produit.magasinIds.filter((id: number | null | undefined) => Boolean(id)));
+                    } else if (produit.stocks && produit.stocks.length > 0) {
+                      setSelectedMagasins(produit.stocks
+                        .map((s: any) => s.magasin?.id || s.magasinId)
+                        .filter((id: number | null | undefined) => Boolean(id)));
                     } else {
                       setSelectedMagasins(magasins.map((m: any) => m.id));
                     }
-                    setImageType(produit.productImage && produit.productImage.startsWith('http') ? 'url' : 'file');
-                    setImageFile(null); // Reset file input
+                    const isUrl = !!produit.productImage && produit.productImage.includes('://');
+                    setImageType(isUrl ? 'url' : 'file');
+                    setImageFile(null);
+                    setShowNombreUnites(Boolean(produit.unite || produit.nombreUnitesParConditionnement));
                     setShowModal(true);
                   }}
                 >
@@ -471,7 +592,7 @@ const Produits: React.FC = () => {
           <div className="modal-content">
             <div className="modal-header">
               <h5 className="modal-title">{editing ? 'Modifier le produit' : 'Créer un produit'}</h5>
-              <button type="button" className="btn-close" onClick={() => { setShowModal(false); setEditing(null); resetForm(); }}></button>
+              <button type="button" className="btn-close" onClick={() => { setShowModal(false); setEditing(null); resetForm(); }} />
             </div>
             <div className="modal-body">
               <div className="row g-3">
@@ -490,7 +611,7 @@ const Produits: React.FC = () => {
                         id="imageTypeUrl"
                         value="url"
                         checked={imageType === 'url'}
-                        onChange={(e) => setImageType(e.target.value as 'url')}
+                        onChange={() => { setImageType('url'); setImageFile(null); }}
                       />
                       <label className="form-check-label" htmlFor="imageTypeUrl">
                         Lien URL
@@ -504,7 +625,7 @@ const Produits: React.FC = () => {
                         id="imageTypeFile"
                         value="file"
                         checked={imageType === 'file'}
-                        onChange={(e) => setImageType(e.target.value as 'file')}
+                        onChange={() => { setImageType('file'); setNewProduit(prev => ({ ...prev, productImage: '' })); }}
                       />
                       <label className="form-check-label" htmlFor="imageTypeFile">
                         Uploader un fichier
@@ -531,6 +652,7 @@ const Produits: React.FC = () => {
                     />
                   )}
                 </div>
+
                 <div className="col-md-4">
                   <label className="form-label">Prix en gros</label>
                   <input type="number" className={`form-control ${formErrors.some(e => e.includes('prix en gros')) ? 'is-invalid' : ''}`} value={newProduit.prixEnGros} onChange={(e) => setNewProduit({ ...newProduit, prixEnGros: e.target.value })} />
@@ -543,19 +665,56 @@ const Produits: React.FC = () => {
                   <label className="form-label">Prix d'achat</label>
                   <input type="number" className={`form-control ${formErrors.some(e => e.includes("prix d'achat")) ? 'is-invalid' : ''}`} value={newProduit.prixAchat} onChange={(e) => setNewProduit({ ...newProduit, prixAchat: e.target.value })} />
                 </div>
-                <div className="col-md-4">
+
+                {/* Unité de conditionnement + nombre + quantité initiale */}
+                <div className="col-12">
+                  <label className="form-label">Unité de conditionnement</label>
+                  <div className="row g-2 mt-1">
+                    <div className="col-md-6">
+                      <select className="form-control" value={newProduit.uniteConditionnementId} onChange={(e) => {
+                        const value = e.target.value;
+                        setNewProduit({ ...newProduit, uniteConditionnementId: value });
+                        setShowNombreUnites(value !== '');
+                      }}>
+                        <option value="">Aucune (unité de base)</option>
+                        {unites.map((unite: any) => (
+                          <option key={unite.id} value={unite.id}>{unite.libelle}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {showNombreUnites && (
+                      <div className="col-md-6">
+                        <input
+                          type="number"
+                          className="form-control"
+                          placeholder={`Ex: 12 (1 ${selectedUnite ? selectedUnite.libelle.toLowerCase() : 'conditionnement'} = 12 unités)`}
+                          value={newProduit.nombreUnitesParConditionnement}
+                          onChange={(e) => setNewProduit({ ...newProduit, nombreUnitesParConditionnement: e.target.value })}
+                          min={1}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="col-md-6">
                   <label className="form-label">Alerte stock</label>
                   <input type="number" className="form-control" value={newProduit.alerteStock} onChange={(e) => setNewProduit({ ...newProduit, alerteStock: e.target.value })} />
                 </div>
+
                 <div className="col-md-6">
-                  <label className="form-label">Unité</label>
-                  <select className={`form-control ${!newProduit.uniteId && formErrors.includes('Sélectionnez une unité.') ? 'is-invalid' : ''}`} value={newProduit.uniteId} onChange={(e) => setNewProduit({ ...newProduit, uniteId: e.target.value })}>
-                    <option value="">Sélectionner une unité</option>
-                    {unites.map((u: any) => (
-                      <option key={u.id} value={u.id}>{u.libelle}</option>
-                    ))}
-                  </select>
+                  <label className="form-label">Quantité initiale {showNombreUnites ? `(${selectedUnite ? selectedUnite.libelle.toLowerCase() + 's' : 'conditionnements'})` : '(unités)'}</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    placeholder={showNombreUnites ? `Nombre de ${selectedUnite ? selectedUnite.libelle.toLowerCase() + 's' : 'conditionnements'}` : 'Quantité en unités de base'}
+                    value={newProduit.quantiteInitiale}
+                    onChange={(e) => setNewProduit({ ...newProduit, quantiteInitiale: e.target.value })}
+                    min={0}
+                  />
                 </div>
+
                 <div className="col-12">
                   <label className="form-label">Magasins (sélectionnez ceux où initialiser le stock à 0)</label>
                   <div className="row">
@@ -583,6 +742,7 @@ const Produits: React.FC = () => {
                     ))}
                   </div>
                 </div>
+
               </div>
             </div>
             <div className="modal-footer">
@@ -612,25 +772,45 @@ const Produits: React.FC = () => {
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Détails du produit</h5>
-                <button type="button" className="btn-close" onClick={() => { setShowDetailModal(false); setDetailProduit(null); }}></button>
+                <button type="button" className="btn-close" onClick={() => { setShowDetailModal(false); setDetailProduit(null); }} />
               </div>
               <div className="modal-body">
                 <div className="row g-3">
                   <div className="col-md-6">
                     <img
-                      src={detailProduit.productImage ? (detailProduit.productImage.startsWith('http') ? detailProduit.productImage : `http://localhost:8085/uploads/products/${detailProduit.productImage}`) : 'https://via.placeholder.com/200x200?text=No+Image'}
+                      src={detailProduit.productImage || 'https://via.placeholder.com/200x200?text=No+Image'}
                       className="img-fluid"
                       alt={detailProduit.nomProduit}
                     />
                   </div>
                   <div className="col-md-6">
                     <h4>{detailProduit.nomProduit}</h4>
-                    <p><strong>Prix en gros:</strong> {detailProduit.prixEnGros || 0} F CFA</p>
-                    <p><strong>Prix détail:</strong> {detailProduit.prixDetail || 0} F CFA</p>
-                    <p><strong>Alerte stock:</strong> {detailProduit.alerteStock || 0}</p>
-                    <p><strong>Unité:</strong> {detailProduit.unite?.libelle || 'N/A'}</p>
+                    <p><strong>Prix d'achat :</strong> {detailProduit.prixAchat ?? 0} F CFA</p>
+                    <p><strong>Prix en gros :</strong> {detailProduit.prixEnGros ?? 0} F CFA</p>
+                    <p><strong>Prix détail :</strong> {detailProduit.prixDetail ?? 0} F CFA</p>
+                    <p><strong>Alerte stock :</strong> {detailProduit.alerteStock ?? 0}</p>
+                    <p><strong>Unité de conditionnement :</strong> {detailProduit.unite?.libelle ? `${detailProduit.unite.libelle} (${detailProduit.nombreUnitesParConditionnement ?? 1} unités)` : 'Unité de base'}</p>
+                    <p><strong>Quantité initiale :</strong> {detailProduit.quantiteInitialeConditionnements !== undefined && detailProduit.quantiteInitialeConditionnements !== null ? detailProduit.quantiteInitialeConditionnements : 'N/A'} {detailProduit.unite?.libelle ? detailProduit.unite.libelle.toLowerCase() + 's' : 'unités'}</p>
                   </div>
                 </div>
+                {detailProduit.magasinStocks && detailProduit.magasinStocks.length > 0 && (
+                  <div className="row mt-4">
+                    <div className="col-12">
+                      <h6>Répartition du stock par magasin</h6>
+                      <ul className="list-group">
+                        {detailProduit.magasinStocks.map((m: any) => (
+                          <li key={m.id} className="list-group-item d-flex justify-content-between align-items-center">
+                            <span>
+                              {m.nom || 'Magasin'}
+                              {m.adresse ? ` (${m.adresse})` : ''}
+                            </span>
+                            <span className="badge bg-primary rounded-pill">{m.quantiteDisponible ?? 0}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => { setShowDetailModal(false); setDetailProduit(null); }}>Fermer</button>

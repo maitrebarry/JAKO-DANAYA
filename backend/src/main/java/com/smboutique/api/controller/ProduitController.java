@@ -10,6 +10,7 @@ import com.smboutique.api.repository.MagasinRepository;
 import com.smboutique.api.service.StockService;
 import com.smboutique.api.service.UniteService;
 import com.smboutique.api.service.UtilisateurService;
+import com.smboutique.api.dto.ProduitCreateDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,9 +23,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/produits")
@@ -74,19 +79,28 @@ public class ProduitController {
         if (!hasPermission(user, "PRODUIT_LECTURE")) {
             return List.of(); // Return empty list if no permission
         }
+        List<Produit> produits;
         if (isSuperAdmin(user)) {
-            return produitService.findAll();
+            produits = produitService.findAll();
         } else {
-            return produitService.findByBoutiqueId(user.getBoutique().getId());
+            produits = produitService.findByBoutiqueId(user.getBoutique().getId());
         }
+        // Convert image paths to full URLs
+        for (Produit produit : produits) {
+            enrichProduitResponse(produit);
+        }
+        return produits;
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<Produit> getProduitById(@PathVariable Long id) {
         Optional<Produit> produitOpt = produitService.findById(id);
-        return produitOpt
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        if (produitOpt.isPresent()) {
+            Produit produit = produitOpt.get();
+            enrichProduitResponse(produit);
+            return ResponseEntity.ok(produit);
+        }
+        return ResponseEntity.notFound().build();
     }
                     
 
@@ -98,7 +112,9 @@ public class ProduitController {
                                  @RequestParam("prixDetail") String prixDetail,
                                  @RequestParam("prixAchat") String prixAchat,
                                  @RequestParam("alerteStock") String alerteStock,
-                                 @RequestParam("uniteId") String uniteId,
+                                 @RequestParam(value = "uniteConditionnementId", required = false) Long uniteConditionnementId,
+                                 @RequestParam(value = "nombreUnitesParConditionnement", required = false) String nombreUnitesParConditionnement,
+                                 @RequestParam("quantiteInitiale") String quantiteInitiale,
                                  @RequestParam(value = "magasinIds", required = false) List<Long> magasinIds) throws IOException {
         Utilisateur current = getCurrentUser();
         if (!hasPermission(current, "PRODUIT_CREER")) {
@@ -125,12 +141,6 @@ public class ProduitController {
         produit.setPrixAchat(prixAchat.isEmpty() ? null : Integer.valueOf(prixAchat));
         produit.setAlerteStock(alerteStock.isEmpty() ? null : Integer.valueOf(alerteStock));
 
-        if (uniteId != null && !uniteId.isEmpty()) {
-            Unite unite = uniteService.findById(Long.parseLong(uniteId))
-                    .orElseThrow(() -> new IllegalArgumentException("Unité non trouvée"));
-            produit.setUnite(unite);
-        }
-
         // Validate price constraints: prixAchat < prixEnGros < prixDetail
         Integer pa = produit.getPrixAchat();
         Integer peg = produit.getPrixEnGros();
@@ -146,6 +156,28 @@ public class ProduitController {
             return ResponseEntity.badRequest().body(err);
         }
 
+        // Gestion du conditionnement (optionnel)
+        if (uniteConditionnementId != null) {
+            Optional<Unite> uniteOpt = uniteService.findById(uniteConditionnementId);
+            if (uniteOpt.isPresent()) {
+                produit.setUnite(uniteOpt.get());
+            } else {
+                java.util.Map<String, Object> err = new java.util.HashMap<>();
+                err.put("error", "Unité de conditionnement non trouvée.");
+                return ResponseEntity.badRequest().body(err);
+            }
+        }
+        if (nombreUnitesParConditionnement != null && !nombreUnitesParConditionnement.trim().isEmpty()) {
+            produit.setNombreUnitesParConditionnement(Integer.valueOf(nombreUnitesParConditionnement));
+        }
+
+        // Calcul du stock réel en unité de base
+        int quantiteInitialeInt = quantiteInitiale.isEmpty() ? 0 : Integer.valueOf(quantiteInitiale);
+        int stockReel = quantiteInitialeInt;
+        if (produit.getNombreUnitesParConditionnement() != null && produit.getNombreUnitesParConditionnement() > 0) {
+            stockReel = quantiteInitialeInt * produit.getNombreUnitesParConditionnement();
+        }
+
         Produit savedProduit = produitService.save(produit);
 
         // Créer les stocks pour les magasins sélectionnés ou pour tous les magasins de la boutique si non précisé
@@ -156,7 +188,7 @@ public class ProduitController {
                 Magasin magasin = magasinRepository.findById(magasinId)
                         .orElseThrow(() -> new IllegalArgumentException("Magasin non trouvé"));
                 stock.setMagasin(magasin);
-                stock.setQuantiteDisponible(0);
+                stock.setQuantiteDisponible(stockReel);
                 stockService.saveStock(stock);
             }
         }
@@ -170,13 +202,28 @@ public class ProduitController {
                     Stock stock = new Stock();
                     stock.setProduit(savedProduit);
                     stock.setMagasin(mg);
-                    stock.setQuantiteDisponible(0);
+                    stock.setQuantiteDisponible(stockReel);
                     stockService.saveStock(stock);
                 }
             }
         }
 
         return ResponseEntity.ok(savedProduit);
+    }
+
+    @PostMapping("/create")
+    public ResponseEntity<?> createProduitWithConditionnement(@RequestBody ProduitCreateDTO dto) {
+        Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "PRODUIT_CREER")) {
+            return ResponseEntity.status(403).body("Permission manquante : PRODUIT_CREER");
+        }
+
+        try {
+            Produit produit = produitService.create(dto, current.getBoutique().getId());
+            return ResponseEntity.ok(produit);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Erreur lors de la création : " + e.getMessage());
+        }
     }
 
     @PutMapping("/{id}")
@@ -188,7 +235,9 @@ public class ProduitController {
                                                  @RequestParam("prixDetail") String prixDetail,
                                                  @RequestParam("prixAchat") String prixAchat,
                                                  @RequestParam("alerteStock") String alerteStock,
-                                                 @RequestParam("uniteId") String uniteId,
+                                                 @RequestParam(value = "uniteConditionnementId", required = false) Long uniteConditionnementId,
+                                                 @RequestParam(value = "nombreUnitesParConditionnement", required = false) String nombreUnitesParConditionnement,
+                                                 @RequestParam(value = "quantiteInitiale", required = false) String quantiteInitiale,
                                                  @RequestParam(value = "magasinIds", required = false) List<Long> magasinIds) throws IOException {
         Optional<Produit> produitOpt = produitService.findById(id);
 
@@ -212,6 +261,11 @@ public class ProduitController {
                     } else if (productImage != null && !productImage.trim().isEmpty()) {
                         produit.setProductImage(productImage);
                     }
+
+                    // Normalize productImage: if it's a full URL to our uploads, extract filename
+                    if (produit.getProductImage() != null && produit.getProductImage().startsWith("http://localhost:8085/uploads/products/")) {
+                        produit.setProductImage(produit.getProductImage().substring("http://localhost:8085/uploads/products/".length()));
+                    }
                     
 
                     produit.setPrixEnGros(prixEnGros.isEmpty() ? null : Integer.valueOf(prixEnGros));
@@ -234,10 +288,23 @@ public class ProduitController {
                     }
                     produit.setAlerteStock(alerteStock.isEmpty() ? null : Integer.valueOf(alerteStock));
 
-                    if (uniteId != null && !uniteId.isEmpty()) {
-                        Unite unite = uniteService.findById(Long.parseLong(uniteId))
-                                .orElseThrow(() -> new IllegalArgumentException("Unité non trouvée"));
-                        produit.setUnite(unite);
+                    // Gestion du conditionnement (optionnel)
+                    if (uniteConditionnementId != null) {
+                        Optional<Unite> uniteOpt = uniteService.findById(uniteConditionnementId);
+                        if (uniteOpt.isPresent()) {
+                            produit.setUnite(uniteOpt.get());
+                        } else {
+                            java.util.Map<String, Object> err = new java.util.HashMap<>();
+                            err.put("error", "Unité de conditionnement non trouvée.");
+                            return ResponseEntity.badRequest().body(err);
+                        }
+                    } else {
+                        produit.setUnite(null);
+                    }
+                    if (nombreUnitesParConditionnement != null && !nombreUnitesParConditionnement.trim().isEmpty()) {
+                        produit.setNombreUnitesParConditionnement(Integer.valueOf(nombreUnitesParConditionnement));
+                    } else {
+                        produit.setNombreUnitesParConditionnement(1);
                     }
 
                     Produit saved = produitService.save(produit);
@@ -300,6 +367,52 @@ public class ProduitController {
             err.put("error", "Import failed");
             err.put("details", e.getMessage());
             return ResponseEntity.internalServerError().body(err);
+        }
+    }
+
+    private void enrichProduitResponse(Produit produit) {
+        if (produit == null) {
+            return;
+        }
+
+        if (produit.getProductImage() != null && !produit.getProductImage().startsWith("http")) {
+            produit.setProductImage("http://localhost:8085/uploads/products/" + produit.getProductImage());
+        }
+
+        if (produit.getStocks() != null && !produit.getStocks().isEmpty()) {
+            List<Long> ids = produit.getStocks().stream()
+                    .map(stock -> stock.getMagasin() != null ? stock.getMagasin().getId() : null)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            produit.setMagasinIds(ids);
+
+            List<Map<String, Object>> magasinStocks = produit.getStocks().stream()
+                .filter(stock -> stock.getMagasin() != null)
+                .map(stock -> {
+                Map<String, Object> map = new HashMap<>();
+                map.put("id", stock.getMagasin().getId());
+                map.put("nom", stock.getMagasin().getNom());
+                map.put("adresse", stock.getMagasin().getAdresse());
+                map.put("quantiteDisponible", stock.getQuantiteDisponible());
+                return map;
+                })
+                .collect(Collectors.toList());
+            produit.setMagasinStocks(magasinStocks);
+
+            Integer quantiteDisponible = produit.getStocks().stream()
+                    .map(stock -> stock.getQuantiteDisponible())
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse(null);
+
+            if (quantiteDisponible != null) {
+                Integer nbUnitesParConditionnement = produit.getNombreUnitesParConditionnement();
+                if (nbUnitesParConditionnement != null && nbUnitesParConditionnement > 0) {
+                    produit.setQuantiteInitialeConditionnements(quantiteDisponible / nbUnitesParConditionnement);
+                } else {
+                    produit.setQuantiteInitialeConditionnements(quantiteDisponible);
+                }
+            }
         }
     }
 }

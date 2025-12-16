@@ -377,7 +377,7 @@ const CommandeFournisseur: React.FC = () => {
               <div className="row">
                 <div className="col-md-6">
                   <div className="card">
-                    <div className="card-header bg-info text-white">
+                    <div className="card-header bg-primary text-white">
                       <h6>Produits disponibles</h6>
                     </div>
                     <div className="card-body">

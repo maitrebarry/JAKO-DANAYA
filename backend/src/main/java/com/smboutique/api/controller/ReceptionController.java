@@ -10,7 +10,6 @@ import com.smboutique.api.model.Stock;
 import com.smboutique.api.model.Boutique;
 import com.smboutique.api.model.CommandeFournisseur;
 import com.smboutique.api.model.Utilisateur;
-import com.smboutique.api.service.BoutiqueService;
 import com.smboutique.api.service.ReceptionService;
 import com.smboutique.api.service.CommandeFournisseurService;
 import com.smboutique.api.service.LigneReceptionService;
@@ -48,9 +47,6 @@ public class ReceptionController {
 
     @Autowired
     private ProduitService produitService;
-
-    @Autowired
-    private BoutiqueService boutiqueService;
 
     @Autowired
     private LigneCommandeRepository ligneCommandeRepository;
@@ -120,9 +116,24 @@ public class ReceptionController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Reception> getReceptionById(@PathVariable Long id) {
-        return receptionService.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        Utilisateur user = getCurrentUser();
+        if (!hasPermission(user, "RECEPTION_LECTURE")) {
+            return ResponseEntity.status(403).build(); // Forbidden
+        }
+
+        Optional<Reception> receptionOpt = receptionService.findById(id);
+        if (receptionOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Reception reception = receptionOpt.get();
+
+        // Vérifier que la réception appartient à la boutique de l'utilisateur (sauf superadmin)
+        if (!isSuperAdmin(user) && !reception.getBoutique().getId().equals(user.getBoutique().getId())) {
+            return ResponseEntity.status(403).build(); // Forbidden
+        }
+
+        return ResponseEntity.ok(reception);
     }
 
     @PostMapping
@@ -163,21 +174,46 @@ public class ReceptionController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteReception(@PathVariable Long id) {
-        return receptionService.findById(id)
-                .map(reception -> {
-                    receptionService.deleteById(id);
-                    return ResponseEntity.ok().<Void>build();
-                })
-                .orElse(ResponseEntity.notFound().build());
-    }
+        Utilisateur user = getCurrentUser();
+        if (!hasPermission(user, "RECEPTION_SUPPRESSION")) {
+            return ResponseEntity.status(403).build(); // Forbidden
+        }
 
-    @GetMapping("/{id}/detail")
-    public ResponseEntity<ReceptionDTO> getReceptionDetail(@PathVariable Long id) {
         Optional<Reception> receptionOpt = receptionService.findById(id);
         if (receptionOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
+
         Reception reception = receptionOpt.get();
+
+        // Vérifier que la réception appartient à la boutique de l'utilisateur (sauf superadmin)
+        if (!isSuperAdmin(user) && !reception.getBoutique().getId().equals(user.getBoutique().getId())) {
+            return ResponseEntity.status(403).build(); // Forbidden
+        }
+
+        receptionService.deleteById(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{id}/detail")
+    public ResponseEntity<ReceptionDTO> getReceptionDetail(@PathVariable Long id) {
+        Utilisateur user = getCurrentUser();
+        if (!hasPermission(user, "RECEPTION_LECTURE")) {
+            return ResponseEntity.status(403).build(); // Forbidden
+        }
+
+        Optional<Reception> receptionOpt = receptionService.findById(id);
+        if (receptionOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Reception reception = receptionOpt.get();
+
+        // Vérifier que la réception appartient à la boutique de l'utilisateur (sauf superadmin)
+        if (!isSuperAdmin(user) && !reception.getBoutique().getId().equals(user.getBoutique().getId())) {
+            return ResponseEntity.status(403).build(); // Forbidden
+        }
+
         ReceptionDTO dto = new ReceptionDTO();
         dto.setId(reception.getId());
         dto.setReference(reception.getReference());
@@ -250,6 +286,11 @@ public class ReceptionController {
 
     @PostMapping("/create")
     public ResponseEntity<ReceptionDTO> createReception(@RequestBody ReceptionDTO receptionDTO) {
+        Utilisateur user = getCurrentUser();
+        if (!hasPermission(user, "RECEPTION_ECRITURE")) {
+            return ResponseEntity.status(403).build(); // Forbidden
+        }
+
         try {
             // Récupérer la commande fournisseur
             Optional<CommandeFournisseur> commandeOpt = commandeFournisseurService.findById(receptionDTO.getIdCommandeFournisseur());
@@ -259,13 +300,13 @@ public class ReceptionController {
 
             CommandeFournisseur commande = commandeOpt.get();
 
-            // Récupérer la boutique depuis le DTO
-            Optional<Boutique> boutiqueOpt = boutiqueService.findById(receptionDTO.getIdBoutique());
-            if (!boutiqueOpt.isPresent()) {
-                return ResponseEntity.badRequest().build();
+            // Vérifier que la commande fournisseur appartient à la boutique de l'utilisateur (sauf superadmin)
+            if (!isSuperAdmin(user) && !commande.getBoutique().getId().equals(user.getBoutique().getId())) {
+                return ResponseEntity.status(403).build(); // Forbidden
             }
 
-            Boutique boutique = boutiqueOpt.get();
+            // Utiliser la boutique de l'utilisateur connecté au lieu de celle du DTO
+            Boutique boutique = user.getBoutique();
 
             // Créer la réception
             Reception reception = new Reception();

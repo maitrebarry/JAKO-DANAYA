@@ -28,6 +28,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/VenteController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/CommandeFournisseurDTO.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/ImportResult.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/ProduitCreateDTO.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/ProduitDTO.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/ReceptionDTO.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/ReceptionListDTO.java

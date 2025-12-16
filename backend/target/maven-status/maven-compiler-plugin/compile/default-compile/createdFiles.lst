@@ -117,6 +117,7 @@ com/smboutique/api/service/impl/UniteServiceImpl.class
 com/smboutique/api/service/impl/ProduitServiceImpl.class
 com/smboutique/api/model/Fournisseur.class
 com/smboutique/api/service/UtilisateurService.class
+com/smboutique/api/dto/ProduitCreateDTO.class
 com/smboutique/api/repository/VenteRepository.class
 com/smboutique/api/service/PaiementService.class
 com/smboutique/api/service/impl/ClientGrossisteServiceImpl.class

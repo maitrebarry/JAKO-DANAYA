@@ -8,6 +8,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 @Data
@@ -25,6 +26,12 @@ public class Produit {
     @ManyToOne
     @JoinColumn(name = "id_unite")
     private Unite unite;
+
+    @Column(name = "unite_conditionnement")
+    private String uniteConditionnement;
+
+    @Column(name = "nombre_unites_par_conditionnement")
+    private Integer nombreUnitesParConditionnement;
 
     @Column(name = "product_image")
     private String productImage;
@@ -47,4 +54,13 @@ public class Produit {
 
     @OneToMany(mappedBy = "produit", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Stock> stocks;
+
+    @Transient
+    private List<Long> magasinIds;
+
+    @Transient
+    private Integer quantiteInitialeConditionnements;
+
+    @Transient
+    private List<Map<String, Object>> magasinStocks;
 }
