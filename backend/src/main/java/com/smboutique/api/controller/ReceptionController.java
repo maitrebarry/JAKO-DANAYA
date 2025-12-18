@@ -20,18 +20,27 @@ import com.smboutique.api.repository.LigneCommandeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Optional;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/receptions")
 @CrossOrigin(origins = "*")
 public class ReceptionController {
+
+    private static final Logger logger = LoggerFactory.getLogger(ReceptionController.class);
 
     @Autowired
     private ReceptionService receptionService;
@@ -47,6 +56,9 @@ public class ReceptionController {
 
     @Autowired
     private ProduitService produitService;
+
+    @Autowired
+    private com.smboutique.api.service.ConfigurationMargeService configurationMargeService;
 
     @Autowired
     private LigneCommandeRepository ligneCommandeRepository;
@@ -151,7 +163,8 @@ public class ReceptionController {
     public ResponseEntity<Reception> updateReception(@PathVariable Long id, @RequestBody Reception receptionDetails) {
         Utilisateur user = getCurrentUser();
         if (!hasPermission(user, "RECEPTION_ECRITURE")) {
-            return ResponseEntity.status(403).build(); // Forbidden
+            logger.warn("Accès refusé à updateReception pour l'utilisateur {}: permission manquante RECEPTION_ECRITURE", user.getEmail());
+            return ResponseEntity.status(403).build();
         }
 
         Optional<Reception> receptionOpt = receptionService.findById(id);
@@ -250,7 +263,7 @@ public class ReceptionController {
     }
 
     @GetMapping("/commande/{commandeId}/articles")
-    public ResponseEntity<List<ReceptionDTO.LigneReceptionDTO>> getArticlesForCommande(@PathVariable Long commandeId) {
+    public ResponseEntity<Object> getArticlesForCommande(@PathVariable Long commandeId) {
         try {
             Optional<CommandeFournisseur> commandeOpt = commandeFournisseurService.findById(commandeId);
             if (!commandeOpt.isPresent()) {
@@ -280,35 +293,34 @@ public class ReceptionController {
 
             return ResponseEntity.ok(articles);
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
+            logger.error("Erreur lors de la création de la réception: {}", e.getMessage(), e);
+            java.util.Map<String, Object> err = new java.util.HashMap<>();
+            err.put("error", "Erreur lors de la validation de la réception");
+            err.put("details", e.getMessage());
+            return ResponseEntity.status(500).body(err);
         }
     }
 
     @PostMapping("/create")
-    public ResponseEntity<ReceptionDTO> createReception(@RequestBody ReceptionDTO receptionDTO) {
+    @Transactional
+    public ResponseEntity<Object> createReception(@RequestBody ReceptionDTO receptionDTO) {
         Utilisateur user = getCurrentUser();
         if (!hasPermission(user, "RECEPTION_ECRITURE")) {
             return ResponseEntity.status(403).build(); // Forbidden
         }
 
         try {
-            // Récupérer la commande fournisseur
             Optional<CommandeFournisseur> commandeOpt = commandeFournisseurService.findById(receptionDTO.getIdCommandeFournisseur());
             if (!commandeOpt.isPresent()) {
                 return ResponseEntity.badRequest().build();
             }
 
             CommandeFournisseur commande = commandeOpt.get();
-
-            // Vérifier que la commande fournisseur appartient à la boutique de l'utilisateur (sauf superadmin)
             if (!isSuperAdmin(user) && !commande.getBoutique().getId().equals(user.getBoutique().getId())) {
-                return ResponseEntity.status(403).build(); // Forbidden
+                return ResponseEntity.status(403).build();
             }
 
-            // Utiliser la boutique de l'utilisateur connecté au lieu de celle du DTO
             Boutique boutique = user.getBoutique();
-
-            // Créer la réception
             Reception reception = new Reception();
             reception.setReference(receptionDTO.getReference());
             reception.setDateReception(LocalDateTime.now());
@@ -317,77 +329,168 @@ public class ReceptionController {
 
             Reception savedReception = receptionService.save(reception);
 
+            List<LigneCommande> lignesCommande = ligneCommandeRepository.findByCommandeFournisseurId(commande.getId());
+            Map<Long, LigneCommande> ligneParProduit = new HashMap<>();
+            for (LigneCommande ligneCommande : lignesCommande) {
+                if (ligneCommande.getStock() != null && ligneCommande.getStock().getProduit() != null) {
+                    ligneParProduit.put(ligneCommande.getStock().getProduit().getId(), ligneCommande);
+                }
+            }
+
             // Validation des quantités avant traitement
             for (ReceptionDTO.LigneReceptionDTO ligneDTO : receptionDTO.getLignesReception()) {
-                if (ligneDTO.getReceptionActuelle() > 0) {
-                    // Trouver la ligne de commande correspondante pour validation
-                    List<LigneCommande> lignesCommande = ligneCommandeRepository.findByCommandeFournisseurId(commande.getId());
-                    boolean ligneTrouvee = false;
-                    
-                    for (LigneCommande ligneCommande : lignesCommande) {
-                        if (ligneCommande.getStock().getProduit().getId().equals(ligneDTO.getIdProduit())) {
-                            Integer qteDejaRecue = ligneCommande.getQuantiteLivre() != null ? ligneCommande.getQuantiteLivre() : 0;
-                            Integer qteRestante = ligneCommande.getQuantite() - qteDejaRecue;
-                            
-                            if (ligneDTO.getReceptionActuelle() > qteRestante) {
-                                return ResponseEntity.badRequest().body(null); // Quantité trop élevée
-                            }
-                            ligneTrouvee = true;
-                            break;
-                        }
-                    }
-                    
-                    if (!ligneTrouvee) {
-                        return ResponseEntity.badRequest().body(null); // Produit non trouvé dans la commande
-                    }
+                int receptionActuelle = ligneDTO.getReceptionActuelle() != null ? ligneDTO.getReceptionActuelle() : 0;
+                if (receptionActuelle <= 0) continue;
+                LigneCommande ligneCommande = ligneParProduit.get(ligneDTO.getIdProduit());
+                if (ligneCommande == null) {
+                    return ResponseEntity.badRequest().body(null);
+                }
+                Integer qteDejaRecue = ligneCommande.getQuantiteLivre() != null ? ligneCommande.getQuantiteLivre() : 0;
+                Integer qteRestante = ligneCommande.getQuantite() - qteDejaRecue;
+                if (receptionActuelle > qteRestante) {
+                    return ResponseEntity.badRequest().body(null);
                 }
             }
 
-            // Créer les lignes de réception et mettre à jour les stocks
             for (ReceptionDTO.LigneReceptionDTO ligneDTO : receptionDTO.getLignesReception()) {
-                if (ligneDTO.getReceptionActuelle() > 0) {
-                    LigneReception ligneReception = new LigneReception();
-                    ligneReception.setReception(savedReception);
-                    ligneReception.setQuantiteRecu(ligneDTO.getReceptionActuelle());
+                int receptionActuelle = ligneDTO.getReceptionActuelle() != null ? ligneDTO.getReceptionActuelle() : 0;
+                if (receptionActuelle <= 0) continue;
+                LigneCommande ligneCommande = ligneParProduit.get(ligneDTO.getIdProduit());
+                if (ligneCommande == null) continue;
 
-                    // Trouver le produit par ID
-                    Optional<Produit> produitOpt = produitService.findById(ligneDTO.getIdProduit());
-                    if (produitOpt.isPresent()) {
-                        ligneReception.setProduit(produitOpt.get());
+                // Log before values
+                Stock st = ligneCommande.getStock();
+                logger.info("Reception: produitId={}, stockId={}, qtyBefore={}, costAverageBefore={}", ligneDTO.getIdProduit(), st != null ? st.getId() : null, st != null ? st.getQuantiteDisponible() : null, st != null ? st.getCostAverage() : null);
 
-                        // Mettre à jour la quantité livrée dans la ligne de commande
-                        List<LigneCommande> lignesCommande = ligneCommandeRepository.findByCommandeFournisseurId(commande.getId());
-                        for (LigneCommande ligneCommande : lignesCommande) {
-                            if (ligneCommande.getStock().getProduit().getId().equals(ligneDTO.getIdProduit())) {
-                                // Ajouter la quantité reçue à la quantité déjà livrée
-                                Integer quantiteLivreActuelle = ligneCommande.getQuantiteLivre() != null ? ligneCommande.getQuantiteLivre() : 0;
-                                ligneCommande.setQuantiteLivre(quantiteLivreActuelle + ligneDTO.getReceptionActuelle());
-                                ligneCommandeRepository.save(ligneCommande);
-                                // Update stock using stock attached to the LigneCommande
-                                if (ligneCommande.getStock() != null && ligneDTO.getReceptionActuelle() != null && ligneDTO.getReceptionActuelle() > 0) {
-                                    Stock stock = ligneCommande.getStock();
-                                    Integer currentQty = stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0;
-                                    stock.setQuantiteDisponible(currentQty + ligneDTO.getReceptionActuelle());
-                                    stockService.saveStock(stock);
-                                }
-                                break; // Sortir de la boucle une fois la ligne trouvée et mise à jour
-                            }
-                        }
-                    }
+                Integer quantiteLivreActuelle = ligneCommande.getQuantiteLivre() != null ? ligneCommande.getQuantiteLivre() : 0;
+                ligneCommande.setQuantiteLivre(quantiteLivreActuelle + receptionActuelle);
+                LigneCommande savedLigne = ligneCommandeRepository.save(ligneCommande);
 
-                    ligneReceptionService.save(ligneReception);
+                updateStockCostAndPrices(savedLigne, receptionActuelle);
+
+                // Log after values
+                Stock stAfter = savedLigne.getStock();
+                logger.info("Reception result: produitId={}, stockId={}, qtyAfter={}, costAverageAfter={}, lastPurchasePrice={}", ligneDTO.getIdProduit(), stAfter != null ? stAfter.getId() : null, stAfter != null ? stAfter.getQuantiteDisponible() : null, stAfter != null ? stAfter.getCostAverage() : null, stAfter != null ? stAfter.getLastPurchasePrice() : null);
+
+                LigneReception ligneReception = new LigneReception();
+                ligneReception.setReception(savedReception);
+                ligneReception.setQuantiteRecu(receptionActuelle);
+                if (savedLigne.getStock() != null && savedLigne.getStock().getProduit() != null) {
+                    ligneReception.setProduit(savedLigne.getStock().getProduit());
                 }
+                ligneReceptionService.save(ligneReception);
             }
-
-            // Mettre à jour la commande (marquer comme partiellement reçue)
-            // Ici on pourrait calculer le pourcentage total reçu, mais pour l'instant on retourne juste le DTO
 
             receptionDTO.setId(savedReception.getId());
             receptionDTO.setDateReception(LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")));
-
             return ResponseEntity.ok(receptionDTO);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    private void updateStockCostAndPrices(LigneCommande ligneCommande, int receptionQty) {
+        if (ligneCommande == null || receptionQty <= 0) return;
+        Stock stock = ligneCommande.getStock();
+        if (stock == null) return;
+
+        // Convert reception quantity to real units according to product's conditionnement
+        com.smboutique.api.model.Produit produit = stock.getProduit();
+        int multiplicateur = (produit != null && produit.getNombreUnitesParConditionnement() != null && produit.getNombreUnitesParConditionnement() > 0)
+                ? produit.getNombreUnitesParConditionnement()
+                : 1;
+        int quantiteReelle = receptionQty * multiplicateur;
+
+        int currentQty = stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0;
+        BigDecimal currentCostAverage = stock.getCostAverage() != null ? stock.getCostAverage() : BigDecimal.ZERO;
+
+        // newPrice from ligneCommande is expected to be the supplier price per unit (base unit)
+        BigDecimal incomingPrix = BigDecimal.valueOf(ligneCommande.getNewPrice() != null ? ligneCommande.getNewPrice() : 0);
+
+        BigDecimal incomingQty = BigDecimal.valueOf(quantiteReelle);
+        BigDecimal totalQty = BigDecimal.valueOf(currentQty).add(incomingQty);
+        BigDecimal updatedCostAverage = BigDecimal.ZERO;
+        if (totalQty.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal existingValue = currentCostAverage.multiply(BigDecimal.valueOf(currentQty));
+            BigDecimal incomingValue = incomingPrix.multiply(incomingQty);
+            updatedCostAverage = existingValue.add(incomingValue).divide(totalQty, 6, RoundingMode.HALF_UP);
+        }
+
+        // Persist stock updates
+        stock.setCostAverage(updatedCostAverage);
+        stock.setLastPurchasePrice(incomingPrix);
+        stock.setQuantiteDisponible(currentQty + quantiteReelle);
+        stockService.saveStock(stock);
+
+        // Update product CMP and selling prices
+        updateProductPricing(stock.getProduit(), updatedCostAverage, ligneCommande.getNewPrice(), stock);
+    }
+
+    private void updateProductPricing(Produit produit, BigDecimal costAverage, Integer supplierPrice, Stock stock) {
+        if (produit == null || costAverage == null) return;
+
+        // Update produit.prix_achat with CMP (rounded to integer)
+        produit.setPrixAchat(costAverage.setScale(0, RoundingMode.HALF_UP).intValue());
+
+        // Find margin config for boutique (prefer stock.magasin.boutique if available)
+        Long boutiqueId = null;
+        if (stock != null && stock.getMagasin() != null && stock.getMagasin().getBoutique() != null) {
+            boutiqueId = stock.getMagasin().getBoutique().getId();
+        }
+
+        com.smboutique.api.model.ConfigurationMarge config = null;
+        if (boutiqueId != null) {
+            config = configurationMargeService.findByBoutiqueId(boutiqueId).orElse(null);
+        }
+
+        BigDecimal prixGrosBD;
+        BigDecimal prixDetailBD;
+
+        if (config == null) {
+            // If no config, just keep prix en gros/detail equal to CMP
+            prixGrosBD = costAverage;
+            prixDetailBD = costAverage;
+        } else {
+            BigDecimal valGros = config.getValeurGros() != null ? config.getValeurGros() : BigDecimal.ZERO;
+            BigDecimal valDetail = config.getValeurDetail() != null ? config.getValeurDetail() : BigDecimal.ZERO;
+            if (config.getTypeMarge() == com.smboutique.api.model.ConfigurationMarge.TypeMarge.FIXE) {
+                prixGrosBD = costAverage.add(valGros);
+                prixDetailBD = costAverage.add(valDetail);
+            } else {
+                // POURCENTAGE
+                prixGrosBD = costAverage.multiply(BigDecimal.ONE.add(valGros.divide(BigDecimal.valueOf(100), 6, RoundingMode.HALF_UP)));
+                prixDetailBD = costAverage.multiply(BigDecimal.ONE.add(valDetail.divide(BigDecimal.valueOf(100), 6, RoundingMode.HALF_UP)));
+            }
+            // Enforce minimum fixed margins if configured
+            BigDecimal minGros = config.getMargeMinimaleGros() != null ? config.getMargeMinimaleGros() : BigDecimal.ZERO;
+            BigDecimal minDetail = config.getMargeMinimaleDetail() != null ? config.getMargeMinimaleDetail() : BigDecimal.ZERO;
+            // actual margin = prix - CMP
+            BigDecimal actualMarginGros = prixGrosBD.subtract(costAverage);
+            BigDecimal actualMarginDetail = prixDetailBD.subtract(costAverage);
+            boolean enforced = false;
+            if (actualMarginGros.compareTo(minGros) < 0) {
+                prixGrosBD = costAverage.add(minGros);
+                enforced = true;
+            }
+            if (actualMarginDetail.compareTo(minDetail) < 0) {
+                prixDetailBD = costAverage.add(minDetail);
+                enforced = true;
+            }
+            if (enforced) {
+                logger.info("Marge minimale appliquée pour produit {}: marge_gros_min={}, marge_detail_min={}", produit.getId(), minGros, minDetail);
+            }
+        }
+
+        produit.setPrixEnGros(prixGrosBD.setScale(0, RoundingMode.HALF_UP).intValue());
+        produit.setPrixDetail(prixDetailBD.setScale(0, RoundingMode.HALF_UP).intValue());
+
+        produitService.save(produit);
+    }
+
+    private BigDecimal computePriceWithMargin(BigDecimal base, BigDecimal margePercent) {
+        if (base == null) return null;
+        BigDecimal percent = margePercent != null ? margePercent : BigDecimal.ZERO;
+        BigDecimal factor = BigDecimal.ONE.add(percent.divide(BigDecimal.valueOf(100), 6, RoundingMode.HALF_UP));
+        return base.multiply(factor);
     }
 }

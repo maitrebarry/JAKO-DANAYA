@@ -85,8 +85,8 @@ const CommandeFournisseur: React.FC = () => {
           const stockId = l.stock?.id;
           const stockInfo = stocksRef ? stocksRef.find(s => s.id === stockId) : undefined;
           const nomProduit = stockInfo?.produit?.nomProduit || (l.stock?.produit?.nomProduit || 'Produit inconnu');
-          const basePrice = stockInfo?.produit?.prixAchat || (l.stock?.produit?.prixAchat || 0);
-          const prix = l.newPrice || basePrice;
+          const basePrice = Number(stockInfo?.produit?.prixAchat ?? l.stock?.produit?.prixAchat ?? 0);
+          const prix = l.newPrice !== undefined && l.newPrice !== null ? Number(l.newPrice) : basePrice;
           const quantite = l.quantite || 1;
           return { id_stock: stockId, nom: nomProduit, quantite, prix, montant: prix * quantite };
         });
@@ -151,7 +151,7 @@ const CommandeFournisseur: React.FC = () => {
       // Get last used price for this product from localStorage
       const lastPriceKey = `lastPrice_${stock.produit.id}`;
       const lastPrice = localStorage.getItem(lastPriceKey);
-      const defaultPrice = lastPrice ? parseFloat(lastPrice) : (stock.produit?.prixAchat || 0);
+      const defaultPrice = lastPrice ? parseFloat(lastPrice) : Number(stock.produit?.prixAchat ?? 0);
 
       if (defaultPrice <= 0) {
         Swal.fire('Attention', 'Le prix de ce produit n\'est pas défini. Veuillez le saisir manuellement.', 'warning');
@@ -200,6 +200,7 @@ const CommandeFournisseur: React.FC = () => {
   };
 
   const total = cart.reduce((sum, item) => sum + item.montant, 0);
+  const zeroStockDetails = stocks.filter(stock => (stock.quantiteDisponible ?? 0) === 0);
 
   const handleSubmit = async () => {
     if (!selectedFournisseur) {
@@ -421,32 +422,32 @@ const CommandeFournisseur: React.FC = () => {
                         </button>
                       </div>
                       
-                      {stocks.length > 0 && (
+                      {zeroStockDetails.length > 0 ? (
                         <div className="mt-3">
-                          <h6 className="text-muted mb-2">Détails des produits disponibles :</h6>
+                          <h6 className="text-muted mb-2">Détails produits en rupture de stock :</h6>
                           <div className="row">
-                            {stocks.slice(0, 6).map(stock => (
+                            {zeroStockDetails.slice(0, 6).map(stock => (
                               <div key={stock.id} className="col-md-6 mb-2">
                                 <div className="d-flex justify-content-between align-items-center p-2 border rounded">
                                   <div>
                                     <strong>{stock.produit?.nomProduit || 'Produit inconnu'}</strong>
                                     <br />
-                                    <small className="text-muted">{(stock.produit?.prixAchat || 0)} FCFA</small>
+                                    <small className="text-muted">{Number(stock.produit?.prixAchat ?? 0)} FCFA</small>
                                   </div>
                                   <div>
                                     <span className="badge bg-primary me-1">{stock.magasin?.nom || 'Dépôt inconnu'}</span>
-                                    <span className={`badge ${
-                                      (stock.quantiteDisponible || 0) > 20 ? 'bg-success' : 
-                                      (stock.quantiteDisponible || 0) > 5 ? 'bg-warning' : 
-                                      'bg-danger'
-                                    }`}>
-                                      Stock: {stock.quantiteDisponible || 0}
+                                    <span className="badge bg-danger">
+                                      Stock: {stock.quantiteDisponible ?? 0}
                                     </span>
                                   </div>
                                 </div>
                               </div>
                             ))}
                           </div>
+                        </div>
+                      ) : (
+                        <div className="mt-3">
+                          <h6 className="text-muted mb-2">Aucun produit en rupture de stock</h6>
                         </div>
                       )}
                     </div>

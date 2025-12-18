@@ -74,6 +74,7 @@ com/smboutique/api/dto/StockDTO$ProduitDTO.class
 com/smboutique/api/security/UserDetailsImpl.class
 com/smboutique/api/service/LivraisonService.class
 com/smboutique/api/controller/CommandeFournisseurRequest$FournisseurDTO.class
+com/smboutique/api/service/impl/ConfigurationMargeServiceImpl.class
 com/smboutique/api/controller/AdminPermissionController.class
 com/smboutique/api/controller/PermissionController.class
 com/smboutique/api/model/Role.class
@@ -124,6 +125,7 @@ com/smboutique/api/service/impl/ClientGrossisteServiceImpl.class
 com/smboutique/api/service/StockService.class
 com/smboutique/api/model/Caisse.class
 com/smboutique/api/service/UniteService.class
+com/smboutique/api/service/ConfigurationMargeService.class
 com/smboutique/api/config/WebConfig.class
 com/smboutique/api/repository/ReceptionRepository.class
 com/smboutique/api/service/VenteService.class
@@ -147,7 +149,6 @@ com/smboutique/api/repository/DepenseRepository.class
 com/smboutique/api/service/impl/FournisseurServiceImpl.class
 com/smboutique/api/model/Paiement.class
 com/smboutique/api/dto/CommandeFournisseurDTO$FournisseurDTO.class
-com/smboutique/api/controller/ReceptionController.class
 com/smboutique/api/model/PaiementClient.class
 com/smboutique/api/repository/ClientGrossisteRepository.class
 com/smboutique/api/repository/PermissionRepository.class

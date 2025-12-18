@@ -148,6 +148,11 @@ public class DataInitializer implements CommandLineRunner {
                 // Paramètres
                 {"PARAMETRES_LECTURE", "Permission pour lire les paramètres"},
                 {"PARAMETRES_MODIFIER", "Permission pour modifier les paramètres"}
+                ,
+                // Configuration marges
+                {"CONFIG_MARGE_LECTURE", "Permission pour lire la configuration des marges"},
+                {"CONFIG_MARGE_ECRITURE", "Permission pour créer/modifier la configuration des marges"},
+                {"CONFIG_MARGE_SUPPRESSION", "Permission pour supprimer la configuration des marges"}
             };
 
             Arrays.stream(permissions).forEach(perm -> {

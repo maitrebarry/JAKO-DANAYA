@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 @Entity
 @Data
 @Table(name = "stock")
@@ -15,6 +17,12 @@ public class Stock {
 
     @Column(name = "quantite_disponible")
     private Integer quantiteDisponible;
+
+    @Column(name = "cost_average")
+    private BigDecimal costAverage;
+
+    @Column(name = "last_purchase_price")
+    private BigDecimal lastPurchasePrice;
 
     @ManyToOne
     @JoinColumn(name = "id_produit")

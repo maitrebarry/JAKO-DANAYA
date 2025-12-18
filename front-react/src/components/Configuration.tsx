@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '../contexts/UserContext';
+import ConfigurationMarges from './ConfigurationMarges';
 import Swal from 'sweetalert2';
 
 const Configuration = () => {
@@ -22,6 +23,8 @@ const Configuration = () => {
         return <Permissions />;
       case 'assigner-permissions':
         return <AssignerPermissions />;
+      case 'marges':
+        return <ConfigurationMarges />;
       default:
         return <ListeUtilisateurs />;
     }
@@ -60,6 +63,9 @@ const Configuration = () => {
               )}
               <a href="#" className="list-group-item list-group-item-action" style={{ cursor: 'pointer' }} onClick={() => setSelectedSub('assigner-permissions')}>
                 Assigner des permissions
+              </a>
+              <a href="#" className="list-group-item list-group-item-action" style={{ cursor: 'pointer' }} onClick={() => setSelectedSub('marges')}>
+                Marges (configuration)
               </a>
             </div>
           </div>

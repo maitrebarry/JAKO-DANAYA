@@ -6,6 +6,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +45,12 @@ public class Produit {
 
     @Column(name = "prix_achat")
     private Integer prixAchat;
+
+    @Column(name = "marge_gros")
+    private BigDecimal margeGros;
+
+    @Column(name = "marge_detail")
+    private BigDecimal margeDetail;
 
     @Column(name = "alerte_stock")
     private Integer alerteStock;
