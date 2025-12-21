@@ -9,6 +9,7 @@ com/smboutique/api/service/impl/MouvementServiceImpl.class
 com/smboutique/api/controller/MagasinController.class
 com/smboutique/api/repository/CommandeFournisseurRepository.class
 com/smboutique/api/repository/BoutiqueRepository.class
+com/smboutique/api/repository/ConfigurationMargeRepository.class
 com/smboutique/api/repository/CaisseRepository.class
 com/smboutique/api/repository/PaiementClientRepository.class
 com/smboutique/api/controller/CommandeFournisseurController.class
@@ -50,6 +51,7 @@ com/smboutique/api/model/LigneCommandeClient.class
 com/smboutique/api/controller/CommandeFournisseurRequest$ProduitSelectionne.class
 com/smboutique/api/service/LigneLivraisonService.class
 com/smboutique/api/service/impl/LigneCommandeClientServiceImpl.class
+com/smboutique/api/model/ConfigurationMarge$TypeMarge.class
 com/smboutique/api/repository/LigneLivraisonRepository.class
 com/smboutique/api/controller/CaisseController.class
 com/smboutique/api/controller/PaiementController.class
@@ -85,6 +87,7 @@ com/smboutique/api/service/LigneReceptionService.class
 com/smboutique/api/service/impl/LigneVenteServiceImpl.class
 com/smboutique/api/controller/InventaireController.class
 com/smboutique/api/controller/AuthController$JwtResponse.class
+com/smboutique/api/model/ConfigurationMarge.class
 com/smboutique/api/service/InventaireService.class
 com/smboutique/api/controller/CommandeClientController.class
 com/smboutique/api/controller/ProduitController.class
@@ -145,10 +148,12 @@ com/smboutique/api/security/AuthTokenFilter.class
 com/smboutique/api/service/ClientGrossisteService.class
 com/smboutique/api/service/impl/CaisseServiceImpl.class
 com/smboutique/api/repository/LigneReceptionRepository.class
+com/smboutique/api/controller/ConfigurationMargeController.class
 com/smboutique/api/repository/DepenseRepository.class
 com/smboutique/api/service/impl/FournisseurServiceImpl.class
 com/smboutique/api/model/Paiement.class
 com/smboutique/api/dto/CommandeFournisseurDTO$FournisseurDTO.class
+com/smboutique/api/controller/ReceptionController.class
 com/smboutique/api/model/PaiementClient.class
 com/smboutique/api/repository/ClientGrossisteRepository.class
 com/smboutique/api/repository/PermissionRepository.class
