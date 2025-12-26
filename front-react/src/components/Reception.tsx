@@ -39,20 +39,32 @@ const Reception: React.FC = () => {
   const [articles, setArticles] = useState<ArticleData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Server-side feedback to display after submit
+  const [serverError, setServerError] = useState<{ message: string; details?: any } | null>(null);
+
+  // Debug info (temporary) - shows token, userData, and last fetch result
+  const [, setDebugInfo] = useState<{ token?: string | null; userData?: any; fetchStatus?: string; fetchResponse?: any }>({ token: null, userData: null, fetchStatus: '', fetchResponse: null });
 
   // Generate reception reference
   const generateRefReception = () => {
     const now = new Date();
-    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
-    const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const dateStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+    const timeStr = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     return `REC-${dateStr}-${timeStr}`;
   };
 
+  const now = new Date();
   const [refReception] = useState(generateRefReception());
-  const [dateReception] = useState(new Date().toLocaleString('fr-FR'));
+  // Keep both an ISO timestamp to send to server and a localized display for UI
+  const [dateReceptionIso] = useState(now.toISOString());
+  const [dateReception] = useState(now.toLocaleString('fr-FR'));
 
   useEffect(() => {
     console.log('Reception useEffect triggered, currentBoutique:', currentBoutique, 'id:', id);
+    const token = localStorage.getItem('smb_token');
+    const userData = localStorage.getItem('smb_user_data');
+    setDebugInfo(prev => ({ ...prev, token: token ? (token.length > 12 ? token.slice(0,12) + '...' : token) : null, userData: userData ? JSON.parse(userData) : null }));
     if (currentBoutique) {
       fetchCommandes().then(() => {
         // Si un ID de commande est fourni dans l'URL, la charger automatiquement
@@ -68,6 +80,7 @@ const Reception: React.FC = () => {
 
   const fetchCommandes = async () => {
     setLoading(true);
+    setDebugInfo(prev => ({ ...prev, fetchStatus: 'loading', fetchResponse: null }));
     try {
       const token = localStorage.getItem('smb_token');
       const url = `http://localhost:8085/api/commandes-fournisseurs/a-recevoir`;
@@ -75,12 +88,18 @@ const Reception: React.FC = () => {
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error('Erreur lors du chargement des commandes');
+      if (!res.ok) {
+        const errText = await res.text().catch(() => res.statusText || 'Erreur serveur');
+        throw new Error(errText || 'Erreur lors du chargement des commandes');
+      }
       const data = await res.json();
       console.log('Fetched commandes:', data);
       setCommandes(data);
+      setDebugInfo(prev => ({ ...prev, fetchStatus: 'ok', fetchResponse: data }));
     } catch (err: any) {
-      setError(err.message || 'Erreur inconnue');
+      const message = err.message || 'Erreur inconnue';
+      setError(message);
+      setDebugInfo(prev => ({ ...prev, fetchStatus: 'error', fetchResponse: message }));
     } finally {
       setLoading(false);
     }
@@ -124,7 +143,8 @@ const Reception: React.FC = () => {
       const token = localStorage.getItem('smb_token');
       const receptionData = {
         reference: refReception,
-        dateReception: dateReception,
+        dateReception: dateReceptionIso,
+        dateReceptionTimezoneOffsetMinutes: new Date().getTimezoneOffset(),
         idCommandeFournisseur: selectedCommande.id,
         referenceCommande: selectedCommande.reference,
         fournisseur: `${selectedCommande.fournisseur.prenom} ${selectedCommande.fournisseur.nom}`,
@@ -149,8 +169,31 @@ const Reception: React.FC = () => {
         body: JSON.stringify(receptionData)
       });
 
-      if (!res.ok) throw new Error('Erreur lors de la validation de la réception');
+      // Parse and surface server errors (better UX than a generic message)
+      const contentType = res.headers.get('content-type') || '';
+      if (!res.ok) {
+        let errMsg = `Erreur serveur (${res.status})`;
+        let details: any = null;
+        if (contentType.includes('application/json')) {
+          const errBody = await res.json().catch(() => null);
+          errMsg = (errBody && (errBody.error || errBody.message)) || errMsg;
+          details = errBody && errBody.details ? errBody.details : null;
+        } else {
+          const text = await res.text().catch(() => null);
+          if (text) errMsg = text;
+        }
+        // Persist server error to UI and show modal
+        setServerError({ message: errMsg, details });
+        await Swal.fire({
+          icon: 'error',
+          title: 'Erreur',
+          html: `<div>${errMsg}</div>${details ? '<pre style="text-align:left">' + JSON.stringify(details, null, 2) + '</pre>' : ''}`
+        });
+        return;
+      }
 
+      // On success, clear any server error and show a simple success modal
+      setServerError(null);
       Swal.fire('Succès', 'Réception validée avec succès', 'success');
       
       // Rafraîchir les articles pour voir les quantités mises à jour
@@ -158,7 +201,9 @@ const Reception: React.FC = () => {
         await handleCommandeChange(selectedCommande.id.toString());
       }
     } catch (err: any) {
-      Swal.fire('Erreur', err.message || 'Erreur inconnue', 'error');
+      const message = err && err.message ? err.message : 'Erreur inconnue';
+      setServerError({ message, details: null });
+      Swal.fire('Erreur', message, 'error');
     }
   };
 
@@ -190,6 +235,22 @@ const Reception: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Debug panel (temporary) */}
+      {/* <div className="card mb-3">
+        <div className="card-header bg-secondary text-white">Debug (temp)</div>
+        <div className="card-body">
+          <div><strong>Token:</strong> {debugInfo.token ? debugInfo.token : <em>none</em>}</div>
+          <div style={{marginTop: '8px'}}><strong>currentBoutique:</strong>
+            <pre style={{whiteSpace:'pre-wrap', margin:0}}>{JSON.stringify(currentBoutique || debugInfo.userData?.currentBoutique || null, null, 2)}</pre>
+          </div>
+          <div style={{marginTop: '8px'}}><strong>Fetch status:</strong> {debugInfo.fetchStatus}</div>
+          {debugInfo.fetchResponse && <div style={{marginTop: '8px'}}><strong>Fetch response:</strong>
+            <pre style={{whiteSpace:'pre-wrap', textAlign:'left', maxHeight: '200px', overflow: 'auto'}}>{JSON.stringify(debugInfo.fetchResponse, null, 2)}</pre>
+          </div>}
+        </div>
+      </div> */}
+
       {/* Breadcrumb */}
       <div className="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
         <div className="breadcrumb-title pe-3">Commande</div>
@@ -214,6 +275,16 @@ const Reception: React.FC = () => {
       </div>
       {/* End breadcrumb */}
       <hr />
+
+      {/* Server feedback (errors and per-line results) */}
+      {serverError && (
+        <div className="alert alert-danger" role="alert">
+          <div><strong>Erreur serveur :</strong> {serverError.message}</div>
+          {serverError.details && <pre style={{ whiteSpace: 'pre-wrap', textAlign: 'left' }}>{JSON.stringify(serverError.details, null, 2)}</pre>}
+          <div className="mt-2"><button className="btn btn-sm btn-outline-secondary" onClick={() => setServerError(null)}>Effacer</button></div>
+        </div>
+      )}
+
 
       <form onSubmit={handleSubmit} className="row" noValidate>
         <div className="row">

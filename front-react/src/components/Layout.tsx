@@ -234,13 +234,8 @@ const Sidebar = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/liste-receptions" className="side-nav-link" style={{ paddingLeft: '40px' }}>
-                  <span>Liste des receptions</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/liste-paiements" className="side-nav-link" style={{ paddingLeft: '40px' }}>
-                  <span>Liste des paiements</span>
+                <Link to="/historique" title="Historique (Réceptions & Paiements)" className="side-nav-link" style={{ paddingLeft: '40px', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                  <span>Historique</span>
                 </Link>
               </li>
             </ul>

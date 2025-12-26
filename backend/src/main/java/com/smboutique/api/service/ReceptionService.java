@@ -19,7 +19,14 @@ public interface ReceptionService {
     List<ReceptionListDTO> findUnfinishedReceptionsListByBoutiqueId(Long boutiqueId);
     List<ReceptionListDTO> findFinishedReceptionsListByBoutiqueId(Long boutiqueId);
 
+    // New helpers
+    boolean isReceptionUnfinished(Long receptionId);
+    java.util.List<com.smboutique.api.dto.ReceptionStatusDTO> getReceptionsStatusByBoutique(Long boutiqueId);
+
     Optional<Reception> findById(Long id);
     Reception save(Reception reception);
     void deleteById(Long id);
+
+    // Find receptions for a given commande
+    java.util.List<Reception> findByCommandeFournisseurId(Long commandeId);
 }

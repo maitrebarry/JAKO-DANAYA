@@ -8,4 +8,5 @@ import java.util.List;
 @Repository
 public interface ReceptionRepository extends JpaRepository<Reception, Long> {
     List<Reception> findByBoutiqueId(Long boutiqueId);
+    List<Reception> findByCommandeFournisseurId(Long commandeId);
 }

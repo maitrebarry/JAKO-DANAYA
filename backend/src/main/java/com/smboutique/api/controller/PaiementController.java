@@ -15,6 +15,9 @@ public class PaiementController {
     @Autowired
     private PaiementService paiementService;
 
+    @Autowired
+    private com.smboutique.api.service.PdfService pdfService;
+
     @GetMapping
     public List<Paiement> getAllPaiements() {
         return paiementService.findAll();
@@ -25,6 +28,15 @@ public class PaiementController {
         return paiementService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/pdf")
+    public void getPaiementPdf(@PathVariable Long id, jakarta.servlet.http.HttpServletResponse response) {
+        try {
+            pdfService.writePaiementPdf(id, response);
+        } catch (Exception e) {
+            try { response.sendError(500); } catch (Exception ignored) {}
+        }
     }
 
     @PostMapping

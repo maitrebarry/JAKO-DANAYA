@@ -12,6 +12,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/ConfigurationMargeController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/DepenseController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/FournisseurController.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/HistoriqueController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/InventaireController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/LivraisonController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/MagasinController.java
@@ -33,6 +34,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/ProduitDTO.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/ReceptionDTO.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/ReceptionListDTO.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/ReceptionStatusDTO.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/StockDTO.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/exception/ImportValidationException.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Boutique.java

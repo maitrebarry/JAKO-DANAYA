@@ -32,6 +32,9 @@ public class CommandeFournisseurController {
     private LigneCommandeRepository ligneCommandeRepository;
 
     @Autowired
+    private com.smboutique.api.repository.CommandeFournisseurRepository commandeFournisseurRepository;
+
+    @Autowired
     private com.smboutique.api.repository.StockRepository stockRepository;
 
     @Autowired
@@ -125,6 +128,28 @@ public class CommandeFournisseurController {
                 })
                 .collect(java.util.stream.Collectors.toList());
         return nonPayees.stream().map(this::convertToDTO).collect(java.util.stream.Collectors.toList());
+    }
+
+    // Return commandes that still have items to receive (non-receptionnees)
+    @GetMapping("/boutique/{boutiqueId}/a-recevoir")
+    public List<CommandeFournisseurDTO> getCommandesNonReceptionneesByBoutique(@PathVariable Long boutiqueId) {
+        Utilisateur current = getCurrentUser();
+        if (!isSuperAdmin(current) && (current.getBoutique() == null || !current.getBoutique().getId().equals(boutiqueId))) {
+            return List.of();
+        }
+        java.util.List<CommandeFournisseur> commandes = commandeFournisseurRepository.findNonReceptionneesByBoutiqueId(boutiqueId);
+        return commandes.stream().map(this::convertToDTO).collect(java.util.stream.Collectors.toList());
+    }
+
+    // Return commandes that are fully receptionnees (have receptions and no pending lines)
+    @GetMapping("/boutique/{boutiqueId}/receptionnees")
+    public List<CommandeFournisseurDTO> getCommandesTotalementReceptionneesByBoutique(@PathVariable Long boutiqueId) {
+        Utilisateur current = getCurrentUser();
+        if (!isSuperAdmin(current) && (current.getBoutique() == null || !current.getBoutique().getId().equals(boutiqueId))) {
+            return List.of();
+        }
+        java.util.List<CommandeFournisseur> commandes = commandeFournisseurRepository.findCommandesTotalementReceptionneesByBoutiqueId(boutiqueId);
+        return commandes.stream().map(this::convertToDTO).collect(java.util.stream.Collectors.toList());
     }
 
     @GetMapping("/{id}")
@@ -226,7 +251,36 @@ public class CommandeFournisseurController {
             paiement.setReference(request.getReference());
             if (request.getDate() != null && !request.getDate().trim().isEmpty()) {
                 try {
-                    paiement.setDatePaie(LocalDateTime.parse(request.getDate()));
+                    String dr = request.getDate();
+                    // try parsing ISO instant with timezone
+                    if (dr.contains("T") && (dr.endsWith("Z") || dr.matches(".*[+-]\\d{2}:?\\d{2}$"))) {
+                        java.time.Instant inst = java.time.Instant.parse(dr);
+                        if (request.getTimezoneOffsetMinutes() != null) {
+                            // Convert instant to client's local time using client timezone offset
+                            int off = request.getTimezoneOffsetMinutes();
+                            java.time.ZoneOffset zo = java.time.ZoneOffset.ofTotalSeconds(-off * 60);
+                            paiement.setDatePaie(LocalDateTime.ofInstant(inst, zo));
+                        } else {
+                            // Fallback: place instant in server default zone
+                            paiement.setDatePaie(LocalDateTime.ofInstant(inst, java.time.ZoneId.systemDefault()));
+                        }
+                    } else {
+                        // fallback parse common patterns like dd/MM/yyyy HH:mm:ss
+                        try {
+                            java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+                            // If client passed timezoneOffsetMinutes with a local-formatted date, we should interpret it as client's local time
+                            LocalDateTime parsed = LocalDateTime.parse(dr, fmt);
+                            if (request.getTimezoneOffsetMinutes() != null) {
+                                // no conversion needed: store parsed local client time as-is
+                                paiement.setDatePaie(parsed);
+                            } else {
+                                paiement.setDatePaie(parsed);
+                            }
+                        } catch (Exception ex2) {
+                            // last resort: parse as LocalDateTime
+                            paiement.setDatePaie(LocalDateTime.parse(dr));
+                        }
+                    }
                 } catch (Exception ex) {
                     paiement.setDatePaie(LocalDateTime.now());
                 }
@@ -283,6 +337,7 @@ public class CommandeFournisseurController {
         private Integer montant;
         private String reference;
         private String date;
+        private Integer timezoneOffsetMinutes; // client's timezone offset in minutes (optional)
 
         public Integer getMontant() {
             return montant;
@@ -303,6 +358,9 @@ public class CommandeFournisseurController {
         public String getDate() {
             return date;
         }
+
+        public Integer getTimezoneOffsetMinutes() { return timezoneOffsetMinutes; }
+        public void setTimezoneOffsetMinutes(Integer timezoneOffsetMinutes) { this.timezoneOffsetMinutes = timezoneOffsetMinutes; }
 
         public void setDate(String date) {
             this.date = date;

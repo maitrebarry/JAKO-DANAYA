@@ -10,9 +10,8 @@ import CommandeApercu from './components/CommandeApercu';
 import ListeCommandes from './components/ListeCommandes';
 import Reception from './components/Reception';
 import PaiementCommande from './components/PaiementCommande';
-import ListeReceptions from './components/ListeReceptions';
 import DetailReception from './components/DetailReception';
-import ListePaiements from './components/ListePaiements';
+import Historique from './components/Historique';
 import { UserProvider } from './contexts/UserContext';
 
 // Composant pour protéger les routes
@@ -111,7 +110,15 @@ function App() {
             path="/liste-receptions" 
             element={
               <PrivateRoute>
-                <Layout><ListeReceptions /></Layout>
+                <Layout><Historique /></Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route 
+            path="/historique" 
+            element={
+              <PrivateRoute>
+                <Layout><Historique /></Layout>
               </PrivateRoute>
             }
           />
@@ -127,7 +134,7 @@ function App() {
             path="/liste-paiements" 
             element={
               <PrivateRoute>
-                <Layout><ListePaiements /></Layout>
+                <Layout><Historique /></Layout>
               </PrivateRoute>
             }
           />

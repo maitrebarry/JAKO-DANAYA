@@ -118,8 +118,8 @@ const ConfigurationMarges: React.FC = () => {
             <li>Le <em>Type de marge</em> peut être <strong>FIXE</strong> (montant ajouté au CMP) ou <strong>POURCENTAGE</strong> (pourcentage appliqué au CMP).</li>
             <li><strong>Valeur détail</strong> et <strong>Valeur gros</strong> déterminent le prix final en détail et en gros.</li>
             <li><strong>Marge minimale</strong> (fixe) : si la marge calculée est inférieure à cette valeur, le système applique la marge minimale.</li>
-            <li>Pour modifier ces réglages, vous devez avoir la permission <code>CONFIG_MARGE_ECRITURE</code>. Si vous n'avez pas cette permission, demandez à un administrateur via <em>Configuration → Assigner des permissions</em>.</li>
-            <li>Les modifications s'appliquent à la boutique sélectionnée et impactent automatiquement le calcul des prix lors des réceptions.</li>
+            {/* <li>Pour modifier ces réglages, vous devez avoir la permission <code>CONFIG_MARGE_ECRITURE</code>. Si vous n'avez pas cette permission, demandez à un administrateur via <em>Configuration → Assigner des permissions</em>.</li>
+            <li>Les modifications s'appliquent à la boutique sélectionnée et impactent automatiquement le calcul des prix lors des réceptions.</li> */}
           </ul>
         </div>
       </div>
