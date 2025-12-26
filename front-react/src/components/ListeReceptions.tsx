@@ -19,32 +19,63 @@ interface ReceptionData {
 
 const ListeReceptions: React.FC = () => {
   const navigate = useNavigate();
-  const { currentBoutique } = useUser();
+  const { currentBoutique, logout } = useUser();
   const [unfinishedReceptions, setUnfinishedReceptions] = useState<ReceptionData[]>([]);
   const [finishedReceptions, setFinishedReceptions] = useState<ReceptionData[]>([]);
   const [activeTab, setActiveTab] = useState<'unfinished' | 'finished'>('unfinished');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Debug info (temporary)
+  const [debugInfo, setDebugInfo] = useState<{ token?: string | null; fetchStatus?: string; fetchResponse?: any }>({ token: null, fetchStatus: '', fetchResponse: null });
+
   useEffect(() => {
+    const token = localStorage.getItem('smb_token');
+    setDebugInfo(prev => ({ ...prev, token: token ? (token.length > 12 ? token.slice(0,12) + '...' : token) : null }));
     fetchReceptions();
   }, [currentBoutique]);
 
   const fetchReceptions = async () => {
     if (!currentBoutique) return;
     setLoading(true);
+    setDebugInfo(prev => ({ ...prev, fetchStatus: 'loading', fetchResponse: null }));
     try {
+      const token = localStorage.getItem('smb_token');
+      setDebugInfo(prev => ({ ...prev, token: token ? (token.length > 12 ? token.slice(0,12) + '...' : token) : null }));
+      const headers: any = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
       const [unfinishedRes, finishedRes] = await Promise.all([
-        fetch(`http://localhost:8085/api/receptions/unfinished`),
-        fetch(`http://localhost:8085/api/receptions/finished`)
+        fetch(`http://localhost:8085/api/receptions/unfinished`, { headers }),
+        fetch(`http://localhost:8085/api/receptions/finished`, { headers })
       ]);
-      if (!unfinishedRes.ok || !finishedRes.ok) throw new Error('Erreur lors du chargement');
+      // Handle authentication errors explicitly: force logout and set debug info
+      if (unfinishedRes.status === 401 || finishedRes.status === 401) {
+        const uBody = await (unfinishedRes.text().catch(() => null));
+        const fBody = await (finishedRes.text().catch(() => null));
+        const details = uBody || fBody || '';
+        setDebugInfo(prev => ({ ...prev, fetchStatus: 'unauthorized', fetchResponse: details }));
+        setError('Authentification requise — vous allez être redirigé vers la connexion.' + (details ? ' (' + details + ')' : ''));
+        // Logout immediately to force re-authentication
+        logout();
+        return;
+      }
+
+      if (!unfinishedRes.ok || !finishedRes.ok) {
+        // Try to read server details when available
+        const uBody = await (unfinishedRes.text().catch(() => null));
+        const fBody = await (finishedRes.text().catch(() => null));
+        const msg = `Erreur lors du chargement des réceptions (unfinished: ${unfinishedRes.status}, finished: ${finishedRes.status})`;
+        throw new Error(msg + (uBody || fBody ? ' - details: ' + (uBody || fBody) : ''));
+      }
       const unfinishedData = await unfinishedRes.json();
       const finishedData = await finishedRes.json();
       setUnfinishedReceptions(unfinishedData);
       setFinishedReceptions(finishedData);
-    } catch (err) {
-      setError('Erreur lors du chargement des réceptions');
+      setDebugInfo(prev => ({ ...prev, fetchStatus: 'ok', fetchResponse: { unfinishedCount: unfinishedData.length, finishedCount: finishedData.length } }));
+    } catch (err: any) {
+      const message = err && err.message ? err.message : 'Erreur lors du chargement des réceptions';
+      setError(message);
+      setDebugInfo(prev => ({ ...prev, fetchStatus: 'error', fetchResponse: message }));
     } finally {
       setLoading(false);
     }
@@ -97,6 +128,18 @@ const ListeReceptions: React.FC = () => {
                     </button>
                   </li>
                 </ul>
+                {/* Debug panel (temp) */}
+                <div className="card mb-3">
+                  <div className="card-header bg-secondary text-white">Debug (temp)</div>
+                  <div className="card-body">
+                    <div><strong>Token:</strong> {debugInfo.token ? debugInfo.token : <em>none</em>}</div>
+                    <div style={{marginTop: '8px'}}><strong>Fetch status:</strong> {debugInfo.fetchStatus}</div>
+                    {debugInfo.fetchResponse && <div style={{marginTop: '8px'}}><strong>Fetch response:</strong>
+                      <pre style={{whiteSpace:'pre-wrap', textAlign:'left', maxHeight: '200px', overflow: 'auto'}}>{JSON.stringify(debugInfo.fetchResponse, null, 2)}</pre>
+                    </div>}
+                  </div>
+                </div>
+
                 <div className="tab-content pt-3">
                   {loading ? (
                     <p>Chargement...</p>

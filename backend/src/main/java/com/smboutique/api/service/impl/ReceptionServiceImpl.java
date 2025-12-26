@@ -92,19 +92,26 @@ public class ReceptionServiceImpl implements ReceptionService {
     }
 
     private boolean isUnfinished(Reception reception) {
+        // A reception is considered unfinished if the TOTAL received across ALL receptions
+        // for the same commande_fournisseur is less than the ordered quantity on any ligne.
         List<LigneCommande> lignesCommande = ligneCommandeRepository.findByCommandeFournisseurId(reception.getCommandeFournisseur().getId());
-        List<LigneReception> lignesReception = ligneReceptionRepository.findByReceptionId(reception.getId());
+
+        // Get all receptions for this commande and gather their ligne receptions
+        List<Reception> receptionsForCommande = receptionRepository.findByCommandeFournisseurId(reception.getCommandeFournisseur().getId());
+        List<LigneReception> allLignesReception = receptionsForCommande.stream()
+            .flatMap(r -> ligneReceptionRepository.findByReceptionId(r.getId()).stream())
+            .collect(Collectors.toList());
 
         for (LigneCommande lc : lignesCommande) {
-            int qteRecue = lignesReception.stream()
-                .filter(lr -> lr.getProduit().getId().equals(lc.getStock().getProduit().getId()))
+            int totalRecue = allLignesReception.stream()
+                .filter(lr -> lr.getProduit() != null && lc.getStock() != null && lc.getStock().getProduit() != null && lr.getProduit().getId().equals(lc.getStock().getProduit().getId()))
                 .mapToInt(LigneReception::getQuantiteRecu)
                 .sum();
-            if (qteRecue < lc.getQuantite()) {
-                return true;
+            if (totalRecue < lc.getQuantite()) {
+                return true; // overall still missing quantities → unfinished
             }
         }
-        return false;
+        return false; // all lines fully received → finished
     }
 
     private ReceptionListDTO convertToListDTO(Reception reception) {
@@ -138,5 +145,36 @@ public class ReceptionServiceImpl implements ReceptionService {
     @Override
     public void deleteById(Long id) {
         receptionRepository.deleteById(id);
+    }
+
+    @Override
+    public java.util.List<Reception> findByCommandeFournisseurId(Long commandeId) {
+        return receptionRepository.findByCommandeFournisseurId(commandeId);
+    }
+
+    @Override
+    public boolean isReceptionUnfinished(Long receptionId) {
+        return receptionRepository.findById(receptionId).map(this::isUnfinished).orElse(false);
+    }
+
+    @Override
+    public java.util.List<com.smboutique.api.dto.ReceptionStatusDTO> getReceptionsStatusByBoutique(Long boutiqueId) {
+        java.util.List<Reception> receptions;
+        if (boutiqueId == null) {
+            receptions = receptionRepository.findAll();
+        } else {
+            receptions = receptionRepository.findByBoutiqueId(boutiqueId);
+        }
+        java.util.List<com.smboutique.api.dto.ReceptionStatusDTO> list = new java.util.ArrayList<>();
+        for (Reception r : receptions) {
+            com.smboutique.api.dto.ReceptionStatusDTO dto = new com.smboutique.api.dto.ReceptionStatusDTO();
+            dto.setIdReception(r.getId());
+            dto.setReceptRef(r.getReference());
+            dto.setDateReception(r.getDateReception());
+            dto.setIdCommandeFournisseur(r.getCommandeFournisseur() != null ? r.getCommandeFournisseur().getId() : null);
+            dto.setCommandeStatus(isUnfinished(r) ? "UNFINISHED" : "FINISHED");
+            list.add(dto);
+        }
+        return list;
     }
 }

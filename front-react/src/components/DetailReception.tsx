@@ -59,7 +59,7 @@ const DetailReception: React.FC = () => {
         <nav>
           <ol className="breadcrumb">
             <li className="breadcrumb-item"><a href="/">Home</a></li>
-            <li className="breadcrumb-item"><a href="/liste-receptions">Réceptions</a></li>
+            <li className="breadcrumb-item"><a href="/historique">Réceptions</a></li>
             <li className="breadcrumb-item active">Détail</li>
           </ol>
         </nav>
@@ -120,8 +120,22 @@ const DetailReception: React.FC = () => {
                     <h6>Référence de la réception: {detail?.reference}</h6>
                   </div>
                   <div className="col-6 text-end">
-                    <button className="btn btn-primary" onClick={() => navigate('/liste-receptions')}>
-                      Liste Des Réceptions
+                    <button className="btn btn-outline-secondary me-2" onClick={async () => {
+                      try {
+                        const token = localStorage.getItem('smb_token');
+                        const res = await fetch(`http://localhost:8085/api/receptions/${id}/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+                        if (!res.ok) throw new Error('Impossible de générer le PDF');
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        window.open(url, '_blank');
+                      } catch (e) {
+                        alert('Erreur lors du téléchargement du PDF');
+                      }
+                    }} title="PDF Réception">
+                      <i className="ri-file-pdf-line"></i>
+                    </button>
+                    <button className="btn btn-primary" onClick={() => navigate('/historique')}>
+                      Historique
                     </button>
                   </div>
                 </div>

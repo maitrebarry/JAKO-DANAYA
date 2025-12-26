@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useUser } from '../contexts/UserContext';
+import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 
 interface PaiementData {
   id: number;
@@ -19,6 +21,7 @@ interface PaiementData {
 
 const ListePaiements: React.FC = () => {
   const { currentBoutique } = useUser();
+  const navigate = useNavigate();
   const [paiements, setPaiements] = useState<PaiementData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -31,7 +34,8 @@ const ListePaiements: React.FC = () => {
     if (!currentBoutique) return;
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:8085/api/paiements`);
+      const token = localStorage.getItem('smb_token');
+      const res = await fetch(`http://localhost:8085/api/paiements`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) throw new Error('Erreur lors du chargement');
       const data = await res.json();
       setPaiements(data);
@@ -42,12 +46,31 @@ const ListePaiements: React.FC = () => {
     }
   };
 
-  const handleDetail = (_id: number) => {
-    // Navigate to detail if exists
+  const handleDetail = (commandeId: number) => {
+    navigate(`/commandes/appercu/${commandeId}`);
   };
 
-  const handleDelete = async (_id: number) => {
-    // Implement delete
+  const handleDelete = async (id: number) => {
+    const result = await Swal.fire({
+      title: 'Confirmer la suppression',
+      text: 'Voulez-vous supprimer ce paiement ?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Oui, supprimer',
+      cancelButtonText: 'Annuler'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const token = localStorage.getItem('smb_token');
+        const res = await fetch(`http://localhost:8085/api/paiements/${id}`, { method: 'DELETE', headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        if (!res.ok) throw new Error('Erreur lors de la suppression');
+        Swal.fire('Succès', 'Paiement supprimé', 'success');
+        fetchPaiements();
+      } catch (err) {
+        Swal.fire('Erreur', 'Impossible de supprimer le paiement', 'error');
+      }
+    }
   };
 
   return (
@@ -95,7 +118,7 @@ const ListePaiements: React.FC = () => {
                             <td>
                               <button
                                 className="btn btn-primary btn-sm me-2"
-                                onClick={() => handleDetail(paiement.id)}
+                                onClick={() => handleDetail(paiement.commandeFournisseur.id)}
                               >
                                 <i className="ri-eye-fill"></i>
                               </button>

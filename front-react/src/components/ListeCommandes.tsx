@@ -80,7 +80,8 @@ const ListeCommandes: React.FC = () => {
         pourcentage_recu: cmd.pourcentageRecu || 0,
         pourcentage_paye: cmd.pourcentagePaye || 0,
         total: cmd.total || 0,
-        paie: cmd.montantPaye || 0
+        // normalize paie field (DTO or entity)
+        paie: cmd.montantPaye != null ? cmd.montantPaye : (cmd.paie != null ? cmd.paie : 0)
       }));
 
       setCommandes(transformedData);

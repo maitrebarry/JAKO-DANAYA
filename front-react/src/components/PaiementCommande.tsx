@@ -36,7 +36,8 @@ const PaiementCommande: React.FC = () => {
   };
 
   const [refPaiement] = useState(generateRefPaiement());
-  const [datePaiement] = useState(new Date().toLocaleString('fr-FR'));
+  // Store payment date as ISO string to avoid parsing localized strings later
+  const [datePaiement] = useState(new Date().toISOString());
 
   useEffect(() => {
     if (currentBoutique) {
@@ -66,7 +67,8 @@ const PaiementCommande: React.FC = () => {
           dateCommande: cmd.dateCommande,
           fournisseur: cmd.fournisseur || null,
           total: cmd.total || 0,
-          paie: cmd.montantPaye || 0,
+          // backend may return montantPaye (DTO) or paie (entity)
+          paie: cmd.montantPaye != null ? cmd.montantPaye : (cmd.paie != null ? cmd.paie : 0),
           lignes: cmd.lignes || []
         }));
         // Ensure only commandes with remaining amount are displayed in the payment select
@@ -101,9 +103,9 @@ const PaiementCommande: React.FC = () => {
           dateCommande: cmdRaw.dateCommande,
           fournisseur: cmdRaw.fournisseur || null,
           total: cmdRaw.total || 0,
-          paie: cmdRaw.montantPaye || 0,
+          paie: cmdRaw.montantPaye != null ? cmdRaw.montantPaye : (cmdRaw.paie != null ? cmdRaw.paie : 0),
           lignes: cmdRaw.lignes || []
-        };
+        }; 
       // Ensure the commande still has remaining amount
       const total = Number(cmd.total || 0);
       const paie = Number(cmd.paie || 0);
@@ -164,37 +166,40 @@ const PaiementCommande: React.FC = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ montant: Math.round(montantToSend), reference: refPaiement, date: new Date(datePaiement).toISOString() })
+        // datePaiement is stored as ISO already; also send client timezone offset in minutes
+        body: JSON.stringify({ montant: Math.round(montantToSend), reference: refPaiement, date: datePaiement, timezoneOffsetMinutes: new Date().getTimezoneOffset() })
       });
       if (!res.ok) throw new Error('Erreur lors de l\u0027enregistrement du paiement');
       const updated = await res.json();
-      // Normalize update to local structure
+      // Normalize update to local structure (support both DTO and entity shapes)
+      const updatedPaie = updated.montantPaye != null ? updated.montantPaye : (updated.paie != null ? updated.paie : 0);
       const updatedCmd = {
         id: updated.id,
         reference: updated.reference,
         dateCommande: updated.dateCommande,
         fournisseur: updated.fournisseur || null,
         total: updated.total || 0,
-        paie: updated.montantPaye || 0,
+        paie: updatedPaie,
         lignes: updated.lignes || []
       };
       Swal.fire('Succès', 'Paiement enregistré avec succès', 'success');
       setSelectedCommande(updatedCmd);
       // Reset inputs
       setMontantAPayerTotal(0);
-      // Update current commandes list optimistically: remove if fully paid, otherwise update the paie field and keep
+      // Refresh commandes list to ensure consistency with backend
+      fetchCommandes();
+      // Update current commandes list optimistically too (best effort)
       setCommandes(prev => {
         const newList = prev.map(cmd => ({ ...cmd }));
-          const idx = newList.findIndex(c => c.id === updatedCmd.id);
-          if (idx === -1) {
-          // Not in the list already, if it still has remainder, add it back
-            if ((updatedCmd.total || 0) - (updatedCmd.paie || 0) > 0) {
-              newList.push(updatedCmd);
+        const idx = newList.findIndex(c => c.id === updatedCmd.id);
+        if (idx === -1) {
+          if ((updatedCmd.total || 0) - (updatedCmd.paie || 0) > 0) {
+            newList.push(updatedCmd);
           }
         } else {
           const remaining = (updatedCmd.total || 0) - (updatedCmd.paie || 0);
           if (remaining <= 0) {
-            newList.splice(idx, 1); // remove fully paid
+            newList.splice(idx, 1);
           } else {
             newList[idx] = { ...newList[idx], paie: updatedCmd.paie };
           }
@@ -242,7 +247,7 @@ const PaiementCommande: React.FC = () => {
                 <div className="row mb-4">
                   <div className="col-md-2">
                     <label className="form-label">Date de paiement <span className="text-danger">*</span></label>
-                    <input type="text" className="form-control" value={datePaiement} readOnly />
+                    <input type="text" className="form-control" value={new Date(datePaiement).toLocaleString('fr-FR')} readOnly />
                   </div>
                   <div className="col-md-2">
                     <label className="form-label">Réf paiement <span className="text-danger">*</span></label>

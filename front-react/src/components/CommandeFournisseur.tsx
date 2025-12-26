@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams } from 'react-router-dom';
 import SearchableSelect from './SearchableSelect';
 import Swal from 'sweetalert2';
@@ -48,6 +49,11 @@ const CommandeFournisseur: React.FC = () => {
   const [error, setError] = useState('');
   const [selectedStockOption, setSelectedStockOption] = useState<string | number | null>(null);
 
+  // Fournisseur modal state
+  const [showFournisseurModal, setShowFournisseurModal] = useState(false);
+  const [newFournisseur, setNewFournisseur] = useState<{ prenom?: string; nom?: string; contact?: string; ville?: string }>({});
+  const [fournisseurSearch, setFournisseurSearch] = useState('');
+
   useEffect(() => {
     (async () => {
       const s = await fetchStocks();
@@ -60,6 +66,16 @@ const CommandeFournisseur: React.FC = () => {
       }
     })();
   }, [id]);
+
+  // Ensure body class and scrolling behavior while modal is open
+  useEffect(() => {
+    if (showFournisseurModal) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => document.body.classList.remove('modal-open');
+  }, [showFournisseurModal]);
 
   const fetchCommandeForEdit = async (commandeId: number, loadedStocks?: Stock[]) => {
     try {
@@ -365,7 +381,11 @@ const CommandeFournisseur: React.FC = () => {
                   <input type="datetime-local" className="form-control" value={dateCommande} readOnly />
                 </div>
                 <div className="col-md-4">
-                  <label>Fournisseur</label>
+                  <label>Fournisseur
+                    <button type="button" className="btn btn-sm btn-outline-success ms-2" onClick={() => { setNewFournisseur({}); setFournisseurSearch(''); setShowFournisseurModal(true); }}>
+                      <i className='bx bx-plus'></i> Ajouter
+                    </button>
+                  </label>
                   <select className="form-control" value={selectedFournisseur} onChange={(e) => setSelectedFournisseur(e.target.value)}>
                     <option value="">Sélectionner un fournisseur</option>
                     {fournisseurs.map(f => (
@@ -541,6 +561,90 @@ const CommandeFournisseur: React.FC = () => {
           </div>
         </div>
       </div>
+      {/* Fournisseur add/select modal (rendered as a portal to document.body to avoid stacking issues) */}
+      {showFournisseurModal && createPortal(
+        <div className="modal show d-block" tabIndex={-1} role="dialog" style={{ zIndex: 2000 }}>
+          <div className="modal-backdrop fade show" style={{ zIndex: 1999 }}></div>
+          <div className="modal-dialog modal-lg modal-dialog-centered" role="document" style={{ zIndex: 2001 }}>
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Ajouter / Sélectionner un fournisseur</h5>
+                <button type="button" className="btn-close" onClick={() => setShowFournisseurModal(false)} aria-label="Close"></button>
+              </div>
+              <div className="modal-body">
+                <div className="row mb-3">
+                  <div className="col-md-6">
+                    <label className="form-label">Rechercher un fournisseur existant</label>
+                    <input className="form-control" value={fournisseurSearch} onChange={(e) => setFournisseurSearch(e.target.value)} placeholder="Tapez un nom ou contact" />
+                    <div style={{ maxHeight: 200, overflowY: 'auto', marginTop: 8 }}>
+                      {fournisseurs.filter(f => {
+                        if (!fournisseurSearch) return true;
+                        const s = fournisseurSearch.toLowerCase();
+                        return (f.prenom || '').toLowerCase().includes(s) || (f.nom || '').toLowerCase().includes(s) || (f.contact || '').toLowerCase().includes(s);
+                      }).map(f => (
+                        <div key={f.id} className="d-flex justify-content-between align-items-center p-2 border-bottom">
+                          <div>
+                            <strong>{f.prenom} {f.nom}</strong><br />
+                            <small className="text-muted">{f.contact}</small>
+                          </div>
+                          <div>
+                            <button className="btn btn-sm btn-outline-primary" onClick={() => { setSelectedFournisseur(String(f.id)); setShowFournisseurModal(false); }}>
+                              Sélectionner
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label">Créer un nouveau fournisseur</label>
+                    <div className="mb-2">
+                      <input className="form-control" placeholder="Prénom" value={newFournisseur.prenom || ''} onChange={(e) => setNewFournisseur({ ...newFournisseur, prenom: e.target.value })} />
+                    </div>
+                    <div className="mb-2">
+                      <input className="form-control" placeholder="Nom" value={newFournisseur.nom || ''} onChange={(e) => setNewFournisseur({ ...newFournisseur, nom: e.target.value })} />
+                    </div>
+                    <div className="mb-2">
+                      <input className="form-control" placeholder="Contact" value={newFournisseur.contact || ''} onChange={(e) => setNewFournisseur({ ...newFournisseur, contact: e.target.value })} />
+                    </div>
+                    <div className="mb-2">
+                      <input className="form-control" placeholder="Ville" value={newFournisseur.ville || ''} onChange={(e) => setNewFournisseur({ ...newFournisseur, ville: e.target.value })} />
+                    </div>
+
+                    <div className="d-flex justify-content-end mt-3">
+                      <button className="btn btn-secondary me-2" onClick={() => { setNewFournisseur({}); setFournisseurSearch(''); setShowFournisseurModal(false); }}>Annuler</button>
+                      <button className="btn btn-success" onClick={async () => {
+                        // Create new fournisseur via API
+                        try {
+                          const token = localStorage.getItem('smb_token');
+                          const payload: any = { prenom: newFournisseur.prenom, nom: newFournisseur.nom, contact: newFournisseur.contact, ville: newFournisseur.ville };
+                          const res = await fetch('http://localhost:8085/api/fournisseurs', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            body: JSON.stringify(payload)
+                          });
+                          if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err && err.message ? err.message : `Erreur création fournisseur (${res.status})`);
+                          }
+                          const created = await res.json();
+                          // Add to list and select
+                          setFournisseurs(prev => [created, ...(prev || [])]);
+                          setSelectedFournisseur(String(created.id));
+                          setShowFournisseurModal(false);
+                        } catch (err: any) {
+                          Swal.fire('Erreur', err.message || 'Erreur lors de la création du fournisseur', 'error');
+                        }
+                      }}>Créer et associer</button>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      , document.body)}
     </div>
   );
 };
