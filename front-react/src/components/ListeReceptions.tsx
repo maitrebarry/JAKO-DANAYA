@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
+import { formatServerDate } from '../utils/date';
 
 interface ReceptionData {
   id: number;
@@ -160,7 +161,7 @@ const ListeReceptions: React.FC = () => {
                         <tbody>
                           {currentReceptions.map((reception) => (
                             <tr key={reception.id}>
-                              <td>{new Date(reception.dateReception).toLocaleString()}</td>
+                              <td>{formatServerDate(reception.dateReception)}</td>
                               <td>{reception.reference}</td>
                               <td>{reception.commandeFournisseur.reference}</td>
                               <td>{reception.commandeFournisseur.fournisseur.nom} {reception.commandeFournisseur.fournisseur.prenom}</td>

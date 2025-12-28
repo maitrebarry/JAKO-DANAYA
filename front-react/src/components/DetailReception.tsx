@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { formatServerDate } from '../utils/date';
 
 interface LigneReceptionDTO {
   idProduit: number;
@@ -84,7 +85,7 @@ const DetailReception: React.FC = () => {
                         <h5>Fournisseur: {detail.fournisseur}</h5>
                       </div>
                       <div className="col-4">
-                        <h5>Date de la réception: {new Date(detail.dateReception).toLocaleString()}</h5>
+                        <h5>Date de la réception: {formatServerDate(detail.dateReception)}</h5>
                       </div>
                     </div>
                     <div className="table-responsive">

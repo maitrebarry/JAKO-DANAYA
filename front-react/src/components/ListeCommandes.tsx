@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useUser } from '../contexts/UserContext';
+import { formatServerDate } from '../utils/date';
 
 // Ajouter du CSS personnalisé pour SweetAlert2
 const swalWideStyle = document.createElement('style');
@@ -63,12 +64,14 @@ const ListeCommandes: React.FC = () => {
       const token = localStorage.getItem('smb_token');
       const url = currentBoutique
         ? `http://localhost:8085/api/commandes-fournisseurs/boutique/${currentBoutique.id}`
-        : `http://localhost:8085/api/commandes-fournisseurs`;
+        : `http://localhost:8085/api/commandes-fournisseurs`; 
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Erreur lors du chargement des commandes');
       const data = await res.json();
+      // Debug: print raw date strings returned by the API (first 10)
+      try { console.debug('API dates sample:', (data || []).slice(0,10).map((c: any) => c.dateCommande)); } catch (e) {}
 
       // Transform data to match the expected format
       const transformedData = data.map((cmd: any) => ({
@@ -247,6 +250,7 @@ const ListeCommandes: React.FC = () => {
       {/* Breadcrumb */}
       <div className="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
         <div className="breadcrumb-title pe-3">Commande</div>
+        <div className="breadcrumb-subtitle">Commande Fournisseur</div>
         <div className="ps-3">
           <nav aria-label="breadcrumb">
             <ol className="breadcrumb mb-0 p-0">
@@ -303,7 +307,7 @@ const ListeCommandes: React.FC = () => {
                             style={{ cursor: 'pointer' }}
                             onClick={() => handleRowClick(commande)}
                           >
-                            <td>{new Date(commande.date_de_commande).toLocaleString('fr-FR')}</td>
+                            <td>{formatServerDate(commande.date_de_commande)}</td>
                             <td>{commande.reference}</td>
                             <td>{commande.prenom_fournisseur} {commande.nom_fournisseur}</td>
                             <td>

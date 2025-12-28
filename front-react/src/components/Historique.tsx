@@ -2,20 +2,29 @@ import React, { useEffect, useState } from 'react';
 import { useUser } from '../contexts/UserContext';
 import Swal from 'sweetalert2';
 import { jsPDF } from 'jspdf';
+import { formatServerDate } from '../utils/date';
 
 interface HistoriqueItem {
   type: 'RECEPTION' | 'PAIEMENT';
   id: number;
   date: string | null;
+  dateIso?: string | null;
   reference: string | null;
   referenceCommandeId?: number | null;
   referenceCommande: string | null;
   fournisseur: string | null;
   montant?: number | null;
+  // cancellation metadata
+  annule?: boolean | null;
+  annuleAt?: string | null;
+  annuleReason?: string | null;
+  annulePar?: number | null;
+  annuleParNom?: string | null;
 }
 
 const Historique: React.FC = () => {
-  const { currentBoutique } = useUser();
+  const { currentBoutique, logout, permissions } = useUser();
+  const [viewingAnnulations, setViewingAnnulations] = useState(false);
   const [items, setItems] = useState<HistoriqueItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -23,18 +32,33 @@ const Historique: React.FC = () => {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    if (currentBoutique) fetchHistorique();
-  }, [currentBoutique]);
+    if (currentBoutique) fetchHistorique(viewingAnnulations);
+  }, [currentBoutique, viewingAnnulations]);
 
-  const fetchHistorique = async () => {
+  const fetchHistorique = async (annulations = false) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/historique/boutique/${currentBoutique?.id}`, {
+      console.debug('fetchHistorique - token present?', !!token, 'token preview:', token ? token.slice(0,10) + '...' : null);
+      const endpoint = annulations ? `/api/historique/annulations/boutique/${currentBoutique?.id}` : `/api/historique/boutique/${currentBoutique?.id}`;
+      const res = await fetch(`http://localhost:8085${endpoint}`, {
         headers: { Authorization: token ? `Bearer ${token}` : '' }
       });
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
+      if (res.status === 401) {
+        const body = await res.text().catch(() => null);
+        console.debug('fetchHistorique - 401 body:', body);
+        // session expired or token invalid -> notify user and force logout
+        await Swal.fire({ icon: 'warning', title: 'Session expirée', text: 'Votre session est expirée ou non authentifiée. Vous allez être redirigé vers la connexion.' });
+        logout();
+        throw new Error('Authentification requise (401)');
+      }
+      if (!res.ok) {
+        const body = await res.text().catch(() => null);
+        console.debug('fetchHistorique - error body:', body);
+        throw new Error(`Erreur ${res.status}`);
+      }
       const data = await res.json();
+      try { console.debug('Historique API sample:', (data || []).slice(0,10).map((i: any) => ({ id: i.id, type: i.type, date: i.date, dateIso: i.dateIso }))); } catch(e) {}
       setItems(data);
     } catch (err: any) {
       setError(err.message || 'Erreur');
@@ -42,6 +66,8 @@ const Historique: React.FC = () => {
       setLoading(false);
     }
   };
+
+
 
   const handleDeletePaiement = async (id: number) => {
     const result = await Swal.fire({
@@ -56,13 +82,33 @@ const Historique: React.FC = () => {
     if (result.isConfirmed) {
       try {
         const token = localStorage.getItem('smb_token');
-        const res = await fetch(`http://localhost:8085/api/paiements/${id}`, {
-          method: 'DELETE',
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        const res = await fetch(`http://localhost:8085/api/paiements/${id}/cancel`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({ reason: 'Annulation via historique' })
         });
-        if (!res.ok) throw new Error('Erreur lors de l\'annulation');
+        if (!res.ok) {
+          const txt = await res.text().catch(() => null);
+          console.debug('paiement cancel failed', res.status, txt);
+          let msg = 'Impossible d\'annuler le paiement';
+          try { const j = txt ? JSON.parse(txt) : null; if (j && j.error) msg += ': ' + j.error; } catch(e){}
+          throw new Error(msg);
+        }
         Swal.fire('Succès', 'Paiement annulé', 'success');
-        fetchHistorique();
+        // Refresh historique list
+        fetchHistorique(viewingAnnulations);
+
+        // Notify other pages that a paiement has been cancelled so they can refresh
+        try {
+          const cancelledItem = items.find(it => it.type === 'PAIEMENT' && it.id === id);
+          const commandeId = cancelledItem ? cancelledItem.referenceCommandeId ?? null : null;
+          window.dispatchEvent(new CustomEvent('paiement:cancelled', { detail: { paiementId: id, commandeId } }));
+        } catch (e) {
+          // ignore dispatch errors
+        }
       } catch (e) {
         Swal.fire('Erreur', 'Impossible d\'annuler le paiement', 'error');
       }
@@ -83,13 +129,23 @@ const Historique: React.FC = () => {
     if (result.isConfirmed) {
       try {
         const token = localStorage.getItem('smb_token');
-        const res = await fetch(`http://localhost:8085/api/receptions/${id}`, {
-          method: 'DELETE',
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        const res = await fetch(`http://localhost:8085/api/receptions/${id}/cancel`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({ reason: 'Annulation via historique' })
         });
-        if (!res.ok) throw new Error('Erreur lors de l\'annulation');
+        if (!res.ok) {
+          const txt = await res.text().catch(() => null);
+          console.debug('reception cancel failed', res.status, txt);
+          let msg = 'Impossible d\'annuler la réception';
+          try { const j = txt ? JSON.parse(txt) : null; if (j && j.error) msg += ': ' + j.error; } catch(e){}
+          throw new Error(msg);
+        }
         Swal.fire('Succès', 'Réception annulée', 'success');
-        fetchHistorique();
+        fetchHistorique(viewingAnnulations);
       } catch (e) {
         Swal.fire('Erreur', 'Impossible d\'annuler la réception', 'error');
       }
@@ -193,7 +249,7 @@ const Historique: React.FC = () => {
 
       // Metadata centered below
       pdf.setFontSize(10);
-      const fournisseurText = `FOURNISSEUR: ${detail.fournisseur || ''}   RECU le: ${detail.dateReception || ''}`;
+      const fournisseurText = `FOURNISSEUR: ${detail.fournisseur || ''}   RECU le: ${formatServerDate(detail.dateReception) || ''}`;
       pdf.text(fournisseurText, pageWidth / 2, headerY + 36, { align: 'center' });
 
       // Table header
@@ -281,7 +337,7 @@ const Historique: React.FC = () => {
 
       // Metadata
       pdf.setFontSize(10);
-      const U = formatServerDateString(paie.datePaie);
+      const U = formatServerDate(paie.datePaie);
       pdf.text(`COMMANDE N : ${paie.commandeFournisseur?.reference || ''}`, 40, headerY + 34);
       pdf.text(`ETABLIT LE: ${U}`, 40, headerY + 50);
       pdf.text(`PAR: ${paie.commandeFournisseur?.utilisateur ? paie.commandeFournisseur.utilisateur.nom + ' ' + paie.commandeFournisseur.utilisateur.prenom : ''}`, 40, headerY + 66);
@@ -317,20 +373,7 @@ const Historique: React.FC = () => {
     }
   };
 
-  // Helper to parse server date strings safely without introducing timezone shifts
-  const formatServerDateString = (d?: string | null) => {
-    if (!d) return '';
-    // If it's already in display format (dd/MM/yyyy ...) just return it
-    if (d.includes('/')) return d;
-    // If it's an ISO-like string without timezone (yyyy-MM-ddTHH:mm or yyyy-MM-ddTHH:mm:ss)
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(d)) {
-      return d.replace('T', ' ');
-    }
-    // Otherwise fallback to Date parsing
-    const dt = new Date(d);
-    if (isNaN(dt.getTime())) return d;
-    return dt.toLocaleString();
-  };
+
 
   const filtered = items.filter(i => {
     if (filterType !== 'ALL' && i.type !== filterType) return false;
@@ -378,6 +421,13 @@ const Historique: React.FC = () => {
               <label>Recherche (réf / fournisseur):</label>
               <input className="form-control" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher..." />
             </div>
+            <div className="ms-3">
+              <label style={{ display: 'block' }}>Afficher annulations</label>
+              <div className="form-check form-switch">
+                <input className="form-check-input" type="checkbox" id="showAnnulations" checked={viewingAnnulations} onChange={(e) => setViewingAnnulations(e.target.checked)} />
+                <label className="form-check-label" htmlFor="showAnnulations">Afficher</label>
+              </div>
+            </div>
           </div>
 
           {loading ? <p>Chargement...</p> : error ? <p className="text-danger">{error}</p> : (
@@ -391,21 +441,23 @@ const Historique: React.FC = () => {
                     <th>Réf Commande</th>
                     <th>Fournisseur</th>
                     <th>Montant</th>
-                    <th>Opérations</th>
+                    {viewingAnnulations ? <th>Annulé par</th> : <th>Opérations</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map(item => (
                     <tr key={`${item.type}-${item.id}`}>
-                      <td>{formatServerDateString(item.date || '')}</td>
+                      <td>{formatServerDate(item.dateIso || item.date || '')}</td>
                       <td>{item.type}</td>
                       <td>{item.reference}</td>
                       <td>{item.referenceCommande}</td>
                       <td>{item.fournisseur}</td>
                       <td>{item.montant != null ? item.montant.toFixed(0) : '-'}</td>
-                      <td>
-                        {/* Unified operations: Aperçu, PDF Paiement, PDF Réception, Annulation */}
-                        <>
+                      {viewingAnnulations ? (
+                        <td>{item.annule ? (item.annuleParNom || (item.annulePar != null ? String(item.annulePar) : '-')) : '-'}</td>
+                      ) : (
+                        <td>
+                          {/* Unified operations: Aperçu, PDF Paiement, PDF Réception, Annulation */}
                           {/* Aperçu */}
                           {item.type === 'RECEPTION' ? (
                             <a className="btn btn-sm btn-outline-primary me-1" href={`/receptions/${item.id}`} title="Aperçu"><i className="ri-eye-line"></i></a>
@@ -459,18 +511,27 @@ const Historique: React.FC = () => {
                           </button>
 
                           {/* Annulation (cancel) - replaces supprimer */}
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            title="Annuler"
-                            onClick={() => {
-                              if (item.type === 'PAIEMENT') handleDeletePaiement(item.id);
-                              else if (item.type === 'RECEPTION') handleCancelReception(item.id);
-                            }}
-                          >
-                            <i className="ri-close-line"></i>
-                          </button>
-                        </>
-                      </td>
+                          {item.type === 'PAIEMENT' && (permissions.includes('PAIEMENT_ANNULATION') || permissions.includes('PAIEMENT_SUPPRESSION')) && (
+                            <button
+                              className="btn btn-sm btn-outline-danger"
+                              title="Annuler"
+                              onClick={() => handleDeletePaiement(item.id)}
+                            >
+                              <i className="ri-close-line"></i>
+                            </button>
+                          )}
+
+                          {item.type !== 'PAIEMENT' && (permissions.includes('RECEPTION_ANNULATION') || permissions.includes('RECEPTION_SUPPRESSION')) && (
+                            <button
+                              className="btn btn-sm btn-outline-danger"
+                              title="Annuler"
+                              onClick={() => handleCancelReception(item.id)}
+                            >
+                              <i className="ri-close-line"></i>
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

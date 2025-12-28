@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useUser } from '../contexts/UserContext';
 import SearchableSelect from './SearchableSelect';
+import { formatServerDate, formatLocalDate } from '../utils/date';
 
 interface CommandeData {
   id: number;
@@ -47,6 +48,26 @@ const PaiementCommande: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentBoutique, id]);
 
+  // Listen for global paiement cancellation events to refresh data
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      try {
+        // @ts-ignore
+        const detail = ev.detail || {};
+        const commandeId = detail.commandeId ?? null;
+        // Always refresh commandes list
+        fetchCommandes();
+        // If the cancelled paiement affects the currently selected commande, refresh it
+        if (selectedCommande && commandeId && Number(selectedCommande.id) === Number(commandeId)) {
+          handleCommandeChange(String(commandeId));
+        }
+      } catch (e) {}
+    };
+    window.addEventListener('paiement:cancelled', handler as EventListener);
+    return () => window.removeEventListener('paiement:cancelled', handler as EventListener);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCommande]);
+
   // no search filter effect required for SearchableSelect
 
   const fetchCommandes = async () => {
@@ -56,7 +77,7 @@ const PaiementCommande: React.FC = () => {
       // Use the new endpoint that returns only commandes with remaining amount
       const url = currentBoutique
         ? `http://localhost:8085/api/commandes-fournisseurs/boutique/${currentBoutique.id}/a-payer`
-        : `http://localhost:8085/api/commandes-fournisseurs`;
+        : `http://localhost:8085/api/commandes-fournisseurs`; 
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error('Erreur lors du chargement des commandes');
         const data = await res.json();
@@ -219,6 +240,7 @@ const PaiementCommande: React.FC = () => {
       {/* Breadcrumb */}
       <div className="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
         <div className="breadcrumb-title pe-3">Commande</div>
+        <div className="breadcrumb-subtitle">Commande Fournisseur</div>
         <div className="ps-3">
           <nav aria-label="breadcrumb">
             <ol className="breadcrumb mb-0 p-0">
@@ -247,7 +269,7 @@ const PaiementCommande: React.FC = () => {
                 <div className="row mb-4">
                   <div className="col-md-2">
                     <label className="form-label">Date de paiement <span className="text-danger">*</span></label>
-                    <input type="text" className="form-control" value={new Date(datePaiement).toLocaleString('fr-FR')} readOnly />
+                    <input type="text" className="form-control" value={formatLocalDate(datePaiement)} readOnly />
                   </div>
                   <div className="col-md-2">
                     <label className="form-label">Réf paiement <span className="text-danger">*</span></label>
@@ -259,7 +281,7 @@ const PaiementCommande: React.FC = () => {
                   </div>
                     <div className="col-md-2">
                       <label className="form-label">Date commande <span className="text-danger">*</span></label>
-                      <input type="text" className="form-control" value={selectedCommande ? new Date(selectedCommande.dateCommande).toLocaleString('fr-FR') : ''} readOnly />
+                      <input type="text" className="form-control" value={selectedCommande ? formatServerDate(selectedCommande.dateCommande) : ''} readOnly />
                     </div>
                     <div className="col-md-2">
                       <label className="form-label">Fournisseur <span className="text-danger">*</span></label>

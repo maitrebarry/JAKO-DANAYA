@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useUser } from '../contexts/UserContext';
 import SearchableSelect from './SearchableSelect';
+import { formatServerDate, formatLocalDate } from '../utils/date';
 
 interface CommandeData {
   id: number;
@@ -56,9 +57,8 @@ const Reception: React.FC = () => {
 
   const now = new Date();
   const [refReception] = useState(generateRefReception());
-  // Keep both an ISO timestamp to send to server and a localized display for UI
+  // Keep an ISO timestamp to send to server
   const [dateReceptionIso] = useState(now.toISOString());
-  const [dateReception] = useState(now.toLocaleString('fr-FR'));
 
   useEffect(() => {
     console.log('Reception useEffect triggered, currentBoutique:', currentBoutique, 'id:', id);
@@ -78,12 +78,34 @@ const Reception: React.FC = () => {
     }
   }, [currentBoutique, id]);
 
+  // Listen for paiement cancellation events to refresh commandes and selected commande
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      try {
+        // @ts-ignore
+        const detail = ev.detail || {};
+        const commandeId = detail.commandeId ?? null;
+        // Refresh commandes list
+        fetchCommandes();
+        // If the cancelled paiement affects the currently selected commande, refresh it
+        if (selectedCommande && commandeId && Number(selectedCommande.id) === Number(commandeId)) {
+          handleCommandeChange(String(commandeId));
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    window.addEventListener('paiement:cancelled', handler as EventListener);
+    return () => window.removeEventListener('paiement:cancelled', handler as EventListener);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCommande]);
+
   const fetchCommandes = async () => {
     setLoading(true);
     setDebugInfo(prev => ({ ...prev, fetchStatus: 'loading', fetchResponse: null }));
     try {
       const token = localStorage.getItem('smb_token');
-      const url = `http://localhost:8085/api/commandes-fournisseurs/a-recevoir`;
+      const url = `http://localhost:8085/api/commandes-fournisseurs/a-recevoir`; 
       console.log('Fetching commandes from:', url);
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
@@ -253,8 +275,7 @@ const Reception: React.FC = () => {
 
       {/* Breadcrumb */}
       <div className="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
-        <div className="breadcrumb-title pe-3">Commande</div>
-        <div className="ps-3">
+        <div className="breadcrumb-title pe-3">Commande</div>        <div className="breadcrumb-subtitle">Commande Fournisseur</div>        <div className="ps-3">
           <nav aria-label="breadcrumb">
             <ol className="breadcrumb mb-0 p-0">
               <li className="breadcrumb-item"><a href="#"><i className="bx bx-home-alt"></i></a></li>
@@ -305,7 +326,7 @@ const Reception: React.FC = () => {
                       name="date_reception"
                       className="form-control"
                       id="date_reception"
-                      value={dateReception}
+                      value={formatLocalDate(dateReceptionIso)}
                       readOnly
                     />
                   </div>
@@ -344,7 +365,7 @@ const Reception: React.FC = () => {
                       className="form-control"
                       name="date_commande"
                       id="date_commande"
-                      value={selectedCommande ? new Date(selectedCommande.dateCommande).toLocaleString('fr-FR') : ''}
+                      value={selectedCommande ? formatServerDate(selectedCommande.dateCommande) : ''}
                       readOnly
                     />
                   </div>

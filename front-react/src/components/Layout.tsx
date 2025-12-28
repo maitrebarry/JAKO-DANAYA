@@ -251,26 +251,26 @@ const Sidebar = () => {
           )}
           {can.venteCredit && (
           <li className="side-nav-item">
-            <a className="side-nav-link" data-bs-target="#vente-credit-nav" data-bs-toggle="collapse" href="#">
+            <a className="side-nav-link" data-bs-target="#ventes-nav" data-bs-toggle="collapse" href="#">
               <span className="menu-icon"><i className="ti ti-credit-card"></i></span>
-              <span className="menu-text">Vente en Crédit</span>
+              <span className="menu-text">Ventes</span>
               <i className="ti ti-chevron-down ms-auto"></i>
             </a>
-            <ul id="vente-credit-nav" className="collapse" data-bs-parent="#sidebar-nav">
+            <ul id="ventes-nav" className="collapse" data-bs-parent="#sidebar-nav">
               <li>
-                <a href="#" className="side-nav-link" style={{ paddingLeft: '5px' }}>
-                  <span>Ajouter Vente Crédit</span>
-                </a>
+                <Link to="/ventes" className="side-nav-link" style={{ paddingLeft: '5px' }}>
+                  <span>Ajouter Vente</span>
+                </Link>
               </li>
               <li>
-                <a href="#" className="side-nav-link" style={{ paddingLeft: '5px' }}>
-                  <span>Liste des Livraisons Crédits</span>
-                </a>
+                <Link to="/ventes/historique" className="side-nav-link" style={{ paddingLeft: '5px' }}>
+                  <span>Historique Ventes</span>
+                </Link>
               </li>
               <li>
-                <a href="#" className="side-nav-link" style={{ paddingLeft: '5px' }}>
-                  <span>Liste des Paiements Crédits</span>
-                </a>
+                <Link to="/ventes/livraisons" className="side-nav-link" style={{ paddingLeft: '5px' }}>
+                  <span>Livraisons ventes</span>
+                </Link>
               </li>
             </ul>
           </li>

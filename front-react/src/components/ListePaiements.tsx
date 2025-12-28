@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useUser } from '../contexts/UserContext';
+import { formatServerDate } from '../utils/date';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 
@@ -110,7 +111,7 @@ const ListePaiements: React.FC = () => {
                       <tbody>
                         {paiements.map((paiement) => (
                           <tr key={paiement.id}>
-                            <td>{new Date(paiement.datePaie).toLocaleString()}</td>
+                            <td>{formatServerDate(paiement.datePaie)}</td>
                             <td>{paiement.reference}</td>
                             <td>{paiement.commandeFournisseur.reference}</td>
                             <td>{paiement.commandeFournisseur.fournisseur.nom} {paiement.commandeFournisseur.fournisseur.prenom}</td>

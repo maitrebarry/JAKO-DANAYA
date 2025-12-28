@@ -170,7 +170,7 @@ const Fournisseurs: React.FC = () => {
       <div className="card">
         <div className="card-header d-flex justify-content-between align-items-center" style={{ backgroundColor: '#007bff', color: 'white' }}>
           <h5>Fournisseurs</h5>
-          <button className="btn btn-light" onClick={() => { setEditing(null); resetForm(); setShowModal(true); }}>+ Fournisseur</button>
+          <button className="btn btn-plus" onClick={() => { setEditing(null); resetForm(); setShowModal(true); }}>+ Fournisseur</button>
         </div>
         <div className="card-body">
           <div className="mb-3">

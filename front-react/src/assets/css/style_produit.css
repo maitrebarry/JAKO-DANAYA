@@ -142,3 +142,21 @@
 .breadcrumb-item.active {
   color: #6c757d;
 }
+
+/* Plus buttons: used for "Ajouter" actions like "+ Fournisseur" */
+.btn-plus {
+  background-color: #000;
+  color: #fff;
+  border-color: #000;
+}
+.btn-plus:hover,
+.btn-plus:focus {
+  background-color: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.breadcrumb-subtitle {
+  font-size: 0.9rem;
+  color: #6c757d;
+}

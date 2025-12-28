@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { formatServerDate } from '../utils/date';
 // import SearchableSelect from './SearchableSelect';
 
 interface Ligne { id: number; stockId: number; nom: string; quantite: number; prix: number; montant: number; }
@@ -68,7 +69,7 @@ const CommandeApercu: React.FC = () => {
         <div className="card-body">
               <div className="mb-3 d-flex justify-content-between">
             <div>
-              <button className="btn btn-secondary me-2" onClick={() => navigate('/liste-commandes')}>Retour</button>
+              <button className="btn btn-secondary me-2" onClick={() => navigate('/liste-commandes')}><i className="ri-arrow-left-line"></i></button>
               <button className="btn btn-primary me-2" onClick={() => openPdfPrint(commande.id)}>Imprimer</button>
             </div>
           </div>
@@ -112,7 +113,7 @@ const CommandeApercu: React.FC = () => {
                   </div>
                   <div className="form-group mt-3">
                     <label>Date </label>
-                    <input type="text" name="dat" className="form-control" value={commande.dateCommande} readOnly />
+                    <input type="text" name="dat" className="form-control" value={formatServerDate(commande.dateCommande)} readOnly />
                   </div>
                   <div className="form-group mt-3">
                     <label>Fournisseur</label>

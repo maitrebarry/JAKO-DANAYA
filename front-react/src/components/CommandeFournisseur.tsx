@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams } from 'react-router-dom';
 import SearchableSelect from './SearchableSelect';
+import { toDatetimeLocalInput } from '../utils/date';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 
@@ -12,6 +13,10 @@ interface Stock {
     id: number;
     nomProduit: string;
     prixAchat: number;
+    prixDetail?: number;
+    prixEnGros?: number;
+    // number of base units per conditionnement (e.g., carton = 12)
+    nombreUnitesParConditionnement?: number;
   };
   magasin: {
     id: number;
@@ -30,17 +35,26 @@ interface Fournisseur {
 interface CartItem {
   id_stock: number;
   nom: string;
-  quantite: number;
+  quantite: number; // units when selling by unit
+  venteParConditionnement?: boolean;
+  quantiteConditionnement?: number; // number of conditionnements when selling by conditionnement
+  multiplicateur?: number; // cached nombre d'unités par conditionnement
   prix: number;
   montant: number;
 }
 
-const CommandeFournisseur: React.FC = () => {
+interface CommandeFournisseurProps { isVente?: boolean }
+
+const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = false }) => {
   const navigate = useNavigate();
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedFournisseur, setSelectedFournisseur] = useState('');
+  // Vente mode: client name instead of fournisseur
+  const [nomClient, setNomClient] = useState('');
+  // Vente: price mode toggle (DETAIL = prix_detail, GROS = prix_en_gros)
+  const [priceModeDefault, setPriceModeDefault] = useState<'DETAIL' | 'GROS'>('DETAIL');
   const { id } = useParams();
   const [isEditMode, setIsEditMode] = useState(false);
   const [reference, setReference] = useState('');
@@ -49,17 +63,66 @@ const CommandeFournisseur: React.FC = () => {
   const [error, setError] = useState('');
   const [selectedStockOption, setSelectedStockOption] = useState<string | number | null>(null);
 
+  // Helper: return numeric multiplier (nombre d'unités par conditionnement) robustly
+  const getProduitMultiplicateur = (s?: Stock): number => {
+    if (!s || !s.produit) return 0;
+    const anyProd: any = s.produit as any;
+    // Try common known fields
+    const candidates = [
+      'nombreUnitesParConditionnement',
+      'nombre_unites_par_conditionnement',
+      'nombreUnitesParConditionnement',
+      'quantiteParConditionnement',
+      'quantite_par_conditionnement',
+      'quantiteInitialeConditionnements',
+      'quantite_initiale_conditionnements',
+      'initialQuantityPerConditionnement'
+    ];
+    for (const key of candidates) {
+      const raw = anyProd[key];
+      if (raw !== undefined && raw !== null) {
+        const n = parseInt(String(raw).replace(/[^0-9\-]/g, ''), 10);
+        if (!isNaN(n) && n > 0) return n;
+      }
+    }
+    // As a last resort, scan all properties for a numeric value that looks like a multiplier
+    for (const k of Object.keys(anyProd)) {
+      const v = anyProd[k];
+      if (typeof v === 'string' || typeof v === 'number') {
+        const n = parseInt(String(v).replace(/[^0-9\-]/g, ''), 10);
+        if (!isNaN(n) && n > 0 && /conditionn|condit/i.test(k)) return n;
+      }
+    }
+    return 0;
+  };
+
+  // prettyJson helper removed (unused)
+
+  // inspectStock helper removed (unused)
+
   // Fournisseur modal state
   const [showFournisseurModal, setShowFournisseurModal] = useState(false);
   const [newFournisseur, setNewFournisseur] = useState<{ prenom?: string; nom?: string; contact?: string; ville?: string }>({});
   const [fournisseurSearch, setFournisseurSearch] = useState('');
 
+  // Client modal & list (used in Vente mode)
+  const [clients, setClients] = useState<any[]>([]);
+  const [showClientModal, setShowClientModal] = useState(false);
+  const [newClient, setNewClient] = useState<{ prenom?: string; nom?: string; contact?: string; ville?: string }>({});
+  const [clientSearch, setClientSearch] = useState('');
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+
   useEffect(() => {
     (async () => {
       const s = await fetchStocks();
       await fetchFournisseurs();
+      await fetchClients();
       generateReference();
-      setDateCommande(new Date().toISOString().slice(0, 16));
+      // default local datetime for datetime-local input (avoid using toISOString which yields UTC)
+      const now = new Date();
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const localDt = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      setDateCommande(localDt);
       if (id) {
         setIsEditMode(true);
         await fetchCommandeForEdit(parseInt(id), s);
@@ -69,13 +132,14 @@ const CommandeFournisseur: React.FC = () => {
 
   // Ensure body class and scrolling behavior while modal is open
   useEffect(() => {
-    if (showFournisseurModal) {
+    // If either modal is open, prevent body scrolling
+    if (showFournisseurModal || showClientModal) {
       document.body.classList.add('modal-open');
     } else {
       document.body.classList.remove('modal-open');
     }
     return () => document.body.classList.remove('modal-open');
-  }, [showFournisseurModal]);
+  }, [showFournisseurModal, showClientModal]);
 
   const fetchCommandeForEdit = async (commandeId: number, loadedStocks?: Stock[]) => {
     try {
@@ -87,11 +151,9 @@ const CommandeFournisseur: React.FC = () => {
       const data = await res.json();
       // populate form
       setReference(data.reference || '');
-      // convert server date to yyyy-MM-ddTHH:mm
+      // convert server date to yyyy-MM-ddTHH:mm (without timezone shift)
       if (data.dateCommande) {
-        const d = new Date(data.dateCommande);
-        const dt = d.toISOString().slice(0,16);
-        setDateCommande(dt);
+        setDateCommande(toDatetimeLocalInput(data.dateCommande));
       }
       setSelectedFournisseur(data.fournisseur?.id ? String(data.fournisseur.id) : '');
       // build cart from lignes
@@ -104,7 +166,15 @@ const CommandeFournisseur: React.FC = () => {
           const basePrice = Number(stockInfo?.produit?.prixAchat ?? l.stock?.produit?.prixAchat ?? 0);
           const prix = l.newPrice !== undefined && l.newPrice !== null ? Number(l.newPrice) : basePrice;
           const quantite = l.quantite || 1;
-          return { id_stock: stockId, nom: nomProduit, quantite, prix, montant: prix * quantite };
+          // compute multiplicateur from stockInfo or from the returned ligne stock info
+          let multiplicateur = 0;
+          if (stockInfo) multiplicateur = getProduitMultiplicateur(stockInfo);
+          else if (l.stock && l.stock.produit) {
+            const miniStock: any = { produit: l.stock.produit };
+            multiplicateur = getProduitMultiplicateur(miniStock as any);
+          }
+
+          return { id_stock: stockId, nom: nomProduit, quantite, prix, montant: prix * quantite, multiplicateur, ...(isVente ? { venteParConditionnement: false, quantiteConditionnement: 1 } : {}) };
         });
         setCart(loadedCart);
       }
@@ -115,9 +185,15 @@ const CommandeFournisseur: React.FC = () => {
 
   const generateReference = () => {
     const now = new Date();
-    const ref = `CMD-${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+    const prefix = isVente ? 'CMC' : 'CMF';
+    const ref = `${prefix}-${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
     setReference(ref);
   };
+
+  // Ensure reference prefix updates if mode (vente/achat) changes
+  useEffect(() => {
+    generateReference();
+  }, [isVente]);
 
   const fetchStocks = async () => {
     try {
@@ -150,6 +226,20 @@ const CommandeFournisseur: React.FC = () => {
     }
   };
 
+  const fetchClients = async () => {
+    try {
+      const token = localStorage.getItem('smb_token');
+      const res = await fetch('http://localhost:8085/api/clients-grossistes', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Erreur lors du chargement des clients');
+      const data = await res.json();
+      setClients(data);
+    } catch (err: any) {
+      setError(err.message || 'Erreur inconnue');
+    }
+  };
+
   const handleProductSelect = (stockId: string) => {
     try {
       const stock = stocks.find(s => s.id.toString() === stockId);
@@ -164,24 +254,35 @@ const CommandeFournisseur: React.FC = () => {
         return;
       }
 
-      // Get last used price for this product from localStorage
-      const lastPriceKey = `lastPrice_${stock.produit.id}`;
-      const lastPrice = localStorage.getItem(lastPriceKey);
-      const defaultPrice = lastPrice ? parseFloat(lastPrice) : Number(stock.produit?.prixAchat ?? 0);
+      // For Vente: prefer the configured price mode (DÉTAIL / GROS) and ignore stored lastPrice when selecting a product
+      let defaultPrice = Number(stock.produit?.prixAchat ?? 0);
+      if (isVente && stock.produit) {
+        const modePrice = priceModeDefault === 'DETAIL' ? stock.produit?.prixDetail : stock.produit?.prixEnGros;
+        defaultPrice = Number(modePrice ?? stock.produit?.prixAchat ?? 0);
+      } else if (stock.produit) {
+        // Non-vente: try to use last used price if available, otherwise prixAchat
+        const lastPriceKey = `lastPrice_${stock.produit.id}`;
+        const lastPrice = localStorage.getItem(lastPriceKey);
+        defaultPrice = lastPrice ? parseFloat(lastPrice) : Number(stock.produit?.prixAchat ?? 0);
+      }
 
       if (defaultPrice <= 0) {
         Swal.fire('Attention', 'Le prix de ce produit n\'est pas défini. Veuillez le saisir manuellement.', 'warning');
       }
 
+      const multiplicateur = getProduitMultiplicateur(stock);
       const newItem: CartItem = {
         id_stock: stock.id,
         nom: stock.produit.nomProduit,
         quantite: 1,
         prix: defaultPrice,
-        montant: defaultPrice
+        montant: defaultPrice,
+        multiplicateur: multiplicateur,
+        // Add conditionnement fields only for sales so achat remains unchanged
+        ...(isVente ? { venteParConditionnement: false, quantiteConditionnement: 1 } : {})
       };
 
-      setCart([...cart, newItem]);
+      setCart(prev => [...prev, newItem]);
     } catch (error) {
       console.error('Erreur lors de la sélection du produit:', error);
       Swal.fire('Erreur', 'Une erreur est survenue lors de la sélection du produit', 'error');
@@ -189,21 +290,60 @@ const CommandeFournisseur: React.FC = () => {
   };
 
   const updateQuantity = (id_stock: number, quantite: number) => {
-    setCart(cart.map(item =>
-      item.id_stock === id_stock
-        ? { ...item, quantite, montant: item.prix * quantite }
-        : item
-    ));
+    setCart(prev => prev.map(item => {
+      if (item.id_stock !== id_stock) return item;
+      // only update unit quantity when selling by unit
+      if (item.venteParConditionnement) return item;
+      const newMontant = item.prix * quantite;
+      return { ...item, quantite, montant: newMontant };
+    }));
+  };
+
+  const updateConditionnementQuantity = (id_stock: number, quantiteConditionnement: number) => {
+    if (!isVente) return; // guard: only for ventes
+    setCart(prev => prev.map(item => {
+      if (item.id_stock !== id_stock) return item;
+      if (!item.venteParConditionnement) return item;
+      const stock = stocks.find(s => s.id === id_stock);
+      const multiplier = getProduitMultiplicateur(stock);
+      const realQ = quantiteConditionnement * multiplier;
+      const newMontant = item.prix * realQ;
+      return { ...item, quantiteConditionnement, montant: newMontant };
+    }));
+  };
+
+  const toggleVenteParConditionnement = (id_stock: number, venteParConditionnement: boolean) => {
+    if (!isVente) return; // guard: only allow toggling in sale mode
+    const stock = stocks.find(s => s.id === id_stock);
+    const multiplier = getProduitMultiplicateur(stock);
+    console.debug('toggleVenteParConditionnement called', { id_stock, venteParConditionnement, multiplier });
+    setCart(prev => prev.map(item => {
+      if (item.id_stock !== id_stock) return item;
+      // initialize quantiteConditionnement to 1 when turning on
+      const qCond = venteParConditionnement ? (item.quantiteConditionnement || 1) : item.quantite;
+      const realQ = venteParConditionnement ? qCond * (multiplier || 1) : (item.quantite || 1);
+      // If product has no multiplier, do not switch to conditionnement
+      if (venteParConditionnement && (!multiplier || multiplier <= 1)) {
+        console.debug('Cannot switch to conditionnement: multiplier missing or <=1', { id_stock, multiplier });
+        return item;
+      }
+      return { ...item, venteParConditionnement, quantiteConditionnement: venteParConditionnement ? qCond : undefined, quantite: venteParConditionnement ? 1 : (item.quantite || 1), montant: item.prix * realQ };
+    }));
   };
 
   const updatePrice = (id_stock: number, prix: number) => {
-    setCart(cart.map(item =>
+    if (isVente) {
+      Swal.fire('Info', 'Le prix est calculé automatiquement pour les ventes (DÉTAIL/GROS) et ne peut pas être modifié manuellement.', 'info');
+      return;
+    }
+
+    setCart(prev => prev.map(item =>
       item.id_stock === id_stock
-        ? { ...item, prix, montant: prix * item.quantite }
+        ? (item.venteParConditionnement ? (() => { const stock = stocks.find(s => s.id === id_stock); const multiplier = stock?.produit?.nombreUnitesParConditionnement || 0; const realQ = (item.quantiteConditionnement || 0) * multiplier; return { ...item, prix, montant: prix * realQ }; })() : { ...item, prix, montant: prix * item.quantite })
         : item
     ));
 
-    // Save last used price for this product in localStorage
+    // Save last used price for this product in localStorage (only for non-vente flows)
     const stock = stocks.find(s => s.id === id_stock);
     if (stock && stock.produit) {
       const lastPriceKey = `lastPrice_${stock.produit.id}`;
@@ -211,16 +351,63 @@ const CommandeFournisseur: React.FC = () => {
     }
   };
 
+  // When price mode toggles in Vente mode, update cart item prices to reflect selected mode
+  // When price mode, stocks or isVente change, normalize cart entries and recompute montants
+  useEffect(() => {
+    setCart(prev => prev.map(item => {
+      const stock = stocks.find(s => s.id === item.id_stock);
+      // ensure vente-only fields are present only when in vente mode
+      let venteParConditionnement = item.venteParConditionnement;
+      let quantiteConditionnement = item.quantiteConditionnement;
+      let multiplicateur = item.multiplicateur;
+      if (isVente) {
+        if (venteParConditionnement === undefined) venteParConditionnement = false;
+        if (quantiteConditionnement === undefined) quantiteConditionnement = 1;
+        // Recompute multiplicateur if missing or previously zero (handles add-before-stocks-loaded case)
+        if (multiplicateur === undefined || multiplicateur <= 1) multiplicateur = getProduitMultiplicateur(stock);
+      } else {
+        venteParConditionnement = undefined;
+        quantiteConditionnement = undefined;
+        multiplicateur = undefined;
+      }
+
+      // determine price (respect priceMode for vente)
+      let newPrix = item.prix;
+      if (isVente && stock && stock.produit) {
+        const modePrice = priceModeDefault === 'DETAIL' ? stock.produit?.prixDetail : stock.produit?.prixEnGros;
+        if (modePrice !== undefined && modePrice !== null) newPrix = Number(modePrice);
+      }
+
+      const multiplier = (venteParConditionnement && multiplicateur) ? multiplicateur : 1;
+      const realQ = venteParConditionnement ? ((quantiteConditionnement || 0) * multiplier) : item.quantite;
+      const newMontant = (newPrix || 0) * (realQ || 0);
+
+      return { ...item, prix: newPrix, montant: newMontant, venteParConditionnement, quantiteConditionnement, multiplicateur };
+    }));
+  }, [priceModeDefault, stocks, isVente]);
+
   const removeFromCart = (id_stock: number) => {
     setCart(cart.filter(item => item.id_stock !== id_stock));
   };
 
-  const total = cart.reduce((sum, item) => sum + item.montant, 0);
+  // recompute total based on effective quantities
+  const total = cart.reduce((sum, item) => {
+    const stock = stocks.find(s => s.id === item.id_stock);
+    const multiplier = stock?.produit?.nombreUnitesParConditionnement || 0;
+    const realQ = item.venteParConditionnement ? ((item.quantiteConditionnement || 0) * multiplier) : item.quantite;
+    const montant = (item.prix || 0) * (realQ || 0);
+    return sum + montant;
+  }, 0);
   const zeroStockDetails = stocks.filter(stock => (stock.quantiteDisponible ?? 0) === 0);
 
   const handleSubmit = async () => {
-    if (!selectedFournisseur) {
+    if (!isVente && !selectedFournisseur) {
       Swal.fire('Erreur', 'Veuillez sélectionner un fournisseur', 'error');
+      return;
+    }
+
+    if (isVente && !selectedClientId && !nomClient) {
+      Swal.fire('Erreur', 'Veuillez sélectionner ou saisir un client', 'error');
       return;
     }
 
@@ -229,24 +416,85 @@ const CommandeFournisseur: React.FC = () => {
       return;
     }
 
-    const produitsSelectionnes = cart.map(item => ({
-      id_stock: item.id_stock,
-      quantite: item.quantite,
-      prix: item.prix
-    }));
+    // client-side payload building
+    const produitsSelectionnes: any[] = [];
+    const blockedForStock: number[] = [];
+    cart.forEach(item => {
+      const stock = stocks.find(s => s.id === item.id_stock);
+      const multiplier = getProduitMultiplicateur(stock);
+      // For sales, realQ is computed using conditionnement when applicable.
+      // For purchases, we always treat quantite as units ordered and do NOT validate stock availability here.
+      const realQ = (isVente && item.venteParConditionnement) ? ((item.quantiteConditionnement || 0) * multiplier) : item.quantite;
 
-    const payload = {
-      reference,
-      dateCommande,
-      fournisseur: { id: parseInt(selectedFournisseur) },
-      produitsSelectionnes,
-      total
-    };
+      // Only enforce stock availability for sales
+      if (isVente) {
+        // Check conditionnement activation rules: multiplicateur must be >1
+        const effMultiplier = (item.multiplicateur || getProduitMultiplicateur(stock));
+        if (item.venteParConditionnement && (!effMultiplier || effMultiplier <= 1)) {
+          Swal.fire('Erreur', `Conditionnement non autorisé pour ${item.nom} : nombre_unites_par_conditionnement doit être > 1.`, 'error');
+          return;
+        }
+
+        if (stock && (stock.quantiteDisponible ?? 0) < (realQ || 0)) {
+          blockedForStock.push(item.id_stock);
+        }
+      }
+
+      if (isVente && item.venteParConditionnement) {
+        produitsSelectionnes.push({
+          id_stock: item.id_stock,
+          venteParConditionnement: true,
+          quantiteConditionnement: item.quantiteConditionnement,
+          prix: item.prix,
+          priceMode: priceModeDefault
+        });
+      } else {
+        produitsSelectionnes.push({
+          id_stock: item.id_stock,
+          quantite: item.quantite,
+          prix: item.prix,
+          priceMode: isVente ? priceModeDefault : undefined
+        });
+      }
+    });
+
+    if (blockedForStock.length > 0) {
+      const labels = blockedForStock.map(id => {
+        const it = cart.find(c => c.id_stock === id);
+        return it ? `${it.nom} (stockId: ${id})` : `stockId: ${id}`;
+      });
+      Swal.fire('Erreur', `Stock insuffisant pour : ${labels.join(', ')}`, 'error');
+      return;
+    }
+
+    let payload: any;
+    if (isVente) {
+      payload = {
+        reference,
+        dateVente: dateCommande,
+        nomClient: nomClient || null,
+        client: selectedClientId ? { id: selectedClientId } : undefined,
+        produitsSelectionnes,
+        total
+      };
+    } else {
+      payload = {
+        reference,
+        dateCommande,
+        fournisseur: { id: parseInt(selectedFournisseur) },
+        produitsSelectionnes,
+        total
+      };
+    }
 
     try {
       const token = localStorage.getItem('smb_token');
-      const url = isEditMode && id ? `http://localhost:8085/api/commandes-fournisseurs/${id}` : 'http://localhost:8085/api/commandes-fournisseurs';
-      const method = isEditMode && id ? 'PUT' : 'POST';
+      let url = isEditMode && id ? `http://localhost:8085/api/commandes-fournisseurs/${id}` : 'http://localhost:8085/api/commandes-fournisseurs';
+      let method = isEditMode && id ? 'PUT' : 'POST';
+      if (isVente) {
+        url = isEditMode && id ? `http://localhost:8085/api/ventes/${id}` : 'http://localhost:8085/api/ventes/full';
+        method = isEditMode && id ? 'PUT' : 'POST';
+      }
       const res = await fetch(url, {
         method,
         headers: {
@@ -342,7 +590,7 @@ const CommandeFournisseur: React.FC = () => {
         <div className="col-12">
           <div className="card">
             <div className="card-header">
-              <h5>Exécution de la commande fournisseur</h5>
+              <h5>{isVente ? 'Commande Client' : 'Exécution de la commande fournisseur'}</h5>
             </div>
             <div className="card-body">
               {/* Breadcrumb */}
@@ -352,10 +600,10 @@ const CommandeFournisseur: React.FC = () => {
                   <nav aria-label="breadcrumb">
                     <ol className="breadcrumb mb-0 p-0">
                       <li className="breadcrumb-item"><a href="#"><i className="bx bx-home-alt"></i></a></li>
-                      <li className="breadcrumb-item active" aria-current="page">Commande Fournisseur</li>
+                      <li className="breadcrumb-item active" aria-current="page">{isVente ? 'Commande Client' : 'Commande Fournisseur '}</li>
                     </ol>
                   </nav>
-                </div>
+                </div> 
                 <div className="ms-auto">
                   <div className="btn-group">
                     <button className="btn btn-outline-primary mb-3 mb-lg-0 me-2" onClick={() => navigate('/liste-commandes')}>
@@ -376,23 +624,53 @@ const CommandeFournisseur: React.FC = () => {
                   <label>Référence</label>
                   <input type="text" className="form-control" value={reference} readOnly />
                 </div>
-                <div className="col-md-4">
+                <div className="col-md-3">
                   <label>Date et Heure</label>
                   <input type="datetime-local" className="form-control" value={dateCommande} readOnly />
                 </div>
-                <div className="col-md-4">
-                  <label>Fournisseur
-                    <button type="button" className="btn btn-sm btn-outline-success ms-2" onClick={() => { setNewFournisseur({}); setFournisseurSearch(''); setShowFournisseurModal(true); }}>
-                      <i className='bx bx-plus'></i> Ajouter
-                    </button>
-                  </label>
-                  <select className="form-control" value={selectedFournisseur} onChange={(e) => setSelectedFournisseur(e.target.value)}>
-                    <option value="">Sélectionner un fournisseur</option>
-                    {fournisseurs.map(f => (
-                      <option key={f.id} value={f.id}>{f.prenom} {f.nom}</option>
-                    ))}
-                  </select>
-                </div>
+                {isVente && (
+                  <div className="col-md-2">
+                    <label>Mode de prix</label>
+                    <div className="form-check form-switch">
+                      <input className="form-check-input" id="priceModeToggle" type="checkbox" checked={priceModeDefault === 'DETAIL'} onChange={(e) => setPriceModeDefault(e.target.checked ? 'DETAIL' : 'GROS')} />
+                      <label className="form-check-label" htmlFor="priceModeToggle">{priceModeDefault === 'DETAIL' ? 'DÉTAIL' : 'GROS'}</label>
+                    </div>
+                  </div>
+                )}
+                <div className="col-md-3">
+                {isVente ? (
+                  <>
+                    <label>Client
+                      <button type="button" className="btn btn-sm btn-outline-success ms-2" onClick={() => { setNewClient({}); setClientSearch(''); setShowClientModal(true); }}>
+                        <i className='bx bx-plus'></i> Ajouter
+                      </button>
+                    </label>
+                    <div className="d-flex" style={{ gap: 8 }}>
+                      <select className="form-control" value={selectedClientId ?? ''} onChange={(e) => { const v = e.target.value; setSelectedClientId(v ? parseInt(v) : null); const c = clients.find(cl => cl.id === Number(v)); if (c) setNomClient(`${c.prenom || ''} ${c.nom || ''}`.trim()); }}>
+                        <option value="">Sélectionner un client</option>
+                        {clients.map(c => (
+                          <option key={c.id} value={c.id}>{c.prenom} {c.nom} - {c.contact}</option>
+                        ))}
+                      </select>
+                      <input className="form-control" value={nomClient} onChange={(e) => setNomClient(e.target.value)} placeholder="Ou saisir un nom de client" />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <label>Fournisseur
+                      <button type="button" className="btn btn-sm btn-outline-success ms-2" onClick={() => { setNewFournisseur({}); setFournisseurSearch(''); setShowFournisseurModal(true); }}>
+                        <i className='bx bx-plus'></i> Ajouter
+                      </button>
+                    </label>
+                    <select className="form-control" value={selectedFournisseur} onChange={(e) => setSelectedFournisseur(e.target.value)}>
+                      <option value="">Sélectionner un fournisseur</option>
+                      {fournisseurs.map(f => (
+                        <option key={f.id} value={f.id}>{f.prenom} {f.nom}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+              </div>
               </div>
 
               <div className="row">
@@ -405,11 +683,15 @@ const CommandeFournisseur: React.FC = () => {
                       <div className="d-flex justify-content-between align-items-center mb-3" style={{ gap: 8 }}>
                         <div style={{ flex: 1 }}>
                           <SearchableSelect
-                            options={stocks.map((stock) => ({
-                              value: stock.id,
-                              label: `${stock.produit?.nomProduit || 'Produit inconnu'} - ${(stock.produit?.prixAchat || 0)} FCFA - ${stock.magasin?.nom || 'Dépôt inconnu'} (Stock: ${stock.quantiteDisponible || 0})`
-                              // Note: we intentionally allow selection even when quantiteDisponible is 0
-                            }))}
+                            options={stocks.map((stock) => {
+                              const mult = getProduitMultiplicateur(stock);
+                              const multLabel = mult > 1 ? ` - ${mult}u/cond` : '';
+                              const price = isVente && stock.produit ? (priceModeDefault === 'DETAIL' ? (stock.produit?.prixDetail ?? stock.produit?.prixAchat) : (stock.produit?.prixEnGros ?? stock.produit?.prixAchat)) : (stock.produit?.prixAchat ?? 0);
+                              return {
+                                value: stock.id,
+                                label: `${stock.produit?.nomProduit || 'Produit inconnu'}${multLabel} - ${price} FCFA - ${stock.magasin?.nom || 'Dépôt inconnu'} (Stock: ${stock.quantiteDisponible || 0})`
+                              };
+                            })}
                             value={selectedStockOption}
                             onChange={(val) => {
                               // reflect the choice in the select briefly
@@ -478,9 +760,11 @@ const CommandeFournisseur: React.FC = () => {
                   <div className="card">
                     <div className="card-header bg-primary text-white">
                       <h6>Panier</h6>
+                      {isVente && <small className="text-light">Prix unitaire = unité de base. Si vous vendez par conditionnement, 1 conditionnement = X unités (utilisé comme multiplicateur).</small>}
                     </div>
                     <div className="card-body">
-                      <table className="table table-striped">
+                      <div className="table-responsive">
+                        <table className="table table-striped">
                         <thead>
                           <tr>
                             <th>Produit</th>
@@ -491,49 +775,94 @@ const CommandeFournisseur: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {cart.map(item => (
-                            <tr key={item.id_stock}>
-                              <td>{item.nom}</td>
-                              <td>
-                                <input
-                                  type="number"
-                                  className="form-control"
-                                  value={item.quantite}
-                                  min="1"
-                                  onChange={(e) => updateQuantity(item.id_stock, parseInt(e.target.value) || 1)}
-                                />
-                              </td>
-                              <td>
-                                <div className="input-group">
-                                  <input
-                                    type="number"
-                                    className="form-control"
-                                    value={item.prix}
-                                    min="0"
-                                    step="0.01"
-                                    onChange={(e) => updatePrice(item.id_stock, parseFloat(e.target.value) || 0)}
-                                  />
-                                  {(() => {
-                                    const stock = stocks.find(s => s.id === item.id_stock);
-                                    if (stock && stock.produit) {
-                                      const lastPriceKey = `lastPrice_${stock.produit.id}`;
-                                      const lastPrice = localStorage.getItem(lastPriceKey);
-                                      if (lastPrice && parseFloat(lastPrice) === item.prix) {
-                                        return <span className="input-group-text"><i className="bx bx-memory-card text-success" title="Dernier prix utilisé"></i></span>;
+                          {cart.map(item => {
+                            const stock = stocks.find(s => s.id === item.id_stock);
+                            const multiplier = (item.multiplicateur || getProduitMultiplicateur(stock));
+                            const realQ = (item.venteParConditionnement && isVente) ? ((item.quantiteConditionnement || 0) * multiplier) : item.quantite;
+                            const montant = (item.prix || 0) * (realQ || 0);
+                            return (
+                              <tr key={item.id_stock}>
+                                <td>{item.nom}</td>
+                                <td>
+                                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                    {isVente ? (
+                                      <>
+                                        <div className="form-check form-check-inline">
+                                          <input className="form-check-input" type="radio" name={`mode_${item.id_stock}`} id={`mode_unite_${item.id_stock}`} checked={!item.venteParConditionnement} onChange={() => toggleVenteParConditionnement(item.id_stock, false)} onClick={() => toggleVenteParConditionnement(item.id_stock, false)} title="Vendre en unités" />
+                                          <label className="form-check-label" htmlFor={`mode_unite_${item.id_stock}`}>Unité</label>
+                                        </div>
+                                        <div className="form-check form-check-inline">
+                                          <input className="form-check-input" type="radio" name={`mode_${item.id_stock}`} id={`mode_cond_${item.id_stock}`} checked={!!item.venteParConditionnement} onChange={() => toggleVenteParConditionnement(item.id_stock, true)} onClick={() => toggleVenteParConditionnement(item.id_stock, true)} disabled={multiplier <= 1} title={multiplier <= 1 ? 'Conditionnement non disponible (nombre_unites_par_conditionnement doit être > 1)' : 'Vendre par conditionnement'} />
+                                          <label className="form-check-label" htmlFor={`mode_cond_${item.id_stock}`}>Conditionnement {multiplier > 1 ? `(${multiplier} unités)` : ''}</label>
+                                          
+                                        </div>
+
+                                        {item.venteParConditionnement ? (
+                                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                            <input type="number" className="form-control" value={item.quantiteConditionnement ?? 1} min={1} onChange={(e) => updateConditionnementQuantity(item.id_stock, parseInt(e.target.value) || 1)} style={{ width: 120 }} disabled={multiplier <= 1} />
+                                            <div className="text-muted small">1 conditionnement = {multiplier} unités</div>
+                                          </div>
+                                        ) : (
+                                          <input
+                                            type="number"
+                                            className="form-control"
+                                            value={item.quantite}
+                                            min="1"
+                                            onChange={(e) => updateQuantity(item.id_stock, parseInt(e.target.value) || 1)}
+                                            style={{ width: 120 }}
+                                          />
+                                        )}
+                                      </>
+                                    ) : (
+                                      // Achat mode: keep the original simple quantity input (no radios)
+                                      <input
+                                        type="number"
+                                        className="form-control"
+                                        value={item.quantite}
+                                        min="1"
+                                        onChange={(e) => updateQuantity(item.id_stock, parseInt(e.target.value) || 1)}
+                                        style={{ width: 120 }}
+                                      />
+                                    )}
+                                  </div>
+                                </td>
+                                <td>
+                                  <div className="input-group input-group-sm">
+                                    <input
+                                      type="number"
+                                      className="form-control form-control-sm"
+                                      value={item.prix}
+                                      min="0"
+                                      step="0.01"
+                                      onChange={(e) => updatePrice(item.id_stock, parseFloat(e.target.value) || 0)}
+                                      disabled={isVente}
+                                      title={isVente ? 'Prix calculé automatiquement pour les ventes (DÉTAIL / GROS)' : ''}
+                                    />
+                                    {isVente ? (
+                                      <span className="input-group-text" title="Prix automatique"><i className="bx bx-lock"></i></span>
+                                    ) : (() => {
+                                      if (stock && stock.produit) {
+                                        const lastPriceKey = `lastPrice_${stock.produit.id}`;
+                                        const lastPrice = localStorage.getItem(lastPriceKey);
+                                        if (lastPrice && parseFloat(lastPrice) === item.prix) {
+                                          return <span className="input-group-text"><i className="bx bx-memory-card text-success" title="Dernier prix utilisé"></i></span>;
+                                        }
                                       }
-                                    }
-                                    return null;
-                                  })()}
-                                </div>
-                              </td>
-                              <td>{item.montant.toFixed(2)} FCFA</td>
-                              <td>
-                                <button className="btn btn-danger btn-sm" onClick={() => removeFromCart(item.id_stock)}>
-                                  <i className="bx bx-trash"></i>
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
+                                      return null;
+                                    })()}
+                                  </div>
+                                </td>
+                                <td>{montant.toFixed(2)} FCFA</td>
+                                <td>
+                                  <div className="d-flex">
+                                    <button className="btn btn-danger btn-sm" onClick={() => removeFromCart(item.id_stock)} title="Supprimer">
+                                      <i className="bx bx-trash"></i>
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                         <tfoot>
                           <tr>
@@ -543,7 +872,7 @@ const CommandeFournisseur: React.FC = () => {
                           </tr>
                         </tfoot>
                       </table>
-                    </div>
+                      </div>
                   </div>
                 </div>
               </div>
@@ -645,6 +974,93 @@ const CommandeFournisseur: React.FC = () => {
           </div>
         </div>
       , document.body)}
+
+      {/* Client modal (Vente mode) */}
+      {showClientModal && createPortal(
+        <div className="modal show d-block" tabIndex={-1} role="dialog" style={{ zIndex: 2000 }}>
+          <div className="modal-backdrop fade show" style={{ zIndex: 1999 }}></div>
+          <div className="modal-dialog modal-lg modal-dialog-centered" role="document" style={{ zIndex: 2001 }}>
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Ajouter / Sélectionner un client</h5>
+                <button type="button" className="btn-close" onClick={() => setShowClientModal(false)} aria-label="Close"></button>
+              </div>
+              <div className="modal-body">
+                <div className="row mb-3">
+                  <div className="col-md-6">
+                    <label className="form-label">Rechercher un client existant</label>
+                    <input className="form-control" value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} placeholder="Tapez un nom ou contact" />
+                    <div style={{ maxHeight: 200, overflowY: 'auto', marginTop: 8 }}>
+                      {clients.filter(c => {
+                        if (!clientSearch) return true;
+                        const s = clientSearch.toLowerCase();
+                        return (c.prenom || '').toLowerCase().includes(s) || (c.nom || '').toLowerCase().includes(s) || (c.contact || '').toLowerCase().includes(s);
+                      }).map(c => (
+                        <div key={c.id} className="d-flex justify-content-between align-items-center p-2 border-bottom">
+                          <div>
+                            <strong>{c.prenom} {c.nom}</strong><br />
+                            <small className="text-muted">{c.contact}</small>
+                          </div>
+                          <div>
+                            <button className="btn btn-sm btn-outline-primary" onClick={() => { setSelectedClientId(c.id); setNomClient(`${c.prenom || ''} ${c.nom || ''}`.trim()); setShowClientModal(false); }}>
+                              Sélectionner
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label">Créer un nouveau client</label>
+                    <div className="mb-2">
+                      <input className="form-control" placeholder="Prénom" value={newClient.prenom || ''} onChange={(e) => setNewClient({ ...newClient, prenom: e.target.value })} />
+                    </div>
+                    <div className="mb-2">
+                      <input className="form-control" placeholder="Nom" value={newClient.nom || ''} onChange={(e) => setNewClient({ ...newClient, nom: e.target.value })} />
+                    </div>
+                    <div className="mb-2">
+                      <input className="form-control" placeholder="Contact" value={newClient.contact || ''} onChange={(e) => setNewClient({ ...newClient, contact: e.target.value })} />
+                    </div>
+                    <div className="mb-2">
+                      <input className="form-control" placeholder="Ville" value={newClient.ville || ''} onChange={(e) => setNewClient({ ...newClient, ville: e.target.value })} />
+                    </div>
+
+                    <div className="d-flex justify-content-end mt-3">
+                      <button className="btn btn-secondary me-2" onClick={() => { setNewClient({}); setClientSearch(''); setShowClientModal(false); }}>Annuler</button>
+                      <button className="btn btn-success" onClick={async () => {
+                        // Create new client via API
+                        try {
+                          const token = localStorage.getItem('smb_token');
+                          const payload: any = { prenom: newClient.prenom, nom: newClient.nom, contact: newClient.contact, ville: newClient.ville };
+                          const res = await fetch('http://localhost:8085/api/clients-grossistes', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            body: JSON.stringify(payload)
+                          });
+                          if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err && err.message ? err.message : `Erreur création client (${res.status})`);
+                          }
+                          const created = await res.json();
+                          // Add to list and select
+                          setClients(prev => [created, ...(prev || [])]);
+                          setSelectedClientId(created.id);
+                          setNomClient(`${created.prenom || ''} ${created.nom || ''}`.trim());
+                          setShowClientModal(false);
+                        } catch (err: any) {
+                          Swal.fire('Erreur', err.message || 'Erreur lors de la création du client', 'error');
+                        }
+                      }}>Créer et associer</button>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      , document.body)}
+    </div>
     </div>
   );
 };
