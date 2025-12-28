@@ -151,10 +151,26 @@ function App() {
             }
           />
           <Route
+            path="/ventes/update/:id"
+            element={
+              <PrivateRoute>
+                <Layout><CommandeFournisseur isVente={true} /></Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
             path="/ventes/livraisons"
             element={
               <PrivateRoute>
                 <Layout><VenteLivraison /></Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route 
+            path="/ventes/appercu/:id"
+            element={
+              <PrivateRoute>
+                <Layout><CommandeApercu /></Layout>
               </PrivateRoute>
             }
           />

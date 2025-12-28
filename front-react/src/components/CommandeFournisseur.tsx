@@ -144,9 +144,22 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
   const fetchCommandeForEdit = async (commandeId: number, loadedStocks?: Stock[]) => {
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${commandeId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      let res = null as any;
+      if (isVente) {
+        // Try vente endpoint first, then fallback to commandes-clients
+        res = await fetch(`http://localhost:8085/api/ventes/${commandeId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) {
+          res = await fetch(`http://localhost:8085/api/commandes-clients/${commandeId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+        }
+      } else {
+        res = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${commandeId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
       if (!res.ok) throw new Error('Erreur lors du chargement de la commande');
       const data = await res.json();
       // populate form

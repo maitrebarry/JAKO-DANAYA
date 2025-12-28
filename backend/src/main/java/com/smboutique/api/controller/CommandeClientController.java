@@ -15,6 +15,9 @@ public class CommandeClientController {
     @Autowired
     private CommandeClientService commandeClientService;
 
+    @Autowired
+    private com.smboutique.api.service.PdfService pdfService;
+
     @GetMapping
     public List<CommandeClient> getAllCommandeClients() {
         return commandeClientService.findAll();
@@ -25,6 +28,15 @@ public class CommandeClientController {
         return commandeClientService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/pdf")
+    public void getCommandeClientPdf(@PathVariable Long id, jakarta.servlet.http.HttpServletResponse response) {
+        try {
+            pdfService.writeCommandeClientPdf(id, response);
+        } catch (Exception e) {
+            try { response.sendError(500, e.getMessage()); } catch (java.io.IOException ex) { /* ignore */ }
+        }
     }
 
     @PostMapping

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import { useUser } from '../contexts/UserContext';
 import { formatServerDate } from '../utils/date';
 
 interface VenteLine {
@@ -17,7 +16,6 @@ interface VenteLine {
 const VenteLivraison: React.FC = () => {
   const [searchParams] = useSearchParams();
   const venteId = searchParams.get('venteId');
-  const { currentBoutique } = useUser();
   const navigate = useNavigate();
 
   const [vente, setVente] = useState<any>(null);

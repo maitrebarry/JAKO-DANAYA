@@ -13,6 +13,9 @@ const CommandeApercu: React.FC = () => {
   // Note: stock data is used within fetch for resolving names, not kept in state to avoid unused warning
   const [lignes, setLignes] = useState<Ligne[]>([]);
 
+  // Detect ventes mode
+  const isVenteMode = window.location.pathname && window.location.pathname.includes('/ventes');
+
   useEffect(() => {
     (async () => {
       try {
@@ -21,7 +24,8 @@ const CommandeApercu: React.FC = () => {
         const stockData = await stockRes.json();
         // We use stockData locally to compute line names and prices; do not store it unnecessarily.
         if (!id) return;
-        const res = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+        const path = isVenteMode ? 'commandes-clients' : 'commandes-fournisseurs';
+        const res = await fetch(`http://localhost:8085/api/${path}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) throw new Error('Commande introuvable');
         const data = await res.json();
         setCommande(data);
@@ -47,7 +51,8 @@ const CommandeApercu: React.FC = () => {
     if (!commandeId) return;
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${commandeId}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
+      const path = isVenteMode ? 'commandes-clients' : 'commandes-fournisseurs';
+      const res = await fetch(`http://localhost:8085/api/${path}/${commandeId}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error('Erreur lors de la récupération du PDF');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -63,14 +68,15 @@ const CommandeApercu: React.FC = () => {
     return (
       <main id="main" className="main">
         <div className="pagetitle">
-        <h1>Commande / Aperçu</h1>
+        <h1>{isVenteMode ? 'Commande Client / Aperçu' : 'Commande / Aperçu'}</h1>
       </div>
       <div className="card info-card sales-card">
         <div className="card-body">
               <div className="mb-3 d-flex justify-content-between">
             <div>
-              <button className="btn btn-secondary me-2" onClick={() => navigate('/liste-commandes')}><i className="ri-arrow-left-line"></i></button>
+              <button className="btn btn-secondary me-2" onClick={() => navigate(isVenteMode ? '/ventes' : '/liste-commandes')}><i className="ri-arrow-left-line"></i></button>
               <button className="btn btn-primary me-2" onClick={() => openPdfPrint(commande.id)}>Imprimer</button>
+              <button className="btn btn-outline-secondary" onClick={() => navigate(isVenteMode ? `/ventes/update/${commande.id}` : `/commandes/update/${commande.id}`)}>Modifier</button>
             </div>
           </div>
           <div className="row">
@@ -116,8 +122,8 @@ const CommandeApercu: React.FC = () => {
                     <input type="text" name="dat" className="form-control" value={formatServerDate(commande.dateCommande)} readOnly />
                   </div>
                   <div className="form-group mt-3">
-                    <label>Fournisseur</label>
-                    <input type="text" className="form-control" value={`${commande.fournisseur?.prenom || ''} ${commande.fournisseur?.nom || ''}`} readOnly />
+                    <label>{isVenteMode ? 'Client' : 'Fournisseur'}</label>
+                    <input type="text" className="form-control" value={isVenteMode ? `${commande.client?.prenom || ''} ${commande.client?.nom || ''}` : `${commande.fournisseur?.prenom || ''} ${commande.fournisseur?.nom || ''}`} readOnly />
                   </div>
                 </div>
               </div>

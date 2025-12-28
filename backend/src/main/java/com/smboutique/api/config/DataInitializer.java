@@ -219,8 +219,28 @@ public class DataInitializer implements CommandLineRunner {
                 "VENTE_LECTURE", "VENTE_CREER"
             });
             logger.info("Created 5 roles with permissions");
+
+            // Ensure SUPERADMIN has all permissions (also handle cases where new permissions are added later)
+            roleRepository.findByName("SUPERADMIN").ifPresent(superAdminRole -> {
+                Set<Permission> allPerms = new HashSet<>(permissionRepository.findAll());
+                superAdminRole.setPermissions(allPerms);
+                roleRepository.save(superAdminRole);
+                logger.info("Assigned {} permissions to SUPERADMIN role", allPerms.size());
+            });
         } else {
             logger.info("Roles already exist, skipping initialization");
+
+            // Ensure SUPERADMIN has all permissions in case new permissions have been added since last run
+            roleRepository.findByName("SUPERADMIN").ifPresent(superAdminRole -> {
+                Set<Permission> allPerms = new HashSet<>(permissionRepository.findAll());
+                if (!superAdminRole.getPermissions().containsAll(allPerms) || superAdminRole.getPermissions().size() != allPerms.size()) {
+                    superAdminRole.setPermissions(allPerms);
+                    roleRepository.save(superAdminRole);
+                    logger.info("Updated SUPERADMIN role to include all {} permissions", allPerms.size());
+                } else {
+                    logger.info("SUPERADMIN role already contains all permissions");
+                }
+            });
         }
     }
 

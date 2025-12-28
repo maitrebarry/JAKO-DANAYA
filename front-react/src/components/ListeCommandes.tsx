@@ -38,6 +38,9 @@ const ListeCommandes: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCommande, setSelectedCommande] = useState<CommandeData | null>(null);
 
+  // Detect if we are in 'ventes' context by checking the current path
+  const isVenteMode = window.location.pathname && window.location.pathname.includes('/ventes');
+
   useEffect(() => {
     if (!currentBoutique) {
       setError("Aucune boutique associée à votre compte. Contactez l'administrateur.");
@@ -134,10 +137,6 @@ const ListeCommandes: React.FC = () => {
     showActionMenu();
   };
 
-  // Detect if we are in 'ventes' context by checking the current path
-  const isVenteMode = window.location.pathname && window.location.pathname.includes('/ventes');
-
-
   const showActionMenu = () => {
     if (!selectedCommande) {
       // Swal.fire('Erreur', 'Veuillez sélectionner une commande', 'warning');
@@ -195,7 +194,8 @@ const ListeCommandes: React.FC = () => {
 
     switch (action) {
       case 'view':
-        navigate(`/commandes/appercu/${selectedCommande.id_commande_fournisseur}`);
+        const viewPath = isVenteMode ? `/ventes/appercu/${selectedCommande.id_commande_fournisseur}` : `/commandes/appercu/${selectedCommande.id_commande_fournisseur}`;
+        navigate(viewPath);
         break;
       case 'print':
         openCommandePdf(selectedCommande.id_commande_fournisseur);
@@ -214,7 +214,8 @@ const ListeCommandes: React.FC = () => {
         if (selectedCommande.pourcentage_recu > 0) {
           Swal.fire('Erreur', 'Impossible de modifier une commande déjà réceptionnée', 'error');
         } else {
-          navigate(`/commandes/update/${selectedCommande.id_commande_fournisseur}`);
+          const modPath = isVenteMode ? `/ventes/update/${selectedCommande.id_commande_fournisseur}` : `/commandes/update/${selectedCommande.id_commande_fournisseur}`;
+          navigate(modPath);
         }
         break;
       case 'delete':
@@ -230,7 +231,8 @@ const ListeCommandes: React.FC = () => {
   const openCommandePdf = async (commandeId: number) => {
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${commandeId}/pdf`, {
+        const path = isVenteMode ? 'commandes-clients' : 'commandes-fournisseurs';
+      const res = await fetch(`http://localhost:8085/api/${path}/${commandeId}/pdf`, {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -258,7 +260,8 @@ const ListeCommandes: React.FC = () => {
     if (result.isConfirmed) {
       try {
         const token = localStorage.getItem('smb_token');
-        const res = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${id}`, {
+        const path = isVenteMode ? 'commandes-clients' : 'commandes-fournisseurs';
+        const res = await fetch(`http://localhost:8085/api/${path}/${id}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -295,7 +298,7 @@ const ListeCommandes: React.FC = () => {
       {/* Breadcrumb */}
       <div className="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
         <div className="breadcrumb-title pe-3">Commande</div>
-        <div className="breadcrumb-subtitle">Commande Fournisseur</div>
+        <div className="breadcrumb-subtitle">{isVenteMode ? 'Commande Client' : 'Commande Fournisseur'}</div>
         <div className="ps-3">
           <nav aria-label="breadcrumb">
             <ol className="breadcrumb mb-0 p-0">
@@ -306,8 +309,8 @@ const ListeCommandes: React.FC = () => {
         </div>
         <div className="ms-auto">
           <div className="btn-group">
-            <button className="btn btn-primary mb-3 mb-lg-0" onClick={() => navigate('/commande-fournisseur')}>
-              Commande Fournisseur
+            <button className="btn btn-primary mb-3 mb-lg-0" onClick={() => navigate(isVenteMode ? '/commande-client' : '/commande-fournisseur')}>
+              {isVenteMode ? 'Commande Client' : 'Commande Fournisseur'}
             </button>
           </div>
         </div>

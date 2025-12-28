@@ -20,6 +20,9 @@ public class PdfServiceImpl implements PdfService {
     private CommandeFournisseurService commandeFournisseurService;
 
     @Autowired
+    private com.smboutique.api.service.CommandeClientService commandeClientService;
+
+    @Autowired
     private com.smboutique.api.service.ReceptionService receptionService;
 
     @Autowired
@@ -245,6 +248,79 @@ public class PdfServiceImpl implements PdfService {
             throw new IOException(e.getMessage());
         }
     }
+
+    @Override
+    public void writeCommandeClientPdf(Long commandeId, HttpServletResponse response) throws IOException {
+        // Similar to writeCommandePdf but use CommandeClient
+        com.smboutique.api.model.CommandeClient commande = commandeClientService.findById(commandeId).orElse(null);
+        if (commande == null) {
+            response.sendError(404, "Commande client not found");
+            return;
+        }
+
+        response.setContentType("application/pdf");
+        response.setHeader("Content-Disposition", "attachment; filename=commande_client_" + commandeId + ".pdf");
+
+        try {
+            ClassLoaderTemplateResolver templateResolver = new ClassLoaderTemplateResolver();
+            templateResolver.setPrefix("/templates/");
+            templateResolver.setSuffix(".html");
+            templateResolver.setTemplateMode("HTML");
+            templateResolver.setCharacterEncoding("UTF-8");
+            TemplateEngine templateEngine = new TemplateEngine();
+            templateEngine.setTemplateResolver(templateResolver);
+
+            Context ctx = new Context();
+            // reuse the same 'commande' variable in template
+            ctx.setVariable("commande", commande);
+            String logoData = null;
+            try {
+                if (commande.getBoutique() != null && commande.getBoutique().getLogo() != null) {
+                    String logoPath = commande.getBoutique().getLogo().startsWith("/") ? commande.getBoutique().getLogo().substring(1) : commande.getBoutique().getLogo();
+                    java.io.File f = new java.io.File(logoPath);
+                    if (f.exists()) {
+                        byte[] b = java.nio.file.Files.readAllBytes(f.toPath());
+                        String base64 = java.util.Base64.getEncoder().encodeToString(b);
+                        logoData = "data:image/png;base64," + base64;
+                    }
+                }
+            } catch (Exception ex) {
+                // ignore
+            }
+            ctx.setVariable("logoBase64", logoData);
+
+            try {
+                if (commande.getDateCommande() != null) {
+                    java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+                    String formattedDate = commande.getDateCommande().format(dtf);
+                    ctx.setVariable("dateCommandeFormatted", formattedDate);
+                } else {
+                    ctx.setVariable("dateCommandeFormatted", "");
+                }
+            } catch (Exception e) {
+                ctx.setVariable("dateCommandeFormatted", "");
+            }
+
+            String html = templateEngine.process("commande_pdf", ctx);
+            if (html != null) html = html.replace("&nbsp;", "&#160;");
+
+            try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
+                PdfRendererBuilder builder = new PdfRendererBuilder();
+                builder.useFastMode();
+                builder.withHtmlContent(html, null);
+                builder.toStream(baos);
+                builder.run();
+                byte[] pdfBytes = baos.toByteArray();
+                response.setContentType("application/pdf");
+                response.setHeader("Content-Disposition", "attachment; filename=commande_client_" + commandeId + ".pdf");
+                response.getOutputStream().write(pdfBytes);
+            }
+
+        } catch (Exception e) {
+            throw new IOException(e.getMessage());
+        }
+    }
+
 
     @Override
     public void writePaiementPdf(Long paiementId, HttpServletResponse response) throws IOException {

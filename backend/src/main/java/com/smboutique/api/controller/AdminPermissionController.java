@@ -20,11 +20,16 @@ import java.util.Set;
 @CrossOrigin(origins = "*")
 public class AdminPermissionController {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AdminPermissionController.class);
+
     @Autowired
     private UtilisateurService utilisateurService;
 
     @Autowired
     private PermissionService permissionService;
+
+    @Autowired
+    private com.smboutique.api.repository.UtilisateurRepository utilisateurRepository;
 
     private Utilisateur getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
