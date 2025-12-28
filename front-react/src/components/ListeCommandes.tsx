@@ -62,30 +62,63 @@ const ListeCommandes: React.FC = () => {
   const fetchCommandes = async () => {
     try {
       const token = localStorage.getItem('smb_token');
-      const url = currentBoutique
-        ? `http://localhost:8085/api/commandes-fournisseurs/boutique/${currentBoutique.id}`
-        : `http://localhost:8085/api/commandes-fournisseurs`; 
+      let url: string;
+      if (isVenteMode) {
+        // commande client / ventes
+        url = currentBoutique
+          ? `http://localhost:8085/api/commandes-clients`
+          : `http://localhost:8085/api/commandes-clients`;
+      } else {
+        url = currentBoutique
+          ? `http://localhost:8085/api/commandes-fournisseurs/boutique/${currentBoutique.id}`
+          : `http://localhost:8085/api/commandes-fournisseurs`;
+      }
+
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Erreur lors du chargement des commandes');
       const data = await res.json();
-      // Debug: print raw date strings returned by the API (first 10)
-      try { console.debug('API dates sample:', (data || []).slice(0,10).map((c: any) => c.dateCommande)); } catch (e) {}
 
       // Transform data to match the expected format
-      const transformedData = data.map((cmd: any) => ({
-        id_commande_fournisseur: cmd.id,
-        reference: cmd.reference,
-        date_de_commande: cmd.dateCommande,
-        prenom_fournisseur: cmd.fournisseur?.prenom || '',
-        nom_fournisseur: cmd.fournisseur?.nom || '',
-        pourcentage_recu: cmd.pourcentageRecu || 0,
-        pourcentage_paye: cmd.pourcentagePaye || 0,
-        total: cmd.total || 0,
-        // normalize paie field (DTO or entity)
-        paie: cmd.montantPaye != null ? cmd.montantPaye : (cmd.paie != null ? cmd.paie : 0)
-      }));
+      const transformedData = (data || []).map((cmd: any) => {
+        if (isVenteMode) {
+          const total = cmd.total || 0;
+          const paie = cmd.paie != null ? cmd.paie : 0;
+          const pourcentage_paye = total > 0 ? (paie / total) * 100 : 0;
+          // compute pourcentage_recu from lines if available
+          let pourcentage_recu = 0;
+          if (cmd.lignes && Array.isArray(cmd.lignes) && cmd.lignes.length > 0) {
+            const tot = cmd.lignes.reduce((s: number, l: any) => s + (l.quantite || 0), 0);
+            const received = cmd.lignes.reduce((s: number, l: any) => s + (l.quantiteLivre || 0), 0);
+            pourcentage_recu = tot > 0 ? (received / tot) * 100 : 0;
+          }
+          return {
+            id_commande_fournisseur: cmd.id,
+            reference: cmd.reference,
+            date_de_commande: cmd.dateCommande,
+            prenom_fournisseur: cmd.client?.prenom || '',
+            nom_fournisseur: cmd.client?.nom || '',
+            pourcentage_recu: pourcentage_recu,
+            pourcentage_paye: pourcentage_paye,
+            total: total,
+            paie: paie
+          };
+        }
+
+        return {
+          id_commande_fournisseur: cmd.id,
+          reference: cmd.reference,
+          date_de_commande: cmd.dateCommande,
+          prenom_fournisseur: cmd.fournisseur?.prenom || '',
+          nom_fournisseur: cmd.fournisseur?.nom || '',
+          pourcentage_recu: cmd.pourcentageRecu || 0,
+          pourcentage_paye: cmd.pourcentagePaye || 0,
+          total: cmd.total || 0,
+          // normalize paie field (DTO or entity)
+          paie: cmd.montantPaye != null ? cmd.montantPaye : (cmd.paie != null ? cmd.paie : 0)
+        };
+      });
 
       setCommandes(transformedData);
     } catch (err: any) {
@@ -302,7 +335,7 @@ const ListeCommandes: React.FC = () => {
                     <tr>
                       <th>DATE</th>
                       <th style={{ width: '15%' }}>REFERENCE</th>
-                      <th style={{ width: '15%' }}>FOURNISSEUR</th>
+                      <th style={{ width: '15%' }}>{isVenteMode ? 'CLIENT' : 'FOURNISSEUR'}</th>
                       <th>% REÇU</th>
                       <th>% PAYÉ</th>
                       <th style={{ width: '15%' }}>TOTAL</th>
