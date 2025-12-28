@@ -168,7 +168,16 @@ public class ProduitController {
             }
         }
         if (nombreUnitesParConditionnement != null && !nombreUnitesParConditionnement.trim().isEmpty()) {
-            produit.setNombreUnitesParConditionnement(Integer.valueOf(nombreUnitesParConditionnement));
+            int nb = Integer.valueOf(nombreUnitesParConditionnement);
+            if (nb <= 0) {
+                java.util.Map<String, Object> err = new java.util.HashMap<>();
+                err.put("error", "nombreUnitesParConditionnement doit être >= 1");
+                return ResponseEntity.badRequest().body(err);
+            }
+            produit.setNombreUnitesParConditionnement(nb);
+        } else {
+            // default to 1 (unit-only)
+            produit.setNombreUnitesParConditionnement(1);
         }
 
         // Calcul du stock réel en unité de base
@@ -214,7 +223,8 @@ public class ProduitController {
     @PostMapping("/create")
     public ResponseEntity<?> createProduitWithConditionnement(@RequestBody ProduitCreateDTO dto) {
         Utilisateur current = getCurrentUser();
-        if (!hasPermission(current, "PRODUIT_CREER")) {
+        // allow SUPERADMIN users to bypass explicit permission checks
+        if (!isSuperAdmin(current) && !hasPermission(current, "PRODUIT_CREER")) {
             return ResponseEntity.status(403).body("Permission manquante : PRODUIT_CREER");
         }
 
@@ -302,7 +312,13 @@ public class ProduitController {
                         produit.setUnite(null);
                     }
                     if (nombreUnitesParConditionnement != null && !nombreUnitesParConditionnement.trim().isEmpty()) {
-                        produit.setNombreUnitesParConditionnement(Integer.valueOf(nombreUnitesParConditionnement));
+                        int nb = Integer.valueOf(nombreUnitesParConditionnement);
+                        if (nb <= 0) {
+                            java.util.Map<String, Object> err = new java.util.HashMap<>();
+                            err.put("error", "nombreUnitesParConditionnement doit être >= 1");
+                            return ResponseEntity.badRequest().body(err);
+                        }
+                        produit.setNombreUnitesParConditionnement(nb);
                     } else {
                         produit.setNombreUnitesParConditionnement(1);
                     }

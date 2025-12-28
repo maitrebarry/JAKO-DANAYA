@@ -293,10 +293,14 @@ public class ReceptionController {
         ReceptionDTO dto = new ReceptionDTO();
         dto.setId(reception.getId());
         dto.setReference(reception.getReference());
-        // Provide a user-friendly formatted date and an ISO field for technical use
+        // Provide a user-friendly formatted date and an ISO_OFFSET field for technical use
         java.time.format.DateTimeFormatter displayFmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
         dto.setDateReception(reception.getDateReception() != null ? reception.getDateReception().format(displayFmt) : null);
-        dto.setDateReceptionIso(reception.getDateReception() != null ? reception.getDateReception().toString() : null);
+        if (reception.getDateReception() != null) {
+            dto.setDateReceptionIso(reception.getDateReception().atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        } else {
+            dto.setDateReceptionIso(null);
+        }
         dto.setIdCommandeFournisseur(reception.getCommandeFournisseur().getId());
         dto.setReferenceCommande(reception.getCommandeFournisseur().getReference());
         dto.setFournisseur(reception.getCommandeFournisseur().getFournisseur().getNom() + " " + reception.getCommandeFournisseur().getFournisseur().getPrenom());
@@ -326,6 +330,86 @@ public class ReceptionController {
         }
         dto.setLignesReception(lignesDTO);
         return ResponseEntity.ok(dto);
+    }
+
+    @PostMapping("/{id}/cancel")
+    @Transactional
+    public ResponseEntity<Object> cancelReception(@PathVariable Long id, @RequestBody(required = false) java.util.Map<String, String> body) {
+        Utilisateur user = getCurrentUser();
+        if (!hasPermission(user, "RECEPTION_SUPPRESSION") && !hasPermission(user, "RECEPTION_ANNULATION")) {
+            return ResponseEntity.status(403).build();
+        }
+
+        Optional<Reception> receptionOpt = receptionService.findById(id);
+        if (receptionOpt.isEmpty()) return ResponseEntity.notFound().build();
+        Reception reception = receptionOpt.get();
+        if (reception.getAnnule() != null && reception.getAnnule()) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", "Reception already cancelled"));
+        }
+
+        // Business rule: refuse cancel if there exists a later reception (not annulled) for the same commande that touches the same products
+        java.util.List<Reception> recs = receptionService.findByCommandeFournisseurId(reception.getCommandeFournisseur().getId());
+        java.util.List<LigneReception> lignes = ligneReceptionService.findByReceptionId(reception.getId());
+        for (LigneReception lr : lignes) {
+            Long produitId = lr.getProduit() != null ? lr.getProduit().getId() : null;
+            if (produitId == null) continue;
+            for (Reception r : recs) {
+                if (r.getId().equals(reception.getId())) continue;
+                if (r.getAnnule() != null && r.getAnnule()) continue;
+                if (r.getDateReception() == null || reception.getDateReception() == null) continue;
+                boolean later = r.getDateReception().isAfter(reception.getDateReception());
+                if (!later) continue;
+                java.util.List<LigneReception> otherLignes = ligneReceptionService.findByReceptionId(r.getId());
+                for (LigneReception ol : otherLignes) {
+                    if (ol.getProduit() != null && ol.getProduit().getId() != null && ol.getProduit().getId().equals(produitId) && (ol.getQuantiteRecu() != null && ol.getQuantiteRecu() > 0)) {
+                        return ResponseEntity.badRequest().body(java.util.Map.of("error", "Impossible d'annuler la réception: une réception ultérieure existe pour le même produit"));
+                    }
+                }
+            }
+        }
+
+        // Passed checks -> perform rollback using snapshots
+        try {
+            for (LigneReception lr : lignes) {
+                if (lr.getProduit() == null) continue;
+                // Restore stock values from snapshot where possible
+                Long prodId = lr.getProduit().getId();
+                // Find stock for product
+                Stock stock = null;
+                try {
+                    java.util.List<Stock> stocks = stockService.getStocksByProduit(prodId);
+                    stock = (stocks != null && !stocks.isEmpty()) ? stocks.get(0) : null;
+                } catch (Exception ex) {
+                    stock = null;
+                }
+                if (stock != null) {
+                    if (lr.getBeforeStockQuantite() != null) stock.setQuantiteDisponible(lr.getBeforeStockQuantite());
+                    if (lr.getBeforeStockCostAverage() != null) stock.setCostAverage(lr.getBeforeStockCostAverage());
+                    if (lr.getBeforeProduitPrixAchat() != null && stock.getProduit() != null) stock.getProduit().setPrixAchat(lr.getBeforeProduitPrixAchat());
+                    stockService.saveStock(stock);
+                }
+
+                // Decrement ligneCommande.quantiteLivre accordingly (if the product exists on the commande)
+                LigneCommande lc = ligneCommandeRepository.findByCommandeFournisseurId(reception.getCommandeFournisseur().getId())
+                        .stream().filter(x -> x.getStock() != null && x.getStock().getProduit() != null && x.getStock().getProduit().getId().equals(prodId)).findFirst().orElse(null);
+                if (lc != null) {
+                    int currentLivre = lc.getQuantiteLivre() != null ? lc.getQuantiteLivre() : 0;
+                    lc.setQuantiteLivre(Math.max(0, currentLivre - (lr.getQuantiteRecu() != null ? lr.getQuantiteRecu() : 0)));
+                    ligneCommandeRepository.save(lc);
+                }
+            }
+
+            reception.setAnnule(true);
+            reception.setAnnuleAt(java.time.LocalDateTime.now());
+            reception.setAnnulePar(user.getId());
+            reception.setAnnuleReason(body != null ? body.getOrDefault("reason", null) : null);
+            receptionService.save(reception);
+
+            return ResponseEntity.ok(java.util.Map.of("id", reception.getId(), "annule", true));
+        } catch (Exception ex) {
+            logger.error("Error canceling reception {}: {}", reception.getId(), ex.getMessage(), ex);
+            return ResponseEntity.status(500).body(java.util.Map.of("error", "Internal server error"));
+        }
     }
 
     @GetMapping("/commande/{commandeId}/articles")
@@ -513,6 +597,18 @@ public class ReceptionController {
                 if (savedLigne.getStock() != null && savedLigne.getStock().getProduit() != null) {
                     ligneReception.setProduit(savedLigne.getStock().getProduit());
                 }
+
+                // Save snapshot of stock/product state BEFORE the update (to allow safe rollback)
+                ligneReception.setBeforeStockQuantite(ancienStock);
+                ligneReception.setBeforeStockCostAverage(ancienCMP);
+                try {
+                    if (st != null && st.getProduit() != null) {
+                        ligneReception.setBeforeProduitPrixAchat(st.getProduit().getPrixAchat());
+                    }
+                } catch (Exception ex) {
+                    // ignore if not available
+                }
+
                 ligneReceptionService.save(ligneReception);
             }
 

@@ -252,9 +252,19 @@ public class CommandeFournisseurController {
             if (request.getDate() != null && !request.getDate().trim().isEmpty()) {
                 try {
                     String dr = request.getDate();
-                    // try parsing ISO instant with timezone
+                    // try parsing ISO instant or offset datetime with timezone
                     if (dr.contains("T") && (dr.endsWith("Z") || dr.matches(".*[+-]\\d{2}:?\\d{2}$"))) {
-                        java.time.Instant inst = java.time.Instant.parse(dr);
+                        java.time.Instant inst;
+                        try {
+                            if (dr.endsWith("Z")) {
+                                inst = java.time.Instant.parse(dr);
+                            } else {
+                                inst = java.time.OffsetDateTime.parse(dr).toInstant();
+                            }
+                        } catch (Exception e) {
+                            // fallback to parsing as Instant if possible
+                            inst = java.time.Instant.parse(dr);
+                        }
                         if (request.getTimezoneOffsetMinutes() != null) {
                             // Convert instant to client's local time using client timezone offset
                             int off = request.getTimezoneOffsetMinutes();
@@ -537,7 +547,12 @@ public class CommandeFournisseurController {
         CommandeFournisseurDTO dto = new CommandeFournisseurDTO();
         dto.setId(commande.getId());
         dto.setReference(commande.getReference());
-        dto.setDateCommande(commande.getDateCommande().toString());
+        // Format dateCommande as ISO_OFFSET_DATE_TIME (includes zone offset) for unambiguous client interpretation
+        if (commande.getDateCommande() != null) {
+            dto.setDateCommande(commande.getDateCommande().atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        } else {
+            dto.setDateCommande("");
+        }
         dto.setTotal(commande.getTotal());
 
         // Set fournisseur

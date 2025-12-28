@@ -25,8 +25,17 @@ public class AuthEntryPointJwt implements AuthenticationEntryPoint {
 
         final Map<String, Object> body = new HashMap<>();
         body.put("status", HttpServletResponse.SC_UNAUTHORIZED);
-        body.put("error", "Unauthorized");
-        body.put("message", authException.getMessage());
+        body.put("error", "Non autorisé");
+
+        // Translate some common messages to French
+        String message = authException.getMessage();
+        if (message != null && message.equalsIgnoreCase("Bad credentials")) {
+            message = "Identifiants incorrects";
+        } else if (message != null && message.contains("Full authentication is required")) {
+            message = "Authentification requise";
+        }
+
+        body.put("message", message);
         body.put("path", request.getServletPath());
 
         final ObjectMapper mapper = new ObjectMapper();

@@ -14,6 +14,7 @@ public class ApiApplication {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
+        // DevTools restart test - no-op change
         return new BCryptPasswordEncoder();
     }
 }

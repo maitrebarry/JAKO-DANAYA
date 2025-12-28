@@ -42,21 +42,38 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword()));
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword()));
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtUtils.generateJwtToken(authentication);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            String jwt = jwtUtils.generateJwtToken(authentication);
 
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        List<String> roles = userDetails.getAuthorities().stream()
-                .map(item -> item.getAuthority())
-                .collect(Collectors.toList());
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
-        return ResponseEntity.ok(new JwtResponse(jwt,
-                             userDetails.getId(),
-                             userDetails.getUsername(),
-                             roles));
+            List<String> roles = userDetails.getAuthorities().stream()
+                    .map(item -> item.getAuthority())
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(new JwtResponse(jwt,
+                    userDetails.getId(),
+                    userDetails.getUsername(),
+                    roles));
+
+        } catch (org.springframework.security.authentication.BadCredentialsException ex) {
+            // Return a French message for bad credentials
+            Map<String, Object> body = new HashMap<>();
+            body.put("status", 401);
+            body.put("error", "Non autorisé");
+            body.put("message", "Identifiants incorrects");
+            return ResponseEntity.status(401).body(body);
+        } catch (org.springframework.security.core.AuthenticationException ex) {
+            Map<String, Object> body = new HashMap<>();
+            body.put("status", 401);
+            body.put("error", "Non autorisé");
+            body.put("message", ex.getMessage());
+            return ResponseEntity.status(401).body(body);
+        }
     }
 
     @GetMapping("/me")

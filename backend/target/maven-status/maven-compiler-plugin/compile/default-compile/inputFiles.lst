@@ -1,5 +1,6 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/ApiApplication.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/config/DataInitializer.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/config/JacksonConfig.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/config/WebConfig.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/AdminPermissionController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/AuthController.java
@@ -28,6 +29,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/UtilisateurController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/UtilisationPertesController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/VenteController.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/VenteLivraisonController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/CommandeFournisseurDTO.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/ImportResult.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/ProduitCreateDTO.java
@@ -58,6 +60,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Paiement.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/PaiementClient.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Permission.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/PriceMode.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Produit.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Reception.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Role.java

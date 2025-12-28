@@ -20,6 +20,8 @@ import java.io.IOException;
 @Component
 public class AuthTokenFilter extends OncePerRequestFilter {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AuthTokenFilter.class);
+
     @Autowired
     private JwtUtils jwtUtils;
 
@@ -33,22 +35,30 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         try {
+            String headerAuth = request.getHeader("Authorization");
+            boolean hasAuthHeader = headerAuth != null && !headerAuth.isEmpty();
+            boolean startsWithBearer = hasAuthHeader && headerAuth.startsWith("Bearer ");
+            // Log header presence and shape (no token content) to help diagnose missing/invalid header problems
+            log.info("Incoming request: {} {} - Authorization present? {} - startsWithBearer? {}", request.getMethod(), request.getRequestURI(), hasAuthHeader, startsWithBearer);
+
             String jwt = parseJwt(request);
-            if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
-                String username = jwtUtils.getUserNameFromJwtToken(jwt);
+            if (jwt != null) {
+                String reason = jwtUtils.validateJwtTokenWithMessage(jwt);
+                if (reason == null) {
+                    String username = jwtUtils.getUserNameFromJwtToken(jwt);
 
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                    UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            } else {
-                if (jwt == null) {
-                    logger.debug("Authorization header missing or not a Bearer token for request " + request.getMethod() + " " + request.getRequestURI());
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
                 } else {
-                    logger.debug("JWT validation failed for token for request " + request.getMethod() + " " + request.getRequestURI());
+                    String shortToken = jwt.length() > 10 ? jwt.substring(0,10) + "..." : jwt;
+                    log.warn("JWT validation failed for request {} {} - tokenStartsWith={} - reason={}", request.getMethod(), request.getRequestURI(), shortToken, reason);
                 }
+            } else {
+                logger.debug("Authorization header missing or not a Bearer token for request " + request.getMethod() + " " + request.getRequestURI());
             }
         } catch (Exception e) {
             logger.error("Cannot set user authentication", e);

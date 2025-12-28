@@ -13,6 +13,7 @@ import PaiementCommande from './components/PaiementCommande';
 import DetailReception from './components/DetailReception';
 import Historique from './components/Historique';
 import VentesHistorique from './components/VentesHistorique';
+import VenteLivraison from './components/VenteLivraison';
 import { UserProvider } from './contexts/UserContext';
 
 // Composant pour protéger les routes
@@ -153,7 +154,7 @@ function App() {
             path="/ventes/livraisons"
             element={
               <PrivateRoute>
-                <Layout><VentesHistorique /></Layout>
+                <Layout><VenteLivraison /></Layout>
               </PrivateRoute>
             }
           />

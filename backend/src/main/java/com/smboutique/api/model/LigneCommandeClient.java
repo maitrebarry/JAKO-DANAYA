@@ -28,4 +28,8 @@ public class LigneCommandeClient {
     
     @Column(name = "new_price_cmndClient")
     private Integer newPrice;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "price_mode")
+    private com.smboutique.api.model.PriceMode priceMode;
 }

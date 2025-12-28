@@ -101,11 +101,17 @@ const ListeCommandes: React.FC = () => {
     showActionMenu();
   };
 
+  // Detect if we are in 'ventes' context by checking the current path
+  const isVenteMode = window.location.pathname && window.location.pathname.includes('/ventes');
+
+
   const showActionMenu = () => {
     if (!selectedCommande) {
       // Swal.fire('Erreur', 'Veuillez sélectionner une commande', 'warning');
       return;
     }
+
+    const receptionLabel = isVenteMode ? 'Livraison' : 'Réception';
 
     Swal.fire({
       title: `Actions pour ${selectedCommande.reference}`,
@@ -121,7 +127,7 @@ const ListeCommandes: React.FC = () => {
             <i class="bx bx-credit-card me-2"></i> Paiement
           </button>
           <button class="btn btn-warning w-100 my-2" onclick="window.handleActionFromSwal('reception')">
-            <i class="bx bx-box me-2"></i> Réception
+            <i class="bx bx-box me-2"></i> ${receptionLabel}
           </button>
           <button class="btn btn-success w-100 my-2 ${selectedCommande.pourcentage_recu > 0 ? 'disabled' : ''}" 
                   onclick="window.handleActionFromSwal('modify')" 
@@ -147,6 +153,8 @@ const ListeCommandes: React.FC = () => {
       Swal.close();
       handleAction(action);
     };
+    // expose mode to SweetAlert inline HTML to change button labels
+    (window as any).isVenteMode = isVenteMode;
   };
 
   const handleAction = (action: string) => {
@@ -163,7 +171,11 @@ const ListeCommandes: React.FC = () => {
         navigate(`/commandes/paiement/${selectedCommande.id_commande_fournisseur}`);
         break;
       case 'reception':
-        navigate(`/commandes/reception/${selectedCommande.id_commande_fournisseur}`);
+        if (isVenteMode) {
+          navigate(`/ventes/livraisons?venteId=${selectedCommande.id_commande_fournisseur}`);
+        } else {
+          navigate(`/commandes/reception/${selectedCommande.id_commande_fournisseur}`);
+        }
         break;
       case 'modify':
         if (selectedCommande.pourcentage_recu > 0) {

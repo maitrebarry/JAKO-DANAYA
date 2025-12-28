@@ -2,6 +2,8 @@ package com.smboutique.api.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -12,6 +14,8 @@ import java.util.Date;
 
 @Component
 public class JwtUtils {
+
+    private static final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
 
     private String jwtSecret = "votreSecretSuperSecureTresLongAuMoins256BitsChangezEnProduction";
 
@@ -52,22 +56,34 @@ public class JwtUtils {
     }
 
     public boolean validateJwtToken(String authToken) {
+        return validateJwtTokenWithMessage(authToken) == null;
+    }
+
+    /**
+     * Validate token and return a reason string if invalid, or null if valid.
+     */
+    public String validateJwtTokenWithMessage(String authToken) {
         try {
             Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(authToken);
-            return true;
+            return null;
         } catch (MalformedJwtException e) {
-            System.err.println("Invalid JWT token: " + e.getMessage());
+            logger.warn("Invalid JWT token: {}", e.getMessage());
+            return "invalid: " + e.getMessage();
         } catch (ExpiredJwtException e) {
-            System.err.println("JWT token is expired: " + e.getMessage());
+            logger.info("JWT token is expired: {}", e.getMessage());
+            return "expired: " + e.getMessage();
         } catch (UnsupportedJwtException e) {
-            System.err.println("JWT token is unsupported: " + e.getMessage());
+            logger.warn("JWT token is unsupported: {}", e.getMessage());
+            return "unsupported: " + e.getMessage();
         } catch (IllegalArgumentException e) {
-            System.err.println("JWT claims string is empty: " + e.getMessage());
+            logger.warn("JWT claims string is empty: {}", e.getMessage());
+            return "empty: " + e.getMessage();
+        } catch (Exception e) {
+            logger.error("Unexpected JWT validation error: {}", e.getMessage(), e);
+            return "error: " + e.getMessage();
         }
-
-        return false;
     }
 }

@@ -28,6 +28,10 @@ public class CommandeClient {
     @JoinColumn(name = "id_utilisateur")
     private Utilisateur utilisateur;
 
+    @ManyToOne
+    @JoinColumn(name = "id_boutique")
+    private Boutique boutique;
+
     @OneToMany(mappedBy = "commandeClient", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     private java.util.List<LigneCommandeClient> lignes;
 }

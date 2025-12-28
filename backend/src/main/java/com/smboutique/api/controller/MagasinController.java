@@ -80,7 +80,8 @@ public class MagasinController {
     @PostMapping
     public Magasin createMagasin(@RequestBody Magasin magasin) {
         Utilisateur current = getCurrentUser();
-        if (!hasPermission(current, "INVENTAIRE_CREER")) {
+        // allow SUPERADMIN users (by role or type) to bypass explicit permission checks
+        if (!isSuperAdmin(current) && !hasPermission(current, "INVENTAIRE_CREER")) {
             throw new RuntimeException("Permission manquante : INVENTAIRE_CREER");
         }
         if (!isSuperAdmin(current)) {

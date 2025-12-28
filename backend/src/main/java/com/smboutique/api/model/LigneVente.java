@@ -2,6 +2,8 @@ package com.smboutique.api.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.Setter;
+import lombok.AccessLevel;
 
 @Entity
 @Data
@@ -24,4 +26,20 @@ public class LigneVente {
     
     @Column(name = "new_price_vente")
     private Integer newPrice;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "price_mode")
+    @Setter(AccessLevel.NONE)
+    private PriceMode priceMode;
+
+    @Column(name = "qte_livre")
+    private Integer quantiteLivre;
+
+    // Price mode must be set at creation and cannot be changed afterwards
+    public void setPriceMode(PriceMode mode) {
+        if (this.id != null && this.priceMode != null && !this.priceMode.equals(mode)) {
+            throw new IllegalStateException("priceMode cannot be modified once set");
+        }
+        this.priceMode = mode;
+    }
 }

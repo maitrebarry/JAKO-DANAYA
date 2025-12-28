@@ -29,6 +29,14 @@ public class Mouvement {
     @JoinColumn(name = "id_produit")
     private Produit produit;
 
+    @ManyToOne
+    @JoinColumn(name = "id_stock")
+    private Stock stock;
+
+    @ManyToOne
+    @JoinColumn(name = "id_boutique")
+    private Boutique boutique;
+
     private Integer quantite;
     
     @Column(name = "type_mvnt")

@@ -151,11 +151,12 @@ public class PdfServiceImpl implements PdfService {
             }
             ctx.setVariable("logoBase64", logoData);
 
-            // Format date
+            // Format date using stored LocalDateTime but normalize to UTC instant for consistent printed time
             try {
                 if (reception.getDateReception() != null) {
-                    java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-                    String formattedDate = reception.getDateReception().format(dtf);
+                    java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+                    java.time.ZonedDateTime z = reception.getDateReception().atZone(java.time.ZoneId.systemDefault()).withZoneSameInstant(java.time.ZoneOffset.UTC);
+                    String formattedDate = z.format(dtf);
                     ctx.setVariable("dateReceptionFormatted", formattedDate);
                 } else {
                     ctx.setVariable("dateReceptionFormatted", "");
@@ -290,10 +291,10 @@ public class PdfServiceImpl implements PdfService {
             }
             ctx.setVariable("logoBase64", logoData);
 
-            // Format date
+            // Format date using stored LocalDateTime (no timezone conversion) and include seconds for consistency
             try {
                 if (paiement.getDatePaie() != null) {
-                    java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+                    java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
                     String formattedDate = paiement.getDatePaie().format(dtf);
                     ctx.setVariable("datePaiementFormatted", formattedDate);
                 } else {

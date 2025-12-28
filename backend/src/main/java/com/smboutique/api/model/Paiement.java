@@ -25,4 +25,17 @@ public class Paiement {
     @ManyToOne
     @JoinColumn(name = "id_commande_fournisseur")
     private CommandeFournisseur commandeFournisseur;
+
+    // Cancellation metadata
+    @Column(name = "annule")
+    private Boolean annule = false;
+
+    @Column(name = "annule_at")
+    private LocalDateTime annuleAt;
+
+    @Column(name = "annule_par")
+    private Long annulePar;
+
+    @Column(name = "annule_reason")
+    private String annuleReason;
 }
