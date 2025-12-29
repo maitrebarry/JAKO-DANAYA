@@ -301,6 +301,31 @@ public class PdfServiceImpl implements PdfService {
                 ctx.setVariable("dateCommandeFormatted", "");
             }
 
+            // Build normalized lignes for commande client to avoid template assumptions about 'stock' property
+            try {
+                java.util.List<java.util.Map<String, Object>> lignesNormalized = new java.util.ArrayList<>();
+                if (commande.getLignes() != null) {
+                    for (com.smboutique.api.model.LigneCommandeClient lc : commande.getLignes()) {
+                        java.util.Map<String, Object> m = new java.util.HashMap<>();
+                        String designation = "Produit";
+                        if (lc.getProduit() != null && lc.getProduit().getNomProduit() != null) designation = lc.getProduit().getNomProduit();
+                        Integer qte = lc.getQuantite() != null ? lc.getQuantite() : 0;
+                        Integer basePrice = 0;
+                        try { if (lc.getProduit() != null && lc.getProduit().getPrixAchat() != null) basePrice = lc.getProduit().getPrixAchat(); } catch (Exception ex) { /* ignore */ }
+                        Integer price = lc.getNewPrice() != null ? lc.getNewPrice() : basePrice;
+                        Integer montant = price * qte;
+                        m.put("designation", designation);
+                        m.put("quantite", qte);
+                        m.put("price", price);
+                        m.put("montant", montant);
+                        lignesNormalized.add(m);
+                    }
+                }
+                ctx.setVariable("lignesNormalized", lignesNormalized);
+            } catch (Exception ex) {
+                // ignore normalization errors
+            }
+
             String html = templateEngine.process("commande_pdf", ctx);
             if (html != null) html = html.replace("&nbsp;", "&#160;");
 
