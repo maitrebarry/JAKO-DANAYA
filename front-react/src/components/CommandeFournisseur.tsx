@@ -33,7 +33,10 @@ interface Fournisseur {
 }
 
 interface CartItem {
-  id_stock: number;
+  uid: string; // unique identifier for react keys and local updates
+  id_stock?: number | null;
+  produitId?: number;
+  ligneId?: number | null;
   nom: string;
   quantite: number; // units when selling by unit
   venteParConditionnement?: boolean;
@@ -41,7 +44,7 @@ interface CartItem {
   multiplicateur?: number; // cached nombre d'unités par conditionnement
   prix: number;
   montant: number;
-}
+} 
 
 interface CommandeFournisseurProps { isVente?: boolean }
 
@@ -52,9 +55,12 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedFournisseur, setSelectedFournisseur] = useState('');
   // Vente mode: client name instead of fournisseur
-  const [nomClient, setNomClient] = useState('');
+
   // Vente: price mode toggle (DETAIL = prix_detail, GROS = prix_en_gros)
   const [priceModeDefault, setPriceModeDefault] = useState<'DETAIL' | 'GROS'>('DETAIL');
+  // uid generator ref to avoid collisions when creating temporary UIDs
+  const uidCounterRef = React.useRef(0);
+  const nextUid = () => `tmp-${uidCounterRef.current++}`;
   const { id } = useParams();
   const [isEditMode, setIsEditMode] = useState(false);
   const [reference, setReference] = useState('');
@@ -95,6 +101,15 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
     }
     return 0;
   };
+
+  // Robust product display name resolver: handles different product field shapes
+  const getProductDisplayName = (stockInfo?: Stock, ligne?: any) => {
+    const prod = (stockInfo && (stockInfo as any).produit) || (ligne && ligne.produit) || (ligne && ligne.stock && ligne.stock.produit);
+    if (prod) {
+      return (prod.nomProduit || prod.nom || prod.designation || prod.libelle || prod.name || prod.label || '').toString().trim() || (ligne && ligne.designation) || 'Produit inconnu';
+    }
+    return (ligne && ligne.designation) || 'Produit inconnu';
+  }; 
 
   // prettyJson helper removed (unused)
 
@@ -168,26 +183,45 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
       if (data.dateCommande) {
         setDateCommande(toDatetimeLocalInput(data.dateCommande));
       }
-      setSelectedFournisseur(data.fournisseur?.id ? String(data.fournisseur.id) : '');
+      // For ventes (commande client), populate client info; otherwise populate fournisseur
+      if (isVente) {
+        // API may return direct nomClient or a client object
+        // Use client id only for ventes; do not use free-text nomClient
+        setSelectedClientId(data.client?.id || null);
+        // If the saved lignes had a priceMode (e.g., GROS), initialize global mode so user can switch
+        if (data.lignes && data.lignes.length > 0 && data.lignes[0].priceMode) {
+          try {
+            const pm = String(data.lignes[0].priceMode).toUpperCase();
+            if (pm === 'DETAIL' || pm === 'GROS') setPriceModeDefault(pm as 'DETAIL' | 'GROS');
+          } catch (e) { /* ignore */ }
+        }
+      } else {
+        setSelectedFournisseur(data.fournisseur?.id ? String(data.fournisseur.id) : '');
+      }
       // build cart from lignes
       if (data.lignes) {
         const stocksRef = loadedStocks && loadedStocks.length > 0 ? loadedStocks : stocks;
         const loadedCart = data.lignes.map((l: any) => {
           const stockId = l.stock?.id;
           const stockInfo = stocksRef ? stocksRef.find(s => s.id === stockId) : undefined;
-          const nomProduit = stockInfo?.produit?.nomProduit || (l.stock?.produit?.nomProduit || 'Produit inconnu');
-          const basePrice = Number(stockInfo?.produit?.prixAchat ?? l.stock?.produit?.prixAchat ?? 0);
-          const prix = l.newPrice !== undefined && l.newPrice !== null ? Number(l.newPrice) : basePrice;
+          const nomProduit = getProductDisplayName(stockInfo, l);
+          const basePrice = Number(stockInfo?.produit?.prixAchat ?? l.produit?.prixAchat ?? l.stock?.produit?.prixAchat ?? l.prix ?? 0);
+          const prix = l.newPrice !== undefined && l.newPrice !== null ? Number(l.newPrice) : (l.prix !== undefined && l.prix !== null ? Number(l.prix) : basePrice);
           const quantite = l.quantite || 1;
-          // compute multiplicateur from stockInfo or from the returned ligne stock info
+          // ensure unique uid for each loaded ligne
+          const uidVal = l.id ? `ligne-${l.id}` : nextUid();
+          // compute multiplicateur from stockInfo or from the returned ligne product info
           let multiplicateur = 0;
           if (stockInfo) multiplicateur = getProduitMultiplicateur(stockInfo);
           else if (l.stock && l.stock.produit) {
             const miniStock: any = { produit: l.stock.produit };
             multiplicateur = getProduitMultiplicateur(miniStock as any);
+          } else if (l.produit) {
+            const miniProd: any = { produit: l.produit };
+            multiplicateur = getProduitMultiplicateur(miniProd as any);
           }
 
-          return { id_stock: stockId, nom: nomProduit, quantite, prix, montant: prix * quantite, multiplicateur, ...(isVente ? { venteParConditionnement: false, quantiteConditionnement: 1 } : {}) };
+          return { uid: uidVal, id_stock: stockId || null, ligneId: l.id || null, produitId: l.produit?.id || null, nom: nomProduit, quantite, prix, montant: prix * quantite, multiplicateur, ...(isVente ? { venteParConditionnement: false, quantiteConditionnement: 1 } : {}) };
         });
         setCart(loadedCart);
       }
@@ -285,15 +319,17 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
 
       const multiplicateur = getProduitMultiplicateur(stock);
       const newItem: CartItem = {
+        uid: nextUid(),
         id_stock: stock.id,
-        nom: stock.produit.nomProduit,
+        produitId: stock.produit?.id,
+        nom: getProductDisplayName(stock),
         quantite: 1,
         prix: defaultPrice,
         montant: defaultPrice,
         multiplicateur: multiplicateur,
         // Add conditionnement fields only for sales so achat remains unchanged
         ...(isVente ? { venteParConditionnement: false, quantiteConditionnement: 1 } : {})
-      };
+      };  
 
       setCart(prev => [...prev, newItem]);
     } catch (error) {
@@ -302,67 +338,72 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
     }
   };
 
-  const updateQuantity = (id_stock: number, quantite: number) => {
+  const updateQuantity = (uid: string, quantite: number) => {
     setCart(prev => prev.map(item => {
-      if (item.id_stock !== id_stock) return item;
+      if (item.uid !== uid) return item;
       // only update unit quantity when selling by unit
       if (item.venteParConditionnement) return item;
       const newMontant = item.prix * quantite;
-      return { ...item, quantite, montant: newMontant };
+      const updated = { ...item, quantite, montant: newMontant };
+      if (process.env.NODE_ENV !== 'production') console.debug('updateQuantity', { uid, quantite, updated });
+      return updated;
     }));
   };
 
-  const updateConditionnementQuantity = (id_stock: number, quantiteConditionnement: number) => {
+  const updateConditionnementQuantity = (uid: string, quantiteConditionnement: number) => {
     if (!isVente) return; // guard: only for ventes
     setCart(prev => prev.map(item => {
-      if (item.id_stock !== id_stock) return item;
+      if (item.uid !== uid) return item;
       if (!item.venteParConditionnement) return item;
-      const stock = stocks.find(s => s.id === id_stock);
+      const stock = stocks.find(s => s.id === item.id_stock);
       const multiplier = getProduitMultiplicateur(stock);
       const realQ = quantiteConditionnement * multiplier;
       const newMontant = item.prix * realQ;
-      return { ...item, quantiteConditionnement, montant: newMontant };
+      const updated = { ...item, quantiteConditionnement, montant: newMontant };
+      if (process.env.NODE_ENV !== 'production') console.debug('updateConditionnementQuantity', { uid, quantiteConditionnement, multiplier, updated });
+      return updated;
     }));
   };
 
-  const toggleVenteParConditionnement = (id_stock: number, venteParConditionnement: boolean) => {
+  const toggleVenteParConditionnement = (uid: string, venteParConditionnement: boolean) => {
     if (!isVente) return; // guard: only allow toggling in sale mode
-    const stock = stocks.find(s => s.id === id_stock);
-    const multiplier = getProduitMultiplicateur(stock);
-    console.debug('toggleVenteParConditionnement called', { id_stock, venteParConditionnement, multiplier });
     setCart(prev => prev.map(item => {
-      if (item.id_stock !== id_stock) return item;
+      if (item.uid !== uid) return item;
+      const stock = stocks.find(s => s.id === item.id_stock);
+      const multiplier = getProduitMultiplicateur(stock);
+      console.debug('toggleVenteParConditionnement called', { uid, venteParConditionnement, multiplier });
       // initialize quantiteConditionnement to 1 when turning on
       const qCond = venteParConditionnement ? (item.quantiteConditionnement || 1) : item.quantite;
       const realQ = venteParConditionnement ? qCond * (multiplier || 1) : (item.quantite || 1);
       // If product has no multiplier, do not switch to conditionnement
       if (venteParConditionnement && (!multiplier || multiplier <= 1)) {
-        console.debug('Cannot switch to conditionnement: multiplier missing or <=1', { id_stock, multiplier });
+        console.debug('Cannot switch to conditionnement: multiplier missing or <=1', { uid, multiplier });
         return item;
       }
       return { ...item, venteParConditionnement, quantiteConditionnement: venteParConditionnement ? qCond : undefined, quantite: venteParConditionnement ? 1 : (item.quantite || 1), montant: item.prix * realQ };
     }));
   };
 
-  const updatePrice = (id_stock: number, prix: number) => {
+  const updatePrice = (uid: string, prix: number) => {
     if (isVente) {
       Swal.fire('Info', 'Le prix est calculé automatiquement pour les ventes (DÉTAIL/GROS) et ne peut pas être modifié manuellement.', 'info');
       return;
     }
 
     setCart(prev => prev.map(item =>
-      item.id_stock === id_stock
-        ? (item.venteParConditionnement ? (() => { const stock = stocks.find(s => s.id === id_stock); const multiplier = stock?.produit?.nombreUnitesParConditionnement || 0; const realQ = (item.quantiteConditionnement || 0) * multiplier; return { ...item, prix, montant: prix * realQ }; })() : { ...item, prix, montant: prix * item.quantite })
+      item.uid === uid
+        ? (item.venteParConditionnement ? (() => { const stock = stocks.find(s => s.id === item.id_stock); const multiplier = stock?.produit?.nombreUnitesParConditionnement || 0; const realQ = (item.quantiteConditionnement || 0) * multiplier; return { ...item, prix, montant: prix * realQ }; })() : { ...item, prix, montant: prix * item.quantite })
         : item
     ));
 
     // Save last used price for this product in localStorage (only for non-vente flows)
-    const stock = stocks.find(s => s.id === id_stock);
+    const item = cart.find(i => i.uid === uid);
+    const stock = item ? stocks.find(s => s.id === item.id_stock) : undefined;
     if (stock && stock.produit) {
       const lastPriceKey = `lastPrice_${stock.produit.id}`;
       localStorage.setItem(lastPriceKey, prix.toString());
     }
-  };
+  }; 
 
   // When price mode toggles in Vente mode, update cart item prices to reflect selected mode
   // When price mode, stocks or isVente change, normalize cart entries and recompute montants
@@ -384,11 +425,15 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
         multiplicateur = undefined;
       }
 
-      // determine price (respect priceMode for vente)
+      // determine price (use global priceModeDefault)
       let newPrix = item.prix;
-      if (isVente && stock && stock.produit) {
-        const modePrice = priceModeDefault === 'DETAIL' ? stock.produit?.prixDetail : stock.produit?.prixEnGros;
-        if (modePrice !== undefined && modePrice !== null) newPrix = Number(modePrice);
+      if (isVente) {
+        // prefer the stock's product if available, otherwise try to find a product by produitId across stocks
+        const productSource = (stock && stock.produit) ? stock.produit : (item.produitId ? (stocks.find(s => s.produit?.id === item.produitId)?.produit) : undefined);
+        if (productSource) {
+          const modePrice = priceModeDefault === 'DETAIL' ? productSource.prixDetail : productSource.prixEnGros;
+          if (modePrice !== undefined && modePrice !== null) newPrix = Number(modePrice);
+        }
       }
 
       const multiplier = (venteParConditionnement && multiplicateur) ? multiplicateur : 1;
@@ -399,9 +444,18 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
     }));
   }, [priceModeDefault, stocks, isVente]);
 
-  const removeFromCart = (id_stock: number) => {
-    setCart(cart.filter(item => item.id_stock !== id_stock));
+
+
+  const removeFromCart = (uid: string) => {
+    setCart(cart.filter(item => item.uid !== uid));
   };
+
+  // Dev-only: log cart snapshot on changes to trace unexpected cross-updates
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('Cart snapshot:', cart.map(i => ({ uid: i.uid, id_stock: i.id_stock, produitId: i.produitId, quantite: i.quantite, qCond: i.quantiteConditionnement })));
+    }
+  }, [cart]);
 
   // recompute total based on effective quantities
   const total = cart.reduce((sum, item) => {
@@ -419,8 +473,8 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
       return;
     }
 
-    if (isVente && !selectedClientId && !nomClient) {
-      Swal.fire('Erreur', 'Veuillez sélectionner ou saisir un client', 'error');
+    if (isVente && !selectedClientId) {
+      Swal.fire('Erreur', 'Veuillez sélectionner un client', 'error');
       return;
     }
 
@@ -449,25 +503,23 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
         }
 
         if (stock && (stock.quantiteDisponible ?? 0) < (realQ || 0)) {
-          blockedForStock.push(item.id_stock);
+          if (item.id_stock != null) blockedForStock.push(item.id_stock);
         }
       }
 
+      // Build selection object and include ligneId / produitId to help backend map existing lignes when editing
+      const baseObj: any = {
+        id_stock: item.id_stock,
+        produitId: item.produitId || undefined,
+        ligneId: item.ligneId || undefined,
+        prix: item.prix,
+        priceMode: isVente ? priceModeDefault : undefined
+      };
+
       if (isVente && item.venteParConditionnement) {
-        produitsSelectionnes.push({
-          id_stock: item.id_stock,
-          venteParConditionnement: true,
-          quantiteConditionnement: item.quantiteConditionnement,
-          prix: item.prix,
-          priceMode: priceModeDefault
-        });
+        produitsSelectionnes.push({ ...baseObj, venteParConditionnement: true, quantiteConditionnement: item.quantiteConditionnement });
       } else {
-        produitsSelectionnes.push({
-          id_stock: item.id_stock,
-          quantite: item.quantite,
-          prix: item.prix,
-          priceMode: isVente ? priceModeDefault : undefined
-        });
+        produitsSelectionnes.push({ ...baseObj, quantite: item.quantite });
       }
     });
 
@@ -482,14 +534,26 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
 
     let payload: any;
     if (isVente) {
-      payload = {
-        reference,
-        dateVente: dateCommande,
-        nomClient: nomClient || null,
-        client: selectedClientId ? { id: selectedClientId } : undefined,
-        produitsSelectionnes,
-        total
-      };
+      if (isEditMode && id) {
+        // For editing an existing vente (stored as CommandeClient), include lignes modifications
+        payload = {
+          reference,
+          dateCommande: dateCommande,
+          total,
+          paie: 0,
+          client: { id: selectedClientId },
+          produitsSelectionnes
+        };
+      } else {
+        // Creation: use the VenteFullRequest shape
+        payload = {
+          reference,
+          dateVente: dateCommande,
+          client: selectedClientId ? { id: selectedClientId } : undefined,
+          produitsSelectionnes,
+          total
+        };
+      }
     } else {
       payload = {
         reference,
@@ -505,9 +569,17 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
       let url = isEditMode && id ? `http://localhost:8085/api/commandes-fournisseurs/${id}` : 'http://localhost:8085/api/commandes-fournisseurs';
       let method = isEditMode && id ? 'PUT' : 'POST';
       if (isVente) {
-        url = isEditMode && id ? `http://localhost:8085/api/ventes/${id}` : 'http://localhost:8085/api/ventes/full';
-        method = isEditMode && id ? 'PUT' : 'POST';
+        if (isEditMode && id) {
+          // Edit existing vente stored as CommandeClient
+          url = `http://localhost:8085/api/commandes-clients/${id}`;
+          method = 'PUT';
+        } else {
+          // Create new vente (full)
+          url = 'http://localhost:8085/api/ventes/full';
+          method = 'POST';
+        }
       }
+
       const res = await fetch(url, {
         method,
         headers: {
@@ -518,7 +590,8 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
       });
 
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
+        let errData: any = null;
+        try { errData = await res.json(); } catch (_) { errData = null; }
         if (errData && errData.error) {
           if (errData.blockedLignes) {
             // blockedLignes can be array of ids or objects
@@ -532,7 +605,7 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                 if (it) blockedLabels.push(`${it.nom} (stockId: ${id})`);
                 else {
                   const st = stocks.find(s => s.id === id);
-                  if (st) blockedLabels.push(`${st.produit?.nomProduit || 'Produit inconnu'} (stockId: ${id})`);
+                  if (st) blockedLabels.push(`${getProductDisplayName(st)} (stockId: ${id})`);
                   else blockedLabels.push(`Ligne ${id}`);
                 }
               }
@@ -543,6 +616,14 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
           }
           return;
         }
+
+        // Fallback to plain text message if JSON wasn't returned
+        const txt = await res.text().catch(() => null);
+        if (txt) {
+          await Swal.fire('Erreur', txt, 'error');
+          return;
+        }
+
         throw new Error(`Erreur lors de la ${isEditMode ? 'modification' : 'création'}`);
       }
 
@@ -550,12 +631,23 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
       Swal.fire('Succès', `Commande ${isEditMode ? 'modifiée' : 'créée'} avec succès`, 'success');
       // In edit mode, validate the response contains saved lignes matching our cart
       if (isEditMode && saved && saved.lignes) {
-        const savedStockIds = saved.lignes.map((l: any) => l.stock?.id).filter(Boolean);
-        const missing = produitsSelectionnes.filter((ps: any) => !savedStockIds.includes(ps.id_stock));
+        // Build sets for fast lookup: by ligneId, stockId, produitId
+        const savedByLigneId = new Set(saved.lignes.map((l: any) => l.id).filter(Boolean));
+        const savedStockIds = new Set(saved.lignes.map((l: any) => l.stock?.id).filter(Boolean));
+        const savedProduitIds = new Set(saved.lignes.map((l: any) => l.produit?.id).filter(Boolean));
+
+        const missing = produitsSelectionnes.filter((ps: any) => {
+          if (ps.ligneId && savedByLigneId.has(ps.ligneId)) return false;
+          if (ps.id_stock && savedStockIds.has(ps.id_stock)) return false;
+          if (ps.produitId && savedProduitIds.has(ps.produitId)) return false;
+          return true;
+        });
+
         if (missing.length > 0) {
           const missingLabels = missing.map((m: any) => {
-            const c = cart.find(c => c.id_stock === m.id_stock);
-            return c ? `${c.nom} (stockId:${m.id_stock})` : `stockId:${m.id_stock}`;
+            const c = cart.find(c => (c.ligneId && c.ligneId === m.ligneId) || (c.id_stock === m.id_stock) || (c.produitId && c.produitId === m.produitId));
+            if (c) return c.nom + (c.id_stock ? ` (stockId:${c.id_stock})` : (c.produitId ? ` (produitId:${c.produitId})` : ''));
+            return m.id_stock ? `stockId:${m.id_stock}` : (m.produitId ? `produitId:${m.produitId}` : 'Ligne inconnue');
           });
           Swal.fire('Attention', `Les produits suivants n'ont pas été enregistrés: ${missingLabels.join(', ')}`, 'warning');
         }
@@ -565,8 +657,8 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
       setSelectedFournisseur('');
       generateReference();
       if (isEditMode) {
-        // navigate back to listes after edit
-        navigate('/liste-commandes');
+        // navigate back to listes after edit, preserving vente mode if applicable
+        navigate('/liste-commandes' + (isVente ? '?mode=vente' : ''));
       }
     } catch (err: any) {
       Swal.fire('Erreur', err.message || 'Erreur inconnue', 'error');
@@ -581,14 +673,55 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
     }
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${idToOpen}/pdf`, {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('Impossible de charger le PDF');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      if (!token) {
+        Swal.fire('Erreur', 'Authentification nécessaire. Connectez-vous.', 'error');
+        return;
+      }
+
+      // If it's a vente (commande client), try vente PDF endpoint first, then commandes-clients as fallback
+      if (isVente) {
+        const tryEndpoints = [
+          { path: `http://localhost:8085/api/ventes/${idToOpen}/pdf`, label: 'ventes' },
+          { path: `http://localhost:8085/api/commandes-clients/${idToOpen}/pdf`, label: 'commandes-clients' }
+        ];
+        let lastError: any = null;
+        for (const ep of tryEndpoints) {
+          try {
+            const res = await fetch(ep.path, { method: 'GET', headers: { Authorization: `Bearer ${token}` } });
+            if (res.ok) {
+              const blob = await res.blob();
+              const url = URL.createObjectURL(blob);
+              window.open(url, '_blank');
+              return;
+            }
+            const text = await res.text().catch(() => '');
+            lastError = `Endpoint ${ep.label} returned ${res.status} ${res.statusText}: ${text}`;
+            console.debug('openPdfPrint:', lastError);
+          } catch (e: any) {
+            lastError = `Fetch to ${ep.label} failed: ${e.message}`;
+            console.debug('openPdfPrint:', lastError);
+          }
+        }
+        Swal.fire('Erreur', `Impossible de charger le PDF (vente). Détails: ${lastError}`, 'error');
+        return;
+      }
+
+      // Default: commande fournisseur
+      try {
+        const res = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${idToOpen}/pdf`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`${res.status} ${res.statusText}: ${text}`);
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      } catch (e: any) {
+        Swal.fire('Erreur', `Impossible de charger le PDF: ${e.message || e}`, 'error');
+      }
     } catch (err: any) {
       Swal.fire('Erreur', err.message || 'Erreur lors de l\'ouverture du PDF', 'error');
     }
@@ -619,7 +752,7 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                 </div> 
                 <div className="ms-auto">
                   <div className="btn-group">
-                    <button className="btn btn-outline-primary mb-3 mb-lg-0 me-2" onClick={() => navigate('/liste-commandes')}>
+                    <button className="btn btn-outline-primary mb-3 mb-lg-0 me-2" onClick={() => navigate('/liste-commandes' + (isVente ? '?mode=vente' : ''))}>
                       <i className='bx bx-list-ul'></i> Liste Commande
                     </button>
                     {isEditMode && id && (
@@ -658,15 +791,12 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                         <i className='bx bx-plus'></i> Ajouter
                       </button>
                     </label>
-                    <div className="d-flex" style={{ gap: 8 }}>
-                      <select className="form-control" value={selectedClientId ?? ''} onChange={(e) => { const v = e.target.value; setSelectedClientId(v ? parseInt(v) : null); const c = clients.find(cl => cl.id === Number(v)); if (c) setNomClient(`${c.prenom || ''} ${c.nom || ''}`.trim()); }}>
-                        <option value="">Sélectionner un client</option>
-                        {clients.map(c => (
-                          <option key={c.id} value={c.id}>{c.prenom} {c.nom} - {c.contact}</option>
-                        ))}
-                      </select>
-                      <input className="form-control" value={nomClient} onChange={(e) => setNomClient(e.target.value)} placeholder="Ou saisir un nom de client" />
-                    </div>
+                    <select className="form-control" value={selectedClientId ?? ''} onChange={(e) => { const v = e.target.value; setSelectedClientId(v ? parseInt(v) : null); }}>
+                      <option value="">Sélectionner un client</option>
+                      {clients.map(c => (
+                        <option key={c.id} value={c.id}>{c.prenom} {c.nom} - {c.contact}</option>
+                      ))}
+                    </select>
                   </>
                 ) : (
                   <>
@@ -702,8 +832,8 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                               const price = isVente && stock.produit ? (priceModeDefault === 'DETAIL' ? (stock.produit?.prixDetail ?? stock.produit?.prixAchat) : (stock.produit?.prixEnGros ?? stock.produit?.prixAchat)) : (stock.produit?.prixAchat ?? 0);
                               return {
                                 value: stock.id,
-                                label: `${stock.produit?.nomProduit || 'Produit inconnu'}${multLabel} - ${price} FCFA - ${stock.magasin?.nom || 'Dépôt inconnu'} (Stock: ${stock.quantiteDisponible || 0})`
-                              };
+                                label: `${getProductDisplayName(stock)}${multLabel} - ${price} FCFA - ${stock.magasin?.nom || 'Dépôt inconnu'} (Stock: ${stock.quantiteDisponible || 0})`
+                              }; 
                             })}
                             value={selectedStockOption}
                             onChange={(val) => {
@@ -745,7 +875,7 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                               <div key={stock.id} className="col-md-6 mb-2">
                                 <div className="d-flex justify-content-between align-items-center p-2 border rounded">
                                   <div>
-                                    <strong>{stock.produit?.nomProduit || 'Produit inconnu'}</strong>
+                                    <strong>{getProductDisplayName(stock)}</strong>
                                     <br />
                                     <small className="text-muted">{Number(stock.produit?.prixAchat ?? 0)} FCFA</small>
                                   </div>
@@ -794,60 +924,67 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                             const realQ = (item.venteParConditionnement && isVente) ? ((item.quantiteConditionnement || 0) * multiplier) : item.quantite;
                             const montant = (item.prix || 0) * (realQ || 0);
                             return (
-                              <tr key={item.id_stock}>
+                              <tr key={item.uid}>
                                 <td>{item.nom}</td>
                                 <td>
                                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                     {isVente ? (
                                       <>
                                         <div className="form-check form-check-inline">
-                                          <input className="form-check-input" type="radio" name={`mode_${item.id_stock}`} id={`mode_unite_${item.id_stock}`} checked={!item.venteParConditionnement} onChange={() => toggleVenteParConditionnement(item.id_stock, false)} onClick={() => toggleVenteParConditionnement(item.id_stock, false)} title="Vendre en unités" />
-                                          <label className="form-check-label" htmlFor={`mode_unite_${item.id_stock}`}>Unité</label>
+                                          <input className="form-check-input" type="radio" name={`mode_${item.uid}`} id={`mode_unite_${item.uid}`} checked={!item.venteParConditionnement} onChange={() => toggleVenteParConditionnement(item.uid, false)} onClick={() => toggleVenteParConditionnement(item.uid, false)} title="Vendre en unités" />
+                                          <label className="form-check-label" htmlFor={`mode_unite_${item.uid}`}>Unité</label>
                                         </div>
                                         <div className="form-check form-check-inline">
-                                          <input className="form-check-input" type="radio" name={`mode_${item.id_stock}`} id={`mode_cond_${item.id_stock}`} checked={!!item.venteParConditionnement} onChange={() => toggleVenteParConditionnement(item.id_stock, true)} onClick={() => toggleVenteParConditionnement(item.id_stock, true)} disabled={multiplier <= 1} title={multiplier <= 1 ? 'Conditionnement non disponible (nombre_unites_par_conditionnement doit être > 1)' : 'Vendre par conditionnement'} />
-                                          <label className="form-check-label" htmlFor={`mode_cond_${item.id_stock}`}>Conditionnement {multiplier > 1 ? `(${multiplier} unités)` : ''}</label>
-                                          
+                                          <input className="form-check-input" type="radio" name={`mode_${item.uid}`} id={`mode_cond_${item.uid}`} checked={!!item.venteParConditionnement} onChange={() => toggleVenteParConditionnement(item.uid, true)} onClick={() => toggleVenteParConditionnement(item.uid, true)} disabled={multiplier <= 1} title={multiplier <= 1 ? 'Conditionnement non disponible (nombre_unites_par_conditionnement doit être > 1)' : 'Vendre par conditionnement'} />
+                                          <label className="form-check-label" htmlFor={`mode_cond_${item.uid}`}>Conditionnement {multiplier > 1 ? `(${multiplier} unités)` : ''}</label>
                                         </div>
 
                                         {item.venteParConditionnement ? (
                                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                            <input type="number" className="form-control" value={item.quantiteConditionnement ?? 1} min={1} onChange={(e) => updateConditionnementQuantity(item.id_stock, parseInt(e.target.value) || 1)} style={{ width: 120 }} disabled={multiplier <= 1} />
-                                            <div className="text-muted small">1 conditionnement = {multiplier} unités</div>
+                                            <label className="small">Qté (cond.)</label>
+                                            <input type="number" className="form-control" value={item.quantiteConditionnement ?? 1} min={1} onChange={(e) => updateConditionnementQuantity(item.uid, parseInt(e.target.value) || 1)} style={{ width: 120 }} disabled={multiplier <= 1} />
+                                            <div className="text-muted small">1 cond = {multiplier}u</div>
                                           </div>
                                         ) : (
-                                          <input
-                                            type="number"
-                                            className="form-control"
-                                            value={item.quantite}
-                                            min="1"
-                                            onChange={(e) => updateQuantity(item.id_stock, parseInt(e.target.value) || 1)}
-                                            style={{ width: 120 }}
-                                          />
+                                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                            <label className="small">Qté</label>
+                                            <input
+                                              type="number"
+                                              className="form-control"
+                                              value={item.quantite}
+                                              min="1"
+                                              onChange={(e) => updateQuantity(item.uid, parseInt(e.target.value) || 1)}
+                                              style={{ width: 120 }}
+                                            />
+                                          </div>
                                         )}
                                       </>
                                     ) : (
                                       // Achat mode: keep the original simple quantity input (no radios)
-                                      <input
-                                        type="number"
-                                        className="form-control"
-                                        value={item.quantite}
-                                        min="1"
-                                        onChange={(e) => updateQuantity(item.id_stock, parseInt(e.target.value) || 1)}
-                                        style={{ width: 120 }}
-                                      />
+                                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                        <label className="small">Qté</label>
+                                        <input
+                                          type="number"
+                                          className="form-control"
+                                          value={item.quantite}
+                                          min="1"
+                                          onChange={(e) => updateQuantity(item.uid, parseInt(e.target.value) || 1)}
+                                          style={{ width: 120 }}
+                                        />
+                                      </div>
                                     )}
                                   </div>
                                 </td>
                                 <td>
                                   <div className="input-group input-group-sm">
+
                                     <input
                                       type="number"
                                       className="form-control form-control-sm"
                                       value={item.prix}
                                       min="0"
                                       step="0.01"
-                                      onChange={(e) => updatePrice(item.id_stock, parseFloat(e.target.value) || 0)}
+                                      onChange={(e) => updatePrice(item.uid, parseFloat(e.target.value) || 0)}
                                       disabled={isVente}
                                       title={isVente ? 'Prix calculé automatiquement pour les ventes (DÉTAIL / GROS)' : ''}
                                     />
@@ -868,7 +1005,7 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                                 <td>{montant.toFixed(2)} FCFA</td>
                                 <td>
                                   <div className="d-flex">
-                                    <button className="btn btn-danger btn-sm" onClick={() => removeFromCart(item.id_stock)} title="Supprimer">
+                                    <button className="btn btn-danger btn-sm" onClick={() => removeFromCart(item.uid)} title="Supprimer">
                                       <i className="bx bx-trash"></i>
                                     </button>
                                   </div>
@@ -1015,7 +1152,7 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                             <small className="text-muted">{c.contact}</small>
                           </div>
                           <div>
-                            <button className="btn btn-sm btn-outline-primary" onClick={() => { setSelectedClientId(c.id); setNomClient(`${c.prenom || ''} ${c.nom || ''}`.trim()); setShowClientModal(false); }}>
+                            <button className="btn btn-sm btn-outline-primary" onClick={() => { setSelectedClientId(c.id); setShowClientModal(false); }}>
                               Sélectionner
                             </button>
                           </div>
@@ -1058,7 +1195,6 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                           // Add to list and select
                           setClients(prev => [created, ...(prev || [])]);
                           setSelectedClientId(created.id);
-                          setNomClient(`${created.prenom || ''} ${created.nom || ''}`.trim());
                           setShowClientModal(false);
                         } catch (err: any) {
                           Swal.fire('Erreur', err.message || 'Erreur lors de la création du client', 'error');

@@ -9,4 +9,7 @@ public interface LigneLivraisonService {
     Optional<LigneLivraison> findById(Long id);
     LigneLivraison save(LigneLivraison ligneLivraison);
     void deleteById(Long id);
+
+    // list lines for a livraison
+    List<LigneLivraison> findByLivraisonId(Long livraisonId);
 }

@@ -40,7 +40,7 @@ const Configuration = () => {
       <div className="row">
         <div className="col-3">
           <div className="card">
-            <div className="card-header" style={{ backgroundColor: '#007bff', color: 'white' }}>
+            <div className="card-header d-flex justify-content-between align-items-center" style={{ backgroundColor: '#007bff', color: 'white' }}>
               <h6>MENU de Configuration</h6>
             </div>
             <div className="list-group list-group-flush">
@@ -1386,12 +1386,27 @@ const AssignerPermissions = () => {
 
       const currentId = user?.id;
       const boutiqueId = currentBoutique?.id;
-      data = data
-        .filter((u: any) => u.id !== currentId)
-        .filter((u: any) => {
-          if (!boutiqueId) return true;
-          return u.boutique?.id === boutiqueId;
-        });
+
+      // Ne filtrer par boutique que si l'utilisateur n'est pas SUPERADMIN
+      const isSuper = normalizeRole(user?.typeUtilisateur || '') === 'SUPERADMIN' ||
+        (Array.isArray(roles) && roles.some((r: any) => {
+          const name = typeof r === 'string' ? r : (r?.name || '');
+          return normalizeRole(name) === 'SUPERADMIN';
+        }));
+
+      const originalCount = Array.isArray(data) ? data.length : 0;
+
+      // Exclure l'utilisateur courant
+      data = (data || []).filter((u: any) => u.id !== currentId);
+
+      // Appliquer filtre boutique uniquement si l'utilisateur n'est pas SUPERADMIN
+      if (!isSuper && boutiqueId) {
+        data = data.filter((u: any) => u.boutique?.id === boutiqueId);
+      }
+
+      if (data.length === 0) {
+        console.debug('fetchUsers: utilisateurs après filtrage vide', { isSuper, boutiqueId, originalCount });
+      }
 
       setUsers(data);
     } catch (err: any) {
@@ -1556,10 +1571,10 @@ const AssignerPermissions = () => {
     <div className="row">
       <div className="col-md-4">
         <div className="card h-100">
-          <div className="card-header d-flex justify-content-between align-items-center bg-light">
+                  <div className="card-header d-flex justify-content-between align-items-center" style={{ backgroundColor: '#007bff', color: 'white' }}>
             <div>
               <h6 className="mb-0">Utilisateurs</h6>
-              <small className="text-muted">Sélectionnez un utilisateur</small>
+              <small className="text-white">Sélectionnez un utilisateur</small>
             </div>
           </div>
           <div className="card-body">
@@ -1595,10 +1610,10 @@ const AssignerPermissions = () => {
 
       <div className="col-md-8">
         <div className="card h-100">
-          <div className="card-header d-flex justify-content-between align-items-center bg-light">
+                <div className="card-header d-flex justify-content-between align-items-center" style={{ backgroundColor: '#007bff', color: 'white' }}>
             <div>
               <h6 className="mb-0">Permissions</h6>
-              <small className="text-muted">
+              <small className="text-white">
                 {selectedUserId ? 'Sélectionnez les permissions à attribuer' : 'Choisissez un utilisateur'}
               </small>
             </div>

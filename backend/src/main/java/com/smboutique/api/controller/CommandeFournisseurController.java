@@ -44,6 +44,9 @@ public class CommandeFournisseurController {
     private PaiementService paiementService;
 
     @Autowired
+    private com.smboutique.api.repository.CaisseRepository caisseRepository;
+
+    @Autowired
     private com.smboutique.api.service.PdfService pdfService;
 
     private Utilisateur getCurrentUser() {
@@ -248,57 +251,96 @@ public class CommandeFournisseurController {
         try {
             Paiement paiement = new Paiement();
             paiement.setMontantPaye(montant);
-            paiement.setReference(request.getReference());
+            // compute client's local time similarly to client payments
+            java.time.LocalDateTime clientLocalDateTime = null;
             if (request.getDate() != null && !request.getDate().trim().isEmpty()) {
                 try {
                     String dr = request.getDate();
-                    // try parsing ISO instant or offset datetime with timezone
-                    if (dr.contains("T") && (dr.endsWith("Z") || dr.matches(".*[+-]\\d{2}:?\\d{2}$"))) {
-                        java.time.Instant inst;
-                        try {
-                            if (dr.endsWith("Z")) {
-                                inst = java.time.Instant.parse(dr);
-                            } else {
-                                inst = java.time.OffsetDateTime.parse(dr).toInstant();
-                            }
-                        } catch (Exception e) {
-                            // fallback to parsing as Instant if possible
-                            inst = java.time.Instant.parse(dr);
-                        }
-                        if (request.getTimezoneOffsetMinutes() != null) {
-                            // Convert instant to client's local time using client timezone offset
-                            int off = request.getTimezoneOffsetMinutes();
-                            java.time.ZoneOffset zo = java.time.ZoneOffset.ofTotalSeconds(-off * 60);
-                            paiement.setDatePaie(LocalDateTime.ofInstant(inst, zo));
-                        } else {
-                            // Fallback: place instant in server default zone
-                            paiement.setDatePaie(LocalDateTime.ofInstant(inst, java.time.ZoneId.systemDefault()));
-                        }
+                    java.time.Instant inst;
+                    try {
+                        inst = java.time.Instant.parse(dr);
+                    } catch (Exception e) {
+                        inst = java.time.OffsetDateTime.parse(dr).toInstant();
+                    }
+                    if (request.getTimezoneOffsetMinutes() != null) {
+                        int off = request.getTimezoneOffsetMinutes();
+                        java.time.ZoneOffset zo = java.time.ZoneOffset.ofTotalSeconds(-off * 60);
+                        clientLocalDateTime = LocalDateTime.ofInstant(inst, zo);
                     } else {
-                        // fallback parse common patterns like dd/MM/yyyy HH:mm:ss
-                        try {
-                            java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
-                            // If client passed timezoneOffsetMinutes with a local-formatted date, we should interpret it as client's local time
-                            LocalDateTime parsed = LocalDateTime.parse(dr, fmt);
-                            if (request.getTimezoneOffsetMinutes() != null) {
-                                // no conversion needed: store parsed local client time as-is
-                                paiement.setDatePaie(parsed);
-                            } else {
-                                paiement.setDatePaie(parsed);
-                            }
-                        } catch (Exception ex2) {
-                            // last resort: parse as LocalDateTime
-                            paiement.setDatePaie(LocalDateTime.parse(dr));
-                        }
+                        clientLocalDateTime = LocalDateTime.ofInstant(inst, java.time.ZoneId.systemDefault());
                     }
                 } catch (Exception ex) {
-                    paiement.setDatePaie(LocalDateTime.now());
+                    try {
+                        java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+                        clientLocalDateTime = LocalDateTime.parse(request.getDate(), fmt);
+                    } catch (Exception ex2) {
+                        clientLocalDateTime = LocalDateTime.now();
+                    }
                 }
             } else {
-                paiement.setDatePaie(LocalDateTime.now());
+                clientLocalDateTime = LocalDateTime.now();
+            }
+            paiement.setDatePaie(clientLocalDateTime);
+            paiement.setReference(request.getReference());
+            // Attach active caisse reference for boutique where available
+            if (cmd.getBoutique() != null && cmd.getBoutique().getId() != null) {
+                java.util.Optional<com.smboutique.api.model.Caisse> maybeCaisse = caisseRepository.findFirstByBoutiqueIdOrderByIdDesc(cmd.getBoutique().getId());
+                if (maybeCaisse.isPresent()) {
+                    com.smboutique.api.model.Caisse caisse = maybeCaisse.get();
+                    String s = caisse.getStatut() == null ? "" : caisse.getStatut().toLowerCase();
+                    if (s.contains("ouv") || s.contains("act") || s.contains("open")) {
+                        paiement.setReferenceCaisse(caisse.getReference());
+                    }
+                }
             }
             paiement.setCommandeFournisseur(cmd);
             paiementService.save(paiement);
+
+            // Update caisse montantTotal for the boutique if an active caisse exists
+            boolean caisseUpdated = false;
+            Integer caisseNewTotal = null;
+            try {
+                if (cmd.getBoutique() != null && cmd.getBoutique().getId() != null) {
+                    Long bid = cmd.getBoutique().getId();
+                    java.util.Optional<com.smboutique.api.model.Caisse> maybeCaisse = caisseRepository.findFirstByBoutiqueIdOrderByIdDesc(bid);
+                    if (maybeCaisse.isPresent()) {
+                        com.smboutique.api.model.Caisse caisse = maybeCaisse.get();
+                        String s = caisse.getStatut() == null ? "" : caisse.getStatut().toUpperCase();
+                        if (s.contains("OUVERTE") || s.contains("OPEN") || s.contains("ACT")) {
+                            Integer cur = caisse.getMontantTotal() != null ? caisse.getMontantTotal() : 0;
+                            caisse.setMontantTotal(cur + montant);
+                            try {
+                                caisse = ((com.smboutique.api.service.CaisseService)org.springframework.web.context.support.WebApplicationContextUtils.getRequiredWebApplicationContext(
+                                        org.springframework.web.context.ContextLoader.getCurrentWebApplicationContext().getServletContext()
+                                ).getBean(com.smboutique.api.service.CaisseService.class)).save(caisse);
+                                caisseUpdated = true;
+                                caisseNewTotal = caisse.getMontantTotal();
+                            } catch (Exception inner) {
+                                try { ((com.smboutique.api.repository.CaisseRepository) org.springframework.web.context.support.WebApplicationContextUtils.getRequiredWebApplicationContext(
+                                        org.springframework.web.context.ContextLoader.getCurrentWebApplicationContext().getServletContext()
+                                ).getBean(com.smboutique.api.repository.CaisseRepository.class)).save(caisse);
+                                caisseUpdated = true;
+                                caisseNewTotal = caisse.getMontantTotal();
+                                } catch (Exception ex) {}
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ex) {
+                System.out.println("Warning: unable to update caisse total (fournisseur): " + ex.getMessage());
+            }
+            try {
+                cmd.setPaie(paieExistante + montant);
+                CommandeFournisseur updated = commandeFournisseurService.save(cmd);
+                if (caisseUpdated) {
+                    return ResponseEntity.ok().header("X-Caisse-Updated", "true").header("X-Caisse-Total", String.valueOf(caisseNewTotal)).body(updated);
+                }
+                return ResponseEntity.ok(updated);
+            } catch (Exception ex) {
+                System.out.println("Warning: unable to persist paiement record: " + ex.getMessage());
+                cmd.setPaie(paieExistante + montant);
+                return ResponseEntity.ok(commandeFournisseurService.save(cmd));
+            }
         } catch (Exception e) {
             System.out.println("Warning: unable to persist paiement record: " + e.getMessage());
         }

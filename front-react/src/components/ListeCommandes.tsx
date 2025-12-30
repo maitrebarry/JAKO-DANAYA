@@ -38,8 +38,9 @@ const ListeCommandes: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCommande, setSelectedCommande] = useState<CommandeData | null>(null);
 
-  // Detect if we are in 'ventes' context by checking the current path
-  const isVenteMode = window.location.pathname && window.location.pathname.includes('/ventes');
+  // Detect if we are in 'ventes' context by checking the current path or query param ?mode=vente
+  const urlParams = new URLSearchParams(window.location.search || '');
+  const isVenteMode = urlParams.get('mode') === 'vente' || (window.location.pathname && window.location.pathname.includes('/ventes'));
 
   useEffect(() => {
     if (!currentBoutique) {
@@ -201,7 +202,8 @@ const ListeCommandes: React.FC = () => {
         openCommandePdf(selectedCommande.id_commande_fournisseur);
         break;
       case 'payment':
-        navigate(`/commandes/paiement/${selectedCommande.id_commande_fournisseur}`);
+        // If we are in vente mode, include ?mode=vente so the paiement component loads client-mode
+        navigate(`/commandes/paiement/${selectedCommande.id_commande_fournisseur}${isVenteMode ? '?mode=vente' : ''}`);
         break;
       case 'reception':
         if (isVenteMode) {
@@ -309,7 +311,7 @@ const ListeCommandes: React.FC = () => {
         </div>
         <div className="ms-auto">
           <div className="btn-group">
-            <button className="btn btn-primary mb-3 mb-lg-0" onClick={() => navigate(isVenteMode ? '/commande-client' : '/commande-fournisseur')}>
+            <button className="btn btn-primary mb-3 mb-lg-0" onClick={() => navigate(isVenteMode ? '/ventes' : '/commande-fournisseur')}>
               {isVenteMode ? 'Commande Client' : 'Commande Fournisseur'}
             </button>
           </div>

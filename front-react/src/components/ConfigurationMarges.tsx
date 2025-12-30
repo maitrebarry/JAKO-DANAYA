@@ -108,7 +108,7 @@ const ConfigurationMarges: React.FC = () => {
 
   return (
     <div className="card">
-      <div className="card-header bg-primary text-white">
+    <div className="card-header d-flex justify-content-between align-items-center" style={{ backgroundColor: '#007bff', color: 'white' }}>
         <h6>Configuration des marges - Boutique: {currentBoutique.nom}</h6>
       </div>
       <div className="card-body">

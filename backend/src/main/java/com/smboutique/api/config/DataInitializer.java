@@ -278,6 +278,8 @@ public class DataInitializer implements CommandLineRunner {
     private void initializeSuperAdmin() {
         logger.info("Initializing superadmin...");
         final String defaultEmail = "barrymoustapha908@gmail.com";
+        Set<Permission> allPerms = new HashSet<>(permissionRepository.findAll());
+
         if (utilisateurRepository.findByEmailIgnoreCase(defaultEmail).isEmpty()) {
             logger.info("Superadmin not found, creating...");
             Boutique boutique = boutiqueRepository.findAll().get(0);
@@ -297,11 +299,23 @@ public class DataInitializer implements CommandLineRunner {
             superAdmin.setBoutique(boutique);
             superAdmin.setRoles(Set.of(superAdminRole));
 
+            // Assign all permissions explicitly to the superadmin user so utilisateur_permissions is populated
+            superAdmin.setPermissions(allPerms);
+
             logger.info("Saving superadmin user...");
             utilisateurRepository.save(superAdmin);
             logger.info("Superadmin user created successfully with email: {}", defaultEmail);
         } else {
-            logger.info("Superadmin already exists, skipping initialization");
+            logger.info("Superadmin already exists, ensuring user has all permissions");
+            utilisateurRepository.findByEmailIgnoreCase(defaultEmail).ifPresent(existing -> {
+                if (existing.getPermissions() == null || !existing.getPermissions().containsAll(allPerms) || existing.getPermissions().size() != allPerms.size()) {
+                    existing.setPermissions(allPerms);
+                    utilisateurRepository.save(existing);
+                    logger.info("Updated superadmin user to include all {} permissions", allPerms.size());
+                } else {
+                    logger.info("Superadmin user already has all permissions");
+                }
+            });
         }
     }
 

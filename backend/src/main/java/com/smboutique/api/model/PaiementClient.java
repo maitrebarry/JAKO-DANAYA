@@ -28,4 +28,17 @@ public class PaiementClient {
 
     @Column(name = "reference_caisse")
     private String referenceCaisse;
+
+    // Cancellation metadata
+    @Column(name = "annule")
+    private Boolean annule = false;
+
+    @Column(name = "annule_at")
+    private java.time.LocalDateTime annuleAt;
+
+    @Column(name = "annule_par")
+    private Long annulePar;
+
+    @Column(name = "annule_reason")
+    private String annuleReason;
 }

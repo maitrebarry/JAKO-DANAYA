@@ -33,4 +33,9 @@ public class PaiementClientServiceImpl implements PaiementClientService {
     public void deleteById(Long id) {
         paiementClientRepository.deleteById(id);
     }
+
+    @Override
+    public List<PaiementClient> findByBoutiqueId(Long boutiqueId) {
+        return paiementClientRepository.findByCommandeClientBoutiqueId(boutiqueId);
+    }
 }

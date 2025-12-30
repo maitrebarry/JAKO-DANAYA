@@ -33,8 +33,10 @@ const CommandeApercu: React.FC = () => {
           const computed = data.lignes.map((l: any) => {
             const stockId = l.stock?.id || l.id_stock || 0;
             const stockInfo = stockData.find((s: any) => s.id === stockId);
-            const nom = stockInfo?.produit?.nomProduit || (l.stock?.produit?.nomProduit || 'Produit');
-            const prix = l.newPrice || stockInfo?.produit?.prixAchat || (l.stock?.produit?.prixAchat || 0);
+            // Resolve name: prefer stock product, then ligne.produit, then ligne.designation
+            const nom = stockInfo?.produit?.nomProduit || l.produit?.nomProduit || l.produit?.designation || l.designation || 'Produit';
+            // Resolve price: prefer newPrice then ligne.prix then stock product price
+            const prix = (l.newPrice !== undefined && l.newPrice !== null) ? Number(l.newPrice) : ((l.prix !== undefined && l.prix !== null) ? Number(l.prix) : (Number(stockInfo?.produit?.prixAchat ?? (l.stock?.produit?.prixAchat ?? 0))));
             const quantite = l.quantite || 0;
             return { id: l.id, stockId, nom, quantite, prix, montant: prix * quantite } as Ligne;
           });
@@ -51,7 +53,30 @@ const CommandeApercu: React.FC = () => {
     if (!commandeId) return;
     try {
       const token = localStorage.getItem('smb_token');
-      const path = isVenteMode ? 'commandes-clients' : 'commandes-fournisseurs';
+      if (!token) {
+        Swal.fire('Erreur', 'Authentification nécessaire. Connectez-vous.', 'error');
+        return;
+      }
+      if (isVenteMode) {
+        // try ventes endpoint first, then commandes-clients
+        const tryPaths = [`http://localhost:8085/api/ventes/${commandeId}/pdf`, `http://localhost:8085/api/commandes-clients/${commandeId}/pdf`];
+        let lastErr: any = null;
+        for (const p of tryPaths) {
+          try {
+            const r = await fetch(p, { headers: { Authorization: `Bearer ${token}` } });
+            if (r.ok) { const blob = await r.blob(); const url = URL.createObjectURL(blob); window.open(url, '_blank'); return; }
+            const txt = await r.text().catch(() => '');
+            lastErr = `${p} -> ${r.status} ${r.statusText}: ${txt}`;
+            console.debug('openPdfPrint (apercu):', lastErr);
+          } catch (e: any) {
+            lastErr = e.message || e;
+            console.debug('openPdfPrint (apercu) fetch error:', lastErr);
+          }
+        }
+        Swal.fire('Erreur', `Impossible de charger le PDF (vente). Détails: ${lastErr}`, 'error');
+        return;
+      }
+      const path = 'commandes-fournisseurs';
       const res = await fetch(`http://localhost:8085/api/${path}/${commandeId}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error('Erreur lors de la récupération du PDF');
       const blob = await res.blob();
@@ -74,9 +99,11 @@ const CommandeApercu: React.FC = () => {
         <div className="card-body">
               <div className="mb-3 d-flex justify-content-between">
             <div>
-              <button className="btn btn-secondary me-2" onClick={() => navigate(isVenteMode ? '/ventes' : '/liste-commandes')}><i className="ri-arrow-left-line"></i></button>
+              <button className="btn btn-secondary me-2" onClick={() => navigate(isVenteMode ? '/liste-commandes?mode=vente' : '/liste-commandes')}><i className="ri-arrow-left-line"></i></button>
               <button className="btn btn-primary me-2" onClick={() => openPdfPrint(commande.id)}>Imprimer</button>
-              <button className="btn btn-outline-secondary" onClick={() => navigate(isVenteMode ? `/ventes/update/${commande.id}` : `/commandes/update/${commande.id}`)}>Modifier</button>
+              <button className="btn btn-outline-secondary" onClick={() => navigate(isVenteMode ? `/ventes/update/${commande.id}` : `/commandes/update/${commande.id}`)}>
+                Modifier
+              </button>
             </div>
           </div>
           <div className="row">

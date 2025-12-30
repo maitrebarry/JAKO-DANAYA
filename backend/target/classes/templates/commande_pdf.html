@@ -69,11 +69,11 @@
     </tr>
     </thead>
     <tbody>
-    <tr th:each="ligne : ${commande.lignes}">
-        <td th:text="${ligne.stock != null && ligne.stock.produit != null ? ligne.stock.produit.nomProduit : 'Produit'}"></td>
+    <tr th:each="ligne : ${lignesNormalized != null and #lists.size(lignesNormalized) > 0 ? lignesNormalized : (commande.lignes != null ? commande.lignes : {})}">
+        <td th:text="${ligne.designation != null ? ligne.designation : (ligne.stock != null && ligne.stock.produit != null ? ligne.stock.produit.nomProduit : 'Produit')}"></td>
         <td class="right" th:text="${ligne.quantite != null ? #numbers.formatInteger(ligne.quantite, 0) : '0'}"></td>
-        <td class="right" th:text="${ligne.newPrice != null ? #numbers.formatInteger(ligne.newPrice, 0) : (ligne.stock != null && ligne.stock.produit != null ? #numbers.formatInteger(ligne.stock.produit.prixAchat, 0) : '0')} + ' FCFA'"></td>
-        <td class="right" th:text="${#numbers.formatInteger((ligne.newPrice != null ? ligne.newPrice : (ligne.stock != null && ligne.stock.produit != null ? ligne.stock.produit.prixAchat : 0)) * (ligne.quantite != null ? ligne.quantite : 0), 0)} + ' FCFA'"></td>
+        <td class="right" th:text="${ligne.price != null ? #numbers.formatInteger(ligne.price, 0) : (ligne.newPrice != null ? #numbers.formatInteger(ligne.newPrice, 0) : (ligne.stock != null && ligne.stock.produit != null ? #numbers.formatInteger(ligne.stock.produit.prixAchat, 0) : '0'))} + ' FCFA'"></td>
+        <td class="right" th:text="${ligne.montant != null ? #numbers.formatInteger(ligne.montant, 0) : #numbers.formatInteger((ligne.newPrice != null ? ligne.newPrice : (ligne.stock != null && ligne.stock.produit != null ? ligne.stock.produit.prixAchat : 0)) * (ligne.quantite != null ? ligne.quantite : 0), 0)} + ' FCFA'"></td>
     </tr>
     </tbody>
     <tfoot>

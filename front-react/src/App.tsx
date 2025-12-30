@@ -10,6 +10,7 @@ import CommandeApercu from './components/CommandeApercu';
 import ListeCommandes from './components/ListeCommandes';
 import Reception from './components/Reception';
 import PaiementCommande from './components/PaiementCommande';
+import CaisseRegistre from './components/CaisseRegistre';
 import DetailReception from './components/DetailReception';
 import Historique from './components/Historique';
 import VentesHistorique from './components/VentesHistorique';
@@ -137,6 +138,15 @@ function App() {
             element={
               <PrivateRoute>
                 <Layout><Historique /></Layout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/caisses"
+            element={
+              <PrivateRoute>
+                <Layout><CaisseRegistre /></Layout>
               </PrivateRoute>
             }
           />

@@ -33,4 +33,9 @@ public class LigneLivraisonServiceImpl implements LigneLivraisonService {
     public void deleteById(Long id) {
         ligneLivraisonRepository.deleteById(id);
     }
+
+    @Override
+    public List<LigneLivraison> findByLivraisonId(Long livraisonId) {
+        return ligneLivraisonRepository.findByLivraisonId(livraisonId);
+    }
 }

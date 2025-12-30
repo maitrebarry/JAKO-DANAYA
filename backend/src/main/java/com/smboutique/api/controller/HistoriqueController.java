@@ -36,6 +36,12 @@ public class HistoriqueController {
     @Autowired
     private com.smboutique.api.service.CommandeFournisseurService commandeFournisseurService;
 
+    @Autowired
+    private com.smboutique.api.service.LivraisonService livraisonService;
+
+    @Autowired
+    private com.smboutique.api.service.PaiementClientService paiementClientService;
+
     private Utilisateur getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -248,6 +254,90 @@ public class HistoriqueController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(sorted);
+    }
+
+    // --- VENTES historique ---
+    @GetMapping("/ventes/boutique/{boutiqueId}")
+    public ResponseEntity<List<HistoriqueItem>> getVentesHistoriqueByBoutique(@PathVariable Long boutiqueId) {
+        Utilisateur current = getCurrentUser();
+        if (!isSuperAdmin(current) && (current.getBoutique() == null || !current.getBoutique().getId().equals(boutiqueId))) {
+            return ResponseEntity.status(403).build();
+        }
+
+        List<HistoriqueItem> itemsV = new ArrayList<>();
+        DateTimeFormatter displayFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+
+        // Livraisons
+        java.util.List<com.smboutique.api.model.Livraison> livs = livraisonService.findByBoutiqueId(boutiqueId);
+        for (com.smboutique.api.model.Livraison l : livs) {
+            HistoriqueItem it = new HistoriqueItem();
+            it.type = "LIVRAISON";
+            it.id = l.getId();
+            if (l.getDateLivraison() != null) {
+                java.time.ZonedDateTime z = l.getDateLivraison().atZone(java.time.ZoneId.systemDefault());
+                it.date = z.format(displayFormatter);
+                it.dateIso = z.format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+            }
+            it.reference = l.getReference();
+            if (l.getCommandeClient() != null) {
+                it.referenceCommandeId = l.getCommandeClient().getId();
+                it.referenceCommande = l.getCommandeClient().getReference();
+                if (l.getCommandeClient().getClient() != null)
+                    it.fournisseur = l.getCommandeClient().getClient().getNom() + " " + l.getCommandeClient().getClient().getPrenom();
+            }
+            itemsV.add(it);
+        }
+
+        // Paiements clients
+        java.util.List<com.smboutique.api.model.PaiementClient> paies = paiementClientService.findByBoutiqueId(boutiqueId);
+        for (com.smboutique.api.model.PaiementClient p : paies) {
+            HistoriqueItem it = new HistoriqueItem();
+            it.type = "PAIEMENT";
+            it.id = p.getId();
+            if (p.getDatePaie() != null) {
+                java.time.ZonedDateTime z = p.getDatePaie().atZone(java.time.ZoneId.systemDefault());
+                it.date = z.format(displayFormatter);
+                it.dateIso = z.format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+            }
+            it.reference = p.getReference();
+            it.montant = p.getMontantPaye() != null ? p.getMontantPaye().doubleValue() : null;
+            if (p.getCommandeClient() != null) {
+                it.referenceCommandeId = p.getCommandeClient().getId();
+                it.referenceCommande = p.getCommandeClient().getReference();
+                if (p.getCommandeClient().getClient() != null)
+                    it.fournisseur = p.getCommandeClient().getClient().getNom() + " " + p.getCommandeClient().getClient().getPrenom();
+            }
+            itemsV.add(it);
+        }
+
+        List<HistoriqueItem> sortedV = itemsV.stream()
+                .sorted(Comparator.comparing((HistoriqueItem i) -> {
+                    if (i.dateIso == null) return java.time.Instant.MIN;
+                    try {
+                        return java.time.OffsetDateTime.parse(i.dateIso).toInstant();
+                    } catch (Exception e) {
+                        try {
+                            return java.time.LocalDateTime.parse(i.dateIso).atZone(java.time.ZoneId.systemDefault()).toInstant();
+                        } catch (Exception ex) {
+                            return java.time.Instant.MIN;
+                        }
+                    }
+                }).reversed())
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(sortedV);
+    }
+
+    @GetMapping("/ventes/annulations/boutique/{boutiqueId}")
+    public ResponseEntity<List<HistoriqueItem>> getVentesAnnulationsByBoutique(@PathVariable Long boutiqueId) {
+        Utilisateur current = getCurrentUser();
+        if (!isSuperAdmin(current) && (current.getBoutique() == null || !current.getBoutique().getId().equals(boutiqueId))) {
+            return ResponseEntity.status(403).build();
+        }
+
+        // Currently no explicit annulation metadata on Livraison or PaiementClient. Return empty list to follow same contract.
+        List<HistoriqueItem> empty = new ArrayList<>();
+        return ResponseEntity.ok(empty);
     }
 
     private boolean isSuperAdmin(Utilisateur user) {

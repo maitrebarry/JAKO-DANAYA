@@ -9,4 +9,7 @@ public interface PaiementClientService {
     Optional<PaiementClient> findById(Long id);
     PaiementClient save(PaiementClient paiementClient);
     void deleteById(Long id);
+
+    // list payments for ventes (by boutique id)
+    List<PaiementClient> findByBoutiqueId(Long boutiqueId);
 }

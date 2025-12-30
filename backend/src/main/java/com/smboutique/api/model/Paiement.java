@@ -22,6 +22,9 @@ public class Paiement {
     @Column(name = "paie_referrence")
     private String reference;
 
+    @Column(name = "reference_caisse")
+    private String referenceCaisse;
+
     @ManyToOne
     @JoinColumn(name = "id_commande_fournisseur")
     private CommandeFournisseur commandeFournisseur;

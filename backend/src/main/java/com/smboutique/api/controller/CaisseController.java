@@ -15,6 +15,9 @@ public class CaisseController {
     @Autowired
     private CaisseService caisseService;
 
+    @Autowired
+    private com.smboutique.api.repository.CaisseRepository caisseRepository;
+
     @GetMapping
     public List<Caisse> getAllCaisses() {
         return caisseService.findAll();
@@ -28,8 +31,26 @@ public class CaisseController {
     }
 
     @PostMapping
-    public Caisse createCaisse(@RequestBody Caisse caisse) {
-        return caisseService.save(caisse);
+    public ResponseEntity<Caisse> createCaisse(@RequestBody Caisse caisse) {
+        try {
+            if (caisse.getBoutique() == null || caisse.getBoutique().getId() == null) return ResponseEntity.badRequest().build();
+            Long bid = caisse.getBoutique().getId();
+            Integer max = caisseRepository.findMaxNumeroByBoutiqueId(bid);
+            int next = (max == null) ? 1 : (max + 1);
+            caisse.setNumero(next);
+
+            // If reference not provided, generate server-side using numero
+            java.time.LocalDate dt = caisse.getDateCaisse() != null ? caisse.getDateCaisse() : java.time.LocalDate.now();
+            String month = String.format("%02d", dt.getMonthValue());
+            String year = String.valueOf(dt.getYear());
+            String ref = String.format("CAISSE-%s-%s-N°%d", month, year, next);
+            caisse.setReference(ref);
+
+            Caisse saved = caisseService.save(caisse);
+            return ResponseEntity.ok(saved);
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).build();
+        }
     }
 
     @PutMapping("/{id}")

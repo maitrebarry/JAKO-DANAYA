@@ -1406,3 +1406,1737 @@ Hibernate:
 2025-12-28T23:27:54.969+01:00 DEBUG 264284 --- [smboutique-backend] [nio-8085-exec-7] o.s.orm.jpa.JpaTransactionManager        : Committing JPA transaction on EntityManager [SessionImpl(634647132<open>)]
 2025-12-28T23:27:54.975+01:00 DEBUG 264284 --- [smboutique-backend] [nio-8085-exec-7] o.s.orm.jpa.JpaTransactionManager        : Not closing pre-bound JPA EntityManager after transaction
 2025-12-28T23:27:54.999+01:00 DEBUG 264284 --- [smboutique-backend] [nio-8085-exec-7] o.j.s.OpenEntityManagerInViewInterceptor : Closing JPA EntityManager in OpenEntityManagerInViewInterceptor
+2025-12-28T23:29:24.321+01:00 DEBUG 264284 --- [smboutique-backend] [nio-8085-exec-9] o.s.security.web.FilterChainProxy        : Securing OPTIONS /api/utilisateurs
+2025-12-28T23:29:24.321+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-10] o.s.security.web.FilterChainProxy        : Securing OPTIONS /api/admin/permissions
+2025-12-28T23:29:24.328+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-11] o.s.security.web.FilterChainProxy        : Securing OPTIONS /api/utilisateurs
+2025-12-28T23:29:24.330+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-12] o.s.security.web.FilterChainProxy        : Securing OPTIONS /api/admin/permissions
+2025-12-28T23:29:24.381+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] o.s.security.web.FilterChainProxy        : Securing GET /api/utilisateurs
+2025-12-28T23:29:24.381+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] o.s.security.web.FilterChainProxy        : Securing GET /api/utilisateurs
+2025-12-28T23:29:24.383+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] o.s.security.web.FilterChainProxy        : Securing GET /api/admin/permissions
+2025-12-28T23:29:24.384+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] o.s.security.web.FilterChainProxy        : Securing GET /api/admin/permissions
+2025-12-28T23:29:24.390+01:00  INFO 264284 --- [smboutique-backend] [io-8085-exec-14] c.s.api.security.AuthTokenFilter         : Incoming request: GET /api/utilisateurs - Authorization present? true - startsWithBearer? true
+2025-12-28T23:29:24.390+01:00  INFO 264284 --- [smboutique-backend] [io-8085-exec-13] c.s.api.security.AuthTokenFilter         : Incoming request: GET /api/utilisateurs - Authorization present? true - startsWithBearer? true
+2025-12-28T23:29:24.390+01:00  INFO 264284 --- [smboutique-backend] [io-8085-exec-15] c.s.api.security.AuthTokenFilter         : Incoming request: GET /api/admin/permissions - Authorization present? true - startsWithBearer? true
+2025-12-28T23:29:24.390+01:00  INFO 264284 --- [smboutique-backend] [io-8085-exec-16] c.s.api.security.AuthTokenFilter         : Incoming request: GET /api/admin/permissions - Authorization present? true - startsWithBearer? true
+2025-12-28T23:29:24.405+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-28T23:29:24.407+01:00  WARN 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-28T23:29:24.409+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-28T23:29:24.410+01:00  WARN 264284 --- [smboutique-backend] [io-8085-exec-15] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-28T23:29:24.411+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.SQL                        : 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+Hibernate: 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2025-12-28T23:29:24.412+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-28T23:29:24.414+01:00  WARN 264284 --- [smboutique-backend] [io-8085-exec-16] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-28T23:29:24.415+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-28T23:29:24.416+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] org.hibernate.SQL                        : 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+Hibernate: 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2025-12-28T23:29:24.417+01:00  WARN 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-28T23:29:24.418+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] org.hibernate.SQL                        : 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+Hibernate: 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2025-12-28T23:29:24.421+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.SQL                        : 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+Hibernate: 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2025-12-28T23:29:24.424+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] org.hibernate.SQL                        : 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+Hibernate: 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-28T23:29:24.425+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.SQL                        : 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+Hibernate: 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-28T23:29:24.427+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] org.hibernate.SQL                        : 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+Hibernate: 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-28T23:29:24.434+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.SQL                        : 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+Hibernate: 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-28T23:29:24.445+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] org.hibernate.SQL                        : 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+Hibernate: 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-28T23:29:24.446+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.SQL                        : 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+Hibernate: 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-28T23:29:24.446+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] org.hibernate.SQL                        : 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+Hibernate: 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-28T23:29:24.452+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] o.s.security.web.FilterChainProxy        : Secured GET /api/admin/permissions
+2025-12-28T23:29:24.453+01:00  INFO 264284 --- [smboutique-backend] [io-8085-exec-15] c.s.api.security.AuthTokenFilter         : Incoming request: GET /api/admin/permissions - Authorization present? true - startsWithBearer? true
+2025-12-28T23:29:24.452+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] o.s.security.web.FilterChainProxy        : Secured GET /api/utilisateurs
+2025-12-28T23:29:24.454+01:00  INFO 264284 --- [smboutique-backend] [io-8085-exec-13] c.s.api.security.AuthTokenFilter         : Incoming request: GET /api/utilisateurs - Authorization present? true - startsWithBearer? true
+2025-12-28T23:29:24.452+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.SQL                        : 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+Hibernate: 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-28T23:29:24.461+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] o.s.security.web.FilterChainProxy        : Secured GET /api/admin/permissions
+2025-12-28T23:29:24.462+01:00  INFO 264284 --- [smboutique-backend] [io-8085-exec-16] c.s.api.security.AuthTokenFilter         : Incoming request: GET /api/admin/permissions - Authorization present? true - startsWithBearer? true
+2025-12-28T23:29:24.465+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] o.s.security.web.FilterChainProxy        : Secured GET /api/utilisateurs
+2025-12-28T23:29:24.465+01:00  INFO 264284 --- [smboutique-backend] [io-8085-exec-14] c.s.api.security.AuthTokenFilter         : Incoming request: GET /api/utilisateurs - Authorization present? true - startsWithBearer? true
+2025-12-28T23:29:24.469+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-28T23:29:24.470+01:00  WARN 264284 --- [smboutique-backend] [io-8085-exec-15] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-28T23:29:24.471+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-28T23:29:24.472+01:00  WARN 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-28T23:29:24.474+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] org.hibernate.SQL                        : 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+Hibernate: 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2025-12-28T23:29:24.478+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.SQL                        : 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+Hibernate: 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2025-12-28T23:29:24.482+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] org.hibernate.SQL                        : 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+Hibernate: 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-28T23:29:24.485+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.SQL                        : 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+Hibernate: 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-28T23:29:24.493+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-28T23:29:24.497+01:00  WARN 264284 --- [smboutique-backend] [io-8085-exec-16] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-28T23:29:24.499+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-28T23:29:24.500+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] org.hibernate.SQL                        : 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+Hibernate: 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-28T23:29:24.501+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.SQL                        : 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+Hibernate: 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-28T23:29:24.506+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] o.j.s.OpenEntityManagerInViewInterceptor : Opening JPA EntityManager in OpenEntityManagerInViewInterceptor
+2025-12-28T23:29:24.507+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] o.j.s.OpenEntityManagerInViewInterceptor : Opening JPA EntityManager in OpenEntityManagerInViewInterceptor
+2025-12-28T23:29:24.507+01:00  WARN 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-28T23:29:24.508+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] horizationManagerBeforeMethodInterceptor : Authorizing method invocation ReflectiveMethodInvocation: public java.util.List com.smboutique.api.controller.AdminPermissionController.listUsers(); target is of class [com.smboutique.api.controller.AdminPermissionController]
+2025-12-28T23:29:24.508+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] horizationManagerBeforeMethodInterceptor : Authorizing method invocation ReflectiveMethodInvocation: public java.util.List com.smboutique.api.controller.AdminPermissionController.listPermissions(); target is of class [com.smboutique.api.controller.AdminPermissionController]
+2025-12-28T23:29:24.509+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] horizationManagerBeforeMethodInterceptor : Authorized method invocation ReflectiveMethodInvocation: public java.util.List com.smboutique.api.controller.AdminPermissionController.listPermissions(); target is of class [com.smboutique.api.controller.AdminPermissionController]
+2025-12-28T23:29:24.510+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] o.s.orm.jpa.JpaTransactionManager        : Found thread-bound EntityManager [SessionImpl(918759776<open>)] for JPA transaction
+2025-12-28T23:29:24.510+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] o.s.orm.jpa.JpaTransactionManager        : Creating new transaction with name [org.springframework.data.jpa.repository.support.SimpleJpaRepository.findAll]: PROPAGATION_REQUIRED,ISOLATION_DEFAULT,readOnly
+2025-12-28T23:29:24.510+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] horizationManagerBeforeMethodInterceptor : Authorized method invocation ReflectiveMethodInvocation: public java.util.List com.smboutique.api.controller.AdminPermissionController.listUsers(); target is of class [com.smboutique.api.controller.AdminPermissionController]
+2025-12-28T23:29:24.512+01:00  WARN 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-28T23:29:24.512+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] o.s.orm.jpa.JpaTransactionManager        : Exposing JPA transaction as JDBC [org.springframework.orm.jpa.vendor.HibernateJpaDialect$HibernateConnectionHandle@4575e2c3]
+2025-12-28T23:29:24.514+01:00  WARN 264284 --- [smboutique-backend] [io-8085-exec-15] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-28T23:29:24.516+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.SQL                        : 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2025-12-28T23:29:24.516+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] org.hibernate.SQL                        : 
+    select
+        p1_0.id_permission,
+        p1_0.description,
+        p1_0.name 
+    from
+        permission p1_0
+Hibernate: 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+Hibernate: 
+    select
+        p1_0.id_permission,
+        p1_0.description,
+        p1_0.name 
+    from
+        permission p1_0
+2025-12-28T23:29:24.518+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.SQL                        : 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+Hibernate: 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2025-12-28T23:29:24.518+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] org.hibernate.SQL                        : 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+Hibernate: 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2025-12-28T23:29:24.524+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.SQL                        : 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+Hibernate: 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-28T23:29:24.531+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.SQL                        : 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+Hibernate: 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-28T23:29:24.533+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] org.hibernate.SQL                        : 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+Hibernate: 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-28T23:29:24.535+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] o.s.orm.jpa.JpaTransactionManager        : Initiating transaction commit
+2025-12-28T23:29:24.535+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] o.s.orm.jpa.JpaTransactionManager        : Committing JPA transaction on EntityManager [SessionImpl(918759776<open>)]
+2025-12-28T23:29:24.541+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.SQL                        : 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+Hibernate: 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-28T23:29:24.542+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.SQL                        : 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-28T23:29:24.542+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] org.hibernate.SQL                        : 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+Hibernate: 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+Hibernate: 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-28T23:29:24.543+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] o.s.orm.jpa.JpaTransactionManager        : Not closing pre-bound JPA EntityManager after transaction
+2025-12-28T23:29:24.545+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] o.j.s.OpenEntityManagerInViewInterceptor : Opening JPA EntityManager in OpenEntityManagerInViewInterceptor
+2025-12-28T23:29:24.545+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] o.j.s.OpenEntityManagerInViewInterceptor : Opening JPA EntityManager in OpenEntityManagerInViewInterceptor
+2025-12-28T23:29:24.546+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] horizationManagerBeforeMethodInterceptor : Authorizing method invocation ReflectiveMethodInvocation: public java.util.List com.smboutique.api.controller.AdminPermissionController.listUsers(); target is of class [com.smboutique.api.controller.AdminPermissionController]
+2025-12-28T23:29:24.546+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] horizationManagerBeforeMethodInterceptor : Authorizing method invocation ReflectiveMethodInvocation: public java.util.List com.smboutique.api.controller.AdminPermissionController.listPermissions(); target is of class [com.smboutique.api.controller.AdminPermissionController]
+2025-12-28T23:29:24.546+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] horizationManagerBeforeMethodInterceptor : Authorized method invocation ReflectiveMethodInvocation: public java.util.List com.smboutique.api.controller.AdminPermissionController.listUsers(); target is of class [com.smboutique.api.controller.AdminPermissionController]
+2025-12-28T23:29:24.546+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] horizationManagerBeforeMethodInterceptor : Authorized method invocation ReflectiveMethodInvocation: public java.util.List com.smboutique.api.controller.AdminPermissionController.listPermissions(); target is of class [com.smboutique.api.controller.AdminPermissionController]
+2025-12-28T23:29:24.546+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] o.s.orm.jpa.JpaTransactionManager        : Found thread-bound EntityManager [SessionImpl(179230363<open>)] for JPA transaction
+2025-12-28T23:29:24.546+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] o.s.orm.jpa.JpaTransactionManager        : Creating new transaction with name [org.springframework.data.jpa.repository.support.SimpleJpaRepository.findAll]: PROPAGATION_REQUIRED,ISOLATION_DEFAULT,readOnly
+2025-12-28T23:29:24.547+01:00  WARN 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-28T23:29:24.546+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] o.s.orm.jpa.JpaTransactionManager        : Found thread-bound EntityManager [SessionImpl(58074647<open>)] for JPA transaction
+2025-12-28T23:29:24.547+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] o.s.orm.jpa.JpaTransactionManager        : Creating new transaction with name [org.springframework.data.jpa.repository.support.SimpleJpaRepository.findAll]: PROPAGATION_REQUIRED,ISOLATION_DEFAULT,readOnly
+2025-12-28T23:29:24.547+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-15] o.j.s.OpenEntityManagerInViewInterceptor : Closing JPA EntityManager in OpenEntityManagerInViewInterceptor
+2025-12-28T23:29:24.548+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] o.s.orm.jpa.JpaTransactionManager        : Exposing JPA transaction as JDBC [org.springframework.orm.jpa.vendor.HibernateJpaDialect$HibernateConnectionHandle@27c87c6]
+2025-12-28T23:29:24.548+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] o.s.orm.jpa.JpaTransactionManager        : Exposing JPA transaction as JDBC [org.springframework.orm.jpa.vendor.HibernateJpaDialect$HibernateConnectionHandle@5b64e938]
+2025-12-28T23:29:24.549+01:00  WARN 264284 --- [smboutique-backend] [io-8085-exec-16] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-28T23:29:24.549+01:00  WARN 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-28T23:29:24.550+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] org.hibernate.SQL                        : 
+    select
+        p1_0.id_permission,
+        p1_0.description,
+        p1_0.name 
+    from
+        permission p1_0
+Hibernate: 
+    select
+        p1_0.id_permission,
+        p1_0.description,
+        p1_0.name 
+    from
+        permission p1_0
+2025-12-28T23:29:24.551+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.SQL                        : 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0
+Hibernate: 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0
+2025-12-28T23:29:24.554+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.SQL                        : 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+Hibernate: 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2025-12-28T23:29:24.555+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.SQL                        : 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+Hibernate: 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-28T23:29:24.557+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] o.s.orm.jpa.JpaTransactionManager        : Initiating transaction commit
+2025-12-28T23:29:24.557+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] o.s.orm.jpa.JpaTransactionManager        : Committing JPA transaction on EntityManager [SessionImpl(179230363<open>)]
+2025-12-28T23:29:24.560+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.SQL                        : 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+Hibernate: 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-28T23:29:24.560+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.SQL                        : 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-28T23:29:24.561+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] o.s.orm.jpa.JpaTransactionManager        : Not closing pre-bound JPA EntityManager after transaction
+Hibernate: 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-28T23:29:24.564+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-16] o.j.s.OpenEntityManagerInViewInterceptor : Closing JPA EntityManager in OpenEntityManagerInViewInterceptor
+2025-12-28T23:29:24.568+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.SQL                        : 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+Hibernate: 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-28T23:29:24.573+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.SQL                        : 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+Hibernate: 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-28T23:29:24.575+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.SQL                        : 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+Hibernate: 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-28T23:29:24.576+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] o.s.orm.jpa.JpaTransactionManager        : Initiating transaction commit
+2025-12-28T23:29:24.576+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] o.s.orm.jpa.JpaTransactionManager        : Committing JPA transaction on EntityManager [SessionImpl(58074647<open>)]
+2025-12-28T23:29:24.577+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] o.s.orm.jpa.JpaTransactionManager        : Found thread-bound EntityManager [SessionImpl(895281841<open>)] for JPA transaction
+2025-12-28T23:29:24.577+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] o.s.orm.jpa.JpaTransactionManager        : Creating new transaction with name [org.springframework.data.jpa.repository.support.SimpleJpaRepository.findAll]: PROPAGATION_REQUIRED,ISOLATION_DEFAULT,readOnly
+2025-12-28T23:29:24.578+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] o.s.orm.jpa.JpaTransactionManager        : Exposing JPA transaction as JDBC [org.springframework.orm.jpa.vendor.HibernateJpaDialect$HibernateConnectionHandle@b64b979]
+2025-12-28T23:29:24.578+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] o.s.orm.jpa.JpaTransactionManager        : Not closing pre-bound JPA EntityManager after transaction
+2025-12-28T23:29:24.578+01:00  WARN 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-28T23:29:24.581+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.SQL                        : 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0
+Hibernate: 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0
+2025-12-28T23:29:24.586+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.SQL                        : 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+Hibernate: 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-28T23:29:24.589+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.SQL                        : 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+Hibernate: 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-28T23:29:24.591+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.SQL                        : 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+Hibernate: 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2025-12-28T23:29:24.595+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.SQL                        : 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+Hibernate: 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2025-12-28T23:29:24.596+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.SQL                        : 
+    select
+        b1_0.id_boutique,
+        b1_0.adresse,
+        b1_0.logo,
+        b1_0.nom,
+        b1_0.quartier,
+        b1_0.telephone 
+    from
+        boutique b1_0 
+    where
+        b1_0.id_boutique=?
+Hibernate: 
+    select
+        b1_0.id_boutique,
+        b1_0.adresse,
+        b1_0.logo,
+        b1_0.nom,
+        b1_0.quartier,
+        b1_0.telephone 
+    from
+        boutique b1_0 
+    where
+        b1_0.id_boutique=?
+2025-12-28T23:29:24.597+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] o.s.orm.jpa.JpaTransactionManager        : Initiating transaction commit
+2025-12-28T23:29:24.597+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] o.s.orm.jpa.JpaTransactionManager        : Committing JPA transaction on EntityManager [SessionImpl(895281841<open>)]
+2025-12-28T23:29:24.598+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] o.s.orm.jpa.JpaTransactionManager        : Not closing pre-bound JPA EntityManager after transaction
+2025-12-28T23:29:24.600+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.SQL                        : 
+    select
+        b1_0.id_boutique,
+        b1_0.adresse,
+        b1_0.logo,
+        b1_0.nom,
+        b1_0.quartier,
+        b1_0.telephone 
+    from
+        boutique b1_0 
+    where
+        b1_0.id_boutique=?
+Hibernate: 
+    select
+        b1_0.id_boutique,
+        b1_0.adresse,
+        b1_0.logo,
+        b1_0.nom,
+        b1_0.quartier,
+        b1_0.telephone 
+    from
+        boutique b1_0 
+    where
+        b1_0.id_boutique=?
+2025-12-28T23:29:24.608+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.SQL                        : 
+    select
+        b1_0.id_boutique,
+        b1_0.adresse,
+        b1_0.logo,
+        b1_0.nom,
+        b1_0.quartier,
+        b1_0.telephone 
+    from
+        boutique b1_0 
+    where
+        b1_0.id_boutique=?
+2025-12-28T23:29:24.608+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.SQL                        : 
+    select
+        b1_0.id_boutique,
+        b1_0.adresse,
+        b1_0.logo,
+        b1_0.nom,
+        b1_0.quartier,
+        b1_0.telephone 
+    from
+        boutique b1_0 
+    where
+        b1_0.id_boutique=?
+Hibernate: 
+    select
+        b1_0.id_boutique,
+        b1_0.adresse,
+        b1_0.logo,
+        b1_0.nom,
+        b1_0.quartier,
+        b1_0.telephone 
+    from
+        boutique b1_0 
+    where
+        b1_0.id_boutique=?
+Hibernate: 
+    select
+        b1_0.id_boutique,
+        b1_0.adresse,
+        b1_0.logo,
+        b1_0.nom,
+        b1_0.quartier,
+        b1_0.telephone 
+    from
+        boutique b1_0 
+    where
+        b1_0.id_boutique=?
+2025-12-28T23:29:24.612+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] org.hibernate.SQL                        : 
+    select
+        b1_0.id_boutique,
+        b1_0.adresse,
+        b1_0.logo,
+        b1_0.nom,
+        b1_0.quartier,
+        b1_0.telephone 
+    from
+        boutique b1_0 
+    where
+        b1_0.id_boutique=?
+Hibernate: 
+    select
+        b1_0.id_boutique,
+        b1_0.adresse,
+        b1_0.logo,
+        b1_0.nom,
+        b1_0.quartier,
+        b1_0.telephone 
+    from
+        boutique b1_0 
+    where
+        b1_0.id_boutique=?
+2025-12-28T23:29:24.612+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] org.hibernate.SQL                        : 
+    select
+        b1_0.id_boutique,
+        b1_0.adresse,
+        b1_0.logo,
+        b1_0.nom,
+        b1_0.quartier,
+        b1_0.telephone 
+    from
+        boutique b1_0 
+    where
+        b1_0.id_boutique=?
+Hibernate: 
+    select
+        b1_0.id_boutique,
+        b1_0.adresse,
+        b1_0.logo,
+        b1_0.nom,
+        b1_0.quartier,
+        b1_0.telephone 
+    from
+        boutique b1_0 
+    where
+        b1_0.id_boutique=?
+2025-12-28T23:29:24.616+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-13] o.j.s.OpenEntityManagerInViewInterceptor : Closing JPA EntityManager in OpenEntityManagerInViewInterceptor
+2025-12-28T23:29:24.616+01:00 DEBUG 264284 --- [smboutique-backend] [io-8085-exec-14] o.j.s.OpenEntityManagerInViewInterceptor : Closing JPA EntityManager in OpenEntityManagerInViewInterceptor

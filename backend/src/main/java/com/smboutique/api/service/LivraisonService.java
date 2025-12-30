@@ -9,4 +9,7 @@ public interface LivraisonService {
     Optional<Livraison> findById(Long id);
     Livraison save(Livraison livraison);
     void deleteById(Long id);
+
+    // list livraisons for ventes by boutique id
+    List<Livraison> findByBoutiqueId(Long boutiqueId);
 }

@@ -31,6 +31,15 @@ public class PdfServiceImpl implements PdfService {
     @Autowired
     private com.smboutique.api.service.LigneReceptionService ligneReceptionService;
 
+    @Autowired
+    private com.smboutique.api.service.PaiementClientService paiementClientService;
+
+    @Autowired
+    private com.smboutique.api.service.LivraisonService livraisonService;
+
+    @Autowired
+    private com.smboutique.api.service.LigneLivraisonService ligneLivraisonService;
+
     @Override
     public void writeCommandePdf(Long commandeId, HttpServletResponse response) throws IOException {
         CommandeFournisseur commande = commandeFournisseurService.findById(commandeId).orElse(null);
@@ -446,6 +455,164 @@ public class PdfServiceImpl implements PdfService {
             }
 
             String html = templateEngine.process("paiement_pdf", ctx);
+            try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
+                PdfRendererBuilder builder = new PdfRendererBuilder();
+                builder.useFastMode();
+                builder.withHtmlContent(html, null);
+                builder.toStream(baos);
+                builder.run();
+                byte[] pdfBytes = baos.toByteArray();
+                response.getOutputStream().write(pdfBytes);
+            }
+        } catch (Exception e) {
+            throw new IOException(e.getMessage());
+        }
+    }
+
+    @Override
+    public void writePaiementClientPdf(Long paiementId, HttpServletResponse response) throws IOException {
+        com.smboutique.api.model.PaiementClient paiement = null;
+        try {
+            paiement = paiementClientService.findById(paiementId).orElse(null);
+        } catch (Exception e) {
+            // ignore
+        }
+        if (paiement == null) {
+            response.sendError(404, "Paiement client not found");
+            return;
+        }
+
+        response.setContentType("application/pdf");
+        response.setHeader("Content-Disposition", "attachment; filename=paiement_client_" + paiementId + ".pdf");
+
+        try {
+            ClassLoaderTemplateResolver templateResolver = new ClassLoaderTemplateResolver();
+            templateResolver.setPrefix("/templates/");
+            templateResolver.setSuffix(".html");
+            templateResolver.setTemplateMode("HTML");
+            templateResolver.setCharacterEncoding("UTF-8");
+            TemplateEngine templateEngine = new TemplateEngine();
+            templateEngine.setTemplateResolver(templateResolver);
+
+            Context ctx = new Context();
+            ctx.setVariable("paiement", paiement);
+
+            String logoData = null;
+            try {
+                if (paiement.getCommandeClient() != null && paiement.getCommandeClient().getBoutique() != null && paiement.getCommandeClient().getBoutique().getLogo() != null) {
+                    String logoPath = paiement.getCommandeClient().getBoutique().getLogo().startsWith("/") ? paiement.getCommandeClient().getBoutique().getLogo().substring(1) : paiement.getCommandeClient().getBoutique().getLogo();
+                    java.io.File f = new java.io.File(logoPath);
+                    if (f.exists()) {
+                        byte[] b = java.nio.file.Files.readAllBytes(f.toPath());
+                        String base64 = java.util.Base64.getEncoder().encodeToString(b);
+                        logoData = "data:image/png;base64," + base64;
+                    }
+                }
+            } catch (Exception ex) {
+                // ignore
+            }
+            ctx.setVariable("logoBase64", logoData);
+
+            try {
+                if (paiement.getDatePaie() != null) {
+                    java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+                    String formattedDate = paiement.getDatePaie().format(dtf);
+                    ctx.setVariable("datePaiementFormatted", formattedDate);
+                } else {
+                    ctx.setVariable("datePaiementFormatted", "");
+                }
+            } catch (Exception e) {
+                ctx.setVariable("datePaiementFormatted", "");
+            }
+
+            // Totals and cumulative payments for the commande client
+            try {
+                Integer montantTotal = 0;
+                Integer montantPayeCommande = 0;
+                Integer montantPayeThis = paiement.getMontantPaye() != null ? paiement.getMontantPaye() : 0;
+                if (paiement.getCommandeClient() != null) {
+                    if (paiement.getCommandeClient().getTotal() != null) {
+                        montantTotal = paiement.getCommandeClient().getTotal();
+                    }
+                    try {
+                        java.util.List<com.smboutique.api.model.PaiementClient> paies = paiementClientService.findByBoutiqueId(paiement.getCommandeClient().getBoutique() != null ? paiement.getCommandeClient().getBoutique().getId() : null);
+                        if (paies != null) {
+                            paies.sort(java.util.Comparator.comparing(com.smboutique.api.model.PaiementClient::getDatePaie, java.util.Comparator.nullsFirst(java.util.Comparator.naturalOrder())).thenComparing(com.smboutique.api.model.PaiementClient::getId, java.util.Comparator.nullsFirst(java.util.Comparator.naturalOrder())));
+                            int cum = 0;
+                            for (com.smboutique.api.model.PaiementClient p : paies) {
+                                cum += p.getMontantPaye() != null ? p.getMontantPaye() : 0;
+                                if (p.getId() != null && p.getId().equals(paiement.getId())) break;
+                            }
+                            montantPayeCommande = cum;
+                        }
+                    } catch (Exception ex) {
+                        if (paiement.getCommandeClient().getPaie() != null) montantPayeCommande = paiement.getCommandeClient().getPaie();
+                    }
+                }
+                Integer montantRestant = Math.max(montantTotal - montantPayeCommande, 0);
+                ctx.setVariable("montantTotal", montantTotal);
+                ctx.setVariable("montantPayeCommande", montantPayeCommande);
+                ctx.setVariable("montantPayeThis", montantPayeThis);
+                ctx.setVariable("montantRestant", montantRestant);
+            } catch (Exception ex) {}
+
+            String html = templateEngine.process("paiement_pdf", ctx);
+            try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
+                PdfRendererBuilder builder = new PdfRendererBuilder();
+                builder.useFastMode();
+                builder.withHtmlContent(html, null);
+                builder.toStream(baos);
+                builder.run();
+                byte[] pdfBytes = baos.toByteArray();
+                response.getOutputStream().write(pdfBytes);
+            }
+        } catch (Exception e) {
+            throw new IOException(e.getMessage());
+        }
+    }
+
+    @Override
+    public void writeLivraisonPdf(Long livraisonId, HttpServletResponse response) throws IOException {
+        com.smboutique.api.model.Livraison livraison = null;
+        try {
+            livraison = livraisonService.findById(livraisonId).orElse(null);
+        } catch (Exception e) {
+            // ignore
+        }
+        if (livraison == null) {
+            response.sendError(404, "Livraison not found");
+            return;
+        }
+
+        response.setContentType("application/pdf");
+        response.setHeader("Content-Disposition", "attachment; filename=livraison_" + livraisonId + ".pdf");
+
+        try {
+            ClassLoaderTemplateResolver templateResolver = new ClassLoaderTemplateResolver();
+            templateResolver.setPrefix("/templates/");
+            templateResolver.setSuffix(".html");
+            templateResolver.setTemplateMode("HTML");
+            templateResolver.setCharacterEncoding("UTF-8");
+            TemplateEngine templateEngine = new TemplateEngine();
+            templateEngine.setTemplateResolver(templateResolver);
+
+            Context ctx = new Context();
+            ctx.setVariable("livraison", livraison);
+
+            // Fetch lines for this livraison
+            java.util.List<com.smboutique.api.model.LigneLivraison> lignes = ligneLivraisonService.findByLivraisonId(livraison.getId());
+            java.util.List<java.util.Map<String, Object>> lignesView = new java.util.ArrayList<>();
+            if (lignes != null) {
+                for (com.smboutique.api.model.LigneLivraison ll : lignes) {
+                    java.util.Map<String, Object> m = new java.util.HashMap<>();
+                    m.put("designation", ll.getProduit() != null ? ll.getProduit().getNomProduit() : "Produit");
+                    m.put("quantite", ll.getQuantiteRecu() != null ? ll.getQuantiteRecu() : 0);
+                    lignesView.add(m);
+                }
+            }
+            ctx.setVariable("lignesView", lignesView);
+
+            String html = templateEngine.process("livraison_pdf", ctx);
             try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
                 PdfRendererBuilder builder = new PdfRendererBuilder();
                 builder.useFastMode();

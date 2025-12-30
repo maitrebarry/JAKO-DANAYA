@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useUser } from '../contexts/UserContext';
 import SearchableSelect from './SearchableSelect';
@@ -40,13 +40,17 @@ const PaiementCommande: React.FC = () => {
   // Store payment date as ISO string to avoid parsing localized strings later
   const [datePaiement] = useState(new Date().toISOString());
 
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const isVenteMode = searchParams.get('mode') === 'vente';
+
   useEffect(() => {
     if (currentBoutique) {
       fetchCommandes();
       if (id) handleCommandeChange(id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentBoutique, id]);
+  }, [currentBoutique, id, isVenteMode]);
 
   // Listen for global paiement cancellation events to refresh data
   useEffect(() => {
@@ -74,10 +78,10 @@ const PaiementCommande: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('smb_token');
-      // Use the new endpoint that returns only commandes with remaining amount
+      // Use the new endpoint that returns only commandes with remaining amount (fournisseurs) or fetch clients list
       const url = currentBoutique
-        ? `http://localhost:8085/api/commandes-fournisseurs/boutique/${currentBoutique.id}/a-payer`
-        : `http://localhost:8085/api/commandes-fournisseurs`; 
+        ? (isVenteMode ? `http://localhost:8085/api/commandes-clients` : `http://localhost:8085/api/commandes-fournisseurs/boutique/${currentBoutique.id}/a-payer`)
+        : (isVenteMode ? `http://localhost:8085/api/commandes-clients` : `http://localhost:8085/api/commandes-fournisseurs`);
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error('Erreur lors du chargement des commandes');
         const data = await res.json();
@@ -85,8 +89,8 @@ const PaiementCommande: React.FC = () => {
         const transformed = data.map((cmd: any) => ({
           id: cmd.id,
           reference: cmd.reference,
-          dateCommande: cmd.dateCommande,
-          fournisseur: cmd.fournisseur || null,
+          dateCommande: cmd.dateCommande || cmd.dateVente,
+          fournisseur: isVenteMode ? (cmd.client || null) : (cmd.fournisseur || null),
           total: cmd.total || 0,
           // backend may return montantPaye (DTO) or paie (entity)
           paie: cmd.montantPaye != null ? cmd.montantPaye : (cmd.paie != null ? cmd.paie : 0),
@@ -112,32 +116,38 @@ const PaiementCommande: React.FC = () => {
 
     try {
       const token = localStorage.getItem('smb_token');
+      let endpoint = isVenteMode ? `http://localhost:8085/api/commandes-clients/${commandeId}` : `http://localhost:8085/api/commandes-fournisseurs/${commandeId}`;
 
-      const commandeRes = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${commandeId}`, {
+      const commandeRes = await fetch(endpoint, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!commandeRes.ok) throw new Error('Erreur lors du chargement de la commande');
-        const cmdRaw = await commandeRes.json();
-        const cmd = {
-          id: cmdRaw.id,
-          reference: cmdRaw.reference,
-          dateCommande: cmdRaw.dateCommande,
-          fournisseur: cmdRaw.fournisseur || null,
-          total: cmdRaw.total || 0,
-          paie: cmdRaw.montantPaye != null ? cmdRaw.montantPaye : (cmdRaw.paie != null ? cmdRaw.paie : 0),
-          lignes: cmdRaw.lignes || []
-        }; 
+      const cmdRaw = await commandeRes.json();
+
+      // Normalize shape for the UI: use the same fields (fournisseur holds client when in vente mode)
+      const cmd = isVenteMode ? {
+        id: cmdRaw.id,
+        reference: cmdRaw.reference,
+        dateCommande: cmdRaw.dateCommande,
+        fournisseur: cmdRaw.client || null, // map client into fournisseur slot for reuse of UI
+        total: cmdRaw.total || 0,
+        paie: cmdRaw.paie != null ? cmdRaw.paie : 0,
+        lignes: cmdRaw.lignes || []
+      } : {
+        id: cmdRaw.id,
+        reference: cmdRaw.reference,
+        dateCommande: cmdRaw.dateCommande,
+        fournisseur: cmdRaw.fournisseur || null,
+        total: cmdRaw.total || 0,
+        paie: cmdRaw.montantPaye != null ? cmdRaw.montantPaye : (cmdRaw.paie != null ? cmdRaw.paie : 0),
+        lignes: cmdRaw.lignes || []
+      };
+
       // Ensure the commande still has remaining amount
       const total = Number(cmd.total || 0);
       const paie = Number(cmd.paie || 0);
       const remaining = Math.max(total - paie, 0);
-    //   if (remaining <= 0) {
-    //     Swal.fire('Info', 'Cette commande est déjà entièrement payée et ne peut pas être sélectionnée pour un paiement.', 'info');
-    //     // Reset selection
-    //     setSelectedCommande(null);
-    //     setMontantAPayerTotal(0);
-    //     return;
-    //   }
+
       setSelectedCommande(cmd);
       // Pre-fill total payment amount with remaining amount of commande
       setMontantAPayerTotal(remaining);
@@ -181,7 +191,8 @@ const PaiementCommande: React.FC = () => {
       });
       if (!confirm.isConfirmed) return;
 
-      const res = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${selectedCommande.id}/paiement`, {
+      const endpoint = isVenteMode ? `http://localhost:8085/api/commandes-clients/${selectedCommande.id}/paiement` : `http://localhost:8085/api/commandes-fournisseurs/${selectedCommande.id}/paiement`;
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -192,9 +203,21 @@ const PaiementCommande: React.FC = () => {
       });
       if (!res.ok) throw new Error('Erreur lors de l\u0027enregistrement du paiement');
       const updated = await res.json();
+      // Check caisse update headers
+      const caisseUpdated = res.headers.get('X-Caisse-Updated') === 'true';
+      const caisseTotal = res.headers.get('X-Caisse-Total');
+
       // Normalize update to local structure (support both DTO and entity shapes)
       const updatedPaie = updated.montantPaye != null ? updated.montantPaye : (updated.paie != null ? updated.paie : 0);
-      const updatedCmd = {
+      const updatedCmd = isVenteMode ? {
+        id: updated.id,
+        reference: updated.reference,
+        dateCommande: updated.dateCommande,
+        fournisseur: updated.client || updated.fournisseur || null, // client maps into fournisseur slot
+        total: updated.total || 0,
+        paie: updated.paie != null ? updated.paie : updatedPaie,
+        lignes: updated.lignes || []
+      } : {
         id: updated.id,
         reference: updated.reference,
         dateCommande: updated.dateCommande,
@@ -203,7 +226,14 @@ const PaiementCommande: React.FC = () => {
         paie: updatedPaie,
         lignes: updated.lignes || []
       };
-      Swal.fire('Succès', 'Paiement enregistré avec succès', 'success');
+
+      // Notify user
+      let successMsg = 'Paiement enregistré avec succès';
+      if (caisseUpdated) {
+        successMsg += `. La caisse a été mise à jour (Montant total: ${caisseTotal} FCFA)`;
+      }
+      Swal.fire('Succès', successMsg, 'success');
+
       setSelectedCommande(updatedCmd);
       // Reset inputs
       setMontantAPayerTotal(0);
@@ -240,7 +270,7 @@ const PaiementCommande: React.FC = () => {
       {/* Breadcrumb */}
       <div className="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
         <div className="breadcrumb-title pe-3">Commande</div>
-        <div className="breadcrumb-subtitle">Commande Fournisseur</div>
+        <div className="breadcrumb-subtitle">{isVenteMode ? 'Commande Client' : 'Commande Fournisseur'}</div>
         <div className="ps-3">
           <nav aria-label="breadcrumb">
             <ol className="breadcrumb mb-0 p-0">
@@ -284,7 +314,7 @@ const PaiementCommande: React.FC = () => {
                       <input type="text" className="form-control" value={selectedCommande ? formatServerDate(selectedCommande.dateCommande) : ''} readOnly />
                     </div>
                     <div className="col-md-2">
-                      <label className="form-label">Fournisseur <span className="text-danger">*</span></label>
+                      <label className="form-label">{isVenteMode ? 'Client' : 'Fournisseur'} <span className="text-danger">*</span></label>
                       <input type="text" className="form-control" value={selectedCommande?.fournisseur ? `${selectedCommande.fournisseur.prenom} ${selectedCommande.fournisseur.nom}` : ''} readOnly />
                     </div>
                     {/* Totals are displayed in the table below */}

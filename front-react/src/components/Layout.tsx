@@ -267,11 +267,7 @@ const Sidebar = () => {
                   <span>Historique Ventes</span>
                 </Link>
               </li>
-              <li>
-                <Link to="/ventes/livraisons" className="side-nav-link" style={{ paddingLeft: '5px' }}>
-                  <span>Livraisons ventes</span>
-                </Link>
-              </li>
+              
             </ul>
           </li>
           )}
@@ -284,9 +280,9 @@ const Sidebar = () => {
             </a>
             <ul id="caisse-nav" className="collapse" data-bs-parent="#sidebar-nav">
               <li>
-                <a href="#" className="side-nav-link" style={{ paddingLeft: '40px' }}>
+                <Link to="/caisses" className="side-nav-link" style={{ paddingLeft: '40px' }}>
                   <span>Régistre de caisse</span>
-                </a>
+                </Link>
               </li>
               <li>
                 <a href="#" className="side-nav-link" style={{ paddingLeft: '40px' }}>

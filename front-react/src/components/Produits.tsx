@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { useUser } from '../contexts/UserContext';
 import '../assets/css/style_produit.css';
 
 const Produits: React.FC = () => {
   const navigate = useNavigate();
+  const { currentBoutique } = useUser();
+  const [margeConfig, setMargeConfig] = useState<any | null>(null);
+
   const [produits, setProduits] = useState<any[]>([]);
   const [unites, setUnites] = useState<any[]>([]);
   const [magasins, setMagasins] = useState<any[]>([]);
@@ -156,6 +160,30 @@ const Produits: React.FC = () => {
       }
     } catch (err: any) {
       setError(err.message || 'Erreur inconnue');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMargeConfig = async () => {
+    if (!currentBoutique?.id) { setMargeConfig(null); return; }
+
+    try {
+      const token = localStorage.getItem('smb_token');
+      const res = await fetch(`http://localhost:8085/api/configuration-marge/boutique/${currentBoutique.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.status === 404) {
+        setMargeConfig(null);
+        return;
+      }
+      if (!res.ok) throw new Error('Erreur lors du chargement de la configuration de marge');
+      const data = await res.json();
+      setMargeConfig(data);
+    } catch (err: any) {
+      console.error('fetchMargeConfig', err);
+      setMargeConfig(null);
+    } finally {
     }
   };
 
@@ -193,6 +221,46 @@ const Produits: React.FC = () => {
     fetchMagasins();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    // load margin config for the current boutique
+    fetchMargeConfig();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentBoutique]);
+
+  useEffect(() => {
+    // When creating a product (not editing) and a marge config exists, compute prices automatically from CMP (prixAchat)
+    if (editing) return;
+    if (!margeConfig) return;
+    const prixAchatVal = Number(newProduit.prixAchat) || 0;
+    let prixGros = prixAchatVal;
+    let prixDetail = prixAchatVal;
+
+    if ((margeConfig.typeMarge || '').toUpperCase() === 'FIXE') {
+      const vG = Number(margeConfig.valeurGros) || 0;
+      const vD = Number(margeConfig.valeurDetail) || 0;
+      const minG = Number(margeConfig.margeMinimaleGros) || 0;
+      const minD = Number(margeConfig.margeMinimaleDetail) || 0;
+      const margG = Math.max(vG, minG);
+      const margD = Math.max(vD, minD);
+      prixGros = Math.round(prixAchatVal + margG);
+      prixDetail = Math.round(prixAchatVal + margD);
+    } else {
+      // POURCENTAGE
+      const vgPct = Number(margeConfig.valeurGros) || 0;
+      const vdPct = Number(margeConfig.valeurDetail) || 0;
+      const compG = Math.round(prixAchatVal * vgPct / 100);
+      const compD = Math.round(prixAchatVal * vdPct / 100);
+      const minG = Number(margeConfig.margeMinimaleGros) || 0;
+      const minD = Number(margeConfig.margeMinimaleDetail) || 0;
+      const margG = Math.max(compG, minG);
+      const margD = Math.max(compD, minD);
+      prixGros = Math.round(prixAchatVal + margG);
+      prixDetail = Math.round(prixAchatVal + margD);
+    }
+
+    setNewProduit(prev => ({ ...prev, prixEnGros: prixGros.toString(), prixDetail: prixDetail.toString() }));
+  }, [newProduit.prixAchat, margeConfig, editing]);
 
   const handleCreateOrUpdate = async () => {
     // client-side guard (useEffect also handles real-time validation)
@@ -655,11 +723,25 @@ const Produits: React.FC = () => {
 
                 <div className="col-md-4">
                   <label className="form-label">Prix en gros</label>
-                  <input type="number" className={`form-control ${formErrors.some(e => e.includes('prix en gros')) ? 'is-invalid' : ''}`} value={newProduit.prixEnGros} onChange={(e) => setNewProduit({ ...newProduit, prixEnGros: e.target.value })} />
+                  <input
+                    type="number"
+                    className={`form-control ${formErrors.some(e => e.includes('prix en gros')) ? 'is-invalid' : ''}`}
+                    value={newProduit.prixEnGros}
+                    onChange={(e) => setNewProduit({ ...newProduit, prixEnGros: e.target.value })}
+                    disabled={!editing && !!margeConfig}
+                  />
+                  {!editing && margeConfig && <small className="text-muted">Calculé automatiquement selon la configuration de marge ({margeConfig.typeMarge}).</small>}
                 </div>
                 <div className="col-md-4">
                   <label className="form-label">Prix détail</label>
-                  <input type="number" className={`form-control ${formErrors.some(e => e.includes('prix détail')) ? 'is-invalid' : ''}`} value={newProduit.prixDetail} onChange={(e) => setNewProduit({ ...newProduit, prixDetail: e.target.value })} />
+                  <input
+                    type="number"
+                    className={`form-control ${formErrors.some(e => e.includes('prix détail')) ? 'is-invalid' : ''}`}
+                    value={newProduit.prixDetail}
+                    onChange={(e) => setNewProduit({ ...newProduit, prixDetail: e.target.value })}
+                    disabled={!editing && !!margeConfig}
+                  />
+                  {!editing && margeConfig && <small className="text-muted">Calculé automatiquement selon la configuration de marge ({margeConfig.typeMarge}).</small>}
                 </div>
                 <div className="col-md-4">
                   <label className="form-label">Prix d'achat</label>
