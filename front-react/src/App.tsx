@@ -18,6 +18,7 @@ import DetailReception from './components/DetailReception';
 import Historique from './components/Historique';
 import VentesHistorique from './components/VentesHistorique';
 import VenteLivraison from './components/VenteLivraison';
+import VenteEnEspece from './components/VenteEnEspece';
 import { UserProvider } from './contexts/UserContext';
 
 // Composant pour protéger les routes
@@ -202,6 +203,15 @@ function App() {
             element={
               <PrivateRoute>
                 <Layout><VenteLivraison /></Layout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/ventes/espece"
+            element={
+              <PrivateRoute>
+                <Layout><VenteEnEspece /></Layout>
               </PrivateRoute>
             }
           />

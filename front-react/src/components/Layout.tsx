@@ -306,7 +306,7 @@ const Sidebar = () => {
           <li className="side-nav-item">
             <a href="#" className="side-nav-link">
               <span className="menu-icon"><i className="ti ti-cash"></i></span>
-              <span className="menu-text">Vente en Espèce</span>
+              <span className="menu-text"><Link to="/ventes/espece" className="side-nav-link" style={{ color: 'inherit', textDecoration: 'none' }}>Vente en Espèce</Link></span>
             </a>
           </li>
           )}
