@@ -40,10 +40,30 @@ public class PdfServiceImpl implements PdfService {
     @Autowired
     private com.smboutique.api.service.LigneLivraisonService ligneLivraisonService;
 
+    @Autowired
+    private com.smboutique.api.service.DepenseService depenseService;
+
+    @Autowired
+    private com.smboutique.api.repository.BoutiqueRepository boutiqueRepository;
+
+    @Autowired
+    private com.smboutique.api.service.UtilisateurService utilisateurService;
+
     @Override
     public void writeCommandePdf(Long commandeId, HttpServletResponse response) throws IOException {
+        org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PdfServiceImpl.class);
+        String currentUser = "anonymous";
+        try {
+            if (org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication() != null) {
+                Object p = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+                try { currentUser = p == null ? "anonymous" : (p instanceof java.security.Principal ? ((java.security.Principal)p).getName() : p.toString()); } catch (Exception e) {}
+            }
+        } catch (Exception e) {}
+        log.info("writeCommandePdf start for id={} by {}", commandeId, currentUser);
+
         CommandeFournisseur commande = commandeFournisseurService.findById(commandeId).orElse(null);
         if (commande == null) {
+            log.warn("writeCommandePdf: commande {} not found", commandeId);
             response.sendError(404, "Commande not found");
             return;
         }
@@ -113,8 +133,10 @@ public class PdfServiceImpl implements PdfService {
             }
 
         } catch (Exception e) {
+            log.error("writeCommandePdf error for id={} by {} : {}", commandeId, currentUser, e.getMessage(), e);
             throw new IOException(e.getMessage());
         }
+        log.info("writeCommandePdf finished for id={} by {}", commandeId, currentUser);
     }
 
     @Override
@@ -298,45 +320,17 @@ public class PdfServiceImpl implements PdfService {
             }
             ctx.setVariable("logoBase64", logoData);
 
+            // Prepare formatted date if needed
             try {
-                if (commande.getDateCommande() != null) {
-                    java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-                    String formattedDate = commande.getDateCommande().format(dtf);
-                    ctx.setVariable("dateCommandeFormatted", formattedDate);
-                } else {
-                    ctx.setVariable("dateCommandeFormatted", "");
-                }
-            } catch (Exception e) {
                 ctx.setVariable("dateCommandeFormatted", "");
-            }
-
-            // Build normalized lignes for commande client to avoid template assumptions about 'stock' property
-            try {
-                java.util.List<java.util.Map<String, Object>> lignesNormalized = new java.util.ArrayList<>();
-                if (commande.getLignes() != null) {
-                    for (com.smboutique.api.model.LigneCommandeClient lc : commande.getLignes()) {
-                        java.util.Map<String, Object> m = new java.util.HashMap<>();
-                        String designation = "Produit";
-                        if (lc.getProduit() != null && lc.getProduit().getNomProduit() != null) designation = lc.getProduit().getNomProduit();
-                        Integer qte = lc.getQuantite() != null ? lc.getQuantite() : 0;
-                        Integer basePrice = 0;
-                        try { if (lc.getProduit() != null && lc.getProduit().getPrixAchat() != null) basePrice = lc.getProduit().getPrixAchat(); } catch (Exception ex) { /* ignore */ }
-                        Integer price = lc.getNewPrice() != null ? lc.getNewPrice() : basePrice;
-                        Integer montant = price * qte;
-                        m.put("designation", designation);
-                        m.put("quantite", qte);
-                        m.put("price", price);
-                        m.put("montant", montant);
-                        lignesNormalized.add(m);
-                    }
-                }
-                ctx.setVariable("lignesNormalized", lignesNormalized);
-            } catch (Exception ex) {
-                // ignore normalization errors
-            }
+            } catch (Exception e) {}
 
             String html = templateEngine.process("commande_pdf", ctx);
-            if (html != null) html = html.replace("&nbsp;", "&#160;");
+            try {
+                java.nio.file.Files.write(java.nio.file.Paths.get("/tmp/commande_client_" + commandeId + "_debug.html"), html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            } catch (Exception e) {
+                // ignore
+            }
 
             try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
                 PdfRendererBuilder builder = new PdfRendererBuilder();
@@ -345,14 +339,143 @@ public class PdfServiceImpl implements PdfService {
                 builder.toStream(baos);
                 builder.run();
                 byte[] pdfBytes = baos.toByteArray();
-                response.setContentType("application/pdf");
-                response.setHeader("Content-Disposition", "attachment; filename=commande_client_" + commandeId + ".pdf");
                 response.getOutputStream().write(pdfBytes);
             }
-
         } catch (Exception e) {
             throw new IOException(e.getMessage());
         }
+    }
+
+    @Override
+    public void writeDepensePdf(Long depenseId, HttpServletResponse response) throws IOException {
+        org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PdfServiceImpl.class);
+        String currentUser = "anonymous";
+        try {
+            if (org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication() != null) {
+                Object p = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+                try { currentUser = p == null ? "anonymous" : (p instanceof java.security.Principal ? ((java.security.Principal)p).getName() : p.toString()); } catch (Exception e) {}
+            }
+        } catch (Exception e) {}
+        log.info("writeDepensePdf start for id={} by {}", depenseId, currentUser);
+
+        com.smboutique.api.model.Depense dep = null;
+        try {
+            dep = depenseService.findById(depenseId).orElse(null);
+        } catch (Exception ex) {
+            // ignore
+        }
+        if (dep == null) {
+            log.warn("writeDepensePdf: depense {} not found", depenseId);
+            response.sendError(404, "Depense not found");
+            return;
+        }
+
+        response.setContentType("application/pdf");
+        response.setHeader("Content-Disposition", "attachment; filename=depense_" + depenseId + ".pdf");
+
+        try {
+            ClassLoaderTemplateResolver templateResolver = new ClassLoaderTemplateResolver();
+            templateResolver.setPrefix("/templates/");
+            templateResolver.setSuffix(".html");
+            templateResolver.setTemplateMode("HTML");
+            templateResolver.setCharacterEncoding("UTF-8");
+            TemplateEngine templateEngine = new TemplateEngine();
+            templateEngine.setTemplateResolver(templateResolver);
+
+            Context ctx = new Context();
+            ctx.setVariable("depense", dep);
+
+            // Prepare boutique logo
+            String logoData = null;
+            com.smboutique.api.model.Boutique b = null;
+            try {
+                // attempt to get boutique logo from depense if available
+                if (dep.getBoutiqueId() != null) {
+                    b = boutiqueRepository.findById(dep.getBoutiqueId()).orElse(null);
+                    if (b != null && b.getLogo() != null) {
+                        String logoPath = b.getLogo().startsWith("/") ? b.getLogo().substring(1) : b.getLogo();
+                        java.io.File f = new java.io.File(logoPath);
+                        if (f.exists()) {
+                            byte[] bytes = java.nio.file.Files.readAllBytes(f.toPath());
+                            logoData = "data:image/png;base64," + java.util.Base64.getEncoder().encodeToString(bytes);
+                        }
+                    }
+                }
+            } catch (Exception ex) {
+                // ignore
+            }
+            ctx.setVariable("logoBase64", logoData);
+            // expose boutique to template
+            if (dep.getBoutiqueId() != null) ctx.setVariable("boutiqueId", dep.getBoutiqueId());
+            if (b != null) ctx.setVariable("boutique", b);
+
+            // add creator / validator / annulation names
+            String createurNom = "";
+            String validatorNom = "";
+            String annuleParNom = "";
+            String validatedAtFormatted = "";
+            String annuleAtFormatted = "";
+            try {
+                if (dep.getCreateurId() != null) {
+                    var cu = utilisateurService.findById(dep.getCreateurId()).orElse(null);
+                    if (cu != null) createurNom = (cu.getNom() != null ? cu.getNom() : "") + " " + (cu.getPrenom() != null ? cu.getPrenom() : "");
+                }
+                if (dep.getValidatorId() != null) {
+                    var vu = utilisateurService.findById(dep.getValidatorId()).orElse(null);
+                    if (vu != null) validatorNom = (vu.getNom() != null ? vu.getNom() : "") + " " + (vu.getPrenom() != null ? vu.getPrenom() : "");
+                    if (dep.getValidatedAt() != null) {
+                        java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+                        validatedAtFormatted = dep.getValidatedAt().format(dtf);
+                    }
+                }
+                if (dep.getAnnulePar() != null) {
+                    var au = utilisateurService.findById(dep.getAnnulePar()).orElse(null);
+                    if (au != null) annuleParNom = (au.getNom() != null ? au.getNom() : "") + " " + (au.getPrenom() != null ? au.getPrenom() : "");
+                    if (dep.getAnnuleAt() != null) {
+                        java.time.format.DateTimeFormatter dtf2 = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+                        annuleAtFormatted = dep.getAnnuleAt().format(dtf2);
+                    }
+                }
+            } catch (Exception ex) {
+                // ignore
+            }
+            ctx.setVariable("createurNom", createurNom);
+            ctx.setVariable("validatorNom", validatorNom);
+            ctx.setVariable("annuleParNom", annuleParNom);
+            ctx.setVariable("validatedAtFormatted", validatedAtFormatted);
+            ctx.setVariable("annuleAtFormatted", annuleAtFormatted);
+            ctx.setVariable("annuleReason", dep.getAnnuleReason());
+
+            // format creation date
+            try {
+                if (dep.getCreatedAt() != null) {
+                    java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+                    String formattedDate = dep.getCreatedAt().format(dtf);
+                    ctx.setVariable("dateCreatedFormatted", formattedDate);
+                } else {
+                    ctx.setVariable("dateCreatedFormatted", "");
+                }
+            } catch (Exception e) { ctx.setVariable("dateCreatedFormatted", ""); }
+
+            String html = templateEngine.process("depense_pdf", ctx);
+            try {
+                java.nio.file.Files.write(java.nio.file.Paths.get("/tmp/depense_" + depenseId + "_debug.html"), html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            } catch (Exception e) { /* ignore */ }
+
+            try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
+                PdfRendererBuilder builder = new PdfRendererBuilder();
+                builder.useFastMode();
+                builder.withHtmlContent(html, null);
+                builder.toStream(baos);
+                builder.run();
+                byte[] pdfBytes = baos.toByteArray();
+                response.getOutputStream().write(pdfBytes);
+            }
+        } catch (Exception e) {
+            log.error("writeDepensePdf error for id={} by {} : {}", depenseId, currentUser, e.getMessage(), e);
+            throw new IOException(e.getMessage());
+        }
+        log.info("writeDepensePdf finished for id={} by {}", depenseId, currentUser);
     }
 
 
@@ -535,15 +658,21 @@ public class PdfServiceImpl implements PdfService {
                         montantTotal = paiement.getCommandeClient().getTotal();
                     }
                     try {
-                        java.util.List<com.smboutique.api.model.PaiementClient> paies = paiementClientService.findByBoutiqueId(paiement.getCommandeClient().getBoutique() != null ? paiement.getCommandeClient().getBoutique().getId() : null);
-                        if (paies != null) {
-                            paies.sort(java.util.Comparator.comparing(com.smboutique.api.model.PaiementClient::getDatePaie, java.util.Comparator.nullsFirst(java.util.Comparator.naturalOrder())).thenComparing(com.smboutique.api.model.PaiementClient::getId, java.util.Comparator.nullsFirst(java.util.Comparator.naturalOrder())));
-                            int cum = 0;
-                            for (com.smboutique.api.model.PaiementClient p : paies) {
-                                cum += p.getMontantPaye() != null ? p.getMontantPaye() : 0;
-                                if (p.getId() != null && p.getId().equals(paiement.getId())) break;
+                        // Sum payments for the same commande client (not the whole boutique)
+                        if (paiement.getCommandeClient() != null && paiement.getCommandeClient().getId() != null) {
+                            java.util.List<com.smboutique.api.model.PaiementClient> paies = paiementClientService.findByCommandeClientId(paiement.getCommandeClient().getId());
+                            if (paies != null) {
+                                paies.sort(java.util.Comparator.comparing(com.smboutique.api.model.PaiementClient::getDatePaie, java.util.Comparator.nullsFirst(java.util.Comparator.naturalOrder())).thenComparing(com.smboutique.api.model.PaiementClient::getId, java.util.Comparator.nullsFirst(java.util.Comparator.naturalOrder())));
+                                int cum = 0;
+                                for (com.smboutique.api.model.PaiementClient p : paies) {
+                                    cum += p.getMontantPaye() != null ? p.getMontantPaye() : 0;
+                                    if (p.getId() != null && p.getId().equals(paiement.getId())) break;
+                                }
+                                montantPayeCommande = cum;
                             }
-                            montantPayeCommande = cum;
+                        } else {
+                            // fallback to commande.paie if association missing
+                            if (paiement.getCommandeClient() != null && paiement.getCommandeClient().getPaie() != null) montantPayeCommande = paiement.getCommandeClient().getPaie();
                         }
                     } catch (Exception ex) {
                         if (paiement.getCommandeClient().getPaie() != null) montantPayeCommande = paiement.getCommandeClient().getPaie();
@@ -556,7 +685,7 @@ public class PdfServiceImpl implements PdfService {
                 ctx.setVariable("montantRestant", montantRestant);
             } catch (Exception ex) {}
 
-            String html = templateEngine.process("paiement_pdf", ctx);
+            String html = templateEngine.process("paiement_client_pdf", ctx);
             try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
                 PdfRendererBuilder builder = new PdfRendererBuilder();
                 builder.useFastMode();
@@ -599,14 +728,57 @@ public class PdfServiceImpl implements PdfService {
             Context ctx = new Context();
             ctx.setVariable("livraison", livraison);
 
-            // Fetch lines for this livraison
+            // Prepare boutique logo (if any) similar to other templates
+            String logoData = null;
+            try {
+                if (livraison.getCommandeClient() != null && livraison.getCommandeClient().getBoutique() != null && livraison.getCommandeClient().getBoutique().getLogo() != null) {
+                    String logoPath = livraison.getCommandeClient().getBoutique().getLogo().startsWith("/") ? livraison.getCommandeClient().getBoutique().getLogo().substring(1) : livraison.getCommandeClient().getBoutique().getLogo();
+                    java.io.File f = new java.io.File(logoPath);
+                    if (f.exists()) {
+                        byte[] b = java.nio.file.Files.readAllBytes(f.toPath());
+                        String base64 = java.util.Base64.getEncoder().encodeToString(b);
+                        logoData = "data:image/png;base64," + base64;
+                    }
+                }
+            } catch (Exception ex) {
+                // ignore
+            }
+            ctx.setVariable("logoBase64", logoData);
+
+            // Format date
+            try {
+                if (livraison.getDateLivraison() != null) {
+                    java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+                    String formattedDate = livraison.getDateLivraison().format(dtf);
+                    ctx.setVariable("dateLivraisonFormatted", formattedDate);
+                } else {
+                    ctx.setVariable("dateLivraisonFormatted", "");
+                }
+            } catch (Exception e) { ctx.setVariable("dateLivraisonFormatted", ""); }
+
+            // Fetch lines for this livraison and normalize fields expected by template
             java.util.List<com.smboutique.api.model.LigneLivraison> lignes = ligneLivraisonService.findByLivraisonId(livraison.getId());
             java.util.List<java.util.Map<String, Object>> lignesView = new java.util.ArrayList<>();
             if (lignes != null) {
                 for (com.smboutique.api.model.LigneLivraison ll : lignes) {
                     java.util.Map<String, Object> m = new java.util.HashMap<>();
                     m.put("designation", ll.getProduit() != null ? ll.getProduit().getNomProduit() : "Produit");
-                    m.put("quantite", ll.getQuantiteRecu() != null ? ll.getQuantiteRecu() : 0);
+                    // try to include original ordered quantity if possible
+                    Integer qteCommande = 0;
+                    try {
+                        if (livraison.getCommandeClient() != null && livraison.getCommandeClient().getLignes() != null) {
+                            for (com.smboutique.api.model.LigneCommandeClient lcc : livraison.getCommandeClient().getLignes()) {
+                                if (lcc.getProduit() != null && ll.getProduit() != null && lcc.getProduit().getId() != null && lcc.getProduit().getId().equals(ll.getProduit().getId())) {
+                                    qteCommande = lcc.getQuantite() != null ? lcc.getQuantite() : 0;
+                                    break;
+                                }
+                            }
+                        }
+                    } catch (Exception e) {}
+                    Integer qteLivree = ll.getQuantiteRecu() != null ? ll.getQuantiteRecu() : 0;
+                    m.put("qteCommande", qteCommande);
+                    m.put("qteLivreeThis", qteLivree);
+                    m.put("qteRestante", Math.max(0, qteCommande - qteLivree));
                     lignesView.add(m);
                 }
             }

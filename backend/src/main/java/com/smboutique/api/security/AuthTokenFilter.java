@@ -53,6 +53,9 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                     SecurityContextHolder.getContext().setAuthentication(authentication);
+                    // Log successful authentication for diagnostics (do not log full token)
+                    String shortToken = jwt.length() > 10 ? jwt.substring(0,10) + "..." : jwt;
+                    log.info("Authenticated request {} {} - user={} - tokenStartsWith={}", request.getMethod(), request.getRequestURI(), username, shortToken);
                 } else {
                     String shortToken = jwt.length() > 10 ? jwt.substring(0,10) + "..." : jwt;
                     log.warn("JWT validation failed for request {} {} - tokenStartsWith={} - reason={}", request.getMethod(), request.getRequestURI(), shortToken, reason);

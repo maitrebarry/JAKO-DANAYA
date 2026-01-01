@@ -17,10 +17,20 @@
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
-.product-card .card-img-top {
+.product-image-wrapper {
   height: 200px;
-  object-fit: contain;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
   background: white;
+}
+
+.product-image-wrapper .card-img-top {
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .icon-group {
@@ -159,4 +169,42 @@
 .breadcrumb-subtitle {
   font-size: 0.9rem;
   color: #6c757d;
+}
+
+/* Ensure product cards have uniform vertical height and product details grow */
+.product-grid .col {
+  display: flex;
+  align-items: stretch;
+}
+
+.product-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 12px; /* add inner spacing from all sides */
+  box-sizing: border-box;
+  min-height: 360px; /* ensure enough vertical space */
+}
+
+.product-image-wrapper {
+  flex: 1 0 auto; /* take available vertical space so image can be centered */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: white;
+  min-height: 180px;
+}
+
+.product-card .product-details {
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* keep icons positioned but out of the document flow */
+.icon-group {
+  right: 10px;
+  top: 10px;
 }

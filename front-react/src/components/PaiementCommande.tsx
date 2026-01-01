@@ -4,6 +4,8 @@ import Swal from 'sweetalert2';
 import { useUser } from '../contexts/UserContext';
 import SearchableSelect from './SearchableSelect';
 import { formatServerDate, formatLocalDate } from '../utils/date';
+import useHasPermission from '../contexts/useHasPermission';
+import RequirePermission from './RequirePermission';
 
 interface CommandeData {
   id: number;
@@ -28,6 +30,8 @@ const PaiementCommande: React.FC = () => {
   const [montantAPayerTotal, setMontantAPayerTotal] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [caisses, setCaisses] = useState<any[]>([]);
+  const [selectedCaisseRef, setSelectedCaisseRef] = useState<string | null>(null);
 
   const generateRefPaiement = () => {
     const now = new Date();
@@ -47,6 +51,7 @@ const PaiementCommande: React.FC = () => {
   useEffect(() => {
     if (currentBoutique) {
       fetchCommandes();
+      fetchCaisses();
       if (id) handleCommandeChange(id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -105,6 +110,21 @@ const PaiementCommande: React.FC = () => {
       setError(err.message || 'Erreur inconnue');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCaisses = async () => {
+    if (!currentBoutique) return setCaisses([]);
+    try {
+      const token = localStorage.getItem('smb_token');
+      const res = await fetch('http://localhost:8085/api/caisses', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) throw new Error('Impossible de charger les caisses');
+      const data = await res.json();
+      const open = (data || []).filter((c: any) => c.boutique && c.boutique.id === currentBoutique.id && (c.statut || '').toUpperCase() === 'OUVERTE');
+      setCaisses(open);
+      if (open.length > 0 && !selectedCaisseRef) setSelectedCaisseRef(open[0].reference);
+    } catch (e: any) {
+      // ignore fetch errors here - caisses are optional for the UI input
     }
   };
 
@@ -168,9 +188,12 @@ const PaiementCommande: React.FC = () => {
 
   const { montantTotal, montantRestant, montantAPayer } = calculateTotals();
 
+  const canCreatePaiement = useHasPermission('PAIEMENT_CREER');
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCommande) return;
+    if (!canCreatePaiement) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de créer un paiement', 'error'); return; }
     const montantToSend = montantAPayerTotal > 0 ? montantAPayerTotal : montantAPayer;
     if (montantToSend <= 0) {
       Swal.fire('Erreur', 'Veuillez saisir un montant à payer', 'warning');
@@ -192,14 +215,15 @@ const PaiementCommande: React.FC = () => {
       if (!confirm.isConfirmed) return;
 
       const endpoint = isVenteMode ? `http://localhost:8085/api/commandes-clients/${selectedCommande.id}/paiement` : `http://localhost:8085/api/commandes-fournisseurs/${selectedCommande.id}/paiement`;
+      const payload: any = { montant: Math.round(montantToSend), reference: refPaiement, date: datePaiement, timezoneOffsetMinutes: new Date().getTimezoneOffset() };
+      if (isVenteMode) payload.referenceCaisse = selectedCaisseRef;
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        // datePaiement is stored as ISO already; also send client timezone offset in minutes
-        body: JSON.stringify({ montant: Math.round(montantToSend), reference: refPaiement, date: datePaiement, timezoneOffsetMinutes: new Date().getTimezoneOffset() })
+        body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error('Erreur lors de l\u0027enregistrement du paiement');
       const updated = await res.json();
@@ -355,54 +379,48 @@ const PaiementCommande: React.FC = () => {
                             <input
                               type="number"
                               className="form-control"
-                              name="mt"
-                              value={Math.round(montantTotal)}
+                              value={montantTotal}
                               readOnly
                             />
                           </td>
                           <td>
-                            <input
-                              type="number"
-                              className="form-control"
-                              name="mp"
-                              value={Math.round(selectedCommande?.paie || 0)}
-                              readOnly
-                            />
+                            <input type="number" className="form-control" value={selectedCommande?.paie || 0} readOnly />
                           </td>
                           <td>
-                            <input
-                              type="number"
-                              className="form-control"
-                              name="mr"
-                              value={Math.round(montantRestant)}
-                              readOnly
-                            />
+                            <input type="number" className="form-control" value={montantRestant} readOnly />
                           </td>
                           <td>
-                            <input
-                              type="number"
-                              className="form-control"
-                              name="map"
-                              min={0}
-                              max={Math.round(montantRestant)}
-                              value={montantAPayerTotal}
-                              onChange={(e) => setMontantAPayerTotal(parseInt(e.target.value || '0', 10))}
-                            />
+                            <input type="number" className="form-control" value={montantAPayerTotal} onChange={(e) => setMontantAPayerTotal(Number(e.target.value || 0))} />
                           </td>
                         </tr>
                       </tbody>
                     </table>
+
+                    {/* Caisse selector (required for Option A) — only for client payments (vente mode) */}
+                    {isVenteMode && (
+                      <div className="mt-3 mb-3">
+                        <label className="form-label">Référence de la caisse <span className="text-danger">*</span></label>
+                        <select className="form-select" value={selectedCaisseRef || ''} onChange={(e) => setSelectedCaisseRef(e.target.value)}>
+                          <option value="">-- Sélectionnez une caisse ouverte --</option>
+                          {caisses.map(c => (
+                            <option key={c.id} value={c.reference}>{c.reference} (Montant total: {c.montantTotal ?? 0})</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <div className="text-end mt-3">
-                      <button
-                        id="valider-btn"
-                        name="valider"
-                        className="btn btn-primary"
-                        type="submit"
-                        style={{ display: selectedCommande ? 'inline-block' : 'none' }}
-                        disabled={(montantAPayerTotal) <= 0 || (montantAPayerTotal) > montantRestant}
-                      >
-                        Enregistrer le paiement
-                      </button>
+                      <RequirePermission permission="PAIEMENT_CREER" fallback={<button className="btn btn-secondary" disabled title="Permission requise" style={{ display: selectedCommande ? 'inline-block' : 'none' }}>Enregistrer le paiement</button>}>
+                        <button
+                          id="valider-btn"
+                          name="valider"
+                          className="btn btn-primary"
+                          type="submit"
+                          style={{ display: selectedCommande ? 'inline-block' : 'none' }}
+                          disabled={(montantAPayerTotal) <= 0 || (montantAPayerTotal) > montantRestant}
+                        >
+                          Enregistrer le paiement
+                        </button>
+                      </RequirePermission>
                     </div>
                   </div>
                 </div>

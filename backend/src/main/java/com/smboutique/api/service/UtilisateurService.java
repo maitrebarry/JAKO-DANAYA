@@ -12,4 +12,7 @@ public interface UtilisateurService {
     Optional<Utilisateur> findByEmail(String email);
     Utilisateur save(Utilisateur utilisateur);
     void deleteById(Long id);
+
+    // Vérifie si un utilisateur possède une permission (directe ou via rôle)
+    boolean hasPermission(Utilisateur utilisateur, String permissionName);
 }

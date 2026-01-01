@@ -25,6 +25,18 @@ public class DepenseServiceImpl implements DepenseService {
     }
 
     @Override
+    public Optional<Depense> findByReference(String reference) { return depenseRepository.findByReference(reference); }
+
+    @Override
+    public java.util.List<Depense> findByBoutiqueId(Long boutiqueId) { return depenseRepository.findByBoutiqueIdOrderByCreatedAtDesc(boutiqueId); }
+
+    @Override
+    public java.util.List<Depense> findByStatus(com.smboutique.api.model.DepenseStatus status) { return depenseRepository.findByStatusOrderByCreatedAtDesc(status); }
+
+    @Override
+    public java.util.List<Depense> findByStatusAndBoutiqueId(com.smboutique.api.model.DepenseStatus status, Long boutiqueId) { return depenseRepository.findByStatusAndBoutiqueIdOrderByCreatedAtDesc(status, boutiqueId); }
+
+    @Override
     public Depense save(Depense depense) {
         return depenseRepository.save(depense);
     }

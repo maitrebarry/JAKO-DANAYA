@@ -26,3 +26,22 @@
 .tab-button.active:hover {
   background: #0056b3;
 }
+
+/* Ensure action icons in tables are visible and sized appropriately */
+.table .btn i {
+  font-size: 1rem;
+  line-height: 1;
+  display: inline-block;
+  vertical-align: middle;
+  color: inherit; /* ensure icons inherit button text color */
+}
+
+.table .btn {
+  min-width: 48px;
+}
+
+/* Force remixicon pseudo-elements to display inline so glyphs appear reliably */
+[class^="ri-"]::before, [class*=" ri-"]::before {
+  display: inline-block;
+}
+

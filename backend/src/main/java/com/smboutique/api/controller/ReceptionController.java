@@ -80,20 +80,31 @@ public class ReceptionController {
 
     private boolean isSuperAdmin(Utilisateur user) {
         if (user == null) return false;
-        boolean hasRole = user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
-        boolean hasType = "SUPERADMIN".equalsIgnoreCase(user.getTypeUtilisateur());
-        return hasRole || hasType;
+        // Only role membership determines superadmin status now
+        return user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
     }
 
     private boolean hasPermission(Utilisateur user, String permissionName) {
+        // Delegate to service to include both direct and role-based permissions
+        return utilisateurService.hasPermission(user, permissionName);
+    }
+
+    /**
+     * Helper: accept multiple write-related permissions for receptions.
+     * We historically used RECEPTION_ECRITURE in some places but the canonical
+     * permission in the DB is RECEPTION_CREER / RECEPTION_MODIFIER.
+     */
+    private boolean canWriteReceptions(Utilisateur user) {
         if (user == null) return false;
-        return user.getPermissions().stream().anyMatch(p -> p.getName().equals(permissionName));
+        return utilisateurService.hasPermission(user, "RECEPTION_ECRITURE")
+                || utilisateurService.hasPermission(user, "RECEPTION_CREER")
+                || utilisateurService.hasPermission(user, "RECEPTION_MODIFIER");
     }
 
     @GetMapping
     public List<Reception> getAllReceptions() {
         Utilisateur user = getCurrentUser();
-        if (!hasPermission(user, "RECEPTION_LECTURE") && !hasPermission(user, "RECEPTION_ECRITURE")) {
+        if (!hasPermission(user, "RECEPTION_LECTURE") && !canWriteReceptions(user)) {
             return List.of(); // Return empty list if no permission (writers can also read)
         }
         if (isSuperAdmin(user)) {
@@ -126,7 +137,7 @@ public class ReceptionController {
     @GetMapping("/unfinished")
     public List<ReceptionListDTO> getUnfinishedReceptions() {
         Utilisateur user = getCurrentUser();
-        if (!hasPermission(user, "RECEPTION_LECTURE") && !hasPermission(user, "RECEPTION_ECRITURE")) {
+        if (!hasPermission(user, "RECEPTION_LECTURE") && !canWriteReceptions(user)) {
             return List.of(); // Return empty list if no permission (writers can also read)
         }
         if (isSuperAdmin(user)) {
@@ -139,7 +150,7 @@ public class ReceptionController {
     @GetMapping("/finished")
     public List<ReceptionListDTO> getFinishedReceptions() {
         Utilisateur user = getCurrentUser();
-        if (!hasPermission(user, "RECEPTION_LECTURE") && !hasPermission(user, "RECEPTION_ECRITURE")) {
+        if (!hasPermission(user, "RECEPTION_LECTURE") && !canWriteReceptions(user)) {
             return List.of(); // Return empty list if no permission (writers can also read)
         }
         if (isSuperAdmin(user)) {
@@ -225,8 +236,8 @@ public class ReceptionController {
     @PutMapping("/{id}")
     public ResponseEntity<Reception> updateReception(@PathVariable Long id, @RequestBody Reception receptionDetails) {
         Utilisateur user = getCurrentUser();
-        if (!hasPermission(user, "RECEPTION_ECRITURE")) {
-            logger.warn("Accès refusé à updateReception pour l'utilisateur {}: permission manquante RECEPTION_ECRITURE", user.getEmail());
+        if (!canWriteReceptions(user)) {
+            logger.warn("Accès refusé à updateReception pour l'utilisateur {}: permissions manquantes (RECEPTION_CREER|RECEPTION_ECRITURE|RECEPTION_MODIFIER)", user.getEmail());
             return ResponseEntity.status(403).build();
         }
 
@@ -454,8 +465,27 @@ public class ReceptionController {
     @PostMapping("/create")
     @Transactional
     public ResponseEntity<Object> createReception(@RequestBody ReceptionDTO receptionDTO) {
+        logger.info("createReception called; authentication name={}", org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication() == null ? "null" : org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName());
+        try {
+            java.util.Collection<?> auths = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication() == null ? java.util.List.of() : org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getAuthorities();
+            logger.info("Authentication authorities: {}", auths);
+        } catch (Exception e) {
+            logger.warn("Unable to log authentication authorities: {}", e.getMessage());
+        }
         Utilisateur user = getCurrentUser();
-        if (!hasPermission(user, "RECEPTION_ECRITURE")) {
+        // Debug log: dump permission names seen on the current user to help diagnose 403 issues
+        try {
+            if (user != null && user.getPermissions() != null) {
+                logger.debug("Permissions for user {}: {}", user.getEmail(), user.getPermissions().stream().map(p -> p.getName()).sorted().toList());
+            } else {
+                logger.debug("User or permissions null for user: {}", user == null ? "null" : user.getEmail());
+            }
+        } catch (Exception ex) {
+            logger.warn("Erreur lors du dump des permissions utilisateur {}: {}", user == null ? "null" : user.getEmail(), ex.getMessage());
+        }
+
+        if (!canWriteReceptions(user)) {
+            logger.warn("Accès refusé à createReception pour l'utilisateur {}: permissions manquantes (RECEPTION_CREER|RECEPTION_ECRITURE|RECEPTION_MODIFIER)", user.getEmail());
             return ResponseEntity.status(403).build(); // Forbidden
         }
 
@@ -467,6 +497,8 @@ public class ReceptionController {
 
             CommandeFournisseur commande = commandeOpt.get();
             if (!isSuperAdmin(user) && !commande.getBoutique().getId().equals(user.getBoutique().getId())) {
+                logger.warn("Accès refusé : commande.boutique.id={} ne correspond pas à user.boutique.id={} pour utilisateur={} (isSuperAdmin={})",
+                        commande.getBoutique().getId(), user.getBoutique() == null ? null : user.getBoutique().getId(), user.getEmail(), isSuperAdmin(user));
                 return ResponseEntity.status(403).build();
             }
 

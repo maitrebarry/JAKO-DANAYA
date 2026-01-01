@@ -11,6 +11,9 @@ import ListeCommandes from './components/ListeCommandes';
 import Reception from './components/Reception';
 import PaiementCommande from './components/PaiementCommande';
 import CaisseRegistre from './components/CaisseRegistre';
+import CaisseMovements from './components/CaisseMovements';
+import DepenseList from './components/DepenseList';
+import DepenseDetail from './components/DepenseDetail';
 import DetailReception from './components/DetailReception';
 import Historique from './components/Historique';
 import VentesHistorique from './components/VentesHistorique';
@@ -147,6 +150,32 @@ function App() {
             element={
               <PrivateRoute>
                 <Layout><CaisseRegistre /></Layout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/caisses/movements"
+            element={
+              <PrivateRoute>
+                <Layout><CaisseMovements /></Layout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/depenses"
+            element={
+              <PrivateRoute>
+                <Layout><DepenseList /></Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/depenses/:id"
+            element={
+              <PrivateRoute>
+                <Layout><DepenseDetail /></Layout>
               </PrivateRoute>
             }
           />

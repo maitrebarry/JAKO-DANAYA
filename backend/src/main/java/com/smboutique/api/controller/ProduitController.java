@@ -50,6 +50,9 @@ public class ProduitController {
     private StockService stockService;
 
     @Autowired
+    private com.smboutique.api.service.ConfigurationMargeService configurationMargeService;
+
+    @Autowired
     private MagasinRepository magasinRepository;
 
     private Utilisateur getCurrentUser() {
@@ -63,14 +66,13 @@ public class ProduitController {
 
     private boolean isSuperAdmin(Utilisateur user) {
         if (user == null) return false;
-        boolean hasRole = user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
-        boolean hasType = "SUPERADMIN".equalsIgnoreCase(user.getTypeUtilisateur());
-        return hasRole || hasType;
+        // Only check role membership for SUPERADMIN; avoid relying on typeUtilisateur
+        return user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
     }
 
     private boolean hasPermission(Utilisateur user, String permissionName) {
-        if (user == null) return false;
-        return user.getPermissions().stream().anyMatch(p -> p.getName().equals(permissionName));
+        // Use central utilisateurService to check both direct and role-derived permissions
+        return utilisateurService.hasPermission(user, permissionName);
     }
 
     @GetMapping
@@ -117,7 +119,7 @@ public class ProduitController {
                                  @RequestParam("quantiteInitiale") String quantiteInitiale,
                                  @RequestParam(value = "magasinIds", required = false) List<Long> magasinIds) throws IOException {
         Utilisateur current = getCurrentUser();
-        if (!hasPermission(current, "PRODUIT_CREER")) {
+        if (!hasPermission(current, "PRODUIT_CREER") && !isSuperAdmin(current)) {
             return ResponseEntity.status(403).body("Permission manquante : PRODUIT_CREER");
         }
         Produit produit = new Produit();
@@ -140,6 +142,60 @@ public class ProduitController {
         produit.setPrixDetail(prixDetail.isEmpty() ? null : Integer.valueOf(prixDetail));
         produit.setPrixAchat(prixAchat.isEmpty() ? null : Integer.valueOf(prixAchat));
         produit.setAlerteStock(alerteStock.isEmpty() ? null : Integer.valueOf(alerteStock));
+
+        // If the front did not compute the prices, try to compute them on the server using the boutique's margin configuration
+        try {
+            if (produit.getPrixAchat() != null && (produit.getPrixEnGros() == null || produit.getPrixDetail() == null)) {
+                Long boutiqueId = current.getBoutique() != null ? current.getBoutique().getId() : null;
+                org.slf4j.LoggerFactory.getLogger(ProduitController.class).info("Attempt margin compute: user={}, boutiqueId={}, prixAchat={}, prixEnGros={}, prixDetail={}", current.getEmail(), boutiqueId, produit.getPrixAchat(), produit.getPrixEnGros(), produit.getPrixDetail());
+                if (boutiqueId == null) {
+                    org.slf4j.LoggerFactory.getLogger(ProduitController.class).info("No boutique for user {} - skipping margin compute", current.getEmail());
+                }
+                if (boutiqueId != null) {
+                    com.smboutique.api.model.ConfigurationMarge cfg = configurationMargeService.findByBoutiqueId(boutiqueId).orElse(null);
+                    if (cfg == null) {
+                        org.slf4j.LoggerFactory.getLogger(ProduitController.class).info("No configuration marge found for boutique {}", boutiqueId);
+                    }
+                    if (cfg != null) {
+                        int prixAchatVal = produit.getPrixAchat();
+                        int prixGrosComputed = prixAchatVal;
+                        int prixDetailComputed = prixAchatVal;
+
+                        if (cfg.getTypeMarge() == com.smboutique.api.model.ConfigurationMarge.TypeMarge.FIXE) {
+                            double vG = cfg.getValeurGros() != null ? cfg.getValeurGros().doubleValue() : 0.0;
+                            double vD = cfg.getValeurDetail() != null ? cfg.getValeurDetail().doubleValue() : 0.0;
+                            double minG = cfg.getMargeMinimaleGros() != null ? cfg.getMargeMinimaleGros().doubleValue() : 0.0;
+                            double minD = cfg.getMargeMinimaleDetail() != null ? cfg.getMargeMinimaleDetail().doubleValue() : 0.0;
+                            double margG = Math.max(vG, minG);
+                            double margD = Math.max(vD, minD);
+                            prixGrosComputed = (int)Math.round(prixAchatVal + margG);
+                            prixDetailComputed = (int)Math.round(prixAchatVal + margD);
+                        } else {
+                            double vgPct = cfg.getValeurGros() != null ? cfg.getValeurGros().doubleValue() : 0.0;
+                            double vdPct = cfg.getValeurDetail() != null ? cfg.getValeurDetail().doubleValue() : 0.0;
+                            double compG = Math.round(prixAchatVal * vgPct / 100.0);
+                            double compD = Math.round(prixAchatVal * vdPct / 100.0);
+                            double minG = cfg.getMargeMinimaleGros() != null ? cfg.getMargeMinimaleGros().doubleValue() : 0.0;
+                            double minD = cfg.getMargeMinimaleDetail() != null ? cfg.getMargeMinimaleDetail().doubleValue() : 0.0;
+                            double margG = Math.max(compG, minG);
+                            double margD = Math.max(compD, minD);
+                            prixGrosComputed = (int)Math.round(prixAchatVal + margG);
+                            prixDetailComputed = (int)Math.round(prixAchatVal + margD);
+                        }
+
+                        org.slf4j.LoggerFactory.getLogger(ProduitController.class).warn("Computed marges for boutique {}: gros={}, detail={}, margG={}, margD={}", boutiqueId, prixGrosComputed, prixDetailComputed, prixGrosComputed - prixAchatVal, prixDetailComputed - prixAchatVal);
+                        if (produit.getPrixEnGros() == null) produit.setPrixEnGros(prixGrosComputed);
+                        if (produit.getPrixDetail() == null) produit.setPrixDetail(prixDetailComputed);
+                        // also record applied margins
+                        produit.setMargeGros(java.math.BigDecimal.valueOf(Math.max(prixGrosComputed - prixAchatVal, 0)));
+                        produit.setMargeDetail(java.math.BigDecimal.valueOf(Math.max(prixDetailComputed - prixAchatVal, 0)));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Do not block product creation for margin computation errors – log for investigation
+            org.slf4j.LoggerFactory.getLogger(ProduitController.class).warn("Erreur lors du calcul automatique des marges: {}", e.getMessage());
+        }
 
         // Validate price constraints: prixAchat < prixEnGros < prixDetail
         Integer pa = produit.getPrixAchat();
@@ -223,12 +279,12 @@ public class ProduitController {
     @PostMapping("/create")
     public ResponseEntity<?> createProduitWithConditionnement(@RequestBody ProduitCreateDTO dto) {
         Utilisateur current = getCurrentUser();
-        // allow SUPERADMIN users to bypass explicit permission checks
         if (!isSuperAdmin(current) && !hasPermission(current, "PRODUIT_CREER")) {
             return ResponseEntity.status(403).body("Permission manquante : PRODUIT_CREER");
         }
 
         try {
+            org.slf4j.LoggerFactory.getLogger(ProduitController.class).warn("createProduitWithConditionnement called by user={} boutiqueId={} dto={}", current.getEmail(), current.getBoutique() != null ? current.getBoutique().getId() : null, dto);
             Produit produit = produitService.create(dto, current.getBoutique().getId());
             return ResponseEntity.ok(produit);
         } catch (Exception e) {
@@ -249,6 +305,10 @@ public class ProduitController {
                                                  @RequestParam(value = "nombreUnitesParConditionnement", required = false) String nombreUnitesParConditionnement,
                                                  @RequestParam(value = "quantiteInitiale", required = false) String quantiteInitiale,
                                                  @RequestParam(value = "magasinIds", required = false) List<Long> magasinIds) throws IOException {
+        Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "PRODUIT_MODIFIER") && !isSuperAdmin(current)) {
+            return ResponseEntity.status(403).body("Permission manquante : PRODUIT_MODIFIER");
+        }
         Optional<Produit> produitOpt = produitService.findById(id);
 
         return produitOpt
@@ -354,6 +414,10 @@ public class ProduitController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProduit(@PathVariable Long id) {
+        Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "PRODUIT_SUPPRIMER") && !isSuperAdmin(current)) {
+            return ResponseEntity.status(403).build();
+        }
         Optional<Produit> produitOpt = produitService.findById(id);
 
         return produitOpt
@@ -367,9 +431,11 @@ public class ProduitController {
     // The template endpoint was removed: the static template is now served by the front-end from `front-react/public/produits_template.xlsx`.
 
     @PostMapping("/import")
-    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
     public ResponseEntity<?> importFromExcel(@RequestParam("file") MultipartFile file) {
         Utilisateur current = getCurrentUser();
+        if (!isSuperAdmin(current) && !hasPermission(current, "PRODUIT_CREER")) {
+            return ResponseEntity.status(403).body("Permission manquante : PRODUIT_CREER");
+        }
         try {
             com.smboutique.api.dto.ImportResult result = produitService.importFromExcel(file, current);
             return ResponseEntity.ok(result);

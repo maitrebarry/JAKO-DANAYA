@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 
@@ -47,6 +47,27 @@ const Topbar = () => {
   const navigate = useNavigate();
   const { user } = useUser();
 
+  const [notifications, setNotifications] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    let mounted = true;
+    let timer: any = null;
+    const fetchNotifs = async () => {
+      try {
+        const notifApi = await import('../api/notification');
+        const list = await notifApi.default.getUnreadNotifications();
+        if (!mounted) return;
+        setNotifications(list || []);
+      } catch (err) {
+        // ignore
+      }
+    };
+    fetchNotifs();
+    // poll every 25s for new notifications to provide near-real-time updates
+    timer = setInterval(fetchNotifs, 25000);
+    return () => { mounted = false; if (timer) clearInterval(timer); };
+  }, [user]);
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     navigate('/');
@@ -62,6 +83,20 @@ const Topbar = () => {
   const displayName = `${user?.prenom || ''} ${user?.nom || ''}`.trim() || user?.pseudo || user?.email || 'Profil';
   const defaultAvatar = `assets/images/avatar.jpg`;
   const avatarUrl = (user as any)?.avatar || defaultAvatar || `https://via.placeholder.com/64x64/0d6efd/ffffff?text=${initials()}`;
+
+  const unreadCount = notifications.length;
+
+  const openNotification = async (n: any) => {
+    try {
+      const notifApi = await import('../api/notification');
+      await notifApi.default.markRead(n.id);
+      setNotifications(prev => prev.filter(x => x.id !== n.id));
+      // navigate to depenses
+      navigate('/depenses');
+    } catch (err) {
+      console.warn('Failed to mark notification read', err);
+    }
+  };
 
   return (
     <header className="app-topbar">
@@ -90,6 +125,25 @@ const Topbar = () => {
           </button>
         </div>
         <div className="d-flex align-items-center gap-2">
+          <div className="dropdown me-2">
+            <button className="btn btn-icon btn-light position-relative" data-bs-toggle="dropdown" aria-expanded="false">
+              <i className="ti ti-bell fs-20"></i>
+              {unreadCount > 0 && <span className="topbar-badge badge bg-danger">{unreadCount}</span>}
+            </button>
+            <ul className="dropdown-menu dropdown-menu-end p-2" style={{ minWidth: 320 }}>
+              {notifications.length === 0 ? (
+                <li className="p-2 text-muted">Aucune notification</li>
+              ) : (
+                notifications.map(n => (
+                  <li key={n.id} className="notification-item p-2" onClick={() => openNotification(n)} style={{ cursor: 'pointer' }}>
+                    <div className="fw-semibold">{n.type}</div>
+                    <div className="text-muted small">{n.payload}</div>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+
           <div className="dropdown d-flex align-items-center gap-2">
             <img
               src={avatarUrl}
@@ -114,16 +168,11 @@ const Topbar = () => {
 };
 
 const Sidebar = () => {
-  const { user, roles, permissions } = useUser();
-  const normalizedRoles = roles.map(r => r.toUpperCase());
-  const normalizedType = (user?.typeUtilisateur || '').toUpperCase();
-  const isAdminLike = normalizedRoles.some(r => ['SUPERADMIN', 'ADMINISTRATEUR', 'PROPRIETAIRE'].includes(r))
-    || ['SUPERADMIN', 'ADMINISTRATEUR', 'PROPRIETAIRE'].includes(normalizedType);
-
+  const { permissions } = useUser();
+  // Only use explicit permissions to show/hide UI elements. No role-based bypass here.
   const normalizedPermissions = permissions.map(p => p.toUpperCase());
 
   const hasAnyPermission = (codes: string[]) => {
-    if (isAdminLike) return true; // superadmin/admin/proprietaire voient tout
     return codes.some(code => normalizedPermissions.includes(code.toUpperCase()));
   };
 
@@ -136,8 +185,20 @@ const Sidebar = () => {
     venteEspece: hasAnyPermission(['VENTE_ESPECE_VOIR', 'VENTE_LECTURE']),
     venteCredit: hasAnyPermission(['VENTE_CREDIT_VOIR', 'VENTE_LECTURE']),
     caisse: hasAnyPermission(['CAISSE_VOIR', 'CAISSE_LECTURE', 'PARAMETRES_LECTURE']),
+    depense: hasAnyPermission(['DEPENSE_LECTURE']),
     configuration: hasAnyPermission(['CONFIGURATION_VOIR', 'PARAMETRES_LECTURE', 'UTILISATEUR_LECTURE']),
   };
+
+  // Diagnostic: log permissions and computed menu visibility to help debug mismatches
+  useEffect(() => {
+    try {
+      console.debug('Sidebar permissions raw:', permissions);
+      console.debug('Sidebar normalizedPermissions:', normalizedPermissions);
+      console.debug('Sidebar computed can:', can);
+    } catch (e) {
+      console.warn('Error logging sidebar diagnostics', e);
+    }
+  }, [permissions]);
   return (
     <div className="sidenav-menu">
       <div className="navbar-brand-box">
@@ -284,11 +345,13 @@ const Sidebar = () => {
                   <span>Régistre de caisse</span>
                 </Link>
               </li>
+              {can.depense && (
               <li>
-                <a href="#" className="side-nav-link" style={{ paddingLeft: '40px' }}>
+                <Link to="/depenses" className="side-nav-link" style={{ paddingLeft: '40px' }}>
                   <span>Dépenses</span>
-                </a>
+                </Link>
               </li>
+              )}
             </ul>
           </li>
           )}

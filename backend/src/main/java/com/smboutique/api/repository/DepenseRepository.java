@@ -6,4 +6,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface DepenseRepository extends JpaRepository<Depense, Long> {
+    java.util.List<Depense> findByBoutiqueIdOrderByCreatedAtDesc(Long boutiqueId);
+    java.util.List<Depense> findByStatusAndBoutiqueIdOrderByCreatedAtDesc(com.smboutique.api.model.DepenseStatus status, Long boutiqueId);
+    java.util.List<Depense> findByStatusOrderByCreatedAtDesc(com.smboutique.api.model.DepenseStatus status);
+    java.util.Optional<Depense> findByReference(String reference);
 }

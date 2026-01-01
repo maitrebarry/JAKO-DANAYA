@@ -12,4 +12,7 @@ public interface PaiementClientService {
 
     // list payments for ventes (by boutique id)
     List<PaiementClient> findByBoutiqueId(Long boutiqueId);
+
+    // list payments for a specific commande client
+    List<PaiementClient> findByCommandeClientId(Long commandeClientId);
 }

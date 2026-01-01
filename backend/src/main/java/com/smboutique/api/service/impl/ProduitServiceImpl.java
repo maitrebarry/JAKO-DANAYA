@@ -16,6 +16,9 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,6 +33,12 @@ public class ProduitServiceImpl implements ProduitService {
     private MagasinRepository magasinRepository;
     @Autowired
     private com.smboutique.api.service.StockService stockService;
+
+    @Autowired
+    private com.smboutique.api.service.ConfigurationMargeService configurationMargeService;
+
+    @PersistenceContext
+    private EntityManager em;
 
     @Override
     public List<Produit> findAll() {
@@ -49,6 +58,7 @@ public class ProduitServiceImpl implements ProduitService {
     @Override
     @Transactional
     public Produit create(ProduitCreateDTO dto, Long boutiqueId) {
+        org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).warn("ProduitService.create called with dto={} boutiqueId={}", dto, boutiqueId);
         Produit produit = new Produit();
         produit.setNomProduit(dto.getNomProduit());
         produit.setProductImage(dto.getProductImage());
@@ -70,8 +80,102 @@ public class ProduitServiceImpl implements ProduitService {
         // Calcul du stock réel en unité de base
         int stockReel = (dto.getQuantiteInitiale() != null ? dto.getQuantiteInitiale() : 0) * nombreUnites;
 
+        // Avant sauvegarde: si le front n'a pas fourni les prix calculés, tenter un calcul automatique
+        try {
+            if (produit.getPrixAchat() != null && (produit.getPrixEnGros() == null || produit.getPrixDetail() == null)) {
+                org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).warn("Attempt margin compute in service: boutiqueId={}, prixAchat={}, prixEnGros={}, prixDetail={}", boutiqueId, produit.getPrixAchat(), produit.getPrixEnGros(), produit.getPrixDetail());
+                com.smboutique.api.model.ConfigurationMarge cfg = configurationMargeService.findByBoutiqueId(boutiqueId).orElse(null);
+                if (cfg == null) {
+                    org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).info("No configuration marge found in service for boutique {}", boutiqueId);
+                }
+                if (cfg != null) {
+                    int prixAchatVal = produit.getPrixAchat();
+                    int prixGrosComputed = prixAchatVal;
+                    int prixDetailComputed = prixAchatVal;
+
+                    if (cfg.getTypeMarge() == com.smboutique.api.model.ConfigurationMarge.TypeMarge.FIXE) {
+                        double vG = cfg.getValeurGros() != null ? cfg.getValeurGros().doubleValue() : 0.0;
+                        double vD = cfg.getValeurDetail() != null ? cfg.getValeurDetail().doubleValue() : 0.0;
+                        double minG = cfg.getMargeMinimaleGros() != null ? cfg.getMargeMinimaleGros().doubleValue() : 0.0;
+                        double minD = cfg.getMargeMinimaleDetail() != null ? cfg.getMargeMinimaleDetail().doubleValue() : 0.0;
+                        double margG = Math.max(vG, minG);
+                        double margD = Math.max(vD, minD);
+                        prixGrosComputed = (int)Math.round(prixAchatVal + margG);
+                        prixDetailComputed = (int)Math.round(prixAchatVal + margD);
+                    } else {
+                        double vgPct = cfg.getValeurGros() != null ? cfg.getValeurGros().doubleValue() : 0.0;
+                        double vdPct = cfg.getValeurDetail() != null ? cfg.getValeurDetail().doubleValue() : 0.0;
+                        double compG = Math.round(prixAchatVal * vgPct / 100.0);
+                        double compD = Math.round(prixAchatVal * vdPct / 100.0);
+                        double minG = cfg.getMargeMinimaleGros() != null ? cfg.getMargeMinimaleGros().doubleValue() : 0.0;
+                        double minD = cfg.getMargeMinimaleDetail() != null ? cfg.getMargeMinimaleDetail().doubleValue() : 0.0;
+                        double margG = Math.max(compG, minG);
+                        double margD = Math.max(compD, minD);
+                        prixGrosComputed = (int)Math.round(prixAchatVal + margG);
+                        prixDetailComputed = (int)Math.round(prixAchatVal + margD);
+                    }
+
+                    org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).warn("Computed marges in service for boutique {}: gros={}, detail={}, margG={}, margD={}", boutiqueId, prixGrosComputed, prixDetailComputed, prixGrosComputed - prixAchatVal, prixDetailComputed - prixAchatVal);
+
+                    if (produit.getPrixEnGros() == null) produit.setPrixEnGros(prixGrosComputed);
+                    if (produit.getPrixDetail() == null) produit.setPrixDetail(prixDetailComputed);
+                    produit.setMargeGros(java.math.BigDecimal.valueOf(Math.max(prixGrosComputed - prixAchatVal, 0)));
+                    produit.setMargeDetail(java.math.BigDecimal.valueOf(Math.max(prixDetailComputed - prixAchatVal, 0)));
+                }
+            }
+        } catch (Exception ex) {
+            org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).warn("Erreur calcul marge automatique (import/DTO): {}", ex.getMessage());
+        }
+
         // Sauvegarder le produit d'abord
         Produit savedProduit = produitRepository.save(produit);
+
+        // If after save the computed prices are still null, compute and persist them (defensive)
+        try {
+            if ((savedProduit.getPrixEnGros() == null || savedProduit.getPrixDetail() == null) && savedProduit.getPrixAchat() != null) {
+                com.smboutique.api.model.ConfigurationMarge cfg2 = configurationMargeService.findByBoutiqueId(boutiqueId).orElse(null);
+                if (cfg2 != null) {
+                    int prixAchatVal = savedProduit.getPrixAchat();
+                    int prixGrosComputed = prixAchatVal;
+                    int prixDetailComputed = prixAchatVal;
+                    if (cfg2.getTypeMarge() == com.smboutique.api.model.ConfigurationMarge.TypeMarge.FIXE) {
+                        double vG = cfg2.getValeurGros() != null ? cfg2.getValeurGros().doubleValue() : 0.0;
+                        double vD = cfg2.getValeurDetail() != null ? cfg2.getValeurDetail().doubleValue() : 0.0;
+                        double minG = cfg2.getMargeMinimaleGros() != null ? cfg2.getMargeMinimaleGros().doubleValue() : 0.0;
+                        double minD = cfg2.getMargeMinimaleDetail() != null ? cfg2.getMargeMinimaleDetail().doubleValue() : 0.0;
+                        double margG = Math.max(vG, minG);
+                        double margD = Math.max(vD, minD);
+                        prixGrosComputed = (int)Math.round(prixAchatVal + margG);
+                        prixDetailComputed = (int)Math.round(prixAchatVal + margD);
+                    } else {
+                        double vgPct = cfg2.getValeurGros() != null ? cfg2.getValeurGros().doubleValue() : 0.0;
+                        double vdPct = cfg2.getValeurDetail() != null ? cfg2.getValeurDetail().doubleValue() : 0.0;
+                        double compG = Math.round(prixAchatVal * vgPct / 100.0);
+                        double compD = Math.round(prixAchatVal * vdPct / 100.0);
+                        double minG = cfg2.getMargeMinimaleGros() != null ? cfg2.getMargeMinimaleGros().doubleValue() : 0.0;
+                        double minD = cfg2.getMargeMinimaleDetail() != null ? cfg2.getMargeMinimaleDetail().doubleValue() : 0.0;
+                        double margG = Math.max(compG, minG);
+                        double margD = Math.max(compD, minD);
+                        prixGrosComputed = (int)Math.round(prixAchatVal + margG);
+                        prixDetailComputed = (int)Math.round(prixAchatVal + margD);
+                    }
+                    org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).warn("Post-save computed marges for boutique {}: gros={}, detail={}", boutiqueId, prixGrosComputed, prixDetailComputed);
+                    // Use a native update to guarantee persistence even in complex JPA state situations
+                    int updated = em.createNativeQuery("UPDATE tbl_product SET prix_en_gros = :peg, prix_detail = :pd, marge_gros = :mg, marge_detail = :md WHERE id_produit = :id")
+                            .setParameter("peg", prixGrosComputed)
+                            .setParameter("pd", prixDetailComputed)
+                            .setParameter("mg", java.math.BigDecimal.valueOf(Math.max(prixGrosComputed - prixAchatVal, 0)))
+                            .setParameter("md", java.math.BigDecimal.valueOf(Math.max(prixDetailComputed - prixAchatVal, 0)))
+                            .setParameter("id", savedProduit.getId())
+                            .executeUpdate();
+                    org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).warn("Post-save margin update executed, rowsAffected={}", updated);
+                    // refresh entity
+                    em.refresh(savedProduit);
+                }
+            }
+        } catch (Exception ex) {
+            org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).warn("Erreur post-save calcul marge automatique: {}", ex.getMessage());
+        }
 
         // Créer le stock initial pour le magasin par défaut de la boutique
         // Supposons qu'il y a un magasin par défaut ou on en crée un

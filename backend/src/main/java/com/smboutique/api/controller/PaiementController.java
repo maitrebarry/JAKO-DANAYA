@@ -25,6 +25,18 @@ public class PaiementController {
     @Autowired
     private com.smboutique.api.service.UtilisateurService utilisateurService;
 
+    @Autowired
+    private com.smboutique.api.service.CaisseService caisseService;
+
+    @Autowired
+    private com.smboutique.api.repository.CaisseRepository caisseRepository;
+
+    @Autowired
+    private com.smboutique.api.service.CaisseTransactionService caisseTransactionService;
+
+    @Autowired
+    private com.smboutique.api.service.CaisseMovementService caisseMovementService;
+
     @GetMapping
     public List<Paiement> getAllPaiements() {
         return paiementService.findAll();
@@ -94,12 +106,64 @@ public class PaiementController {
         }
         try {
             CommandeFournisseur cmd = paiement.getCommandeFournisseur();
+            int montant = paiement.getMontantPaye() != null ? paiement.getMontantPaye() : 0;
             if (cmd != null) {
                 int currentPaie = cmd.getPaie() != null ? cmd.getPaie() : 0;
-                int montant = paiement.getMontantPaye() != null ? paiement.getMontantPaye() : 0;
                 cmd.setPaie(Math.max(0, currentPaie - montant));
                 commandeFournisseurService.save(cmd);
             }
+
+            // If the payment was applied to a caisse, reverse the caisse montant and record a REVERSAL transaction
+            try {
+                String refC = paiement.getReferenceCaisse();
+                if (refC != null && !refC.trim().isEmpty()) {
+                    java.util.Optional<com.smboutique.api.model.Caisse> maybeC = caisseRepository.findByReference(refC);
+                    if (maybeC.isPresent()) {
+                        com.smboutique.api.model.Caisse caisse = maybeC.get();
+                        Integer cur = caisse.getMontantTotal() != null ? caisse.getMontantTotal() : 0;
+                        Integer before = cur;
+                        caisse.setMontantTotal(Math.max(0, cur - montant));
+                        caisseService.save(caisse);
+
+                        try {
+                            com.smboutique.api.model.CaisseTransaction tx = new com.smboutique.api.model.CaisseTransaction();
+                            tx.setType(com.smboutique.api.model.CaisseTransaction.TransactionType.REVERSAL);
+                            tx.setMontant(montant);
+                            tx.setPaiementId(paiement.getId());
+                            tx.setCommandeId(cmd != null ? cmd.getId() : null);
+                            tx.setUserId(user.getId());
+                            tx.setReferenceCaisse(refC);
+                            tx.setBoutiqueId(cmd != null && cmd.getBoutique() != null ? cmd.getBoutique().getId() : null);
+                            tx.setRaison(body != null ? body.getOrDefault("reason", "Annulation paiement") : "Annulation paiement");
+                            caisseTransactionService.save(tx);
+                        } catch (Exception ex) {
+                            // Log and continue
+                            org.slf4j.LoggerFactory.getLogger(PaiementController.class).warn("Failed to record reversal transaction: {}", ex.getMessage());
+                        }
+
+                        // record detailed movement
+                        try {
+                            com.smboutique.api.model.CaisseMovement mv = new com.smboutique.api.model.CaisseMovement();
+                            mv.setType(com.smboutique.api.model.CaisseMovement.MovementType.REVERSAL);
+                            mv.setMontant(montant);
+                            mv.setBalanceBefore(before);
+                            mv.setBalanceAfter(caisse.getMontantTotal());
+                            mv.setPaiementId(paiement.getId());
+                            mv.setCommandeId(cmd != null ? cmd.getId() : null);
+                            mv.setUserId(user.getId());
+                            mv.setReferenceCaisse(refC);
+                            mv.setBoutiqueId(cmd != null && cmd.getBoutique() != null ? cmd.getBoutique().getId() : null);
+                            mv.setRaison(body != null ? body.getOrDefault("reason", "Annulation paiement") : "Annulation paiement");
+                            caisseMovementService.save(mv);
+                        } catch (Exception mvex) {
+                            org.slf4j.LoggerFactory.getLogger(PaiementController.class).warn("Failed to record movement: {}", mvex.getMessage());
+                        }
+                    }
+                }
+            } catch (Exception inner) {
+                org.slf4j.LoggerFactory.getLogger(PaiementController.class).warn("Failed to reverse caisse or record transaction: {}", inner.getMessage());
+            }
+
             paiement.setAnnule(true);
             paiement.setAnnuleAt(java.time.LocalDateTime.now());
             paiement.setAnnulePar(user.getId());

@@ -31,6 +31,19 @@ public class LivraisonController {
 
     @Autowired
     private com.smboutique.api.service.PdfService pdfService;
+
+    private com.smboutique.api.model.Utilisateur getCurrentUser() {
+        org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null) {
+            throw new RuntimeException("Utilisateur authentifié introuvable");
+        }
+        return utilisateurService.findByEmail(authentication.getName()).orElseThrow(() -> new RuntimeException("Utilisateur authentifié introuvable"));
+    }
+
+    private boolean isSuperAdmin(com.smboutique.api.model.Utilisateur user) {
+        if (user == null) return false;
+        return user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
+    }
     @GetMapping
     public List<Livraison> getAllLivraisons() {
         return livraisonService.findAll();
@@ -137,5 +150,15 @@ public class LivraisonController {
                     return ResponseEntity.ok().<Void>build();
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/boutique/{boutiqueId}")
+    public ResponseEntity<java.util.List<Livraison>> getLivraisonsByBoutique(@PathVariable Long boutiqueId) {
+        com.smboutique.api.model.Utilisateur current = getCurrentUser();
+        if (!isSuperAdmin(current) && (current.getBoutique() == null || !current.getBoutique().getId().equals(boutiqueId))) {
+            return ResponseEntity.status(403).build();
+        }
+        java.util.List<Livraison> livs = livraisonService.findByBoutiqueId(boutiqueId);
+        return ResponseEntity.ok(livs);
     }
 }

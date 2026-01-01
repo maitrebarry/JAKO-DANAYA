@@ -11,4 +11,7 @@ import java.util.List;
 public interface LivraisonRepository extends JpaRepository<Livraison, Long> {
     @Query("select l from Livraison l where l.commandeClient is not null and l.commandeClient.boutique is not null and l.commandeClient.boutique.id = :bid")
     List<Livraison> findByCommandeClientBoutiqueId(@Param("bid") Long boutiqueId);
+
+    @Query("select l from Livraison l where l.commandeClient is not null and ((l.commandeClient.boutique is not null and l.commandeClient.boutique.id = :bid) or (l.commandeClient.utilisateur is not null and l.commandeClient.utilisateur.boutique is not null and l.commandeClient.utilisateur.boutique.id = :bid))")
+    List<Livraison> findByCommandeClientBoutiqueIdOrCommandeClientUtilisateurBoutiqueId(@Param("bid") Long boutiqueId);
 }

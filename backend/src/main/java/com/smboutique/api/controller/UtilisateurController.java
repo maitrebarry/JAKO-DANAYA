@@ -20,6 +20,8 @@ import java.util.Optional;
 @CrossOrigin(origins = "*")
 public class UtilisateurController {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UtilisateurController.class);
+
     @Autowired
     private UtilisateurService utilisateurService;
 
@@ -40,9 +42,8 @@ public class UtilisateurController {
 
     private boolean isSuperAdmin(Utilisateur user) {
         if (user == null) return false;
-        boolean hasRole = user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
-        boolean hasType = "SUPERADMIN".equalsIgnoreCase(user.getTypeUtilisateur());
-        return hasRole || hasType;
+        // Determine superadmin by role membership only
+        return user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
     }
 
     private boolean sameBoutique(Utilisateur user, Boutique boutique) {
@@ -87,6 +88,10 @@ public class UtilisateurController {
             Optional<Boutique> boutique = boutiqueService.findById(utilisateur.getBoutique().getId());
             utilisateur.setBoutique(boutique.orElse(null));
         }
+        // Only SUPERADMIN or users with UTILISATEUR_GERER may set permissions on new users; otherwise start with empty permissions
+        if (!isSuperAdmin(current) && !utilisateurService.hasPermission(current, "UTILISATEUR_GERER")) {
+            utilisateur.setPermissions(new java.util.HashSet<>());
+        }
         if (utilisateur.getMotDePasse() != null && !utilisateur.getMotDePasse().isEmpty()) {
             utilisateur.setMotDePasse(passwordEncoder.encode(utilisateur.getMotDePasse()));
         }
@@ -118,7 +123,13 @@ public class UtilisateurController {
                     }
 
                     existing.setRoles(utilisateurDetails.getRoles());
-                    existing.setPermissions(utilisateurDetails.getPermissions());
+                    // Only SUPERADMIN or users with UTILISATEUR_GERER may set permissions
+                    if (isSuperAdmin(current) || utilisateurService.hasPermission(current, "UTILISATEUR_GERER")) {
+                        existing.setPermissions(utilisateurDetails.getPermissions());
+                    } else {
+                        // ignore incoming permission changes for non-authorized updaters
+                        logger.info("User {} attempted to modify permissions of user {} but lacks UTILISATEUR_GERER", current.getEmail(), existing.getEmail());
+                    }
                     if (utilisateurDetails.getMotDePasse() != null && !utilisateurDetails.getMotDePasse().isEmpty()) {
                         existing.setMotDePasse(passwordEncoder.encode(utilisateurDetails.getMotDePasse()));
                     }

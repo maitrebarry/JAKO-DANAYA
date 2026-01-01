@@ -24,6 +24,8 @@ import java.util.stream.Collectors;
 @CrossOrigin(origins = "*")
 public class HistoriqueController {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(HistoriqueController.class);
+
     @Autowired
     private ReceptionService receptionService;
 
@@ -61,6 +63,8 @@ public class HistoriqueController {
         public String referenceCommande;
         public String fournisseur;
         public Double montant; // only for paiements
+        // Optional: show reference caisse for paiements if user has required permission
+        public String referenceCaisse;
         // Cancellation metadata (nullable)
         public Boolean annule;
         public String annuleAt;
@@ -76,7 +80,8 @@ public class HistoriqueController {
         if (!isSuperAdmin(current) && (current.getBoutique() == null || !current.getBoutique().getId().equals(boutiqueId))) {
             return ResponseEntity.status(403).build();
         }
-
+        // Determine whether current user can see caisse reference in paiement entries
+        boolean canSeeCaisse = isSuperAdmin(current) || (current != null && (utilisateurService.hasPermission(current, "CAISSE_VOIR") || utilisateurService.hasPermission(current, "CAISSE_LECTURE")));
         List<HistoriqueItem> items = new ArrayList<>();
 
         // Receptions status
@@ -264,12 +269,36 @@ public class HistoriqueController {
             return ResponseEntity.status(403).build();
         }
 
+        // Determine whether current user can see caisse reference in paiement entries
+        boolean canSeeCaisse = isSuperAdmin(current) || (current != null && (utilisateurService.hasPermission(current, "CAISSE_VOIR") || utilisateurService.hasPermission(current, "CAISSE_LECTURE")));
+        // Debug log: record permissions and visibility decision
+        try {
+            java.util.List<String> perms = current != null && current.getPermissions() != null ? current.getPermissions().stream().map(p -> p.getName()).sorted().toList() : java.util.Collections.emptyList();
+            log.info("getVentesHistoriqueByBoutique: user={} canSeeCaisse={} perms={}", current != null ? current.getEmail() : "ANONYMOUS", canSeeCaisse, perms);
+        } catch (Exception e) {
+            log.warn("Unable to log permissions for user while computing canSeeCaisse: {}", e.getMessage());
+        }
+
         List<HistoriqueItem> itemsV = new ArrayList<>();
         DateTimeFormatter displayFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
 
-        // Livraisons
+        // Livraisons (exclude cancelled)
         java.util.List<com.smboutique.api.model.Livraison> livs = livraisonService.findByBoutiqueId(boutiqueId);
+        // Debug logging: report counts and sample references
+        if (log.isDebugEnabled() || log.isInfoEnabled()) {
+            try {
+                long totalLiv = livs == null ? 0 : livs.size();
+                String sampleRefs = "";
+                if (livs != null && !livs.isEmpty()) {
+                    sampleRefs = livs.stream().limit(5).map(lx -> (lx.getReference() == null ? "(no-ref)" : lx.getReference())).collect(java.util.stream.Collectors.joining(", "));
+                }
+                log.info("getVentesHistoriqueByBoutique: found {} livraisons for boutique {} sampleRefs=[{}]", totalLiv, boutiqueId, sampleRefs);
+            } catch (Exception e) {
+                log.warn("getVentesHistoriqueByBoutique: unable to log livraison sample", e);
+            }
+        }
         for (com.smboutique.api.model.Livraison l : livs) {
+            if (l.getAnnule() != null && l.getAnnule()) continue;
             HistoriqueItem it = new HistoriqueItem();
             it.type = "LIVRAISON";
             it.id = l.getId();
@@ -288,9 +317,10 @@ public class HistoriqueController {
             itemsV.add(it);
         }
 
-        // Paiements clients
+        // Paiements clients (exclude cancelled)
         java.util.List<com.smboutique.api.model.PaiementClient> paies = paiementClientService.findByBoutiqueId(boutiqueId);
         for (com.smboutique.api.model.PaiementClient p : paies) {
+            if (p.getAnnule() != null && p.getAnnule()) continue;
             HistoriqueItem it = new HistoriqueItem();
             it.type = "PAIEMENT";
             it.id = p.getId();
@@ -307,6 +337,8 @@ public class HistoriqueController {
                 if (p.getCommandeClient().getClient() != null)
                     it.fournisseur = p.getCommandeClient().getClient().getNom() + " " + p.getCommandeClient().getClient().getPrenom();
             }
+            // include reference caisse only if the current user has caisse viewing permissions
+            it.referenceCaisse = canSeeCaisse ? p.getReferenceCaisse() : null;
             itemsV.add(it);
         }
 
@@ -335,16 +367,97 @@ public class HistoriqueController {
             return ResponseEntity.status(403).build();
         }
 
-        // Currently no explicit annulation metadata on Livraison or PaiementClient. Return empty list to follow same contract.
-        List<HistoriqueItem> empty = new ArrayList<>();
-        return ResponseEntity.ok(empty);
+        List<HistoriqueItem> items = new ArrayList<>();
+        DateTimeFormatter displayFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+
+        // Livraisons that are cancelled
+        java.util.List<com.smboutique.api.model.Livraison> livs = livraisonService.findByBoutiqueId(boutiqueId);
+        for (com.smboutique.api.model.Livraison l : livs) {
+            if (l.getAnnule() == null || !l.getAnnule()) continue;
+            HistoriqueItem it = new HistoriqueItem();
+            it.type = "LIVRAISON";
+            it.id = l.getId();
+            if (l.getDateLivraison() != null) {
+                java.time.ZonedDateTime z = l.getDateLivraison().atZone(java.time.ZoneId.systemDefault());
+                it.date = z.format(displayFormatter);
+                it.dateIso = z.format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+            }
+            it.reference = l.getReference();
+            it.annule = true;
+            if (l.getAnnuleAt() != null) it.annuleAt = l.getAnnuleAt().format(displayFormatter);
+            it.annuleReason = l.getAnnuleReason();
+            it.annulePar = l.getAnnulePar();
+            if (l.getAnnulePar() != null) {
+                utilisateurService.findById(l.getAnnulePar()).ifPresent(u -> it.annuleParNom = (u.getNom() != null ? u.getNom() : "") + " " + (u.getPrenom() != null ? u.getPrenom() : ""));
+            }
+            if (l.getCommandeClient() != null) {
+                it.referenceCommandeId = l.getCommandeClient().getId();
+                it.referenceCommande = l.getCommandeClient().getReference();
+                if (l.getCommandeClient().getClient() != null) it.fournisseur = l.getCommandeClient().getClient().getNom() + " " + l.getCommandeClient().getClient().getPrenom();
+            }
+            items.add(it);
+        }
+
+        // Paiements clients that are cancelled
+        // Ensure we know if caller can see caisse references here as well (same logic as above)
+        boolean canSeeCaisse = isSuperAdmin(current) || (current != null && (utilisateurService.hasPermission(current, "CAISSE_VOIR") || utilisateurService.hasPermission(current, "CAISSE_LECTURE")));
+        try {
+            java.util.List<String> perms2 = current != null && current.getPermissions() != null ? current.getPermissions().stream().map(p -> p.getName()).sorted().toList() : java.util.Collections.emptyList();
+            log.info("getVentesHistoriqueAnnulations: user={} canSeeCaisse={} perms={}", current != null ? current.getEmail() : "ANONYMOUS", canSeeCaisse, perms2);
+        } catch (Exception e) {
+            log.warn("Unable to log permissions for user in annulations path: {}", e.getMessage());
+        }
+        java.util.List<com.smboutique.api.model.PaiementClient> paies = paiementClientService.findByBoutiqueId(boutiqueId);
+        for (com.smboutique.api.model.PaiementClient p : paies) {
+            if (p.getAnnule() == null || !p.getAnnule()) continue;
+            HistoriqueItem it = new HistoriqueItem();
+            it.type = "PAIEMENT";
+            it.id = p.getId();
+            if (p.getDatePaie() != null) {
+                java.time.ZonedDateTime z = p.getDatePaie().atZone(java.time.ZoneId.systemDefault());
+                it.date = z.format(displayFormatter);
+                it.dateIso = z.format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+            }
+            it.reference = p.getReference();
+            it.annule = true;
+            if (p.getAnnuleAt() != null) it.annuleAt = p.getAnnuleAt().format(displayFormatter);
+            it.annuleReason = p.getAnnuleReason();
+            it.annulePar = p.getAnnulePar();
+            if (p.getAnnulePar() != null) {
+                utilisateurService.findById(p.getAnnulePar()).ifPresent(u -> it.annuleParNom = (u.getNom() != null ? u.getNom() : "") + " " + (u.getPrenom() != null ? u.getPrenom() : ""));
+            }
+            it.montant = p.getMontantPaye() != null ? p.getMontantPaye().doubleValue() : null;
+            if (p.getCommandeClient() != null) {
+                it.referenceCommandeId = p.getCommandeClient().getId();
+                it.referenceCommande = p.getCommandeClient().getReference();
+                if (p.getCommandeClient().getClient() != null) it.fournisseur = p.getCommandeClient().getClient().getNom() + " " + p.getCommandeClient().getClient().getPrenom();
+            }
+            // include reference caisse only if the current user has caisse viewing permissions
+            it.referenceCaisse = canSeeCaisse ? p.getReferenceCaisse() : null;
+            items.add(it);
+        }
+
+        List<HistoriqueItem> sorted = items.stream()
+                .sorted(Comparator.comparing((HistoriqueItem i) -> {
+                    if (i.dateIso == null) return java.time.Instant.MIN;
+                    try {
+                        return java.time.OffsetDateTime.parse(i.dateIso).toInstant();
+                    } catch (Exception e) {
+                        try {
+                            return java.time.LocalDateTime.parse(i.dateIso).atZone(java.time.ZoneId.systemDefault()).toInstant();
+                        } catch (Exception ex) {
+                            return java.time.Instant.MIN;
+                        }
+                    }
+                }).reversed())
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(sorted);
     }
 
     private boolean isSuperAdmin(Utilisateur user) {
         if (user == null) return false;
-        boolean hasRole = user.getRoles() != null && user.getRoles().stream()
-                .anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
-        boolean hasType = "SUPERADMIN".equalsIgnoreCase(user.getTypeUtilisateur());
-        return hasRole || hasType;
+        // Determine superadmin by role membership only
+        return user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
     }
 }

@@ -86,85 +86,123 @@ public class DataInitializer implements CommandLineRunner {
 
     private void initializePermissions() {
         logger.info("Initializing permissions...");
-        if (permissionRepository.count() == 0) {
-            // Permissions CRUD pour chaque entité
-            String[][] permissions = {
-                // Dashboard
-                {"TABLEAU_DE_BORD_LECTURE", "Permission pour lire le tableau de bord"},
 
-                // Utilisateurs
-                {"UTILISATEUR_GERER", "Permission pour gérer les utilisateurs"},
-                {"UTILISATEUR_LECTURE", "Permission pour lire les utilisateurs"},
-                {"UTILISATEUR_CREER", "Permission pour créer des utilisateurs"},
-                {"UTILISATEUR_MODIFIER", "Permission pour modifier les utilisateurs"},
-                {"UTILISATEUR_SUPPRIMER", "Permission pour supprimer les utilisateurs"},
+        // Liste complète des permissions (menu sidebar + fonctionnalités futures)
+        String[][] permissions = {
+            // Dashboard
+            {"TABLEAU_DE_BORD_LECTURE", "Permission pour lire le tableau de bord"},
+            {"TABLEAU_DE_BORD_VOIR", "Permission pour voir le tableau de bord"},
 
-                // Produits
-                {"PRODUIT_LECTURE", "Permission pour lire les produits"},
-                {"PRODUIT_CREER", "Permission pour créer des produits"},
-                {"PRODUIT_MODIFIER", "Permission pour modifier les produits"},
-                {"PRODUIT_SUPPRIMER", "Permission pour supprimer les produits"},
+            // Utilisateurs
+            {"UTILISATEUR_GERER", "Permission pour gérer les utilisateurs"},
+            {"UTILISATEUR_LECTURE", "Permission pour lire les utilisateurs"},
+            {"UTILISATEUR_CREER", "Permission pour créer des utilisateurs"},
+            {"UTILISATEUR_MODIFIER", "Permission pour modifier des utilisateurs"},
+            {"UTILISATEUR_SUPPRIMER", "Permission pour supprimer des utilisateurs"},
 
-                // Commandes
-                {"COMMANDE_LECTURE", "Permission pour lire les commandes"},
-                {"COMMANDE_CREER", "Permission pour créer des commandes"},
-                {"COMMANDE_MODIFIER", "Permission pour modifier les commandes"},
-                {"COMMANDE_SUPPRIMER", "Permission pour supprimer les commandes"},
+            // Produits
+            {"PRODUIT_LECTURE", "Permission pour lire les produits"},
+            {"PRODUIT_CREER", "Permission pour créer des produits"},
+            {"PRODUIT_MODIFIER", "Permission pour modifier des produits"},
+            {"PRODUIT_SUPPRIMER", "Permission pour supprimer des produits"},
+            {"PRODUIT_VOIR", "Permission pour voir la section produits"},
+            {"PRODUIT_MOUVEMENT", "Permission pour voir les mouvements produits"},
+            {"PRODUIT_PERTE", "Permission pour gérer pertes/utilisations"},
 
-                // Clients
-                {"CLIENT_LECTURE", "Permission pour lire les clients"},
-                {"CLIENT_CREER", "Permission pour créer des clients"},
-                {"CLIENT_MODIFIER", "Permission pour modifier les clients"},
-                {"CLIENT_SUPPRIMER", "Permission pour supprimer les clients"},
+            // Commandes / Achats
+            {"COMMANDE_LECTURE", "Permission pour lire les commandes"},
+            {"COMMANDE_CREER", "Permission pour créer des commandes"},
+            {"COMMANDE_MODIFIER", "Permission pour modifier les commandes"},
+            {"COMMANDE_SUPPRIMER", "Permission pour supprimer les commandes"},
+            {"ACHAT_VOIR", "Permission pour voir la section achats"},
+            {"ACHAT_HISTORIQUE", "Permission pour voir l'historique des achats"},
 
-                // Ventes
-                {"VENTE_LECTURE", "Permission pour lire les ventes"},
-                {"VENTE_CREER", "Permission pour créer des ventes"},
-                {"VENTE_MODIFIER", "Permission pour modifier les ventes"},
-                {"VENTE_SUPPRIMER", "Permission pour supprimer les ventes"},
+            // Clients
+            {"CLIENT_LECTURE", "Permission pour lire les clients"},
+            {"CLIENT_CREER", "Permission pour créer des clients"},
+            {"CLIENT_MODIFIER", "Permission pour modifier des clients"},
+            {"CLIENT_SUPPRIMER", "Permission pour supprimer des clients"},
 
-                // Inventaire
-                {"INVENTAIRE_LECTURE", "Permission pour lire l'inventaire"},
-                {"INVENTAIRE_CREER", "Permission pour créer des éléments d'inventaire"},
-                {"INVENTAIRE_MODIFIER", "Permission pour modifier l'inventaire"},
-                {"INVENTAIRE_SUPPRIMER", "Permission pour supprimer des éléments d'inventaire"},
+            // Ventes
+            {"VENTE_LECTURE", "Permission pour lire les ventes"},
+            {"VENTE_CREER", "Permission pour créer des ventes"},
+            {"VENTE_MODIFIER", "Permission pour modifier les ventes"},
+            {"VENTE_SUPPRIMER", "Permission pour supprimer les ventes"},
+            {"VENTE_ESPECE_VOIR", "Permission pour voir ventes espèces"},
+            {"VENTE_CREDIT_VOIR", "Permission pour voir ventes à crédit"},
+            {"VENTE_HISTORIQUE", "Permission pour voir l'historique des ventes"},
 
-                // Fournisseurs
-                {"FOURNISSEUR_LECTURE", "Permission pour lire les fournisseurs"},
-                {"FOURNISSEUR_CREER", "Permission pour créer des fournisseurs"},
-                {"FOURNISSEUR_MODIFIER", "Permission pour modifier les fournisseurs"},
-                {"FOURNISSEUR_SUPPRIMER", "Permission pour supprimer les fournisseurs"},
+            // Inventaire
+            {"INVENTAIRE_LECTURE", "Permission pour lire l'inventaire"},
+            {"INVENTAIRE_CREER", "Permission pour créer des éléments d'inventaire"},
+            {"INVENTAIRE_MODIFIER", "Permission pour modifier l'inventaire"},
+            {"INVENTAIRE_SUPPRIMER", "Permission pour supprimer des éléments d'inventaire"},
+            {"INVENTAIRE_VOIR", "Permission pour voir la section inventaire"},
+            {"INVENTAIRE_MOUVEMENT", "Permission pour voir mouvements d'inventaire"},
+            {"INVENTAIRE_UTILISATIONS", "Permission pour voir utilisations/pertes"},
 
-                // Boutiques
-                {"BOUTIQUE_LECTURE", "Permission pour lire les boutiques"},
-                {"BOUTIQUE_CREER", "Permission pour créer des boutiques"},
-                {"BOUTIQUE_MODIFIER", "Permission pour modifier les boutiques"},
-                {"BOUTIQUE_SUPPRIMER", "Permission pour supprimer les boutiques"},
+            // Fournisseurs
+            {"FOURNISSEUR_LECTURE", "Permission pour lire les fournisseurs"},
+            {"FOURNISSEUR_CREER", "Permission pour créer des fournisseurs"},
+            {"FOURNISSEUR_MODIFIER", "Permission pour modifier les fournisseurs"},
+            {"FOURNISSEUR_SUPPRIMER", "Permission pour supprimer les fournisseurs"},
+            {"FOURNISSEUR_VOIR", "Permission pour voir la section fournisseurs"},
 
-                // Rapports
-                {"RAPPORT_LECTURE", "Permission pour lire les rapports"},
-                {"RAPPORT_CREER", "Permission pour créer des rapports"},
+            // Boutiques
+            {"BOUTIQUE_LECTURE", "Permission pour lire les boutiques"},
+            {"BOUTIQUE_CREER", "Permission pour créer des boutiques"},
+            {"BOUTIQUE_MODIFIER", "Permission pour modifier les boutiques"},
+            {"BOUTIQUE_SUPPRIMER", "Permission pour supprimer les boutiques"},
 
-                // Paramètres
-                {"PARAMETRES_LECTURE", "Permission pour lire les paramètres"},
-                {"PARAMETRES_MODIFIER", "Permission pour modifier les paramètres"}
-                ,
-                // Configuration marges
-                {"CONFIG_MARGE_LECTURE", "Permission pour lire la configuration des marges"},
-                {"CONFIG_MARGE_ECRITURE", "Permission pour créer/modifier la configuration des marges"},
-                {"CONFIG_MARGE_SUPPRESSION", "Permission pour supprimer la configuration des marges"}
-            };
+            // Rapports
+            {"RAPPORT_LECTURE", "Permission pour lire les rapports"},
+            {"RAPPORT_CREER", "Permission pour créer des rapports"},
 
-            Arrays.stream(permissions).forEach(perm -> {
+            // Paramètres / Configuration
+//            {"PARAMETRES_LECTURE", "Permission pour lire les paramètres"},
+//            {"PARAMETRES_MODIFIER", "Permission pour modifier les paramètres"},
+//            {"CONFIGURATION_VOIR", "Permission pour voir la configuration"},
+
+            // Configuration marges
+            {"CONFIG_MARGE_LECTURE", "Permission pour lire la configuration des marges"},
+            {"CONFIG_MARGE_ECRITURE", "Permission pour créer/modifier la configuration des marges"},
+            {"CONFIG_MARGE_SUPPRESSION", "Permission pour supprimer la configuration des marges"},
+
+            // Paiements / Réceptions / Livraisons
+            {"PAIEMENT_CREER", "Permission pour créer paiements"},
+            {"PAIEMENT_MODIFIER", "Permission pour modifier paiements"},
+            {"PAIEMENT_SUPPRESSION", "Permission pour supprimer paiements"},
+            {"PAIEMENT_ANNULATION", "Permission pour annuler paiements"},
+            {"RECEPTION_CREER", "Permission pour créer receptions"},
+            {"RECEPTION_MODIFIER", "Permission pour modifier receptions"},
+            {"RECEPTION_SUPPRESSION", "Permission pour supprimer receptions"},
+            {"RECEPTION_ANNULATION", "Permission pour annuler receptions"},
+            {"LIVRAISON_ECRITURE", "Permission pour gérer livraisons"},
+
+            // Caisse / Dépenses
+            {"CAISSE_LECTURE", "Permission pour lire la caisse"},
+            {"CAISSE_VOIR", "Permission pour voir la caisse"},
+            {"CAISSE_GERER", "Permission pour gérer la caisse"},
+            {"DEPENSES_VOIR", "Permission pour voir les dépenses"},
+            // Dépenses feature permissions
+            {"DEPENSE_CREER", "Permission pour créer des dépenses"},
+            {"DEPENSE_LECTURE", "Permission pour lire les dépenses"},
+            {"DEPENSE_VALIDATION", "Permission pour valider/rejeter des dépenses"},
+            {"DEPENSE_ANNULATION", "Permission pour annuler des dépenses"}        };
+
+        int created = 0;
+        for (String[] perm : permissions) {
+            String name = perm[0];
+            String desc = perm[1];
+            if (permissionRepository.findByName(name).isEmpty()) {
                 Permission permission = new Permission();
-                permission.setName(perm[0]);
-                permission.setDescription(perm[1]);
+                permission.setName(name);
+                permission.setDescription(desc);
                 permissionRepository.save(permission);
-            });
-            logger.info("Created {} permissions", permissions.length);
-        } else {
-            logger.info("Permissions already exist, skipping initialization");
+                created++;
+            }
         }
+        logger.info("Permissions ensured, created {} new permissions", created);
     }
 
     private void initializeRoles() {
@@ -184,18 +222,20 @@ public class DataInitializer implements CommandLineRunner {
             });
 
             createRole("ADMIN", "Administrateur de boutique", new String[]{
-                "TABLEAU_DE_BORD_LECTURE", "UTILISATEUR_LECTURE",
+                "TABLEAU_DE_BORD_LECTURE", "UTILISATEUR_LECTURE", "UTILISATEUR_GERER",
                 "PRODUIT_LECTURE", "PRODUIT_CREER", "PRODUIT_MODIFIER", "PRODUIT_SUPPRIMER",
                 "COMMANDE_LECTURE", "COMMANDE_CREER", "COMMANDE_MODIFIER", "COMMANDE_SUPPRIMER",
                 "CLIENT_LECTURE", "CLIENT_CREER", "CLIENT_MODIFIER", "CLIENT_SUPPRIMER",
                 "VENTE_LECTURE", "VENTE_CREER", "VENTE_MODIFIER", "VENTE_SUPPRIMER",
                 "INVENTAIRE_LECTURE", "INVENTAIRE_CREER", "INVENTAIRE_MODIFIER", "INVENTAIRE_SUPPRIMER",
                 "FOURNISSEUR_LECTURE", "FOURNISSEUR_CREER", "FOURNISSEUR_MODIFIER", "FOURNISSEUR_SUPPRIMER",
-                "RAPPORT_LECTURE", "RAPPORT_CREER"
+                "RAPPORT_LECTURE", "RAPPORT_CREER",
+                // Dépenses
+                "DEPENSE_CREER", "DEPENSE_LECTURE", "DEPENSE_VALIDATION", "DEPENSE_ANNULATION"
             });
 
             createRole("MANAGER", "Manager de boutique", new String[]{
-                "TABLEAU_DE_BORD_LECTURE",
+                "TABLEAU_DE_BORD_LECTURE", "UTILISATEUR_GERER",
                 "PRODUIT_LECTURE", "PRODUIT_CREER", "PRODUIT_MODIFIER",
                 "COMMANDE_LECTURE", "COMMANDE_CREER", "COMMANDE_MODIFIER",
                 "CLIENT_LECTURE", "CLIENT_CREER", "CLIENT_MODIFIER",
@@ -216,7 +256,9 @@ public class DataInitializer implements CommandLineRunner {
                 "PRODUIT_LECTURE",
                 "COMMANDE_LECTURE", "COMMANDE_CREER", "COMMANDE_MODIFIER",
                 "CLIENT_LECTURE",
-                "VENTE_LECTURE", "VENTE_CREER"
+                "VENTE_LECTURE", "VENTE_CREER",
+                // Caissier can create and view dépenses
+                "DEPENSE_CREER", "DEPENSE_LECTURE"
             });
             logger.info("Created 5 roles with permissions");
 

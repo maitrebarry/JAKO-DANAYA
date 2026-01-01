@@ -84,11 +84,18 @@ public class AuthController {
         Utilisateur utilisateur = utilisateurRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
 
-        Set<String> permissions = utilisateur.getPermissions().stream()
-                .map(Permission::getName)
-                .collect(Collectors.toSet());
-
-        // Removed role permissions aggregation to use only direct permissions from utilisateur_permission table
+        // Aggregate permissions: direct + role-derived
+        java.util.Set<String> permissions = new java.util.HashSet<>();
+        if (utilisateur.getPermissions() != null) {
+            utilisateur.getPermissions().forEach(p -> permissions.add(p.getName()));
+        }
+        if (utilisateur.getRoles() != null) {
+            utilisateur.getRoles().forEach(r -> {
+                if (r.getPermissions() != null) {
+                    r.getPermissions().forEach(p -> permissions.add(p.getName()));
+                }
+            });
+        }
 
         Map<String, Object> response = new HashMap<>();
         response.put("user", Map.of(

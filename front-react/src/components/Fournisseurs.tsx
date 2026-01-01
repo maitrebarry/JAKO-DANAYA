@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
 import { useUser } from '../contexts/UserContext';
+import useHasPermission from '../contexts/useHasPermission';
+import RequirePermission from './RequirePermission';
 
 const Fournisseurs: React.FC = () => {
   const { roles, currentBoutique } = useUser();
@@ -22,6 +24,9 @@ const Fournisseurs: React.FC = () => {
       return name.toUpperCase().includes('SUPERADMIN');
     });
   }, [roles]);
+
+  const canCreate = useHasPermission('FOURNISSEUR_CREER');
+  const canModify = useHasPermission('FOURNISSEUR_MODIFIER');
 
   const resetForm = () => {
     setNewFournisseur({
@@ -85,6 +90,9 @@ const Fournisseurs: React.FC = () => {
       setMessage('Sélectionnez une boutique.');
       return;
     }
+
+    if (editing && !canModify) { setMessage("Vous n'avez pas la permission de modifier"); return; }
+    if (!editing && !canCreate) { setMessage("Vous n'avez pas la permission de créer"); return; }
 
     setCreating(true);
     setMessage('');
@@ -170,7 +178,9 @@ const Fournisseurs: React.FC = () => {
       <div className="card">
         <div className="card-header d-flex justify-content-between align-items-center" style={{ backgroundColor: '#007bff', color: 'white' }}>
           <h5>Fournisseurs</h5>
-          <button className="btn btn-plus" onClick={() => { setEditing(null); resetForm(); setShowModal(true); }}>+ Fournisseur</button>
+          <RequirePermission permission="FOURNISSEUR_CREER">
+            <button className="btn btn-plus" onClick={() => { setEditing(null); resetForm(); setShowModal(true); }}>+ Fournisseur</button>
+          </RequirePermission>
         </div>
         <div className="card-body">
           <div className="mb-3">
@@ -204,8 +214,12 @@ const Fournisseurs: React.FC = () => {
                   <td>{f.ville}</td>
                   <td>{f.boutique?.nom || 'N/A'}</td>
                   <td>
-                    <button className="btn btn-sm btn-warning me-2" title="Modifier" onClick={() => { setEditing(f); setNewFournisseur({ prenom: f.prenom || '', nom: f.nom || '', contact: f.contact || '', ville: f.ville || '', boutiqueId: f.boutique?.id ? f.boutique.id.toString() : (currentBoutique?.id?.toString() || '') }); setShowModal(true); }}><i className="ti ti-pencil"></i></button>
-                    <button className="btn btn-sm btn-danger" title="Supprimer" onClick={() => handleDelete(f.id)}><i className="ti ti-trash"></i></button>
+                    <RequirePermission permission="FOURNISSEUR_MODIFIER">
+                      <button className="btn btn-sm btn-warning me-2" title="Modifier" onClick={() => { setEditing(f); setNewFournisseur({ prenom: f.prenom || '', nom: f.nom || '', contact: f.contact || '', ville: f.ville || '', boutiqueId: f.boutique?.id ? f.boutique.id.toString() : (currentBoutique?.id?.toString() || '') }); setShowModal(true); }}><i className="ti ti-pencil"></i></button>
+                    </RequirePermission>
+                    <RequirePermission permission="FOURNISSEUR_SUPPRIMER">
+                      <button className="btn btn-sm btn-danger" title="Supprimer" onClick={() => handleDelete(f.id)}><i className="ti ti-trash"></i></button>
+                    </RequirePermission>
                   </td>
                 </tr>
               ))}
@@ -282,7 +296,7 @@ const Fournisseurs: React.FC = () => {
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={() => { setShowModal(false); setEditing(null); resetForm(); }}>Annuler</button>
-              <button type="button" className="btn btn-primary" onClick={handleCreateOrUpdate} disabled={creating}>
+              <button type="button" className="btn btn-primary" onClick={handleCreateOrUpdate} disabled={creating || (!editing && !canCreate) || (editing && !canModify)}>
                 {creating ? (editing ? 'Modification...' : 'Création...') : (editing ? 'Modifier' : 'Créer')}
               </button>
             </div>

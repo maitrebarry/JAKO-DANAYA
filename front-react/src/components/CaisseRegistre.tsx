@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import Swal from 'sweetalert2';
 import { useUser } from '../contexts/UserContext';
+import useHasPermission from '../contexts/useHasPermission';
+import RequirePermission from './RequirePermission';
 import { formatLocalDate } from '../utils/date';
 
 const CaisseRegistre: React.FC = () => {
@@ -26,14 +28,20 @@ const CaisseRegistre: React.FC = () => {
     setDate(formatted);
   }, []);
 
-  // When caisses list changes, regenerate the default reference (CAISSE-mm-YYYY-N°count)
+  const sanitizeBoutiquePrefix = (name: string) => {
+    if (!name) return '';
+    return name.replace(/[^A-Za-z0-9\- ]/g, '').trim().replace(/\s+/g, '-').toUpperCase();
+  };
+
+  // When caisses list changes, regenerate the default reference prefixed by boutique (BOUTIQUE-CAISSE-mm-YYYY-N°count)
   useEffect(() => {
     if (!currentBoutique) return;
     const now = new Date();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const year = now.getFullYear();
     const count = (caisses || []).length || 0;
-    const gen = `CAISSE-${month}-${year}-N°${count + 1}`;
+    const prefix = sanitizeBoutiquePrefix(currentBoutique.nom || '');
+    const gen = `${prefix}-CAISSE-${month}-${year}-N°${count + 1}`;
     setReference(gen);
   }, [caisses, currentBoutique]);
 
@@ -45,8 +53,12 @@ const CaisseRegistre: React.FC = () => {
     const d = new Date();
     const date = d.toISOString().slice(0,10).replace(/-/g,'');
     const time = d.toTimeString().slice(0,8).replace(/:/g,'');
-    return `CAISSE-${date}-${time}`;
+    const prefix = sanitizeBoutiquePrefix(currentBoutique?.nom || '');
+    return `${prefix}-CAISSE-${date}-${time}`;
   }
+
+  // Permissions
+  const canModifyCaisse = useHasPermission('CAISSE_MODIFIER');
 
   const fetchCaisses = async () => {
     if (!currentBoutique) return setCaisses([]);
@@ -118,6 +130,7 @@ const CaisseRegistre: React.FC = () => {
   }
 
   const updateStatut = async (id: number, newStatut: string) => {
+    if (!canModifyCaisse) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de modifier les caisses', 'error'); return; }
     try {
       const token = localStorage.getItem('smb_token');
       // fetch existing caisse
@@ -180,7 +193,9 @@ const CaisseRegistre: React.FC = () => {
           </div>
 
           <div className="text-center">
-            <button type="button" className="btn btn-success me-2" onClick={createCaisse} disabled={hasOpenCaisse} title={hasOpenCaisse ? 'Une caisse est ouverte. Fermez-la avant d\'en créer une nouvelle.' : ''}>Sauvegarder</button>
+            <RequirePermission permission="CAISSE_CREER" fallback={<button type="button" className="btn btn-secondary me-2" disabled title="Permission requise">Sauvegarder</button>}>
+              <button type="button" className="btn btn-success me-2" onClick={createCaisse} disabled={hasOpenCaisse} title={hasOpenCaisse ? 'Une caisse est ouverte. Fermez-la avant d\'en créer une nouvelle.' : ''}>Sauvegarder</button>
+            </RequirePermission>
             {/* <a className="btn btn-primary" href="#liste-caisses">Liste caisse</a> */}
             {hasOpenCaisse && (
               <div className="mt-2"><small className="text-warning">Une caisse est ouverte (Réf: {openCaisse?.reference} — N°{openCaisse?.numero}). Fermez-la avant d'en créer une nouvelle.</small></div>
@@ -216,6 +231,7 @@ const CaisseRegistre: React.FC = () => {
                   <td>{c.statut ?? '-'}</td>
                   <td>
                     <button className="btn btn-sm btn-secondary me-2" onClick={() => updateStatut(c.id, c.statut === 'OUVERTE' ? 'FERMEE' : 'OUVERTE')}>{c.statut === 'OUVERTE' ? 'Fermer' : 'Ouvrir'}</button>
+                    <button className="btn btn-sm btn-outline-primary" style={{ marginLeft: 8 }} onClick={() => window.location.href = `/caisses/movements?ref=${encodeURIComponent(c.reference)}`}>Voir mouvements</button>
                   </td>
                 </tr>
               ))}

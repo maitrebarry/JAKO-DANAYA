@@ -51,4 +51,25 @@ public class UtilisateurServiceImpl implements UtilisateurService {
     public void deleteById(Long id) {
         utilisateurRepository.deleteById(id);
     }
+
+    @Override
+    public boolean hasPermission(Utilisateur utilisateur, String permissionName) {
+        if (utilisateur == null || permissionName == null) return false;
+        String name = permissionName.trim();
+        // Check direct permissions
+        if (utilisateur.getPermissions() != null) {
+            boolean direct = utilisateur.getPermissions().stream().anyMatch(p -> name.equals(p.getName()));
+            if (direct) return true;
+        }
+        // Check role permissions
+        if (utilisateur.getRoles() != null) {
+            for (com.smboutique.api.model.Role r : utilisateur.getRoles()) {
+                if (r.getPermissions() != null) {
+                    boolean found = r.getPermissions().stream().anyMatch(p -> name.equals(p.getName()));
+                    if (found) return true;
+                }
+            }
+        }
+        return false;
+    }
 }

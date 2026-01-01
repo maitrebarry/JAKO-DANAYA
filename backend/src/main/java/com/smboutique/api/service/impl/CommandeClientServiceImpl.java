@@ -33,4 +33,14 @@ public class CommandeClientServiceImpl implements CommandeClientService {
     public void deleteById(Long id) {
         commandeClientRepository.deleteById(id);
     }
-}
+
+    @Override
+    public List<CommandeClient> findAllByBoutiqueId(Long boutiqueId) {
+        return commandeClientRepository.findAllByBoutiqueId(boutiqueId);
+    }
+
+    @Override
+    public Optional<CommandeClient> findByIdAndBoutiqueId(Long id, Long boutiqueId) {
+        return commandeClientRepository.findByIdAndBoutiqueId(id, boutiqueId);
+    }
+} 

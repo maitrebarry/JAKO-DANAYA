@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useUser } from '../contexts/UserContext';
 import Swal from 'sweetalert2';
 import { jsPDF } from 'jspdf';
+import useHasPermission from '../contexts/useHasPermission';
 import { formatServerDate } from '../utils/date';
 
 interface HistoriqueItem {
@@ -23,7 +24,9 @@ interface HistoriqueItem {
 }
 
 const Historique: React.FC = () => {
-  const { currentBoutique, logout, permissions } = useUser();
+  const { currentBoutique, logout } = useUser();
+  const canAnnulerPaiement = useHasPermission('PAIEMENT_ANNULATION') || useHasPermission('PAIEMENT_SUPPRESSION');
+  const canAnnulerReception = useHasPermission('RECEPTION_ANNULATION') || useHasPermission('RECEPTION_SUPPRESSION');
   const [viewingAnnulations, setViewingAnnulations] = useState(false);
   const [items, setItems] = useState<HistoriqueItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -448,7 +451,17 @@ const Historique: React.FC = () => {
                   {filtered.map(item => (
                     <tr key={`${item.type}-${item.id}`}>
                       <td>{formatServerDate(item.dateIso || item.date || '')}</td>
-                      <td>{item.type}</td>
+                      <td>
+                        {(() => {
+                          const label = item.type ?? '';
+                          const key = (label || '').toString().toUpperCase();
+                          let cls = 'bg-secondary';
+                          if (key.includes('PAIEMENT') || key.includes('ENTREE') || key.includes('CREDIT')) cls = 'bg-success';
+                          else if (key.includes('RECEPTION') || key.includes('LIVRAISON') || key.includes('SORTIE') || key.includes('DEPENSE')) cls = 'bg-danger';
+                          else cls = 'bg-secondary';
+                          return <span className={`badge ${cls}`}>{label}</span>;
+                        })()}
+                      </td>
                       <td>{item.reference}</td>
                       <td>{item.referenceCommande}</td>
                       <td>{item.fournisseur}</td>
@@ -458,16 +471,10 @@ const Historique: React.FC = () => {
                       ) : (
                         <td>
                           {/* Unified operations: Aperçu, PDF Paiement, PDF Réception, Annulation */}
-                          {/* Aperçu */}
-                          {item.type === 'RECEPTION' ? (
+                          {/* Aperçu : seulement pour les réceptions — suppression de l'aperçu de commande dans l'historique */}
+                          {/* {item.type === 'RECEPTION' && (
                             <a className="btn btn-sm btn-outline-primary me-1" href={`/receptions/${item.id}`} title="Aperçu"><i className="ri-eye-line"></i></a>
-                          ) : (
-                            item.referenceCommandeId ? (
-                              <a className="btn btn-sm btn-outline-primary me-1" href={`/commandes/appercu/${item.referenceCommandeId}`} title="Aperçu Commande"><i className="ri-eye-line"></i></a>
-                            ) : (
-                              <button className="btn btn-sm btn-outline-primary me-1 disabled" title="Aperçu indisponible"><i className="ri-eye-line"></i></button>
-                            )
-                          )}
+                          )} */}
 
                           {/* PDF Paiement (enabled for PAIEMENT rows) */}
                           <button
@@ -511,7 +518,7 @@ const Historique: React.FC = () => {
                           </button>
 
                           {/* Annulation (cancel) - replaces supprimer */}
-                          {item.type === 'PAIEMENT' && (permissions.includes('PAIEMENT_ANNULATION') || permissions.includes('PAIEMENT_SUPPRESSION')) && (
+                          {item.type === 'PAIEMENT' && canAnnulerPaiement && (
                             <button
                               className="btn btn-sm btn-outline-danger"
                               title="Annuler"
@@ -521,7 +528,7 @@ const Historique: React.FC = () => {
                             </button>
                           )}
 
-                          {item.type !== 'PAIEMENT' && (permissions.includes('RECEPTION_ANNULATION') || permissions.includes('RECEPTION_SUPPRESSION')) && (
+                          {item.type !== 'PAIEMENT' && canAnnulerReception && (
                             <button
                               className="btn btn-sm btn-outline-danger"
                               title="Annuler"

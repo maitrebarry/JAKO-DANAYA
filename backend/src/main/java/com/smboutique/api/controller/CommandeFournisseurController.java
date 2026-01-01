@@ -25,6 +25,8 @@ import java.time.format.DateTimeFormatter;
 @CrossOrigin(origins = "*")
 public class CommandeFournisseurController {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CommandeFournisseurController.class);
+
     @Autowired
     private CommandeFournisseurService commandeFournisseurService;
 
@@ -60,10 +62,8 @@ public class CommandeFournisseurController {
 
     private boolean isSuperAdmin(Utilisateur user) {
         if (user == null) return false;
-        boolean hasRole = user.getRoles() != null && user.getRoles().stream()
-                .anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
-        boolean hasType = "SUPERADMIN".equalsIgnoreCase(user.getTypeUtilisateur());
-        return hasRole || hasType;
+        // Determine superadmin by role membership only
+        return user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
     }
 
     @GetMapping
@@ -173,6 +173,18 @@ public class CommandeFournisseurController {
 
     @GetMapping("/{id}/pdf")
     public void getCommandePdf(@PathVariable Long id, jakarta.servlet.http.HttpServletResponse response) {
+        // Diagnostic log: record principal and authentication presence
+        try {
+            java.security.Principal principal = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (principal != null) {
+                String name = principal.getName();
+                org.slf4j.LoggerFactory.getLogger(CommandeFournisseurController.class).info("getCommandePdf called for id={} by user={}", id, name);
+            } else {
+                org.slf4j.LoggerFactory.getLogger(CommandeFournisseurController.class).info("getCommandePdf called for id={} by anonymous user", id);
+            }
+        } catch (Exception ex) {
+            // ignore diagnostic logging failures
+        }
         try {
             pdfService.writeCommandePdf(id, response);
         } catch (Exception e) {
@@ -185,9 +197,13 @@ public class CommandeFournisseurController {
     }
 
     @PostMapping
-    public CommandeFournisseur createCommandeFournisseur(@RequestBody CommandeFournisseurRequest request) {
-        // Get current user
+    public ResponseEntity<CommandeFournisseur> createCommandeFournisseur(@RequestBody CommandeFournisseurRequest request) {
+        // Permission check: COMMANDE_CREER required
         Utilisateur currentUser = getCurrentUser();
+        if (!isSuperAdmin(currentUser) && !utilisateurService.hasPermission(currentUser, "COMMANDE_CREER")) {
+            return ResponseEntity.status(403).build();
+        }
+
         Boutique boutique = currentUser.getBoutique();
         if (boutique == null) throw new IllegalArgumentException("Boutique non trouvée pour l'utilisateur");
 
@@ -219,12 +235,16 @@ public class CommandeFournisseurController {
         }
         commande.setLignes(lignes);
 
-        return commandeFournisseurService.save(commande);
+        return ResponseEntity.ok(commandeFournisseurService.save(commande));
     }
     @PostMapping("/{id}/paiement")
     public ResponseEntity<CommandeFournisseur> enregistrerPaiement(@PathVariable Long id, @RequestBody PaiementRequest request) {
         Utilisateur current = getCurrentUser();
         if (!isSuperAdmin(current) && (current.getBoutique() == null)) {
+            return ResponseEntity.status(403).build();
+        }
+        // Permission: creating payments for a commande
+        if (!isSuperAdmin(current) && !utilisateurService.hasPermission(current, "PAIEMENT_CREER")) {
             return ResponseEntity.status(403).build();
         }
 
@@ -282,53 +302,12 @@ public class CommandeFournisseurController {
             }
             paiement.setDatePaie(clientLocalDateTime);
             paiement.setReference(request.getReference());
-            // Attach active caisse reference for boutique where available
-            if (cmd.getBoutique() != null && cmd.getBoutique().getId() != null) {
-                java.util.Optional<com.smboutique.api.model.Caisse> maybeCaisse = caisseRepository.findFirstByBoutiqueIdOrderByIdDesc(cmd.getBoutique().getId());
-                if (maybeCaisse.isPresent()) {
-                    com.smboutique.api.model.Caisse caisse = maybeCaisse.get();
-                    String s = caisse.getStatut() == null ? "" : caisse.getStatut().toLowerCase();
-                    if (s.contains("ouv") || s.contains("act") || s.contains("open")) {
-                        paiement.setReferenceCaisse(caisse.getReference());
-                    }
-                }
-            }
+            // Supplier payments do NOT involve caisse; persist paiement only
             paiement.setCommandeFournisseur(cmd);
             paiementService.save(paiement);
 
-            // Update caisse montantTotal for the boutique if an active caisse exists
             boolean caisseUpdated = false;
             Integer caisseNewTotal = null;
-            try {
-                if (cmd.getBoutique() != null && cmd.getBoutique().getId() != null) {
-                    Long bid = cmd.getBoutique().getId();
-                    java.util.Optional<com.smboutique.api.model.Caisse> maybeCaisse = caisseRepository.findFirstByBoutiqueIdOrderByIdDesc(bid);
-                    if (maybeCaisse.isPresent()) {
-                        com.smboutique.api.model.Caisse caisse = maybeCaisse.get();
-                        String s = caisse.getStatut() == null ? "" : caisse.getStatut().toUpperCase();
-                        if (s.contains("OUVERTE") || s.contains("OPEN") || s.contains("ACT")) {
-                            Integer cur = caisse.getMontantTotal() != null ? caisse.getMontantTotal() : 0;
-                            caisse.setMontantTotal(cur + montant);
-                            try {
-                                caisse = ((com.smboutique.api.service.CaisseService)org.springframework.web.context.support.WebApplicationContextUtils.getRequiredWebApplicationContext(
-                                        org.springframework.web.context.ContextLoader.getCurrentWebApplicationContext().getServletContext()
-                                ).getBean(com.smboutique.api.service.CaisseService.class)).save(caisse);
-                                caisseUpdated = true;
-                                caisseNewTotal = caisse.getMontantTotal();
-                            } catch (Exception inner) {
-                                try { ((com.smboutique.api.repository.CaisseRepository) org.springframework.web.context.support.WebApplicationContextUtils.getRequiredWebApplicationContext(
-                                        org.springframework.web.context.ContextLoader.getCurrentWebApplicationContext().getServletContext()
-                                ).getBean(com.smboutique.api.repository.CaisseRepository.class)).save(caisse);
-                                caisseUpdated = true;
-                                caisseNewTotal = caisse.getMontantTotal();
-                                } catch (Exception ex) {}
-                            }
-                        }
-                    }
-                }
-            } catch (Exception ex) {
-                System.out.println("Warning: unable to update caisse total (fournisseur): " + ex.getMessage());
-            }
             try {
                 cmd.setPaie(paieExistante + montant);
                 CommandeFournisseur updated = commandeFournisseurService.save(cmd);

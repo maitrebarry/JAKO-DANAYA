@@ -15,6 +15,23 @@ public class InventaireController {
     @Autowired
     private InventaireService inventaireService;
 
+    @Autowired
+    private com.smboutique.api.service.UtilisateurService utilisateurService;
+
+    private com.smboutique.api.model.Utilisateur getCurrentUser() {
+        org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null) {
+            throw new RuntimeException("Utilisateur authentifié introuvable");
+        }
+        return utilisateurService.findByEmail(authentication.getName()).orElseThrow(() -> new RuntimeException("Utilisateur authentifié introuvable"));
+    }
+
+    private boolean isSuperAdmin(com.smboutique.api.model.Utilisateur user) {
+        if (user == null) return false;
+        // Determine superadmin by role membership only
+        return user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
+    }
+
     @GetMapping
     public List<Inventaire> getAllInventaires() {
         return inventaireService.findAll();
@@ -28,12 +45,20 @@ public class InventaireController {
     }
 
     @PostMapping
-    public Inventaire createInventaire(@RequestBody Inventaire inventaire) {
-        return inventaireService.save(inventaire);
+    public ResponseEntity<Inventaire> createInventaire(@RequestBody Inventaire inventaire) {
+        com.smboutique.api.model.Utilisateur user = getCurrentUser();
+        if (!isSuperAdmin(user) && !utilisateurService.hasPermission(user, "INVENTAIRE_CREER")) {
+            return ResponseEntity.status(403).build();
+        }
+        return ResponseEntity.ok(inventaireService.save(inventaire));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Inventaire> updateInventaire(@PathVariable Long id, @RequestBody Inventaire inventaireDetails) {
+        com.smboutique.api.model.Utilisateur user = getCurrentUser();
+        if (!isSuperAdmin(user) && !utilisateurService.hasPermission(user, "INVENTAIRE_MODIFIER")) {
+            return ResponseEntity.status(403).build();
+        }
         return inventaireService.findById(id)
                 .map(inventaire -> {
                     inventaire.setReference(inventaireDetails.getReference());
@@ -45,6 +70,10 @@ public class InventaireController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteInventaire(@PathVariable Long id) {
+        com.smboutique.api.model.Utilisateur user = getCurrentUser();
+        if (!isSuperAdmin(user) && !utilisateurService.hasPermission(user, "INVENTAIRE_SUPPRIMER")) {
+            return ResponseEntity.status(403).build();
+        }
         return inventaireService.findById(id)
                 .map(inventaire -> {
                     inventaireService.deleteById(id);

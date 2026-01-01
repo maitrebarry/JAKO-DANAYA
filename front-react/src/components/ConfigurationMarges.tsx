@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useUser } from '../contexts/UserContext';
 
 const ConfigurationMarges: React.FC = () => {
-  const { currentBoutique, user, permissions } = useUser();
+  const { currentBoutique, permissions } = useUser();
   const [config, setConfig] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -10,12 +10,9 @@ const ConfigurationMarges: React.FC = () => {
 
   const [form, setForm] = useState({ typeMarge: 'FIXE', valeurDetail: '', valeurGros: '', margeMinimaleDetail: '', margeMinimaleGros: '' });
 
-  // Authorize edit when user is superadmin/proprietaire OR has explicit permission CONFIG_MARGE_ECRITURE
+  // Authorize edit only when the explicit permission CONFIG_MARGE_ECRITURE is present
   const isAllowed = (() => {
-    const t = (user?.typeUtilisateur || '').toUpperCase();
-    if (t === 'SUPERADMIN' || t === 'PROPRIETAIRE') return true;
-    if (Array.isArray(permissions) && permissions.map(p => p.toUpperCase()).includes('CONFIG_MARGE_ECRITURE')) return true;
-    return false;
+    return Array.isArray(permissions) && permissions.map(p => p.toUpperCase()).includes('CONFIG_MARGE_ECRITURE');
   })();
 
   useEffect(() => {

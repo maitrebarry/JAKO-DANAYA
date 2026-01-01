@@ -5,6 +5,8 @@ import SearchableSelect from './SearchableSelect';
 import { toDatetimeLocalInput } from '../utils/date';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
+import useHasPermission from '../contexts/useHasPermission';
+import RequirePermission from './RequirePermission';
 
 interface Stock {
   id: number;
@@ -126,6 +128,12 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
   const [newClient, setNewClient] = useState<{ prenom?: string; nom?: string; contact?: string; ville?: string }>({});
   const [clientSearch, setClientSearch] = useState('');
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+
+  // Permissions
+  const canCreateCommande = useHasPermission('COMMANDE_CREER');
+  const canModifyCommande = useHasPermission('COMMANDE_MODIFIER');
+  const canCreateFournisseur = useHasPermission('FOURNISSEUR_CREER');
+  const canCreateClient = useHasPermission('CLIENT_CREER');
 
   useEffect(() => {
     (async () => {
@@ -483,6 +491,10 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
       return;
     }
 
+    // Permission guard
+    if (isEditMode && !canModifyCommande) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de modifier cette commande', 'error'); return; }
+    if (!isEditMode && !canCreateCommande) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de créer une commande', 'error'); return; }
+
     // client-side payload building
     const produitsSelectionnes: any[] = [];
     const blockedForStock: number[] = [];
@@ -787,9 +799,11 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                 {isVente ? (
                   <>
                     <label>Client
-                      <button type="button" className="btn btn-sm btn-outline-success ms-2" onClick={() => { setNewClient({}); setClientSearch(''); setShowClientModal(true); }}>
-                        <i className='bx bx-plus'></i> Ajouter
-                      </button>
+                      <RequirePermission permission="CLIENT_CREER" fallback={<button type="button" className="btn btn-sm btn-outline-secondary ms-2" disabled title="Permission requise"><i className='bx bx-plus'></i> Ajouter</button>}>
+                        <button type="button" className="btn btn-sm btn-outline-success ms-2" onClick={() => { setNewClient({}); setClientSearch(''); setShowClientModal(true); }}>
+                          <i className='bx bx-plus'></i> Ajouter
+                        </button>
+                      </RequirePermission>
                     </label>
                     <select className="form-control" value={selectedClientId ?? ''} onChange={(e) => { const v = e.target.value; setSelectedClientId(v ? parseInt(v) : null); }}>
                       <option value="">Sélectionner un client</option>
@@ -801,9 +815,11 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                 ) : (
                   <>
                     <label>Fournisseur
-                      <button type="button" className="btn btn-sm btn-outline-success ms-2" onClick={() => { setNewFournisseur({}); setFournisseurSearch(''); setShowFournisseurModal(true); }}>
-                        <i className='bx bx-plus'></i> Ajouter
-                      </button>
+                      <RequirePermission permission="FOURNISSEUR_CREER" fallback={<button type="button" className="btn btn-sm btn-outline-secondary ms-2" disabled title="Permission requise"><i className='bx bx-plus'></i> Ajouter</button>}>
+                        <button type="button" className="btn btn-sm btn-outline-success ms-2" onClick={() => { setNewFournisseur({}); setFournisseurSearch(''); setShowFournisseurModal(true); }}>
+                          <i className='bx bx-plus'></i> Ajouter
+                        </button>
+                      </RequirePermission>
                     </label>
                     <select className="form-control" value={selectedFournisseur} onChange={(e) => setSelectedFournisseur(e.target.value)}>
                       <option value="">Sélectionner un fournisseur</option>
@@ -1005,9 +1021,11 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                                 <td>{montant.toFixed(2)} FCFA</td>
                                 <td>
                                   <div className="d-flex">
-                                    <button className="btn btn-danger btn-sm" onClick={() => removeFromCart(item.uid)} title="Supprimer">
-                                      <i className="bx bx-trash"></i>
-                                    </button>
+                                    <RequirePermission permission={[ 'COMMANDE_MODIFIER', 'COMMANDE_CREER' ]}>
+                                      <button className="btn btn-danger btn-sm" onClick={() => removeFromCart(item.uid)} title="Supprimer">
+                                        <i className="bx bx-trash"></i>
+                                      </button>
+                                    </RequirePermission>
                                   </div>
                                 </td>
                               </tr>
@@ -1030,9 +1048,11 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
               <div className="row mt-3">
                 <div className="col-12 text-center">
                   {cart.length > 0 && (
-                    <button className="btn btn-primary" onClick={handleSubmit}>
-                      {isEditMode ? 'Modifier la commande' : 'Passer la commande'}
-                    </button>
+                    <RequirePermission permission={isEditMode ? 'COMMANDE_MODIFIER' : 'COMMANDE_CREER'} fallback={<button className="btn btn-secondary" disabled title="Permission requise">{isEditMode ? 'Modifier la commande' : 'Passer la commande'}</button>}>
+                      <button className="btn btn-primary" onClick={handleSubmit}>
+                        {isEditMode ? 'Modifier la commande' : 'Passer la commande'}
+                      </button>
+                    </RequirePermission>
                   )}
                 </div>
               </div>
@@ -1093,6 +1113,7 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                     <div className="d-flex justify-content-end mt-3">
                       <button className="btn btn-secondary me-2" onClick={() => { setNewFournisseur({}); setFournisseurSearch(''); setShowFournisseurModal(false); }}>Annuler</button>
                       <button className="btn btn-success" onClick={async () => {
+                        if (!canCreateFournisseur) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de créer un fournisseur', 'error'); return; }
                         // Create new fournisseur via API
                         try {
                           const token = localStorage.getItem('smb_token');
@@ -1178,6 +1199,7 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                     <div className="d-flex justify-content-end mt-3">
                       <button className="btn btn-secondary me-2" onClick={() => { setNewClient({}); setClientSearch(''); setShowClientModal(false); }}>Annuler</button>
                       <button className="btn btn-success" onClick={async () => {
+                        if (!canCreateClient) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de créer un client', 'error'); return; }
                         // Create new client via API
                         try {
                           const token = localStorage.getItem('smb_token');

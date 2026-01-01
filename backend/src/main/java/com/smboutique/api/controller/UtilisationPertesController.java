@@ -15,6 +15,23 @@ public class UtilisationPertesController {
     @Autowired
     private UtilisationPertesService utilisationPertesService;
 
+    @Autowired
+    private com.smboutique.api.service.UtilisateurService utilisateurService;
+
+    private com.smboutique.api.model.Utilisateur getCurrentUser() {
+        org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null) {
+            throw new RuntimeException("Utilisateur authentifié introuvable");
+        }
+        return utilisateurService.findByEmail(authentication.getName()).orElseThrow(() -> new RuntimeException("Utilisateur authentifié introuvable"));
+    }
+
+    private boolean isSuperAdmin(com.smboutique.api.model.Utilisateur user) {
+        if (user == null) return false;
+        // Determine superadmin by role membership only
+        return user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
+    }
+
     @GetMapping
     public List<UtilisationPertes> getAllUtilisationPertes() {
         return utilisationPertesService.findAll();
@@ -28,12 +45,20 @@ public class UtilisationPertesController {
     }
 
     @PostMapping
-    public UtilisationPertes createUtilisationPertes(@RequestBody UtilisationPertes utilisationPertes) {
-        return utilisationPertesService.save(utilisationPertes);
+    public ResponseEntity<UtilisationPertes> createUtilisationPertes(@RequestBody UtilisationPertes utilisationPertes) {
+        com.smboutique.api.model.Utilisateur user = getCurrentUser();
+        if (!isSuperAdmin(user) && !utilisateurService.hasPermission(user, "PRODUIT_PERTE")) {
+            return ResponseEntity.status(403).build();
+        }
+        return ResponseEntity.ok(utilisationPertesService.save(utilisationPertes));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<UtilisationPertes> updateUtilisationPertes(@PathVariable Long id, @RequestBody UtilisationPertes utilisationPertesDetails) {
+        com.smboutique.api.model.Utilisateur user = getCurrentUser();
+        if (!isSuperAdmin(user) && !utilisateurService.hasPermission(user, "PRODUIT_PERTE")) {
+            return ResponseEntity.status(403).build();
+        }
         return utilisationPertesService.findById(id)
                 .map(utilisationPertes -> {
                     utilisationPertes.setMotif(utilisationPertesDetails.getMotif());
@@ -48,6 +73,10 @@ public class UtilisationPertesController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUtilisationPertes(@PathVariable Long id) {
+        com.smboutique.api.model.Utilisateur user = getCurrentUser();
+        if (!isSuperAdmin(user) && !utilisateurService.hasPermission(user, "PRODUIT_PERTE")) {
+            return ResponseEntity.status(403).build();
+        }
         return utilisationPertesService.findById(id)
                 .map(utilisationPertes -> {
                     utilisationPertesService.deleteById(id);

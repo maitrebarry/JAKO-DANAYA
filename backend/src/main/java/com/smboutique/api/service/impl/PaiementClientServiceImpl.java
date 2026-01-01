@@ -38,4 +38,9 @@ public class PaiementClientServiceImpl implements PaiementClientService {
     public List<PaiementClient> findByBoutiqueId(Long boutiqueId) {
         return paiementClientRepository.findByCommandeClientBoutiqueId(boutiqueId);
     }
+
+    @Override
+    public List<PaiementClient> findByCommandeClientId(Long commandeClientId) {
+        return paiementClientRepository.findByCommandeClientId(commandeClientId);
+    }
 }

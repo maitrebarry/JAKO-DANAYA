@@ -20,7 +20,7 @@ interface ReceptionData {
 
 const ListeReceptions: React.FC = () => {
   const navigate = useNavigate();
-  const { currentBoutique, logout } = useUser();
+  const { currentBoutique, logout, permissions } = useUser();
   const [unfinishedReceptions, setUnfinishedReceptions] = useState<ReceptionData[]>([]);
   const [finishedReceptions, setFinishedReceptions] = useState<ReceptionData[]>([]);
   const [activeTab, setActiveTab] = useState<'unfinished' | 'finished'>('unfinished');
@@ -172,12 +172,36 @@ const ListeReceptions: React.FC = () => {
                                 >
                                   <i className="ri-eye-fill"></i>
                                 </button>
-                                <button
-                                  className="btn btn-danger btn-sm"
-                                  onClick={() => handleDelete(reception.id)}
-                                >
-                                  <i className="ri-delete-bin-5-fill"></i>
-                                </button>
+                                {(() => {
+                                  const normalized = permissions.map(p => p.toUpperCase());
+                                  const canDelete = normalized.includes('RECEPTION_SUPPRESSION') || normalized.includes('RECEPTION_ANNULATION');
+                                  const canView = normalized.includes('RECEPTION_LECTURE') || normalized.includes('RECEPTION_ECRITURE');
+                                  return (
+                                    <>
+                                      {canView ? (
+                                        <button
+                                          className="btn btn-primary btn-sm me-2"
+                                          onClick={() => handleDetail(reception.id)}
+                                        >
+                                          <i className="ri-eye-fill"></i>
+                                        </button>
+                                      ) : (
+                                        <button className="btn btn-secondary btn-sm me-2" disabled title="Permission requise: RECEPTION_LECTURE"> <i className="ri-eye-fill"></i></button>
+                                      )}
+
+                                      {canDelete ? (
+                                        <button
+                                          className="btn btn-danger btn-sm"
+                                          onClick={() => handleDelete(reception.id)}
+                                        >
+                                          <i className="ri-delete-bin-5-fill"></i>
+                                        </button>
+                                      ) : (
+                                        <button className="btn btn-danger btn-sm" disabled title="Permission requise: RECEPTION_SUPPRESSION"> <i className="ri-delete-bin-5-fill"></i></button>
+                                      )}
+                                    </>
+                                  );
+                                })()}
                               </td>
                             </tr>
                           ))}

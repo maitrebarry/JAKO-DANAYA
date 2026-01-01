@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useUser } from '../contexts/UserContext';
+import useHasPermission from '../contexts/useHasPermission';
+import RequirePermission from './RequirePermission';
 import '../assets/css/style_produit.css';
 
 const Produits: React.FC = () => {
@@ -39,6 +41,13 @@ const Produits: React.FC = () => {
   const [message, setMessage] = useState('');
   const [isFormValid, setIsFormValid] = useState(false);
   const [formErrors, setFormErrors] = useState<string[]>([]);
+  // track if user manually edited these fields during edit mode
+  const [prixEnGrosTouched, setPrixEnGrosTouched] = useState(false);
+  const [prixDetailTouched, setPrixDetailTouched] = useState(false);
+
+  const canCreate = useHasPermission('PRODUIT_CREER');
+  const canModify = useHasPermission('PRODUIT_MODIFIER');
+  const canImport = useHasPermission('PRODUIT_CREER');
   const selectedUnite = unites.find((u: any) => u.id.toString() === newProduit.uniteConditionnementId);
   const [search, setSearch] = useState('');
   const [filterUnite, setFilterUnite] = useState('');
@@ -63,6 +72,9 @@ const Produits: React.FC = () => {
     setImageType('url');
     setImageFile(null);
     setShowNombreUnites(false);
+    // reset manual-edit flags
+    setPrixEnGrosTouched(false);
+    setPrixDetailTouched(false);
   };
 
   // Validate form in real-time: name, unit and price constraints
@@ -229,8 +241,8 @@ const Produits: React.FC = () => {
   }, [currentBoutique]);
 
   useEffect(() => {
-    // When creating a product (not editing) and a marge config exists, compute prices automatically from CMP (prixAchat)
-    if (editing) return;
+    // When a marge config exists, compute prices automatically from CMP (prixAchat).
+    // Apply also during editing **unless** the user manually modified the prix fields in this session.
     if (!margeConfig) return;
     const prixAchatVal = Number(newProduit.prixAchat) || 0;
     let prixGros = prixAchatVal;
@@ -259,8 +271,17 @@ const Produits: React.FC = () => {
       prixDetail = Math.round(prixAchatVal + margD);
     }
 
-    setNewProduit(prev => ({ ...prev, prixEnGros: prixGros.toString(), prixDetail: prixDetail.toString() }));
-  }, [newProduit.prixAchat, margeConfig, editing]);
+    if (!editing) {
+      setNewProduit(prev => ({ ...prev, prixEnGros: prixGros.toString(), prixDetail: prixDetail.toString() }));
+    } else {
+      // If user manually edited prixEnGros/prixDetail during edit session, keep their values
+      setNewProduit(prev => ({
+        ...prev,
+        prixEnGros: prixEnGrosTouched ? prev.prixEnGros : prixGros.toString(),
+        prixDetail: prixDetailTouched ? prev.prixDetail : prixDetail.toString()
+      }));
+    }
+  }, [newProduit.prixAchat, margeConfig, editing, prixEnGrosTouched, prixDetailTouched]);
 
   const handleCreateOrUpdate = async () => {
     // client-side guard (useEffect also handles real-time validation)
@@ -289,6 +310,9 @@ const Produits: React.FC = () => {
       setMessage("Le prix en gros doit être inférieur au prix détail.");
       return;
     }
+
+    if (editing && !canModify) { setMessage("Vous n'avez pas la permission de modifier ce produit"); return; }
+    if (!editing && !canCreate) { setMessage("Vous n'avez pas la permission de créer un produit"); return; }
 
     setCreating(true);
     setMessage('');
@@ -421,21 +445,25 @@ const Produits: React.FC = () => {
               <div className="row">
                 <div className="col-12 d-flex align-items-center">
                   <div className="me-3">
-                    <button
-                      className="btn btn-primary mb-3 mb-lg-0"
-                      onClick={() => {
-                        setEditing(null);
-                        resetForm();
-                        setShowModal(true);
-                      }}
-                    >
-                      <i className='bx bxs-plus-square'></i> Ajouter un article
-                    </button>
+                    <RequirePermission permission="PRODUIT_CREER">
+                      <button
+                        className="btn btn-primary mb-3 mb-lg-0"
+                        onClick={() => {
+                          setEditing(null);
+                          resetForm();
+                          setShowModal(true);
+                        }}
+                      >
+                        <i className='bx bxs-plus-square'></i> Ajouter un article
+                      </button>
+                    </RequirePermission>
                   </div>
                   <div className="me-3">
-                    <button className="btn btn-outline-primary mb-3 mb-lg-0" onClick={() => setShowImportModal(true)}>
-                      <i className='bx bx-import'></i> Import Excel
-                    </button>
+                    <RequirePermission permission="PRODUIT_CREER">
+                      <button className="btn btn-outline-primary mb-3 mb-lg-0" onClick={() => setShowImportModal(true)}>
+                        <i className='bx bx-import'></i> Import Excel
+                      </button>
+                    </RequirePermission>
                   </div>
                   <div className="flex-grow-1">
                     <form className="float-lg-end">
@@ -517,7 +545,8 @@ const Produits: React.FC = () => {
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowImportModal(false)}>Fermer</button>
-                <button type="button" className="btn btn-primary" onClick={async () => {
+                <button type="button" className="btn btn-primary" disabled={!canImport} onClick={async () => {
+                  if (!canImport) { setImportErrors(['Accès refusé : vous n\'avez pas les droits pour importer des produits.']); return; }
                   if (!importFile) { setMessage('Sélectionnez un fichier à importer'); return; }
                   setImportProgress(0);
                   setImportErrors([]);
@@ -579,63 +608,73 @@ const Produits: React.FC = () => {
         {filtered.map((produit: any) => (
           <div key={produit.id} className="col">
             <div className="card product-card position-relative">
-              <img
-                src={produit.productImage || 'https://via.placeholder.com/200x200?text=No+Image'}
-                className="card-img-top"
-                alt={produit.nomProduit}
-                onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/200x200?text=No+Image'; }}
-              />
+              <div className="product-image-wrapper">
+                <img
+                  src={produit.productImage || 'https://via.placeholder.com/200x200?text=No+Image'}
+                  className="card-img-top"
+                  alt={produit.nomProduit}
+                  onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/200x200?text=No+Image'; }}
+                />
+              </div>
 
               <div className="icon-group">
                 <button className="detail-icon" title="Détails" onClick={() => handleShowDetail(produit)}>
                   <i className="bx bx-show"></i>
                 </button>
-                <button
-                  className="edit-icon"
-                  title="Modifier"
-                  onClick={() => {
-                    setEditing(produit);
-                    setNewProduit({
-                      nomProduit: produit.nomProduit || '',
-                      productImage: produit.productImage || '',
-                      prixEnGros: produit.prixEnGros?.toString() || '',
-                      prixDetail: produit.prixDetail?.toString() || '',
-                      prixAchat: produit.prixAchat?.toString() || '',
-                      alerteStock: produit.alerteStock?.toString() || '',
-                      uniteConditionnementId: produit.unite?.id?.toString() || '',
-                      nombreUnitesParConditionnement: produit.nombreUnitesParConditionnement?.toString() || '',
-                      quantiteInitiale: produit.quantiteInitialeConditionnements?.toString() || ''
-                    });
-                    // set selected magasins for editing using magasinIds provided by backend
-                    if (produit.magasinIds && produit.magasinIds.length > 0) {
-                      setSelectedMagasins(produit.magasinIds.filter((id: number | null | undefined) => Boolean(id)));
-                    } else if (produit.stocks && produit.stocks.length > 0) {
-                      setSelectedMagasins(produit.stocks
-                        .map((s: any) => s.magasin?.id || s.magasinId)
-                        .filter((id: number | null | undefined) => Boolean(id)));
-                    } else {
-                      setSelectedMagasins(magasins.map((m: any) => m.id));
-                    }
-                    const isUrl = !!produit.productImage && produit.productImage.includes('://');
-                    setImageType(isUrl ? 'url' : 'file');
-                    setImageFile(null);
-                    setShowNombreUnites(Boolean(produit.unite || produit.nombreUnitesParConditionnement));
-                    setShowModal(true);
-                  }}
-                >
-                  <i className="bx bxs-edit"></i>
-                </button>
-                <button
-                  className="delete-icon delete-button"
-                  title="Supprimer"
-                  onClick={() => handleDelete(produit.id)}
-                >
-                  <i className='bx bx-trash-alt'></i>
-                </button>
+                <RequirePermission permission="PRODUIT_MODIFIER">
+                  <button
+                    className="edit-icon"
+                    title="Modifier"
+                    onClick={() => {
+                      setEditing(produit);
+                      setNewProduit({
+                        nomProduit: produit.nomProduit || '',
+                        productImage: produit.productImage || '',
+                        prixEnGros: produit.prixEnGros?.toString() || '',
+                        prixDetail: produit.prixDetail?.toString() || '',
+                        prixAchat: produit.prixAchat?.toString() || '',
+                        alerteStock: produit.alerteStock?.toString() || '',
+                        uniteConditionnementId: produit.unite?.id?.toString() || '',
+                        nombreUnitesParConditionnement: produit.nombreUnitesParConditionnement?.toString() || '',
+                        quantiteInitiale: produit.quantiteInitialeConditionnements?.toString() || ''
+                      });
+                      // set selected magasins for editing using magasinIds provided by backend
+                      if (produit.magasinIds && produit.magasinIds.length > 0) {
+                        setSelectedMagasins(produit.magasinIds.filter((id: number | null | undefined) => Boolean(id)));
+                      } else if (produit.stocks && produit.stocks.length > 0) {
+                        setSelectedMagasins(produit.stocks
+                          .map((s: any) => s.magasin?.id || s.magasinId)
+                          .filter((id: number | null | undefined) => Boolean(id)));
+                      } else {
+                        setSelectedMagasins(magasins.map((m: any) => m.id));
+                      }
+                      const isUrl = !!produit.productImage && produit.productImage.includes('://');
+                      setImageType(isUrl ? 'url' : 'file');
+                      setImageFile(null);
+                      setShowNombreUnites(Boolean(produit.unite || produit.nombreUnitesParConditionnement));
+                      // reset manual-edit flags when starting to edit
+                      setPrixEnGrosTouched(false);
+                      setPrixDetailTouched(false);
+                      setShowModal(true);
+                    }}
+                  >
+                    <i className="bx bxs-edit"></i>
+                  </button>
+                </RequirePermission>
+                <RequirePermission permission="PRODUIT_SUPPRIMER">
+                  <button
+                    className="delete-icon delete-button"
+                    title="Supprimer"
+                    onClick={() => handleDelete(produit.id)}
+                  >
+                    <i className='bx bx-trash-alt'></i>
+                  </button>
+                </RequirePermission>
               </div>
 
-              <div className="card-body product-details text-center">
-                <h6 className="card-title cursor-pointer fw-bold">{produit.nomProduit}</h6>
+              <div className="product-details d-flex flex-column">
+                <h5 className="card-title" style={{ cursor: 'pointer' }} onClick={() => handleShowDetail(produit)}>{produit.nomProduit}</h5>
+                <div className="flex-grow-1" />
                 <div className="stars mb-2">
                   {[...Array(5)].map((_, i) => (
                     <span key={i} className="text-warning">&#9733;</span>
@@ -720,14 +759,17 @@ const Produits: React.FC = () => {
                     />
                   )}
                 </div>
-
+                    <div className="col-md-4">
+                  <label className="form-label">Prix d'achat</label>
+                  <input type="number" className={`form-control ${formErrors.some(e => e.includes("prix d'achat")) ? 'is-invalid' : ''}`} value={newProduit.prixAchat} onChange={(e) => setNewProduit({ ...newProduit, prixAchat: e.target.value })} />
+                </div>
                 <div className="col-md-4">
                   <label className="form-label">Prix en gros</label>
                   <input
                     type="number"
                     className={`form-control ${formErrors.some(e => e.includes('prix en gros')) ? 'is-invalid' : ''}`}
                     value={newProduit.prixEnGros}
-                    onChange={(e) => setNewProduit({ ...newProduit, prixEnGros: e.target.value })}
+                    onChange={(e) => { setPrixEnGrosTouched(true); setNewProduit({ ...newProduit, prixEnGros: e.target.value }); }}
                     disabled={!editing && !!margeConfig}
                   />
                   {!editing && margeConfig && <small className="text-muted">Calculé automatiquement selon la configuration de marge ({margeConfig.typeMarge}).</small>}
@@ -738,15 +780,12 @@ const Produits: React.FC = () => {
                     type="number"
                     className={`form-control ${formErrors.some(e => e.includes('prix détail')) ? 'is-invalid' : ''}`}
                     value={newProduit.prixDetail}
-                    onChange={(e) => setNewProduit({ ...newProduit, prixDetail: e.target.value })}
+                    onChange={(e) => { setPrixDetailTouched(true); setNewProduit({ ...newProduit, prixDetail: e.target.value }); }}
                     disabled={!editing && !!margeConfig}
                   />
                   {!editing && margeConfig && <small className="text-muted">Calculé automatiquement selon la configuration de marge ({margeConfig.typeMarge}).</small>}
                 </div>
-                <div className="col-md-4">
-                  <label className="form-label">Prix d'achat</label>
-                  <input type="number" className={`form-control ${formErrors.some(e => e.includes("prix d'achat")) ? 'is-invalid' : ''}`} value={newProduit.prixAchat} onChange={(e) => setNewProduit({ ...newProduit, prixAchat: e.target.value })} />
-                </div>
+              
 
                 {/* Unité de conditionnement + nombre + quantité initiale */}
                 <div className="col-12">

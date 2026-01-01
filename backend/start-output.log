@@ -1,0 +1,58 @@
+Stopping any existing backend processes...
+No existing backend jar processes found.
+Building backend jar...
+Starting backend jar... (logs at logs/application.log)
+Started PID 142962 (written to boot.pid)
+Waiting for port 8085 to become available...
+Backend started and listening on port 8085
+--- last 50 lines of logs ---
+        p1_0.id_permission,
+        p1_0.description,
+        p1_0.name 
+    from
+        permission p1_0 
+    where
+        p1_0.name=?
+2025-12-31T16:30:34.203+01:00 DEBUG 142962 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-31T16:30:34.203+01:00  WARN 142962 --- [smboutique-backend] [           main] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-31T16:30:34.205+01:00 DEBUG 142962 --- [smboutique-backend] [           main] org.hibernate.SQL                        : 
+    select
+        p1_0.id_permission,
+        p1_0.description,
+        p1_0.name 
+    from
+        permission p1_0 
+    where
+        p1_0.name=?
+Hibernate: 
+    select
+        p1_0.id_permission,
+        p1_0.description,
+        p1_0.name 
+    from
+        permission p1_0 
+    where
+        p1_0.name=?
+2025-12-31T16:30:34.208+01:00 DEBUG 142962 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-31T16:30:34.209+01:00  WARN 142962 --- [smboutique-backend] [           main] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-31T16:30:34.210+01:00 DEBUG 142962 --- [smboutique-backend] [           main] org.hibernate.SQL                        : 
+    select
+        p1_0.id_permission,
+        p1_0.description,
+        p1_0.name 
+    from
+        permission p1_0 
+    where
+        p1_0.name=?
+Hibernate: 
+    select
+        p1_0.id_permission,
+        p1_0.description,
+        p1_0.name 
+    from
+        permission p1_0 
+    where
+        p1_0.name=?
+2025-12-31T16:30:34.213+01:00 DEBUG 142962 --- [smboutique-backend] [           main] tor$SharedEntityManagerInvocationHandler : Creating new EntityManager for shared EntityManager invocation
+2025-12-31T16:30:34.214+01:00  WARN 142962 --- [smboutique-backend] [           main] org.hibernate.orm.deprecation            : HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2025-12-31 16:30:34 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead

@@ -49,9 +49,8 @@ public class VenteController {
 
     private boolean isSuperAdmin(com.smboutique.api.model.Utilisateur user) {
         if (user == null) return false;
-        boolean hasRole = user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
-        boolean hasType = "SUPERADMIN".equalsIgnoreCase(user.getTypeUtilisateur());
-        return hasRole || hasType;
+        // Determine superadmin by role membership only
+        return user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
     }
 
     private boolean hasPermission(com.smboutique.api.model.Utilisateur user, String permissionName) {
@@ -72,8 +71,12 @@ public class VenteController {
     }
 
     @PostMapping
-    public Vente createVente(@RequestBody Vente vente) {
-        return venteService.save(vente);
+    public ResponseEntity<Vente> createVente(@RequestBody Vente vente) {
+        Utilisateur user = getCurrentUser();
+        if (!hasPermission(user, "VENTE_CREER") && !isSuperAdmin(user)) {
+            return ResponseEntity.status(403).build();
+        }
+        return ResponseEntity.ok(venteService.save(vente));
     }
 
     // Create a Vente with its lignes (used by frontend sale flow)
@@ -176,6 +179,10 @@ public class VenteController {
 
     @PutMapping("/{id}")
     public ResponseEntity<Vente> updateVente(@PathVariable Long id, @RequestBody Vente venteDetails) {
+        Utilisateur user = getCurrentUser();
+        if (!hasPermission(user, "VENTE_MODIFIER") && !isSuperAdmin(user)) {
+            return ResponseEntity.status(403).build();
+        }
         return venteService.findById(id)
                 .map(vente -> {
                     vente.setReferenceCaisse(venteDetails.getReferenceCaisse());
@@ -189,6 +196,10 @@ public class VenteController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteVente(@PathVariable Long id) {
+        Utilisateur user = getCurrentUser();
+        if (!hasPermission(user, "VENTE_SUPPRIMER") && !isSuperAdmin(user)) {
+            return ResponseEntity.status(403).build();
+        }
         return venteService.findById(id)
                 .map(vente -> {
                     venteService.deleteById(id);

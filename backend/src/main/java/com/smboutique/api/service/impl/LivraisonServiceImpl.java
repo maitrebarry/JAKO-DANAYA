@@ -36,6 +36,11 @@ public class LivraisonServiceImpl implements LivraisonService {
 
     @Override
     public List<Livraison> findByBoutiqueId(Long boutiqueId) {
-        return livraisonRepository.findByCommandeClientBoutiqueId(boutiqueId);
+        // Use a fallback query that includes commandes whose utilisateur.boutique matches the given boutique
+        List<Livraison> livs = livraisonRepository.findByCommandeClientBoutiqueId(boutiqueId);
+        if (livs == null || livs.isEmpty()) {
+            livs = livraisonRepository.findByCommandeClientBoutiqueIdOrCommandeClientUtilisateurBoutiqueId(boutiqueId);
+        }
+        return livs;
     }
 }

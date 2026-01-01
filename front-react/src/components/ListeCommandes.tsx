@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useUser } from '../contexts/UserContext';
 import { formatServerDate } from '../utils/date';
+import useHasPermission from '../contexts/useHasPermission';
 
 // Ajouter du CSS personnalisé pour SweetAlert2
 const swalWideStyle = document.createElement('style');
@@ -30,7 +31,7 @@ interface CommandeData {
 
 const ListeCommandes: React.FC = () => {
   const navigate = useNavigate();
-  const { currentBoutique } = useUser();
+  const { currentBoutique, logout } = useUser();
   const [commandes, setCommandes] = useState<CommandeData[]>([]);
   const [filteredCommandes, setFilteredCommandes] = useState<CommandeData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,6 +42,12 @@ const ListeCommandes: React.FC = () => {
   // Detect if we are in 'ventes' context by checking the current path or query param ?mode=vente
   const urlParams = new URLSearchParams(window.location.search || '');
   const isVenteMode = urlParams.get('mode') === 'vente' || (window.location.pathname && window.location.pathname.includes('/ventes'));
+
+  // Permissions
+  const canModifyCommande = useHasPermission('COMMANDE_MODIFIER');
+  const canDeleteCommande = useHasPermission('COMMANDE_SUPPRIMER');
+  const canPayment = useHasPermission('PAIEMENT_CREER');
+  const canReception = useHasPermission('RECEPTION_CREER') || useHasPermission('RECEPTION_ECRITURE');
 
   useEffect(() => {
     if (!currentBoutique) {
@@ -156,20 +163,20 @@ const ListeCommandes: React.FC = () => {
           <button class="btn btn-secondary w-100 my-2" onclick="window.handleActionFromSwal('print')">
             <i class="bx bx-printer me-2"></i> Imprimer
           </button>
-          <button class="btn btn-info w-100 my-2" onclick="window.handleActionFromSwal('payment')">
+          <button class="btn btn-info w-100 my-2 ${!canPayment ? 'disabled' : ''}" onclick="window.handleActionFromSwal('payment')" ${!canPayment ? 'disabled' : ''}>
             <i class="bx bx-credit-card me-2"></i> Paiement
           </button>
-          <button class="btn btn-warning w-100 my-2" onclick="window.handleActionFromSwal('reception')">
+          <button class="btn btn-warning w-100 my-2 ${!canReception ? 'disabled' : ''}" onclick="window.handleActionFromSwal('reception')" ${!canReception ? 'disabled' : ''}>
             <i class="bx bx-box me-2"></i> ${receptionLabel}
           </button>
-          <button class="btn btn-success w-100 my-2 ${selectedCommande.pourcentage_recu > 0 ? 'disabled' : ''}" 
+          <button class="btn btn-success w-100 my-2 ${selectedCommande.pourcentage_recu > 0 || !canModifyCommande ? 'disabled' : ''}" 
                   onclick="window.handleActionFromSwal('modify')" 
-                  ${selectedCommande.pourcentage_recu > 0 ? 'disabled' : ''}>
+                  ${selectedCommande.pourcentage_recu > 0 || !canModifyCommande ? 'disabled' : ''}>
             <i class="bx bx-edit me-2"></i> Modification
           </button>
-          <button class="btn btn-danger w-100 my-2 ${selectedCommande.pourcentage_recu > 0 ? 'disabled' : ''}" 
+          <button class="btn btn-danger w-100 my-2 ${selectedCommande.pourcentage_recu > 0 || !canDeleteCommande ? 'disabled' : ''}" 
                   onclick="window.handleActionFromSwal('delete')" 
-                  ${selectedCommande.pourcentage_recu > 0 ? 'disabled' : ''}>
+                  ${selectedCommande.pourcentage_recu > 0 || !canDeleteCommande ? 'disabled' : ''}>
             <i class="bx bx-trash me-2"></i> Supprimer
           </button>
         </div>
@@ -202,10 +209,12 @@ const ListeCommandes: React.FC = () => {
         openCommandePdf(selectedCommande.id_commande_fournisseur);
         break;
       case 'payment':
+        if (!canPayment) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de gérer les paiements', 'error'); return; }
         // If we are in vente mode, include ?mode=vente so the paiement component loads client-mode
         navigate(`/commandes/paiement/${selectedCommande.id_commande_fournisseur}${isVenteMode ? '?mode=vente' : ''}`);
         break;
       case 'reception':
+        if (!canReception) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de gérer les réceptions', 'error'); return; }
         if (isVenteMode) {
           navigate(`/ventes/livraisons?venteId=${selectedCommande.id_commande_fournisseur}`);
         } else {
@@ -213,6 +222,7 @@ const ListeCommandes: React.FC = () => {
         }
         break;
       case 'modify':
+        if (!canModifyCommande) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de modifier les commandes', 'error'); return; }
         if (selectedCommande.pourcentage_recu > 0) {
           Swal.fire('Erreur', 'Impossible de modifier une commande déjà réceptionnée', 'error');
         } else {
@@ -221,6 +231,7 @@ const ListeCommandes: React.FC = () => {
         }
         break;
       case 'delete':
+        if (!canDeleteCommande) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de supprimer les commandes', 'error'); return; }
         if (selectedCommande.pourcentage_recu > 0) {
           Swal.fire('Erreur', 'Impossible de supprimer une commande déjà réceptionnée', 'error');
         } else {
@@ -230,15 +241,45 @@ const ListeCommandes: React.FC = () => {
     }
   };
 
+  const isJwtExpired = (token: string | null) => {
+    if (!token) return true;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (!payload || !payload.exp) return true;
+      const now = Date.now() / 1000;
+      return payload.exp <= now;
+    } catch (e) {
+      return true;
+    }
+  };
+
   const openCommandePdf = async (commandeId: number) => {
     try {
       const token = localStorage.getItem('smb_token');
-        const path = isVenteMode ? 'commandes-clients' : 'commandes-fournisseurs';
+      if (!token || isJwtExpired(token)) {
+        Swal.fire('Session expirée', 'Votre session a expiré ou le token n\'est plus valide. Veuillez vous reconnecter.', 'error');
+        try { logout(); } catch(e) {}
+        return;
+      }
+      const path = isVenteMode ? 'commandes-clients' : 'commandes-fournisseurs';
       const res = await fetch(`http://localhost:8085/api/${path}/${commandeId}/pdf`, {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error('Impossible de charger le PDF');
+
+      if (res.status === 401) {
+        const body = await res.text().catch(() => '');
+        console.debug('openCommandePdf unauthorized', { status: res.status, body });
+        Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la page de connexion.', 'error');
+        try { logout(); } catch(e) {}
+        return;
+      }
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        console.debug('openCommandePdf error', { status: res.status, statusText: res.statusText, body: text });
+        throw new Error(`${res.status} ${res.statusText}: ${text}`);
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');

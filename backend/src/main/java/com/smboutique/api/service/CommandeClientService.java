@@ -9,4 +9,8 @@ public interface CommandeClientService {
     Optional<CommandeClient> findById(Long id);
     CommandeClient save(CommandeClient commandeClient);
     void deleteById(Long id);
-}
+
+    // boutique-scoped helpers
+    List<CommandeClient> findAllByBoutiqueId(Long boutiqueId);
+    Optional<CommandeClient> findByIdAndBoutiqueId(Long id, Long boutiqueId);
+} 

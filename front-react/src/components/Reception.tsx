@@ -34,7 +34,10 @@ interface ArticleData {
 const Reception: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { currentBoutique } = useUser();
+  const { currentBoutique, permissions } = useUser();
+  const normalizedPermissions = Array.isArray(permissions) ? permissions.map(p => p.toUpperCase()) : [];
+  // Rely only on explicit permissions for creation/validation
+  const canCreateReception = normalizedPermissions.includes('RECEPTION_ECRITURE') || normalizedPermissions.includes('RECEPTION_CREER');
   const [commandes, setCommandes] = useState<CommandeData[]>([]);
   const [selectedCommande, setSelectedCommande] = useState<CommandeData | null>(null);
   const [articles, setArticles] = useState<ArticleData[]>([]);
@@ -458,15 +461,19 @@ const Reception: React.FC = () => {
                 </div>
                 <div className="row mt-4">
                   <div className="col-12">
-                    <button
-                      id="valider-btn"
-                      name="valider"
-                      className="btn btn-primary float-end"
-                      type="submit"
-                      style={{ display: articles.length > 0 ? 'block' : 'none' }}
-                    >
-                      Valider
-                    </button>
+                    {canCreateReception ? (
+                      <button
+                        id="valider-btn"
+                        name="valider"
+                        className="btn btn-primary float-end"
+                        type="submit"
+                        style={{ display: articles.length > 0 ? 'block' : 'none' }}
+                      >
+                        Valider
+                      </button>
+                    ) : (
+                      <div className="text-muted float-end" style={{ display: articles.length > 0 ? 'block' : 'none' }}>Vous n'avez pas la permission de valider cette réception</div>
+                    )}
                   </div>
                 </div>
               </div>
