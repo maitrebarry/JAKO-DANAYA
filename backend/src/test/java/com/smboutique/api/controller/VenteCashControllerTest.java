@@ -25,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-public class VenteLivraisonControllerTest {
+public class VenteCashControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -52,27 +52,28 @@ public class VenteLivraisonControllerTest {
     private PermissionRepository permissionRepository;
 
     @Autowired
+    private CaisseRepository caisseRepository;
+
+    @Autowired
     private VenteRepository venteRepository;
 
     @Autowired
     private LigneVenteRepository ligneVenteRepository;
 
     @Autowired
-    private LivraisonRepository livraisonRepository;
-
-    @Autowired
-    private LigneLivraisonRepository ligneLivraisonRepository;
-
-    @Autowired
     private MouvementRepository mouvementRepository;
+
+    @Autowired
+    private CaisseTransactionRepository caisseTransactionRepository;
+
+    @Autowired
+    private CaisseMovementRepository caisseMovementRepository;
 
     private Boutique boutique;
     private Magasin magasin;
     private Utilisateur user;
     private Produit produit;
     private Stock stock;
-    private Vente vente;
-    private LigneVente ligneVente;
 
     @BeforeEach
     void setUp() {
@@ -88,6 +89,7 @@ public class VenteLivraisonControllerTest {
         produit = new Produit();
         produit.setNomProduit("P1");
         produit.setPrixAchat(1000);
+        produit.setNombreUnitesParConditionnement(10);
         produit = produitRepository.save(produit);
 
         stock = new Stock();
@@ -99,61 +101,74 @@ public class VenteLivraisonControllerTest {
         stock = stockRepository.save(stock);
 
         user = new Utilisateur();
-        user.setEmail("test@b1.local");
+        user.setEmail("cash@b1.local");
         user.setBoutique(boutique);
-        // ensure permission exists and assign
-        Permission p = permissionRepository.findByName("LIVRAISON_ECRITURE").orElseGet(() -> { Permission x = new Permission(); x.setName("LIVRAISON_ECRITURE"); return permissionRepository.save(x); });
+        Permission p = permissionRepository.findByName("VENTE_CREER").orElseGet(() -> {
+            Permission x = new Permission(); x.setName("VENTE_CREER"); return permissionRepository.save(x);
+        });
         user.setPermissions(java.util.Set.of(p));
         user = utilisateurRepository.save(user);
 
         // set authentication name to user's email
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(user.getEmail(), "na"));
 
-        vente = new Vente();
-        vente.setNomClient("Client A");
-        vente = venteRepository.save(vente);
-
-        ligneVente = new LigneVente();
-        ligneVente.setVente(vente);
-        ligneVente.setProduit(produit);
-        ligneVente.setQuantite(5);
-        ligneVente.setNewPrice(2000);
-        ligneVente.setPriceMode(null); // will set in test payload
-        ligneVente = ligneVenteRepository.save(ligneVente);
+        // create active caisse
+        Caisse caisse = new Caisse();
+        caisse.setBoutique(boutique);
+        caisse.setReference("CASH-REF-1");
+        caisse.setStatut("on");
+        caisse.setMontantTotal(1000);
+        caisse = caisseRepository.save(caisse);
     }
 
     @Test
-    void deliverVente_success_decrementsStock_createsMouvement_and_updatesLigneLivre() throws Exception {
+    void createVenteCash_success_decrementsStock_updatesCaisse_and_createsMouvement() throws Exception {
         var payload = Map.of(
-                "reference", "LV-TEST",
-                "lignes", List.of(Map.of("ligneVenteId", ligneVente.getId(), "stockId", stock.getId(), "quantite", 3))
+                "reference", "CASH-1",
+                "total", 5000,
+                "montantRecu", 5000,
+                "monnaieRembourse", 0,
+                "produitsSelectionnes", List.of(Map.of("id_stock", stock.getId(), "quantite", 2, "venteParConditionnement", false, "prix", 2500, "priceMode", "DETAIL"))
         );
 
-        mockMvc.perform(post("/api/ventes/" + vente.getId() + "/livraisons")
+        mockMvc.perform(post("/api/ventes/cash")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(payload))
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail())))
                 .andExpect(status().isOk());
 
         Stock updated = stockRepository.findById(stock.getId()).orElseThrow();
-        assertThat(updated.getQuantiteDisponible()).isEqualTo(7);
+        assertThat(updated.getQuantiteDisponible()).isEqualTo(8);
 
-        List<Livraison> livs = livraisonRepository.findAll();
-        assertThat(livs).isNotEmpty();
+        List<Vente> ventes = venteRepository.findAll();
+        assertThat(ventes).isNotEmpty();
+        Vente v = ventes.get(0);
+        assertThat(v.getMontantTotal()).isEqualTo(5000);
 
-        List<LigneLivraison> lrs = ligneLivraisonRepository.findAll();
-        assertThat(lrs).isNotEmpty();
+        List<LigneVente> lvs = ligneVenteRepository.findAll();
+        assertThat(lvs).isNotEmpty();
+        LigneVente lv = lvs.get(0);
+        assertThat(lv.getQuantite()).isEqualTo(2);
 
-        LigneVente lv = ligneVenteRepository.findById(ligneVente.getId()).orElseThrow();
-        assertThat(lv.getQuantiteLivre()).isEqualTo(3);
-
-        // find mouvements related to this stock only
+        // Find the mouvement related to the stock we used in this test to avoid colliding with pre-existing mouvements
         List<Mouvement> mvts = mouvementRepository.findAll().stream().filter(mt -> mt.getStock() != null && mt.getStock().getId().equals(stock.getId())).toList();
         assertThat(mvts).isNotEmpty();
         Mouvement m = mvts.get(0);
         assertThat(m.getTypeMouvement()).isEqualTo("SORTIE");
         assertThat(m.getStock().getId()).isEqualTo(stock.getId());
         assertThat(m.getBoutique().getId()).isEqualTo(boutique.getId());
+
+        Caisse c = caisseRepository.findFirstByBoutiqueIdOrderByIdDesc(boutique.getId()).orElseThrow();
+        assertThat(c.getMontantTotal()).isGreaterThan(1000);
+
+        List<com.smboutique.api.model.CaisseTransaction> txs = caisseTransactionRepository.findByReferenceCaisse(c.getReference());
+        assertThat(txs).isNotEmpty();
+        assertThat(txs.get(0).getType()).isEqualTo(com.smboutique.api.model.CaisseTransaction.TransactionType.CREDIT);
+
+        List<com.smboutique.api.model.CaisseMovement> cms = caisseMovementRepository.findByReferenceCaisseOrderByCreatedAtDesc(c.getReference());
+        assertThat(cms).isNotEmpty();
+        assertThat(cms.get(0).getType()).isEqualTo(com.smboutique.api.model.CaisseMovement.MovementType.CREDIT);
+        assertThat(cms.get(0).getBalanceAfter()).isEqualTo(c.getMontantTotal());
 
         // CMP unchanged
         Stock after = stockRepository.findById(stock.getId()).orElseThrow();
@@ -163,62 +178,22 @@ public class VenteLivraisonControllerTest {
     }
 
     @Test
-    void deliverVente_insufficientStock_rollback() throws Exception {
+    void createVenteCash_insufficientStock_rollback() throws Exception {
         var payload = Map.of(
-                "reference", "LV-TEST",
-                "lignes", List.of(Map.of("ligneVenteId", ligneVente.getId(), "stockId", stock.getId(), "quantite", 20))
+                "reference", "CASH-2",
+                "total", 100000,
+                "produitsSelectionnes", List.of(Map.of("id_stock", stock.getId(), "quantite", 20, "venteParConditionnement", false, "prix", 5000, "priceMode", "DETAIL"))
         );
 
-        mockMvc.perform(post("/api/ventes/" + vente.getId() + "/livraisons")
+        mockMvc.perform(post("/api/ventes/cash")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(payload))
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail())))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isBadRequest());
 
-        // Verify rollback: stock unchanged, no livraison, no mouvement for this stock
+        // Verify rollback: no vente persisted and stock unchanged
+        assertThat(venteRepository.findAll()).isEmpty();
         Stock updated = stockRepository.findById(stock.getId()).orElseThrow();
         assertThat(updated.getQuantiteDisponible()).isEqualTo(10);
-        assertThat(livraisonRepository.findAll()).isEmpty();
-        assertThat(mouvementRepository.findAll().stream().anyMatch(mt -> mt.getStock() != null && mt.getStock().getId().equals(stock.getId()))).isFalse();
-    }
-
-    @Test
-    void deliverVente_partialDelivery_allowed() throws Exception {
-        var payload = Map.of(
-                "reference", "LV-TEST",
-                "lignes", List.of(Map.of("ligneVenteId", ligneVente.getId(), "stockId", stock.getId(), "quantite", 2))
-        );
-
-        mockMvc.perform(post("/api/ventes/" + vente.getId() + "/livraisons")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(payload))
-                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail())))
-                .andExpect(status().isOk());
-
-        LigneVente lv = ligneVenteRepository.findById(ligneVente.getId()).orElseThrow();
-        assertThat(lv.getQuantiteLivre()).isEqualTo(2);
-    }
-
-    @Test
-    void deliverVente_crossBoutique_forbidden() throws Exception {
-        // create boutique2 and stock in it
-        Boutique b2 = new Boutique(); b2.setNom("B2"); b2 = boutiqueRepository.save(b2);
-        Magasin m2 = new Magasin(); m2.setNom("M2"); m2.setBoutique(b2); m2 = magasinRepository.save(m2);
-        Stock s2 = new Stock(); s2.setProduit(produit); s2.setMagasin(m2); s2.setQuantiteDisponible(10); s2 = stockRepository.save(s2);
-
-        var payload = Map.of(
-                "reference", "LV-TEST",
-                "lignes", List.of(Map.of("ligneVenteId", ligneVente.getId(), "stockId", s2.getId(), "quantite", 2))
-        );
-
-        mockMvc.perform(post("/api/ventes/" + vente.getId() + "/livraisons")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(payload))
-                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail())))
-                .andExpect(status().isInternalServerError());
-
-        // ensure no change to s2
-        Stock s2after = stockRepository.findById(s2.getId()).orElseThrow();
-        assertThat(s2after.getQuantiteDisponible()).isEqualTo(10);
     }
 }
