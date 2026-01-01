@@ -196,4 +196,94 @@ public class VenteCashControllerTest {
         Stock updated = stockRepository.findById(stock.getId()).orElseThrow();
         assertThat(updated.getQuantiteDisponible()).isEqualTo(10);
     }
+
+    @Test
+    void createVenteCash_conditionnement_douzaine_decrementsStock_and_createsMouvement() throws Exception {
+        Produit p2 = new Produit();
+        p2.setNomProduit("P2");
+        p2.setPrixAchat(2000);
+        p2.setNombreUnitesParConditionnement(12);
+        Produit savedP2 = produitRepository.save(p2);
+
+        Stock s2 = new Stock();
+        s2.setProduit(savedP2);
+        s2.setMagasin(magasin);
+        s2.setQuantiteDisponible(50);
+        s2.setCostAverage(new BigDecimal("50.00"));
+        s2.setLastPurchasePrice(new BigDecimal("50.00"));
+        Stock savedS2 = stockRepository.save(s2);
+
+        var payload = Map.of(
+                "reference", "CASH-DOZ",
+                "total", 12 * 2000,
+                "montantRecu", 12 * 2000,
+                "monnaieRembourse", 0,
+                "produitsSelectionnes", List.of(Map.of("id_stock", savedS2.getId(), "quantiteConditionnement", 1, "venteParConditionnement", true, "prix", 2000, "priceMode", "DETAIL"))
+        );
+
+        mockMvc.perform(post("/api/ventes/cash")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(payload))
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail())))
+                .andExpect(status().isOk());
+
+        Stock updated = stockRepository.findById(savedS2.getId()).orElseThrow();
+        assertThat(updated.getQuantiteDisponible()).isEqualTo(38);
+
+        List<LigneVente> lvs = ligneVenteRepository.findAll().stream().filter(l -> l.getProduit() != null && l.getProduit().getId().equals(savedP2.getId())).toList();
+        assertThat(lvs).isNotEmpty();
+        LigneVente lv = lvs.get(0);
+        assertThat(lv.getQuantite()).isEqualTo(12);
+
+        List<Mouvement> mvts = mouvementRepository.findAll().stream().filter(mt -> mt.getStock() != null && mt.getStock().getId().equals(savedS2.getId())).toList();
+        assertThat(mvts).isNotEmpty();
+        Mouvement m = mvts.get(0);
+        assertThat(m.getQuantite()).isEqualTo(12);
+        assertThat(m.getTypeMouvement()).isEqualTo("SORTIE");
+        assertThat(m.getMontant()).isEqualTo(12 * 2000);
+    }
+
+    @Test
+    void createVenteCash_conditionnement_multiplierGreaterThanOne_decrementsStock_and_createsMouvement() throws Exception {
+        Produit p3 = new Produit();
+        p3.setNomProduit("P3");
+        p3.setPrixAchat(500);
+        p3.setNombreUnitesParConditionnement(10);
+        Produit savedP3 = produitRepository.save(p3);
+
+        Stock s3 = new Stock();
+        s3.setProduit(savedP3);
+        s3.setMagasin(magasin);
+        s3.setQuantiteDisponible(100);
+        s3.setCostAverage(new BigDecimal("25.00"));
+        s3.setLastPurchasePrice(new BigDecimal("25.00"));
+        Stock savedS3 = stockRepository.save(s3);
+
+        int qCond = 3;
+        int real = qCond * 10;
+        int prix = 500;
+        var payload = Map.of(
+                "reference", "CASH-MULT",
+                "total", real * prix,
+                "montantRecu", real * prix,
+                "monnaieRembourse", 0,
+                "produitsSelectionnes", List.of(Map.of("id_stock", savedS3.getId(), "quantiteConditionnement", qCond, "venteParConditionnement", true, "prix", prix, "priceMode", "DETAIL"))
+        );
+
+        mockMvc.perform(post("/api/ventes/cash")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(payload))
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail())))
+                .andExpect(status().isOk());
+
+        Stock updated = stockRepository.findById(savedS3.getId()).orElseThrow();
+        assertThat(updated.getQuantiteDisponible()).isEqualTo(100 - real);
+
+        LigneVente lv = ligneVenteRepository.findAll().stream().filter(l -> l.getProduit() != null && l.getProduit().getId().equals(savedP3.getId())).findFirst().orElseThrow();
+        assertThat(lv.getQuantite()).isEqualTo(real);
+
+        Mouvement m = mouvementRepository.findAll().stream().filter(mt -> mt.getStock() != null && mt.getStock().getId().equals(savedS3.getId())).findFirst().orElseThrow();
+        assertThat(m.getQuantite()).isEqualTo(real);
+        assertThat(m.getMontant()).isEqualTo(real * prix);
+    }
 }
