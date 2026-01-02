@@ -33,4 +33,9 @@ public class Stock {
     @JoinColumn(name = "id_magasin")
     @JsonIgnore
     private Magasin magasin;
+
+    @ManyToOne
+    @JoinColumn(name = "id_boutique")
+    @JsonIgnore
+    private Boutique boutique;
 }

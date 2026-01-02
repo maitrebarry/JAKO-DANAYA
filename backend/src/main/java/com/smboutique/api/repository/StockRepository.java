@@ -18,6 +18,6 @@ public interface StockRepository extends JpaRepository<Stock, Long> {
 
     Optional<Stock> findByProduitIdAndMagasinId(Long produitId, Long magasinId);
 
-    @Query("SELECT s FROM Stock s LEFT JOIN FETCH s.produit LEFT JOIN FETCH s.magasin WHERE (:produitId IS NULL OR s.produit.id = :produitId) AND s.magasin.boutique.id = :boutiqueId")
+    @Query("SELECT s FROM Stock s LEFT JOIN FETCH s.produit LEFT JOIN FETCH s.magasin WHERE (:produitId IS NULL OR s.produit.id = :produitId) AND s.boutique.id = :boutiqueId")
     List<Stock> findByProduitIdAndBoutiqueId(@Param("produitId") Long produitId, @Param("boutiqueId") Long boutiqueId);
 }

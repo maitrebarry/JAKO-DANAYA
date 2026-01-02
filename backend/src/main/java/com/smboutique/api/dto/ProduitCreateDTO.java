@@ -20,6 +20,8 @@ public class ProduitCreateDTO {
 
     private String productImage;
 
+    private String caracteristique;
+
     @NotNull
     @PositiveOrZero
     private Integer prixDetail;

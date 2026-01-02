@@ -17,8 +17,10 @@ import DepenseDetail from './components/DepenseDetail';
 import DetailReception from './components/DetailReception';
 import Historique from './components/Historique';
 import VentesHistorique from './components/VentesHistorique';
+import VentesEspeces from './components/VentesEspeces';
 import VenteLivraison from './components/VenteLivraison';
 import VenteEnEspece from './components/VenteEnEspece';
+import Transfert from './components/Transfert';
 import { UserProvider } from './contexts/UserContext';
 
 // Composant pour protéger les routes
@@ -62,6 +64,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Layout><Produits /></Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/produits/transfert"
+            element={
+              <PrivateRoute>
+                <Layout><Transfert /></Layout>
               </PrivateRoute>
             }
           />
@@ -228,6 +238,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Layout><VentesHistorique /></Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/ventes/especes"
+            element={
+              <PrivateRoute>
+                <Layout><VentesEspeces /></Layout>
               </PrivateRoute>
             }
           />

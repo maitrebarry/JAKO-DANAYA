@@ -193,7 +193,7 @@ const CaisseRegistre: React.FC = () => {
           </div>
 
           <div className="text-center">
-            <RequirePermission permission="CAISSE_CREER" fallback={<button type="button" className="btn btn-secondary me-2" disabled title="Permission requise">Sauvegarder</button>}>
+            <RequirePermission permission="CAISSE_GERER" fallback={<button type="button" className="btn btn-secondary me-2" disabled title="Permission requise">Sauvegarder</button>}>
               <button type="button" className="btn btn-success me-2" onClick={createCaisse} disabled={hasOpenCaisse} title={hasOpenCaisse ? 'Une caisse est ouverte. Fermez-la avant d\'en créer une nouvelle.' : ''}>Sauvegarder</button>
             </RequirePermission>
             {/* <a className="btn btn-primary" href="#liste-caisses">Liste caisse</a> */}

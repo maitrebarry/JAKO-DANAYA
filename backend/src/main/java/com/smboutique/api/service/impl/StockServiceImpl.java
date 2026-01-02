@@ -27,6 +27,20 @@ public class StockServiceImpl implements StockService {
 
     @Override
     public Stock saveStock(Stock stock) {
+        if (stock.getBoutique() == null) {
+            throw new IllegalArgumentException("Stock must be associated to a boutique");
+        }
+        // Safety guard: do not allow reassigning an existing boutique-level stock (magasin == null)
+        // to a magasin by updating the same stock row. Enforce creation of a new magasin-level stock instead.
+        if (stock.getId() != null) {
+            java.util.Optional<Stock> existingOpt = stockRepository.findById(stock.getId());
+            if (existingOpt.isPresent()) {
+                Stock existing = existingOpt.get();
+                if (existing.getMagasin() == null && stock.getMagasin() != null) {
+                    throw new IllegalArgumentException("Reassigning a boutique-level stock to a magasin is forbidden. Create a new magazin-level stock instead.");
+                }
+            }
+        }
         return stockRepository.save(stock);
     }
 

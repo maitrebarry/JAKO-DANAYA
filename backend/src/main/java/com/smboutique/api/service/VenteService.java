@@ -9,4 +9,7 @@ public interface VenteService {
     Optional<Vente> findById(Long id);
     Vente save(Vente vente);
     void deleteById(Long id);
+
+    // find ventes by boutique id
+    List<Vente> findByBoutiqueId(Long boutiqueId);
 }

@@ -53,6 +53,9 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private com.smboutique.api.repository.VenteRepository venteRepository;
+
     @Value("${app.reset-db:false}")
     private boolean resetDb;
 
@@ -66,8 +69,31 @@ public class DataInitializer implements CommandLineRunner {
         initializeRoles();
         initializeBoutique();
         initializeSuperAdmin();
+        backfillVenteBoutique();
 //        initializeTestData();
         logger.info("Data initialization completed.");
+    }
+
+    private void backfillVenteBoutique() {
+        try {
+            long total = venteRepository.count();
+            if (total == 0) {
+                logger.info("No ventes present, skipping backfillVenteBoutique.");
+                return;
+            }
+            Boutique boutique = boutiqueRepository.findAll().get(0);
+            long updated = 0;
+            for (Vente v : venteRepository.findAll()) {
+                if (v.getBoutique() == null) {
+                    v.setBoutique(boutique);
+                    venteRepository.save(v);
+                    updated++;
+                }
+            }
+            logger.info("Backfilled {} ventes with default boutique (id={}).", updated, boutique.getId());
+        } catch (Exception e) {
+            logger.warn("backfillVenteBoutique failed: {}", e.getMessage());
+        }
     }
 
     private void resetDatabase() {
@@ -183,12 +209,19 @@ public class DataInitializer implements CommandLineRunner {
             {"CAISSE_LECTURE", "Permission pour lire la caisse"},
             {"CAISSE_VOIR", "Permission pour voir la caisse"},
             {"CAISSE_GERER", "Permission pour gérer la caisse"},
-            {"DEPENSES_VOIR", "Permission pour voir les dépenses"},
+
             // Dépenses feature permissions
             {"DEPENSE_CREER", "Permission pour créer des dépenses"},
             {"DEPENSE_LECTURE", "Permission pour lire les dépenses"},
             {"DEPENSE_VALIDATION", "Permission pour valider/rejeter des dépenses"},
-            {"DEPENSE_ANNULATION", "Permission pour annuler des dépenses"}        };
+            {"DEPENSE_ANNULATION", "Permission pour annuler des dépenses"},
+//            {"DEPENSE_VOIR", "Permission pour voir les dépenses"},
+            // Transferts
+            {"TRANSFERT_VOIR", "Permission pour voir l'interface de transfert"},
+            {"TRANSFERT_LECTURE", "Permission pour lire les transferts"},
+            {"TRANSFERT_CREER", "Permission pour créer/exécuter des transferts"},
+            {"TRANSFERT_MODIFIER", "Permission pour modifier des transferts"},
+            {"TRANSFERT_SUPPRIMER", "Permission pour supprimer des transferts"}        };
 
         int created = 0;
         for (String[] perm : permissions) {
@@ -230,6 +263,8 @@ public class DataInitializer implements CommandLineRunner {
                 "INVENTAIRE_LECTURE", "INVENTAIRE_CREER", "INVENTAIRE_MODIFIER", "INVENTAIRE_SUPPRIMER",
                 "FOURNISSEUR_LECTURE", "FOURNISSEUR_CREER", "FOURNISSEUR_MODIFIER", "FOURNISSEUR_SUPPRIMER",
                 "RAPPORT_LECTURE", "RAPPORT_CREER",
+                // Transferts
+                "TRANSFERT_VOIR", "TRANSFERT_LECTURE", "TRANSFERT_CREER",
                 // Dépenses
                 "DEPENSE_CREER", "DEPENSE_LECTURE", "DEPENSE_VALIDATION", "DEPENSE_ANNULATION"
             });
@@ -248,7 +283,9 @@ public class DataInitializer implements CommandLineRunner {
                 "TABLEAU_DE_BORD_LECTURE",
                 "PRODUIT_LECTURE", "PRODUIT_MODIFIER",
                 "INVENTAIRE_LECTURE", "INVENTAIRE_MODIFIER",
-                "FOURNISSEUR_LECTURE"
+                "FOURNISSEUR_LECTURE",
+                // Transferts
+                "TRANSFERT_VOIR", "TRANSFERT_LECTURE", "TRANSFERT_CREER"
             });
 
             createRole("CASHIER", "Caissier", new String[]{

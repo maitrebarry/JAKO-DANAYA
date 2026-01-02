@@ -119,6 +119,7 @@ const ListeUtilisateurs = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [boutiques, setBoutiques] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
+  const [assignableRoleIds, setAssignableRoleIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -156,6 +157,25 @@ const ListeUtilisateurs = () => {
     { value: 'MAGASINIER', label: 'Magasinier' }
   ];
 
+  // Determine which type options are allowed to be shown based on current user's role
+  const forbiddenTypes = new Set<string>();
+  if (normalizedRoles.includes('SUPERADMIN')) {
+    forbiddenTypes.add('SUPERADMIN');
+  } else if (normalizedRoles.includes('ADMINISTRATEUR')) {
+    forbiddenTypes.add('SUPERADMIN');
+    forbiddenTypes.add('ADMINISTRATEUR');
+  } else if (normalizedRoles.includes('GERANT_BOUTIQUE')) {
+    forbiddenTypes.add('SUPERADMIN');
+    forbiddenTypes.add('ADMINISTRATEUR');
+    forbiddenTypes.add('GERANT_BOUTIQUE');
+  } else {
+    forbiddenTypes.add('SUPERADMIN');
+    forbiddenTypes.add('ADMINISTRATEUR');
+    forbiddenTypes.add('GERANT_BOUTIQUE');
+  }
+
+  const filteredTypeOptions = typeOptions.filter(opt => !forbiddenTypes.has(opt.value));
+
   const statutOptions = [
     { value: 'ACTIF', label: 'Actif' },
     { value: 'INACTIF', label: 'Inactif' }
@@ -192,7 +212,7 @@ const ListeUtilisateurs = () => {
 
     try {
       // Chargement en parallèle pour plus de rapidité
-      const [usersRes, boutiquesRes, rolesRes] = await Promise.all([
+      const [usersRes, boutiquesRes, rolesRes, assignableRes] = await Promise.all([
         fetch('http://localhost:8085/api/users', {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
@@ -200,6 +220,9 @@ const ListeUtilisateurs = () => {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
         fetch('http://localhost:8085/api/roles', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('http://localhost:8085/api/admin/assignable-roles', {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -216,11 +239,13 @@ const ListeUtilisateurs = () => {
       const usersData = await usersRes.json().catch(() => []);
       const boutiquesData = await boutiquesRes.json().catch(() => []);
       const rolesData = rolesRes.ok ? await rolesRes.json().catch(() => []) : [];
+      const assignableData = assignableRes.ok ? await assignableRes.json().catch(() => []) : [];
 
       if (isMountedRef.current) {
         setUsers(usersData || []);
         setBoutiques(boutiquesData || []);
         setRoles(rolesData || []);
+        setAssignableRoleIds((assignableData || []).map((r: any) => r.id));
       }
     } catch (err: any) {
       if (isMountedRef.current) {
@@ -618,9 +643,15 @@ const ListeUtilisateurs = () => {
                     value={formData.typeUtilisateur}
                     onChange={(e) => setFormData({ ...formData, typeUtilisateur: e.target.value })}
                   >
-                    {typeOptions.map(option => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
+                    {(() => {
+                      const optionsToShow = [...filteredTypeOptions];
+                      if (formData.typeUtilisateur && !optionsToShow.find(o => o.value === formData.typeUtilisateur)) {
+                        optionsToShow.push({ value: formData.typeUtilisateur, label: formData.typeUtilisateur });
+                      }
+                      return optionsToShow.map(option => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ));
+                    })()}
                   </select>
                 </div>
                 <div className="col-md-3 mb-3">
@@ -680,20 +711,25 @@ const ListeUtilisateurs = () => {
               <div className="mb-3">
                 <label className="form-label">Rôles</label>
                 <div className="d-flex flex-wrap gap-2">
-                  {roles.map(role => (
-                    <div className="form-check" key={role.id}>
-                      <input
-                        className="form-check-input"
-                        type="checkbox"
-                        id={`role-${role.id}`}
-                        checked={formData.roleIds.includes(String(role.id))}
-                        onChange={() => handleRoleToggle(role.id)}
-                      />
-                      <label className="form-check-label" htmlFor={`role-${role.id}`}>
-                        {role.name}
-                      </label>
-                    </div>
-                  ))}
+                  {roles.map(role => {
+                    const assigned = formData.roleIds.includes(String(role.id));
+                    const allowed = assignableRoleIds.length === 0 || assignableRoleIds.includes(role.id);
+                    return (
+                      <div className="form-check" key={role.id}>
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          id={`role-${role.id}`}
+                          checked={assigned}
+                          onChange={() => handleRoleToggle(role.id)}
+                          disabled={!allowed && !assigned}
+                        />
+                        <label className="form-check-label" htmlFor={`role-${role.id}`}>
+                          {role.name}{!allowed && ' (non assignable)'}
+                        </label>
+                      </div>
+                    );
+                  })}
                   {roles.length === 0 && (
                     <div className="text-muted">Aucun rôle disponible</div>
                   )}

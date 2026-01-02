@@ -51,6 +51,33 @@ public class UtilisateurController {
         return user.getBoutique().getId() != null && user.getBoutique().getId().equals(boutique.getId());
     }
 
+    /**
+     * Compute set of role names that the current user must not be able to assign to others.
+     * - SUPERADMIN can't assign SUPERADMIN
+     * - ADMIN can't assign SUPERADMIN or ADMIN
+     * - MANAGER can't assign SUPERADMIN, ADMIN or MANAGER
+     */
+    private java.util.Set<String> computeForbiddenRolesForCurrentUser(Utilisateur current) {
+        java.util.Set<String> forbidden = new java.util.HashSet<>();
+        if (current == null) {
+            forbidden.addAll(java.util.Arrays.asList("SUPERADMIN", "ADMIN", "MANAGER"));
+            return forbidden;
+        }
+        boolean isSuper = isSuperAdmin(current);
+        boolean isAdmin = current.getRoles() != null && current.getRoles().stream().anyMatch(r -> "ADMIN".equalsIgnoreCase(r.getName()));
+        boolean isManager = current.getRoles() != null && current.getRoles().stream().anyMatch(r -> "MANAGER".equalsIgnoreCase(r.getName()));
+        if (isSuper) {
+            forbidden.add("SUPERADMIN");
+        } else if (isAdmin) {
+            forbidden.addAll(java.util.Arrays.asList("SUPERADMIN", "ADMIN"));
+        } else if (isManager) {
+            forbidden.addAll(java.util.Arrays.asList("SUPERADMIN", "ADMIN", "MANAGER"));
+        } else {
+            forbidden.addAll(java.util.Arrays.asList("SUPERADMIN", "ADMIN", "MANAGER"));
+        }
+        return forbidden;
+    }
+
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
     public List<Utilisateur> getUsers() {
@@ -80,7 +107,7 @@ public class UtilisateurController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
-    public Utilisateur createUser(@RequestBody Utilisateur utilisateur) {
+    public ResponseEntity<Utilisateur> createUser(@RequestBody Utilisateur utilisateur) {
         Utilisateur current = getCurrentUser();
         if (!isSuperAdmin(current)) {
             utilisateur.setBoutique(current.getBoutique());
@@ -92,10 +119,32 @@ public class UtilisateurController {
         if (!isSuperAdmin(current) && !utilisateurService.hasPermission(current, "UTILISATEUR_GERER")) {
             utilisateur.setPermissions(new java.util.HashSet<>());
         }
+
+        // Validate roles: disallow assigning roles equal or higher than current user's allowed scope
+        java.util.Set<String> forbidden = computeForbiddenRolesForCurrentUser(current);
+        if (utilisateur.getRoles() != null) {
+            boolean forbiddenRoleAssigned = utilisateur.getRoles().stream()
+                    .anyMatch(r -> r.getName() != null && forbidden.contains(r.getName().toUpperCase()));
+            if (forbiddenRoleAssigned) {
+                return ResponseEntity.status(403).build();
+            }
+        }
+        // Also validate requested user type (typeUtilisateur) against the same hierarchy
+        if (utilisateur.getTypeUtilisateur() != null) {
+            java.util.Set<String> forbiddenTypes = new java.util.HashSet<>();
+            if (forbidden.contains("SUPERADMIN")) forbiddenTypes.add("SUPERADMIN");
+            if (forbidden.contains("ADMIN")) forbiddenTypes.add("ADMINISTRATEUR");
+            if (forbidden.contains("MANAGER")) forbiddenTypes.add("GERANT_BOUTIQUE");
+            if (forbiddenTypes.contains(utilisateur.getTypeUtilisateur().toUpperCase())) {
+                return ResponseEntity.status(403).build();
+            }
+        }
+
         if (utilisateur.getMotDePasse() != null && !utilisateur.getMotDePasse().isEmpty()) {
             utilisateur.setMotDePasse(passwordEncoder.encode(utilisateur.getMotDePasse()));
         }
-        return utilisateurService.save(utilisateur);
+        Utilisateur saved = utilisateurService.save(utilisateur);
+        return ResponseEntity.ok(saved);
     }
 
     @PutMapping("/{id}")
@@ -110,7 +159,15 @@ public class UtilisateurController {
                     existing.setNom(utilisateurDetails.getNom());
                     existing.setPrenom(utilisateurDetails.getPrenom());
                     existing.setPseudo(utilisateurDetails.getPseudo());
-                    existing.setEmail(utilisateurDetails.getEmail());
+                    // Validate requested typeUtilisateur against hierarchy
+                    java.util.Set<String> forbiddenTypes = new java.util.HashSet<>();
+                    java.util.Set<String> forbiddenRoles = computeForbiddenRolesForCurrentUser(current);
+                    if (forbiddenRoles.contains("SUPERADMIN")) forbiddenTypes.add("SUPERADMIN");
+                    if (forbiddenRoles.contains("ADMIN")) forbiddenTypes.add("ADMINISTRATEUR");
+                    if (forbiddenRoles.contains("MANAGER")) forbiddenTypes.add("GERANT_BOUTIQUE");
+                    if (utilisateurDetails.getTypeUtilisateur() != null && forbiddenTypes.contains(utilisateurDetails.getTypeUtilisateur().toUpperCase())) {
+                        return ResponseEntity.status(403).<Utilisateur>build();
+                    }
                     existing.setTypeUtilisateur(utilisateurDetails.getTypeUtilisateur());
                     existing.setContact(utilisateurDetails.getContact());
                     existing.setAdresse(utilisateurDetails.getAdresse());
@@ -122,6 +179,15 @@ public class UtilisateurController {
                         existing.setBoutique(current.getBoutique());
                     }
 
+                    // Validate roles assignment: disallow assigning equal or higher roles
+                    java.util.Set<String> forbidden = computeForbiddenRolesForCurrentUser(current);
+                    if (utilisateurDetails.getRoles() != null) {
+                        boolean forbiddenRoleAssigned = utilisateurDetails.getRoles().stream()
+                                .anyMatch(r -> r.getName() != null && forbidden.contains(r.getName().toUpperCase()));
+                        if (forbiddenRoleAssigned) {
+                            return ResponseEntity.status(403).<Utilisateur>build();
+                        }
+                    }
                     existing.setRoles(utilisateurDetails.getRoles());
                     // Only SUPERADMIN or users with UTILISATEUR_GERER may set permissions
                     if (isSuperAdmin(current) || utilisateurService.hasPermission(current, "UTILISATEUR_GERER")) {

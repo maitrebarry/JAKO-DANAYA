@@ -29,6 +29,11 @@ public class Vente {
     @JoinColumn(name = "id_utilisateur")
     private Utilisateur utilisateur;
 
+    // LINK TO BOUTIQUE (nullable for older rows)
+    @ManyToOne
+    @JoinColumn(name = "id_boutique")
+    private Boutique boutique;
+
     private Integer remise;
     
     @Column(name = "net_a_payer")

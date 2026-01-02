@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import SearchableSelect from './SearchableSelect';
+import RequirePermission from './RequirePermission';
 
 interface Line {
   id_stock?: number;
@@ -23,6 +25,71 @@ const VenteEnEspece: React.FC = () => {
   const [remise, setRemise] = useState<number>(0);
   const [loading, setLoading] = useState(false);
 
+  // Location (boutique / magasin)
+  const [magasins, setMagasins] = useState<any[]>([]);
+  const [locationType, setLocationType] = useState<'BOUTIQUE'|'MAGASIN'>('BOUTIQUE');
+  const [selectedMagasinId, setSelectedMagasinId] = useState<number | null>(null);
+
+  const fetchMagasins = async () => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch('http://localhost:8085/api/magasins', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      if (!res.ok) throw new Error('Erreur lors du chargement des magasins');
+      const data = await res.json();
+      setMagasins(data || []);
+      return data || [];
+    } catch (e: any) {
+      console.error('fetchMagasins error', e);
+      return [];
+    }
+  };
+
+  const fetchStocksByLocation = async (locType?: 'BOUTIQUE'|'MAGASIN', magId?: number) => {
+    try {
+      const token = getAuthToken();
+      const lt = locType || locationType;
+      if (lt === 'MAGASIN') {
+        const idToUse = magId || selectedMagasinId;
+        if (!idToUse) return [];
+        const res = await fetch(`http://localhost:8085/api/magasins/${idToUse}/stocks`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        if (!res.ok) throw new Error('Impossible de charger les produits du magasin');
+        const data = await res.json();
+        setStocks(data || []);
+        return data || [];
+      } else {
+        const res = await fetch('http://localhost:8085/api/stocks', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        if (!res.ok) throw new Error('Impossible de charger les stocks');
+        const data = await res.json();
+        const boutiqueOnly = (data || []).filter((s: any) => !s.magasin);
+        setStocks(boutiqueOnly);
+        return boutiqueOnly;
+      }
+    } catch (e: any) {
+      Swal.fire('Erreur', e.message || 'Erreur lors du chargement des stocks', 'error');
+      return [];
+    }
+  };
+
+  // Price mode (DÉTAIL or GROS) like in CommandeFournisseur
+  const [priceModeDefault, setPriceModeDefault] = useState<'DETAIL'|'GROS'>('DETAIL');
+  const [reference, setReference] = useState('');
+  const [dateVente, setDateVente] = useState('');
+
+  const generateReference = () => {
+    const now = new Date();
+    const ref = `ES-${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}-${Math.random().toString(36).substr(2,6).toUpperCase()}`;
+    setReference(ref);
+  };
+
+  useEffect(() => {
+    // initialize reference and date like CommandeFournisseur
+    generateReference();
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const localDt = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    setDateVente(localDt);
+  }, []);
+
   const getAuthToken = (): string | null => {
     const raw = localStorage.getItem('smb_token');
     if (!raw) return null;
@@ -40,24 +107,18 @@ const VenteEnEspece: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchStocks();
-    // initialize with one empty line
-    setLines([{ quantite: 1, prix: 0, venteParConditionnement: false }]);
+    (async () => {
+      await fetchMagasins();
+      // Vente defaults to boutique (dépôt boutique)
+      setLocationType('BOUTIQUE');
+      setSelectedMagasinId(null);
+      await fetchStocksByLocation('BOUTIQUE');
+    })();
+    // Par défaut le panier doit être vide (aucune ligne initiale)
   }, []);
 
-  const fetchStocks = async () => {
-    try {
-      const token = getAuthToken();
-      const res = await fetch('http://localhost:8085/api/stocks', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
-      if (!res.ok) throw new Error('Impossible de charger les stocks');
-      const data = await res.json();
-      setStocks(data || []);
-    } catch (e: any) {
-      Swal.fire('Erreur', e.message || 'Erreur lors du chargement des stocks', 'error');
-    }
-  };
 
-  const addLine = () => setLines([...lines, { quantite: 1, prix: 0, venteParConditionnement: false }]);
+
   const removeLine = (index: number) => setLines(lines.filter((_, i) => i !== index));
 
   const handleLineChange = (index: number, field: keyof Line, value: any) => {
@@ -66,6 +127,37 @@ const VenteEnEspece: React.FC = () => {
     setLines(copy);
   };
 
+  // Add a product selected from SearchableSelect into the cart
+  const handleProductSelect = (stockIdStr?: string | null) => {
+    if (!stockIdStr) return;
+    const id = Number(stockIdStr);
+    const stock = stocks.find(s => s.id === id);
+    if (!stock) {
+      Swal.fire('Erreur', 'Stock introuvable', 'error');
+      return;
+    }
+    if (lines.some(l => l.id_stock === id)) {
+      Swal.fire('Attention', 'Ce produit est déjà présent dans le panier', 'warning');
+      return;
+    }
+    // Determine default price for sale based on priceModeDefault like CommandeFournisseur
+    const prod = stock.produit || {};
+    const modePrice = priceModeDefault === 'DETAIL' ? (prod.prixDetail ?? prod.prixAchat) : (prod.prixEnGros ?? prod.prixAchat);
+    const defaultPrice = modePrice ?? 0;
+    const newLine: Line = {
+      id_stock: id,
+      produit: prod,
+      designation: prod.nomProduit || prod.nom || 'Produit',
+      quantite: 1,
+      venteParConditionnement: false,
+      quantiteConditionnement: 1,
+      prix: Number(defaultPrice),
+      priceMode: priceModeDefault
+    };
+    setLines(prev => [...prev, newLine]);
+  };
+
+  const formatFCFA = (n: number) => `${Number(n || 0).toFixed(2)} FCFA`; 
   const computeLineQuantiteReelle = (l: Line) => {
     if (l.venteParConditionnement) {
       const stock = stocks.find(s => s.id === l.id_stock);
@@ -84,6 +176,59 @@ const VenteEnEspece: React.FC = () => {
     return subtotal - (remise || 0);
   };
 
+  // Client-side submission validation
+  const { canSubmit, submissionErrors } = useMemo(() => {
+    const errors: string[] = [];
+    // Must have at least one valid line
+    const validLines = lines.filter(l => l.id_stock && computeLineQuantiteReelle(l) > 0);
+    if (validLines.length === 0) {
+      errors.push('Veuillez ajouter au moins un produit avec une quantité valide.');
+    }
+
+    // Check stock availability and magasin restriction
+    validLines.forEach(l => {
+      const stock = stocks.find(s => s.id === l.id_stock);
+      if (!stock) {
+        errors.push(`Stock introuvable pour un produit sélectionné.`);
+        return;
+      }
+      if (stock.magasin) {
+        errors.push(`Le produit ${(stock.produit && (stock.produit.nomProduit || stock.produit.nom)) || ''} provient d'un magasin et ne peut pas être vendu directement.`);
+      }
+      const qreelle = computeLineQuantiteReelle(l);
+      if ((stock.quantiteDisponible || 0) < qreelle) {
+        errors.push(`Stock insuffisant pour ${(stock.produit && (stock.produit.nomProduit || stock.produit.nom)) || ''} (disponible: ${stock.quantiteDisponible || 0}, demandé: ${qreelle}).`);
+      }
+    });
+
+    const total = computeTotal();
+    if (total <= 0) {
+      errors.push('Le total doit être strictement supérieur à 0.');
+    }
+
+    // Montant reçu must be provided and >= total
+    if (montantRecu == null) {
+      errors.push('Le montant reçu doit être renseigné.');
+    } else if (montantRecu < total) {
+      errors.push('Le montant reçu est insuffisant.');
+    }
+
+    // can submit if no errors and not loading
+    return { canSubmit: errors.length === 0 && !loading, submissionErrors: errors };
+  }, [lines, stocks, remise, montantRecu, loading]);
+
+  // If price mode or stocks change, recompute prices for existing lines following the global mode
+  React.useEffect(() => {
+    setLines(prev => prev.map(l => {
+      if (!l.id_stock || !l.produit) return l;
+      const prod = l.produit;
+      const modePrice = priceModeDefault === 'DETAIL' ? (prod.prixDetail ?? prod.prixAchat) : (prod.prixEnGros ?? prod.prixAchat);
+      const newPrix = modePrice ?? (l.prix || 0);
+      return { ...l, prix: Number(newPrix), priceMode: priceModeDefault };
+    }));
+  }, [priceModeDefault, stocks]);
+
+
   const monnaieRembourse = () => {
     const total = computeTotal();
     if (montantRecu == null) return 0;
@@ -101,7 +246,7 @@ const VenteEnEspece: React.FC = () => {
 
     const payload = {
       reference: `ES-${new Date().toISOString().replace(/[:.]/g, '').slice(0,15)}`,
-      dateVente: new Date().toISOString(),
+      dateVente: dateVente,
       nomClient: nomClient || 'Clients divers',
       total: computeTotal(),
       montantRecu: montantRecu || 0,
@@ -113,7 +258,7 @@ const VenteEnEspece: React.FC = () => {
         venteParConditionnement: l.venteParConditionnement || false,
         quantiteConditionnement: l.venteParConditionnement ? l.quantiteConditionnement : undefined,
         prix: l.prix || 0,
-        priceMode: l.priceMode || undefined
+        priceMode: l.priceMode || priceModeDefault
       }))
     };
 
@@ -128,8 +273,18 @@ const VenteEnEspece: React.FC = () => {
 
       if (res.ok) {
         Swal.fire('Succès', 'Vente en espèces enregistrée', 'success');
-        // Redirect to ventes historique or show detail
-        navigate('/ventes/historique');
+        // Stay on the same page and reset the form to allow another sale
+        setLines([]);
+        setMontantRecu(null);
+        setRemise(0);
+        generateReference();
+        // reset dateVente to current local datetime (same format used initially)
+        const now = new Date();
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const localDt = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        setDateVente(localDt);
+        // refresh stocks in case quantities changed
+        await fetchStocksByLocation();
       } else {
         const err = await res.json().catch(() => null);
         console.debug('create vente cash failed', { status: res.status, body: err });
@@ -147,97 +302,212 @@ const VenteEnEspece: React.FC = () => {
       <div className="row">
         <div className="col-12">
           <div className="card">
-            <div className="card-body">
-              <h4 className="card-title">Vente en Espèce</h4>
+              <div className="card-header">
+                <h5>Vente En Espece</h5>
+              </div>
+              <div className="card-body">
+                <div className="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
+                  <div className="breadcrumb-title pe-3">Vente</div>
+                  <div className="ps-3">
+                    <nav aria-label="breadcrumb">
+                      <ol className="breadcrumb mb-0 p-0">
+                        <li className="breadcrumb-item"><a href="#"><i className="bx bx-home-alt"></i></a></li>
+                        <li className="breadcrumb-item active" aria-current="page">Vente En Direct</li>
+                      </ol>
+                    </nav>
+                  </div>
+                  <div className="ms-auto">
+                    <div className="btn-group">
+                      <button className="btn btn-outline-primary mb-3 mb-lg-0 me-2" onClick={() => navigate('/ventes/especes')}>Liste Ventes</button>
+                    </div>
+                  </div>
+                </div>
               <form onSubmit={handleSubmit}>
                 <div className="mb-3 row">
-                  <label className="col-sm-2 col-form-label">Nom Client</label>
-                  <div className="col-sm-10">
+                  <div className="col-md-3">
+                    <label>Référence</label>
+                    <input type="text" className="form-control" value={reference} readOnly />
+                  </div>
+                  <div className="col-md-3">
+                    <label>Date et Heure</label>
+                    <input type="datetime-local" className="form-control" value={dateVente} readOnly />
+                  </div>
+                  <div className="col-md-2">
+                    <label>Mode de prix</label>
+                    <div className="form-check form-switch">
+                      <input className="form-check-input" id="priceModeToggleEspece" type="checkbox" checked={priceModeDefault === 'DETAIL'} onChange={(e) => setPriceModeDefault(e.target.checked ? 'DETAIL' : 'GROS')} />
+                      <label className="form-check-label" htmlFor="priceModeToggleEspece">{priceModeDefault === 'DETAIL' ? 'DÉTAIL' : 'GROS'}</label>
+                    </div>
+                  </div>
+                  <div className="col-md-4">
+                    <label>Client</label>
                     <input className="form-control" value={nomClient} onChange={e => setNomClient(e.target.value)} />
                   </div>
                 </div>
 
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Produit / Stock</th>
-                      <th>Conditionnement</th>
-                      <th>Quantité</th>
-                      <th>Prix (unité)</th>
-                      <th>Montant</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lines.map((l, idx) => {
-                      const qreelle = computeLineQuantiteReelle(l);
-                      return (
-                        <tr key={idx}>
-                          <td style={{ minWidth: 250 }}>
-                            <select className="form-select" value={l.id_stock || ''} onChange={e => handleLineChange(idx, 'id_stock', Number(e.target.value) || undefined)}>
-                              <option value="">Sélectionner le stock</option>
-                              {stocks.map(s => (
-                                <option key={s.id} value={s.id}> {s.produit?.nomProduit || ('Stock ' + s.id)} (Disponible: {s.quantiteDisponible || 0})</option>
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="card">
+                      <div className="card-header bg-dark text-white">Produits Disponible</div>
+                      <div className="card-body">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ minWidth: 220 }}>
+                            <select
+                              className="form-select form-select-sm"
+                              value={locationType === 'MAGASIN' ? `MAGASIN:${selectedMagasinId || ''}` : 'BOUTIQUE'}
+                              onChange={async (e) => {
+                                const val = e.target.value;
+                                if (val.startsWith('MAGASIN:')) {
+                                  const idVal = Number(val.split(':')[1]);
+                                  setLocationType('MAGASIN');
+                                  setSelectedMagasinId(idVal);
+                                  await fetchStocksByLocation('MAGASIN', idVal);
+                                } else {
+                                  setLocationType('BOUTIQUE');
+                                  setSelectedMagasinId(null);
+                                  await fetchStocksByLocation('BOUTIQUE');
+                                }
+                              }}
+                            >
+                              <option value="BOUTIQUE">Dépôt boutique</option>
+                              {magasins.map(m => (
+                                <option key={m.id} value={`MAGASIN:${m.id}`}>{`Magasin - ${m.nom}`}</option>
                               ))}
                             </select>
-                          </td>
-                          <td>
-                            <div className="form-check">
-                              <input className="form-check-input" type="checkbox" checked={!!l.venteParConditionnement} onChange={e => handleLineChange(idx, 'venteParConditionnement', e.target.checked)} id={`cond-${idx}`} />
-                              <label className="form-check-label" htmlFor={`cond-${idx}`}>Par conditionnement</label>
-                            </div>
-                          </td>
-                          <td>
-                            {!l.venteParConditionnement ? (
-                              <input type="number" min={0} className="form-control" value={l.quantite || 0} onChange={e => handleLineChange(idx, 'quantite', Number(e.target.value))} />
-                            ) : (
-                              <input type="number" min={0} className="form-control" value={l.quantiteConditionnement || 0} onChange={e => handleLineChange(idx, 'quantiteConditionnement', Number(e.target.value))} />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <label className="form-label">Rechercher</label>
+                            <SearchableSelect
+                              options={stocks.map(s => ({ value: String(s.id), label: `${(s.produit && (s.produit.nomProduit || s.produit.nom)) || ('Stock '+s.id)} (Disponible: ${s.quantiteDisponible || 0})` }))}
+                              value={null}
+                              onChange={(v) => handleProductSelect(v as string)}
+                              placeholder="Rechercher un produit..."
+                            />
+                          </div>
+                        </div>
+
+
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="col-md-6">
+                    <div className="card">
+                      <div className="card-header bg-dark text-white">Panier</div>
+                      <div className="card-body">
+                        {stocks.filter(s => (s.quantiteDisponible || 0) === 0).length > 0 && (
+                          <div className="alert alert-warning">
+                            <strong>Ruptures de stock :</strong>
+                            <ul className="mb-0 mt-2">
+                              {stocks.filter(s => (s.quantiteDisponible || 0) === 0).map(s => (
+                                <li key={s.id}>{s.produit?.nomProduit || s.produit?.nom || `Stock ${s.id}`}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        <div className="table-responsive">
+                          <table className="table">
+                            <thead>
+                              <tr>
+                                <th>Produit</th>
+                                <th>Conditionnement</th>
+                                <th>Quantité</th>
+                                <th>Prix (unité)</th>
+                                <th>Montant</th>
+                                <th></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {lines.map((l, idx) => {
+                                const qreelle = computeLineQuantiteReelle(l);
+                                const montant = qreelle * (l.prix || 0);
+                                return (
+                                  <tr key={idx}>
+                                    <td>{l.designation || (l.produit && (l.produit.nomProduit || l.produit.nom)) || '—'}</td>
+                                    <td>
+                                      <div className="form-check">
+                                        <input className="form-check-input" type="checkbox" checked={!!l.venteParConditionnement} onChange={e => handleLineChange(idx, 'venteParConditionnement', e.target.checked)} id={`cond-${idx}`} />
+                                        <label className="form-check-label" htmlFor={`cond-${idx}`}>Par conditionnement</label>
+                                      </div>
+                                    </td>
+                                    <td style={{ minWidth: 160 }}>
+                                      {!l.venteParConditionnement ? (
+                                        <input type="number" min={0} className="form-control" value={l.quantite || 0} onChange={e => handleLineChange(idx, 'quantite', Number(e.target.value))} />
+                                      ) : (
+                                        <input type="number" min={0} className="form-control" value={l.quantiteConditionnement || 0} onChange={e => handleLineChange(idx, 'quantiteConditionnement', Number(e.target.value))} />
+                                      )}
+                                      <small className="text-muted">Réel: {qreelle}</small>
+                                    </td>
+                                    <td>
+                                      <div className="input-group">
+                                        <input type="number" min={0} className="form-control" value={l.prix || 0} onChange={e => handleLineChange(idx, 'prix', Number(e.target.value))} disabled />
+                                        <span className="input-group-text" title="Prix automatique"><i className="bx bx-lock"></i></span>
+                                      </div>
+                                    </td>
+                                    <td>{formatFCFA(montant)}</td>
+                                    <td>
+                                      <button type="button" className="btn btn-danger btn-sm" onClick={() => removeLine(idx)} title="Supprimer"><i className="bx bx-trash"></i></button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                            <tfoot>
+                              <tr>
+                                <td colSpan={3} className="text-end fw-bold">Total :</td>
+                                <td className="fw-bold">{formatFCFA(computeTotal())}</td>
+                                <td></td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="row mt-3">
+                  <div className="col-12">
+                    <div className="card">
+                      <div className="card-header bg-dark text-white">Paiement</div>
+                      <div className="card-body">
+                        <div className="row">
+                          <div className="col-md-4">
+                            <label className="form-label">Remise</label>
+                            <input className="form-control" type="number" value={remise} onChange={e => setRemise(Number(e.target.value))} />
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label">Montant Reçu</label>
+                            <input className="form-control" type="number" value={montantRecu == null ? '' : montantRecu} onChange={e => setMontantRecu(e.target.value === '' ? null : Number(e.target.value))} />
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label">Monnaie à rendre</label>
+                            <input className="form-control" readOnly value={formatFCFA(monnaieRembourse())} />
+                          </div>
+                        </div>
+
+                        <div className="row mt-3">
+                          <div className="col-12">
+                            {submissionErrors.length > 0 && (
+                              <div className="alert alert-danger">
+                                <ul className="mb-0">
+                                  {submissionErrors.map((err, i) => <li key={i}>{err}</li>)}
+                                </ul>
+                              </div>
                             )}
-                            <small className="text-muted">Réel: {qreelle}</small>
-                          </td>
-                          <td>
-                            <input type="number" min={0} className="form-control" value={l.prix || 0} onChange={e => handleLineChange(idx, 'prix', Number(e.target.value))} />
-                          </td>
-                          <td>{(qreelle * (l.prix || 0)) || 0}</td>
-                          <td>
-                            <button type="button" className="btn btn-sm btn-danger" onClick={() => removeLine(idx)}>Supprimer</button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-
-                <div className="mb-3">
-                  <button type="button" className="btn btn-secondary" onClick={addLine}>Ajouter produit</button>
-                </div>
-
-                <div className="mb-3 row">
-                  <label className="col-sm-2 col-form-label">Remise</label>
-                  <div className="col-sm-4">
-                    <input className="form-control" type="number" value={remise} onChange={e => setRemise(Number(e.target.value))} />
-                  </div>
-                  <label className="col-sm-2 col-form-label">Montant Reçu</label>
-                  <div className="col-sm-4">
-                    <input className="form-control" type="number" value={montantRecu == null ? '' : montantRecu} onChange={e => setMontantRecu(e.target.value === '' ? null : Number(e.target.value))} />
+                            <div className="text-center">
+                              <RequirePermission permission={'VENTE_CREER'}>
+                                <button type="submit" className="btn btn-primary" disabled={!canSubmit}>{loading ? 'Enregistrement…' : 'Enregistrer la vente'}</button>
+                              </RequirePermission>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="mb-3 row">
-                  <label className="col-sm-2 col-form-label">Total</label>
-                  <div className="col-sm-4">
-                    <input className="form-control" readOnly value={computeTotal()} />
-                  </div>
-
-                  <label className="col-sm-2 col-form-label">Monnaie à rendre</label>
-                  <div className="col-sm-4">
-                    <input className="form-control" readOnly value={monnaieRembourse()} />
-                  </div>
-                </div>
-
-                <div className="d-flex justify-content-end">
-                  <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Enregistrement…' : 'Enregistrer la vente'}</button>
-                </div>
 
               </form>
             </div>

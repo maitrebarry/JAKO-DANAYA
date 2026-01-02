@@ -4,6 +4,9 @@ import com.smboutique.api.model.Boutique;
 import com.smboutique.api.model.CommandeFournisseur;
 import com.smboutique.api.model.Fournisseur;
 import com.smboutique.api.model.Stock;
+import com.smboutique.api.model.Reception;
+import com.smboutique.api.model.LigneReception;
+import com.smboutique.api.model.Mouvement;
 import com.smboutique.api.model.Utilisateur;
 import com.smboutique.api.repository.LigneCommandeRepository;
 import com.smboutique.api.model.Paiement;
@@ -44,6 +47,15 @@ public class CommandeFournisseurController {
 
     @Autowired
     private PaiementService paiementService;
+
+    @Autowired
+    private com.smboutique.api.service.ReceptionService receptionService;
+
+    @Autowired
+    private com.smboutique.api.service.LigneReceptionService ligneReceptionService;
+
+    @Autowired
+    private com.smboutique.api.service.MouvementService mouvementService;
 
     @Autowired
     private com.smboutique.api.repository.CaisseRepository caisseRepository;
@@ -343,14 +355,47 @@ public class CommandeFournisseurController {
                                 existing.setQuantiteLivre(newQteLivre);
                                 ligneCommandeRepository.save(existing);
 
-                                // If more items were received (delta > 0), update stock's quantiteDisponible
+                                // If more items were received (delta > 0), create a Reception + LigneReception, update stock and create a RECEPTION mouvement
                                 if (delta > 0 && existing.getStock() != null && existing.getStock().getId() != null) {
                                     Long stockId = existing.getStock().getId();
                                     if (stockId != null) {
                                         stockRepository.findById(stockId).ifPresent(stock -> {
                                             Integer currentQty = stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0;
+
+                                            // Create a Reception wrapper for this batch if not already created for this request
+                                            // We'll create one Reception per API call linked to the commande
+                                            Reception reception = new Reception();
+                                            reception.setCommandeFournisseur(cmd);
+                                            reception.setBoutique(new Boutique());
+                                            reception.getBoutique().setId(boutiqueId);
+                                            reception.setDateReception(java.time.LocalDateTime.now());
+                                            reception = receptionService.save(reception);
+
+                                            // Create LigneReception snapshot and link to the Reception
+                                            LigneReception lr = new LigneReception();
+                                            lr.setReception(reception);
+                                            lr.setQuantiteRecu(delta);
+                                            lr.setProduit(stock.getProduit());
+                                            lr.setBeforeStockQuantite(currentQty);
+                                            lr.setBeforeStockCostAverage(stock.getCostAverage());
+                                            if (stock.getProduit() != null) lr.setBeforeProduitPrixAchat(stock.getProduit().getPrixAchat());
+                                            ligneReceptionService.save(lr);
+
+                                            // Update stock quantity
                                             stock.setQuantiteDisponible(currentQty + delta);
                                             stockRepository.save(stock);
+
+                                            // create mouvement RECEPTION
+                                            Mouvement mv = new Mouvement();
+                                            mv.setStock(stock);
+                                            mv.setProduit(stock.getProduit());
+                                            mv.setQuantite(delta);
+                                            mv.setTypeMouvement("RECEPTION");
+                                            mv.setDateMouvement(java.time.LocalDateTime.now());
+                                            // boutique for mouvement: if stock has magasin use its boutique, otherwise use commande.boutique
+                                            if (stock.getMagasin() != null && stock.getMagasin().getBoutique() != null) mv.setBoutique(stock.getMagasin().getBoutique());
+                                            else mv.setBoutique(cmd.getBoutique());
+                                            mouvementService.save(mv);
                                         });
                                     }
                                 }

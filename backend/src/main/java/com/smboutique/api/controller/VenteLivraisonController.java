@@ -93,9 +93,21 @@ public class VenteLivraisonController {
                 LigneVente lc = ligneVenteService.findById(lr.ligneVenteId).orElseThrow(() -> new RuntimeException("LigneVente introuvable"));
                 if (lc.getVente() == null || !lc.getVente().getId().equals(venteId)) throw new RuntimeException("LigneVente ne correspond pas à la vente");
 
-                Stock stock = stockService.getStockById(lr.stockId).orElseThrow(() -> new RuntimeException("Stock introuvable"));
-                if (stock.getMagasin() == null || stock.getMagasin().getBoutique() == null || !stock.getMagasin().getBoutique().getId().equals(user.getBoutique().getId())) {
+                Stock requested = stockService.getStockById(lr.stockId).orElseThrow(() -> new RuntimeException("Stock introuvable"));
+                // Ensure requested stock belongs to the user's boutique if it's a magasin stock
+                if (requested.getMagasin() != null && requested.getMagasin().getBoutique() != null && !requested.getMagasin().getBoutique().getId().equals(user.getBoutique().getId())) {
                     throw new RuntimeException("Stock hors boutique utilisateur");
+                }
+
+                // Business rule: delivery decrements boutique stock. If a magasin stock was provided, resolve the corresponding boutique-level stock for THIS boutique.
+                Stock stock = requested;
+                if (requested.getMagasin() != null) {
+                    Long prodId = requested.getProduit() != null ? requested.getProduit().getId() : null;
+                    if (prodId == null) throw new RuntimeException("Produit introuvable sur le stock fourni");
+                    // try to find boutique-level stock for THIS user's boutique and product
+                    java.util.List<Stock> candidates = stockService.getStocksByProduitAndBoutique(prodId, user.getBoutique().getId());
+                    stock = candidates.stream().filter(s -> s.getMagasin() == null).findFirst()
+                            .orElseThrow(() -> new RuntimeException("Stock boutique introuvable pour ce produit dans la boutique de l'utilisateur"));
                 }
 
                 Integer available = stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0;
@@ -114,7 +126,21 @@ public class VenteLivraisonController {
                 if (lr.quantite == null || lr.quantite <= 0) continue;
                 LigneVente lc = ligneVenteService.findById(lr.ligneVenteId).orElseThrow(() -> new RuntimeException("LigneVente introuvable"));
 
-                Stock stock = stockService.getStockById(lr.stockId).orElseThrow(() -> new RuntimeException("Stock introuvable"));
+                Stock requested = stockService.getStockById(lr.stockId).orElseThrow(() -> new RuntimeException("Stock introuvable"));
+                // Ensure requested stock belongs to the user's boutique if it's a magasin stock
+                if (requested.getMagasin() != null && requested.getMagasin().getBoutique() != null && !requested.getMagasin().getBoutique().getId().equals(user.getBoutique().getId())) {
+                    throw new RuntimeException("Stock hors boutique utilisateur");
+                }
+
+                Stock stock = requested;
+                if (requested.getMagasin() != null) {
+                    Long prodId = requested.getProduit() != null ? requested.getProduit().getId() : null;
+                    if (prodId == null) throw new RuntimeException("Produit introuvable sur le stock fourni");
+                    // try to find boutique-level stock for THIS user's boutique and product
+                    java.util.List<Stock> candidates = stockService.getStocksByProduitAndBoutique(prodId, user.getBoutique().getId());
+                    stock = candidates.stream().filter(s -> s.getMagasin() == null).findFirst()
+                            .orElseThrow(() -> new RuntimeException("Stock boutique introuvable pour ce produit dans la boutique de l'utilisateur"));
+                }
 
                 // decrement stock
                 Integer available = stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0;

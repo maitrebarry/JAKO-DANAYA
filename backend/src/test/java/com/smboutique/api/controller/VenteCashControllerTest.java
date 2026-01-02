@@ -94,7 +94,9 @@ public class VenteCashControllerTest {
 
         stock = new Stock();
         stock.setProduit(produit);
-        stock.setMagasin(magasin);
+        // Boutique-level stock (magasin = null) per new business rules
+        stock.setMagasin(null);
+        stock.setBoutique(boutique);
         stock.setQuantiteDisponible(10);
         stock.setCostAverage(new BigDecimal("50.00"));
         stock.setLastPurchasePrice(new BigDecimal("50.00"));
@@ -207,7 +209,9 @@ public class VenteCashControllerTest {
 
         Stock s2 = new Stock();
         s2.setProduit(savedP2);
-        s2.setMagasin(magasin);
+        // Boutique-level stock
+        s2.setMagasin(null);
+        s2.setBoutique(boutique);
         s2.setQuantiteDisponible(50);
         s2.setCostAverage(new BigDecimal("50.00"));
         s2.setLastPurchasePrice(new BigDecimal("50.00"));
@@ -253,7 +257,8 @@ public class VenteCashControllerTest {
 
         Stock s3 = new Stock();
         s3.setProduit(savedP3);
-        s3.setMagasin(magasin);
+        // Boutique-level stock
+        s3.setMagasin(null);
         s3.setQuantiteDisponible(100);
         s3.setCostAverage(new BigDecimal("25.00"));
         s3.setLastPurchasePrice(new BigDecimal("25.00"));

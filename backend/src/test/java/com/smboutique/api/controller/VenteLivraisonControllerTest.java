@@ -92,7 +92,9 @@ public class VenteLivraisonControllerTest {
 
         stock = new Stock();
         stock.setProduit(produit);
-        stock.setMagasin(magasin);
+        // Boutique-level stock
+        stock.setMagasin(null);
+        stock.setBoutique(boutique);
         stock.setQuantiteDisponible(10);
         stock.setCostAverage(new BigDecimal("50.00"));
         stock.setLastPurchasePrice(new BigDecimal("50.00"));

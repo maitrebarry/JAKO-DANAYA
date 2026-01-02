@@ -43,6 +43,49 @@ const Reception: React.FC = () => {
   const [articles, setArticles] = useState<ArticleData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Location state (Achat defaults to MAGASIN if any exist)
+  const [magasins, setMagasins] = useState<any[]>([]);
+  const [locationType, setLocationType] = useState<'BOUTIQUE'|'MAGASIN'>('MAGASIN');
+  const [selectedMagasinId, setSelectedMagasinId] = useState<number | null>(null);
+
+  const fetchMagasins = async () => {
+    try {
+      const token = localStorage.getItem('smb_token');
+      const res = await fetch('http://localhost:8085/api/magasins', { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Erreur lors du chargement des magasins');
+      const data = await res.json();
+      setMagasins(data || []);
+      return data || [];
+    } catch (e: any) {
+      console.error('fetchMagasins error', e);
+      return [];
+    }
+  };
+
+  const fetchStocksByLocation = async (locType?: 'BOUTIQUE'|'MAGASIN', magId?: number) => {
+    try {
+      const token = localStorage.getItem('smb_token');
+      const lt = locType || locationType;
+      if (lt === 'MAGASIN') {
+        const idToUse = magId || selectedMagasinId;
+        if (!idToUse) return [];
+        const res = await fetch(`http://localhost:8085/api/magasins/${idToUse}/stocks`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) throw new Error('Impossible de charger les produits du magasin');
+        const data = await res.json();
+        return data || [];
+      } else {
+        const res = await fetch('http://localhost:8085/api/stocks', { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) throw new Error('Impossible de charger les stocks');
+        const data = await res.json();
+        const boutiqueOnly = (data || []).filter((s: any) => !s.magasin);
+        return boutiqueOnly;
+      }
+    } catch (e: any) {
+      Swal.fire('Erreur', e.message || 'Erreur lors du chargement des stocks', 'error');
+      return [];
+    }
+  };
   // Server-side feedback to display after submit
   const [serverError, setServerError] = useState<{ message: string; details?: any } | null>(null);
 
@@ -69,12 +112,22 @@ const Reception: React.FC = () => {
     const userData = localStorage.getItem('smb_user_data');
     setDebugInfo(prev => ({ ...prev, token: token ? (token.length > 12 ? token.slice(0,12) + '...' : token) : null, userData: userData ? JSON.parse(userData) : null }));
     if (currentBoutique) {
-      fetchCommandes().then(() => {
+      (async () => {
+        const mags = await fetchMagasins();
+        if (mags && mags.length > 0) {
+          setLocationType('MAGASIN');
+          setSelectedMagasinId(mags[0].id);
+        } else {
+          setLocationType('BOUTIQUE');
+          setSelectedMagasinId(null);
+        }
+
+        await fetchCommandes();
         // Si un ID de commande est fourni dans l'URL, la charger automatiquement
         if (id) {
           handleCommandeChange(id);
         }
-      });
+      })();
     } else {
       console.log('No currentBoutique available, cannot fetch commandes');
       setError('Aucune boutique associée à votre compte. Contactez l\'administrateur.');
@@ -154,7 +207,20 @@ const Reception: React.FC = () => {
       });
       if (!articlesRes.ok) throw new Error('Erreur lors du chargement des articles');
       const articles = await articlesRes.json();
-      setArticles(articles);
+
+      // Ensure stocks for the selected location are loaded so we can show depot and available quantity
+      const stocksForLoc = await fetchStocksByLocation();
+      const enriched = (articles || []).map((a: any) => {
+        const productId = a.idProduit || a.produitId || null;
+        const stockInfo = (stocksForLoc || []).find((s: any) => (s.produit && s.produit.id === productId) || s.produitId === productId || s.id_produit === productId);
+        return {
+          ...a,
+          depot: a.depot || (stockInfo && stockInfo.magasin ? stockInfo.magasin.nom : (stockInfo && stockInfo.produit ? 'Dépôt inconnu' : null)),
+          stock: (a.stock !== undefined && a.stock !== null) ? a.stock : (stockInfo ? stockInfo.quantiteDisponible : null)
+        } as ArticleData;
+      });
+
+      setArticles(enriched);
     } catch (err: any) {
       Swal.fire('Erreur', err.message || 'Erreur inconnue', 'error');
     }
@@ -407,6 +473,34 @@ const Reception: React.FC = () => {
                   />
                 </div>
                 <hr className="mt-5" />
+
+                <div className="form-group mb-3 d-flex align-items-center" style={{ gap: 8 }}>
+                  <label className="me-2">Emplacement</label>
+                  <select
+                    className="form-select form-select-sm me-2"
+                    value={locationType === 'MAGASIN' ? `MAGASIN:${selectedMagasinId || ''}` : 'BOUTIQUE'}
+                    onChange={async (e) => {
+                      const val = e.target.value;
+                      if (val.startsWith('MAGASIN:')) {
+                        const idVal = Number(val.split(':')[1]);
+                        setLocationType('MAGASIN');
+                        setSelectedMagasinId(idVal);
+                        // refresh articles to reflect new stock info
+                        if (selectedCommande) await handleCommandeChange(String((selectedCommande as any).id));
+                      } else {
+                        setLocationType('BOUTIQUE');
+                        setSelectedMagasinId(null);
+                        if (selectedCommande) await handleCommandeChange(String((selectedCommande as any).id));
+                      }
+                    }}
+                  >
+                    <option value="BOUTIQUE">Dépôt boutique</option>
+                    {magasins.map(m => (
+                      <option key={m.id} value={`MAGASIN:${m.id}`}>{`Magasin - ${m.nom}`}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="table-responsive">
                   <table id="articles_table" className="table table-striped table-bordered">
                     <thead>

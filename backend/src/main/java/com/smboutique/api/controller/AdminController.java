@@ -97,4 +97,30 @@ public class AdminController {
 
         return ResponseEntity.ok("Permissions reset. Created: " + created.size());
     }
+
+    @GetMapping("/assignable-roles")
+    public List<Role> getAssignableRoles() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null) return List.of();
+        Utilisateur current = utilisateurRepository.findByEmailIgnoreCase(authentication.getName()).orElse(null);
+        List<Role> all = roleRepository.findAll();
+        java.util.Set<String> forbidden = new java.util.HashSet<>();
+        if (current != null) {
+            boolean isSuper = isSuperAdmin(current);
+            boolean isAdmin = current.getRoles() != null && current.getRoles().stream().anyMatch(r -> "ADMIN".equalsIgnoreCase(r.getName()));
+            boolean isManager = current.getRoles() != null && current.getRoles().stream().anyMatch(r -> "MANAGER".equalsIgnoreCase(r.getName()));
+            if (isSuper) {
+                forbidden.add("SUPERADMIN");
+            } else if (isAdmin) {
+                forbidden.addAll(java.util.Arrays.asList("SUPERADMIN", "ADMIN"));
+            } else if (isManager) {
+                forbidden.addAll(java.util.Arrays.asList("SUPERADMIN", "ADMIN", "MANAGER"));
+            } else {
+                forbidden.addAll(java.util.Arrays.asList("SUPERADMIN", "ADMIN", "MANAGER"));
+            }
+        } else {
+            forbidden.addAll(java.util.Arrays.asList("SUPERADMIN", "ADMIN", "MANAGER"));
+        }
+        return all.stream().filter(r -> !forbidden.contains(r.getName().toUpperCase())).collect(Collectors.toList());
+    }
 }

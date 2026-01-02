@@ -54,7 +54,8 @@ public class CaisseController {
     public ResponseEntity<Caisse> createCaisse(@RequestBody Caisse caisse) {
         try {
             com.smboutique.api.model.Utilisateur current = getCurrentUser();
-            if (!isSuperAdmin(current) && !utilisateurService.hasPermission(current, "CAISSE_GERER")) {
+            // Allow creation if user is SUPERADMIN or has CAISSE_GERER or CAISSE_CREER permission
+            if (!isSuperAdmin(current) && !utilisateurService.hasPermission(current, "CAISSE_GERER") && !utilisateurService.hasPermission(current, "CAISSE_CREER")) {
                 return ResponseEntity.status(403).build();
             }
             if (caisse.getBoutique() == null || caisse.getBoutique().getId() == null) return ResponseEntity.badRequest().build();

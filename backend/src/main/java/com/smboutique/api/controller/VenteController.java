@@ -38,6 +38,21 @@ public class VenteController {
     @Autowired
     private com.smboutique.api.service.LigneCommandeClientService ligneCommandeClientService;
 
+    @Autowired
+    private com.smboutique.api.repository.CaisseRepository caisseRepository;
+
+    @Autowired
+    private com.smboutique.api.service.CaisseService caisseService;
+
+    @Autowired
+    private com.smboutique.api.service.CaisseTransactionService caisseTransactionService;
+
+    @Autowired
+    private com.smboutique.api.service.CaisseMovementService caisseMovementService;
+
+    @Autowired
+    private com.smboutique.api.service.MouvementService mouvementService;
+
     private com.smboutique.api.model.Utilisateur getCurrentUser() {
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -114,7 +129,22 @@ public class VenteController {
             // Persist CommandeClient and lignes (quantite saved as quantite_reelle)
             CommandeClient cc = new CommandeClient();
             cc.setReference(request.reference);
-            cc.setDateCommande(request.dateVente == null ? java.time.LocalDateTime.now() : java.time.LocalDateTime.parse(request.dateVente));
+            // Parse dateVente: accept LocalDateTime and OffsetDateTime (with trailing Z)
+            java.time.LocalDateTime parsedDateCommande;
+            if (request.dateVente == null) {
+                parsedDateCommande = java.time.LocalDateTime.now();
+            } else {
+                try {
+                    parsedDateCommande = java.time.LocalDateTime.parse(request.dateVente);
+                } catch (java.time.format.DateTimeParseException ex1) {
+                    try {
+                        parsedDateCommande = java.time.OffsetDateTime.parse(request.dateVente).toLocalDateTime();
+                    } catch (java.time.format.DateTimeParseException ex2) {
+                        return ResponseEntity.badRequest().body(java.util.Map.of("error", "Date de commande invalide"));
+                    }
+                }
+            }
+            cc.setDateCommande(parsedDateCommande);
             cc.setTotal(request.total == null ? 0 : request.total);
             cc.setPaie(0);
 
@@ -172,6 +202,190 @@ public class VenteController {
             CommandeClient saved = commandeClientService.save(cc);
 
             return ResponseEntity.ok(saved);
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).body(ex.getMessage());
+        }
+    }
+
+    // Request DTOs for cash sale
+    public static class CashLineRequest {
+        public Long id_stock;
+        public Integer quantite; // units or number of conditionnements depending on venteParConditionnement
+        public Boolean venteParConditionnement;
+        public Integer quantiteConditionnement;
+        public Integer prix;
+        public String priceMode; // DETAIL or GROS
+    }
+
+    public static class VenteCashRequest {
+        public String reference;
+        public String dateVente;
+        public String nomClient;
+        public Integer total;
+        public Integer montantRecu;
+        public Integer monnaieRembourse;
+        public Integer remise;
+        public java.util.List<CashLineRequest> produitsSelectionnes = new java.util.ArrayList<>();
+    }
+
+    @PostMapping("/cash")
+    @Transactional
+    public ResponseEntity<?> createVenteCash(@RequestBody VenteCashRequest request) {
+        Utilisateur user = getCurrentUser();
+        if (!hasPermission(user, "VENTE_CREER") && !isSuperAdmin(user)) {
+            return ResponseEntity.status(403).body("Permission refusée");
+        }
+
+        if (request == null || request.produitsSelectionnes == null || request.produitsSelectionnes.isEmpty()) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", "Aucun produit sélectionné"));
+        }
+
+        try {
+            Long boutiqueId = user != null && user.getBoutique() != null ? user.getBoutique().getId() : null;
+            if (boutiqueId == null) return ResponseEntity.badRequest().body(java.util.Map.of("error", "Boutique introuvable pour l'utilisateur"));
+
+            // find active caisse for boutique
+            java.util.Optional<com.smboutique.api.model.Caisse> maybeCaisse = caisseRepository.findFirstByBoutiqueIdOrderByIdDesc(boutiqueId);
+            if (maybeCaisse.isEmpty()) return ResponseEntity.badRequest().body(java.util.Map.of("error", "Aucune caisse active pour la boutique"));
+            com.smboutique.api.model.Caisse caisse = maybeCaisse.get();
+            // Accept several representations of an "open" status (front historically uses 'OUVERTE')
+            String statut = caisse.getStatut();
+            boolean isOpen = false;
+            if (statut != null) {
+                String s = statut.trim().toLowerCase();
+                isOpen = "on".equalsIgnoreCase(s) || "ouverte".equalsIgnoreCase(s) || "ouvert".equalsIgnoreCase(s) || s.contains("ouvert") || "open".equalsIgnoreCase(s);
+            }
+            if (!isOpen) {
+                return ResponseEntity.badRequest().body(java.util.Map.of("error", "La caisse active n'est pas ouverte"));
+            }
+
+            // Validate stock availability before any change
+            for (CashLineRequest pl : request.produitsSelectionnes) {
+                com.smboutique.api.model.Stock s = stockRepository.findById(pl.id_stock)
+                        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Stock introuvable"));
+
+                // Business rule: forbid selling from a magasin-level stock
+                if (s.getMagasin() != null) {
+                    throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Vente depuis un stock magasin interdite. Utilisez le stock boutique ou transférez d'abord les quantités.");
+                }
+
+                int quantiteReelle = 0;
+                if (pl.venteParConditionnement != null && pl.venteParConditionnement) {
+                    Integer mul = s.getProduit().getNombreUnitesParConditionnement() == null ? 1 : s.getProduit().getNombreUnitesParConditionnement();
+                    quantiteReelle = (pl.quantiteConditionnement == null ? 0 : pl.quantiteConditionnement) * mul;
+                } else {
+                    quantiteReelle = pl.quantite == null ? 0 : pl.quantite;
+                }
+
+                if (s.getQuantiteDisponible() == null || s.getQuantiteDisponible() < quantiteReelle) {
+                    throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Stock insuffisant pour produit " + s.getProduit().getNomProduit());
+                }
+            }
+
+            // Create Vente
+            Vente v = new Vente();
+            v.setReferenceCaisse(caisse.getReference());
+            // Parse dateVente: accept LocalDateTime and OffsetDateTime (with trailing Z)
+            java.time.LocalDateTime parsedDateVente;
+            if (request.dateVente == null) {
+                parsedDateVente = java.time.LocalDateTime.now();
+            } else {
+                try {
+                    parsedDateVente = java.time.LocalDateTime.parse(request.dateVente);
+                } catch (java.time.format.DateTimeParseException ex1) {
+                    try {
+                        parsedDateVente = java.time.OffsetDateTime.parse(request.dateVente).toLocalDateTime();
+                    } catch (java.time.format.DateTimeParseException ex2) {
+                        return ResponseEntity.badRequest().body(java.util.Map.of("error", "Date de vente invalide"));
+                    }
+                }
+            }
+            v.setDateVente(parsedDateVente);
+            v.setNomClient(request.nomClient != null ? request.nomClient : "Clients divers");
+            v.setMontantTotal(request.total == null ? 0 : request.total);
+            v.setRemise(request.remise == null ? 0 : request.remise);
+            v.setNetAPayer(request.total == null ? 0 : request.total - (request.remise == null ? 0 : request.remise));
+            v.setMontantRecu(request.montantRecu == null ? 0 : request.montantRecu);
+            v.setMonnaieRembourse(request.monnaieRembourse == null ? 0 : request.monnaieRembourse);
+            v.setUtilisateur(user);
+            v = venteService.save(v);
+
+            // For each line create LigneVente, decrement stock and create Mouvement
+            for (CashLineRequest pl : request.produitsSelectionnes) {
+                com.smboutique.api.model.Stock s = stockRepository.findById(pl.id_stock).orElseThrow();
+
+                // Business rule: forbid selling from a magasin-level stock
+                if (s.getMagasin() != null) {
+                    throw new RuntimeException("Vente depuis un stock magasin interdite. Utilisez le stock boutique ou transférez d'abord les quantités.");
+                }
+
+                int quantiteReelle = 0;
+                if (pl.venteParConditionnement != null && pl.venteParConditionnement) {
+                    Integer mul = s.getProduit().getNombreUnitesParConditionnement() == null ? 1 : s.getProduit().getNombreUnitesParConditionnement();
+                    quantiteReelle = (pl.quantiteConditionnement == null ? 0 : pl.quantiteConditionnement) * mul;
+                } else {
+                    quantiteReelle = pl.quantite == null ? 0 : pl.quantite;
+                }
+
+                LigneVente lv = new LigneVente();
+                lv.setVente(v);
+                lv.setProduit(s.getProduit());
+                lv.setQuantite(quantiteReelle);
+                lv.setQuantiteLivre(quantiteReelle);
+                lv.setNewPrice(pl.prix == null ? 0 : pl.prix);
+                if (pl.priceMode != null) {
+                    try { lv.setPriceMode(com.smboutique.api.model.PriceMode.valueOf(pl.priceMode)); } catch (Exception e) { }
+                }
+                ligneVenteService.save(lv);
+
+                // decrement stock
+                Integer cur = s.getQuantiteDisponible() == null ? 0 : s.getQuantiteDisponible();
+                s.setQuantiteDisponible(cur - quantiteReelle);
+                stockRepository.save(s);
+
+                // create mouvement
+                com.smboutique.api.model.Mouvement mv = new com.smboutique.api.model.Mouvement();
+                mv.setLigneVente(lv);
+                mv.setProduit(s.getProduit());
+                mv.setStock(s);
+                mv.setBoutique(user.getBoutique());
+                mv.setQuantite(quantiteReelle);
+                mv.setTypeMouvement("SORTIE");
+                mv.setMontant((pl.prix == null ? 0 : pl.prix) * quantiteReelle);
+                mv.setDateMouvement(java.time.LocalDateTime.now());
+                mouvementService.save(mv);
+            }
+
+            // update caisse
+            Integer montant = request.total == null ? 0 : request.total;
+            Integer balanceBefore = caisse.getMontantTotal() == null ? 0 : caisse.getMontantTotal();
+            caisse.setMontantTotal(balanceBefore + montant);
+            caisse = caisseService.save(caisse);
+
+            // create caisse transaction
+            com.smboutique.api.model.CaisseTransaction tx = new com.smboutique.api.model.CaisseTransaction();
+            tx.setType(com.smboutique.api.model.CaisseTransaction.TransactionType.CREDIT);
+            tx.setMontant(montant);
+            tx.setReferenceCaisse(caisse.getReference());
+            tx.setUserId(user.getId());
+            tx.setBoutiqueId(user.getBoutique() != null ? user.getBoutique().getId() : null);
+            caisseTransactionService.save(tx);
+
+            // create caisse movement
+            com.smboutique.api.model.CaisseMovement cm = new com.smboutique.api.model.CaisseMovement();
+            cm.setType(com.smboutique.api.model.CaisseMovement.MovementType.CREDIT);
+            cm.setMontant(montant);
+            cm.setBalanceBefore(balanceBefore);
+            cm.setBalanceAfter(caisse.getMontantTotal());
+            cm.setReferenceCaisse(caisse.getReference());
+            cm.setBoutiqueId(user.getBoutique() != null ? user.getBoutique().getId() : null);
+            cm.setUserId(user.getId());
+            cm.setRaison("Vente comptant");
+            caisseMovementService.save(cm);
+
+            return ResponseEntity.ok(v);
+        } catch (org.springframework.web.server.ResponseStatusException r) {
+            throw r;
         } catch (Exception ex) {
             return ResponseEntity.status(500).body(ex.getMessage());
         }

@@ -37,6 +37,9 @@ public class ProduitServiceImpl implements ProduitService {
     @Autowired
     private com.smboutique.api.service.ConfigurationMargeService configurationMargeService;
 
+    @Autowired
+    private com.smboutique.api.repository.BoutiqueRepository boutiqueRepository;
+
     @PersistenceContext
     private EntityManager em;
 
@@ -62,6 +65,7 @@ public class ProduitServiceImpl implements ProduitService {
         Produit produit = new Produit();
         produit.setNomProduit(dto.getNomProduit());
         produit.setProductImage(dto.getProductImage());
+        produit.setCaracteristique(dto.getCaracteristique());
         produit.setPrixDetail(dto.getPrixDetail());
         produit.setPrixEnGros(dto.getPrixEnGros());
         produit.setPrixAchat(dto.getPrixAchat());
@@ -177,17 +181,19 @@ public class ProduitServiceImpl implements ProduitService {
             org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).warn("Erreur post-save calcul marge automatique: {}", ex.getMessage());
         }
 
-        // Créer le stock initial pour le magasin par défaut de la boutique
-        // Supposons qu'il y a un magasin par défaut ou on en crée un
-        List<Magasin> magasins = magasinRepository.findByBoutiqueId(boutiqueId);
-        if (!magasins.isEmpty()) {
-            Magasin magasin = magasins.get(0); // Prendre le premier magasin
-            Stock stock = new Stock();
-            stock.setProduit(savedProduit);
-            stock.setMagasin(magasin);
-            stock.setQuantiteDisponible(stockReel);
-            stockService.saveStock(stock);
-        }
+        // Créer le stock initial au niveau BOUTIQUE (magasin = NULL). Le magasin n'intervient pas à la création de produit.
+        Stock boutiqueStock = new Stock();
+        boutiqueStock.setProduit(savedProduit);
+        boutiqueStock.setMagasin(null); // stock global de la boutique
+        // set boutique owner and create with zero quantity at product creation
+        com.smboutique.api.model.Boutique b = boutiqueRepository.findById(boutiqueId).orElse(null);
+        boutiqueStock.setBoutique(b);
+        boutiqueStock.setQuantiteDisponible(0);
+        // CMP / last purchase intentionally left null until first reception
+        boutiqueStock.setCostAverage(null);
+        boutiqueStock.setLastPurchasePrice(null);
+        stockService.saveStock(boutiqueStock);
+
 
         return savedProduit;
     }
@@ -243,6 +249,10 @@ public class ProduitServiceImpl implements ProduitService {
                     Produit produit = new Produit();
                     produit.setNomProduit(nomProduit);
                     String productImageUrl = getStringCell(row, colIndex.getOrDefault("productImage", -1));
+                    String caracteristique = getStringCell(row, colIndex.getOrDefault("caracteristique", -1));
+                    if (caracteristique != null && !caracteristique.trim().isEmpty()) {
+                        produit.setCaracteristique(caracteristique);
+                    }
                     if (productImageUrl != null && !productImageUrl.isEmpty()) {
                         // If value is an HTTP URL, attempt to download and save the image
                         try {
@@ -358,6 +368,7 @@ public class ProduitServiceImpl implements ProduitService {
                                     Stock stock = new Stock();
                                     stock.setProduit(saved);
                                     stock.setMagasin(magasinOpt.get());
+                                    stock.setBoutique(magasinOpt.get().getBoutique());
                                     stock.setQuantiteDisponible(quantiteReel);
                                     stockService.saveStock(stock);
                                 } else {
@@ -370,18 +381,15 @@ public class ProduitServiceImpl implements ProduitService {
                             }
                         }
                     } else {
-                        // No magasin specified: create stocks for all magasins in the user's boutique
-                        if (currentUser != null && currentUser.getBoutique() != null) {
-                            Long boutiqueId = currentUser.getBoutique().getId();
-                            List<Magasin> magasins = magasinRepository.findByBoutiqueId(boutiqueId);
-                            for (Magasin mg : magasins) {
-                                Stock stock = new Stock();
-                                stock.setProduit(saved);
-                                stock.setMagasin(mg);
-                                stock.setQuantiteDisponible(quantiteReel);
-                                stockService.saveStock(stock);
-                            }
-                        }
+                        // No magasin specified: create a single boutique-level stock (magasin = NULL)
+                        Stock boutiqueStock = new Stock();
+                        boutiqueStock.setProduit(saved);
+                        boutiqueStock.setMagasin(null);
+                        boutiqueStock.setBoutique(currentUser.getBoutique());
+                        boutiqueStock.setQuantiteDisponible(quantiteReel);
+                        boutiqueStock.setCostAverage(null);
+                        boutiqueStock.setLastPurchasePrice(null);
+                        stockService.saveStock(boutiqueStock);
                     }
 
                     processed++;

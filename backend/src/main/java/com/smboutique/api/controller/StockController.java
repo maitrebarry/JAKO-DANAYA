@@ -133,9 +133,63 @@ public class StockController {
         if (stock.getMagasin() != null && stock.getMagasin().getId() != null) {
             Magasin magasin = magasinRepository.findById(stock.getMagasin().getId())
                     .orElseThrow(() -> new IllegalArgumentException("Magasin non trouvé"));
+            // Business rule: cannot create a magasin stock with an initial quantity > 0
+            if (stock.getQuantiteDisponible() != null && stock.getQuantiteDisponible() > 0) {
+                throw new IllegalArgumentException("Impossible de créer un stock magasin avec une quantité initiale. Utilisez l'assignation (quantite=0) ou effectuez une réception.");
+            }
             stock.setMagasin(magasin);
+            // set boutique for magasin stock
+            stock.setBoutique(magasin.getBoutique());
+            stock.setQuantiteDisponible(0);
+            stock.setCostAverage(null);
+            stock.setLastPurchasePrice(null);
+        } else {
+            // boutique-level stock: set boutique to current user's boutique and ensure present
+            if (current.getBoutique() == null && !isSuperAdmin(current)) {
+                throw new RuntimeException("Impossible de créer un stock boutique sans boutique propriétaire");
+            }
+            stock.setMagasin(null);
+            stock.setBoutique(current.getBoutique());
         }
         return stockService.saveStock(stock);
+    }
+
+    public static class AssignRequest {
+        public Long produitId;
+        public Long magasinId;
+    }
+
+    @PostMapping("/assign")
+    public ResponseEntity<?> assignProductToMagasin(@RequestBody AssignRequest req) {
+        Utilisateur current = getCurrentUser();
+        if (!hasPermission(current, "INVENTAIRE_CREER")) {
+            return ResponseEntity.status(403).body("Permission manquante : INVENTAIRE_CREER");
+        }
+        if (req.produitId == null || req.magasinId == null) {
+            return ResponseEntity.badRequest().body("produitId et magasinId requis");
+        }
+
+        Produit produit = produitService.findById(req.produitId).orElse(null);
+        if (produit == null) return ResponseEntity.status(404).body("Produit non trouvé");
+
+        Magasin magasin = magasinRepository.findById(req.magasinId).orElse(null);
+        if (magasin == null) return ResponseEntity.status(404).body("Magasin non trouvé");
+
+        // Check existing stock
+        if (stockService.getStockByProduitAndMagasin(req.produitId, req.magasinId).isPresent()) {
+            return ResponseEntity.status(409).body("Stock pour ce produit et magasin existe déjà");
+        }
+
+        Stock s = new Stock();
+        s.setProduit(produit);
+        s.setMagasin(magasin);
+        s.setBoutique(magasin.getBoutique());
+        s.setQuantiteDisponible(0);
+        s.setCostAverage(null);
+        s.setLastPurchasePrice(null);
+
+        Stock saved = stockService.saveStock(s);
+        return ResponseEntity.status(201).body(saved);
     }
 
     @PutMapping("/{id}")
@@ -148,6 +202,13 @@ public class StockController {
 
         return stockOpt
                 .map(stock -> {
+                        // Prevent manual setting of a positive initial quantity on magasin-level stocks
+                    if (stock.getMagasin() != null && stockDetails.getQuantiteDisponible() != null && stockDetails.getQuantiteDisponible() > 0) {
+                        // Return 400 with correct generic type
+                        @SuppressWarnings("unchecked")
+                        ResponseEntity<Stock> bad = (ResponseEntity<Stock>) (ResponseEntity<?>) ResponseEntity.badRequest().build();
+                        return bad;
+                    }
                     stock.setQuantiteDisponible(stockDetails.getQuantiteDisponible());
                     return ResponseEntity.ok(stockService.saveStock(stock));
                 })

@@ -33,17 +33,11 @@ const VenteLivraison: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isClientCommande, setIsClientCommande] = useState(false);
 
-  // Pour sélectionner une vente à livrer (reprend le comportement de la réception pour sélectionner une commande fournisseur)
-  const [ventes, setVentes] = useState<any[]>([]);
-  const [selectedVenteId, setSelectedVenteId] = useState<string | null>(venteId);
+  // Location state
+  const [magasins, setMagasins] = useState<any[]>([]);
+  const [locationType, setLocationType] = useState<'BOUTIQUE'|'MAGASIN'>('BOUTIQUE');
+  const [selectedMagasinId, setSelectedMagasinId] = useState<number | null>(null);
 
-  // Référence et date de livraison (similaire à réception)
-  const generateRefLivraison = () => `LV-${new Date().toISOString().replace(/[:.]/g,'').slice(0,15)}`;
-  const [refLivraison] = useState(generateRefLivraison());
-  const [dateLivraisonIso] = useState(new Date().toISOString());
-  const [serverError, setServerError] = useState<{ message: string; details?: any } | null>(null);
-
-  // Normalise le token stocké dans localStorage (supporte chaîne brute ou objet JSON)
   const getAuthToken = (): string | null => {
     const raw = localStorage.getItem('smb_token');
     if (!raw) return null;
@@ -61,15 +55,73 @@ const VenteLivraison: React.FC = () => {
     return raw;
   };
 
-  useEffect(() => {
-    fetchStocks();
-    // Toujours charger la liste des ventes/commandes à livrer pour peupler le select
-    fetchVentesToDeliver();
-    // Si un param venteId est fourni, sélectionner et charger ses lignes
-    if (venteId) {
-      setSelectedVenteId(venteId);
-      fetchVenteAndLines(venteId);
+  const fetchMagasins = async () => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch('http://localhost:8085/api/magasins', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      if (!res.ok) throw new Error('Erreur lors du chargement des magasins');
+      const data = await res.json();
+      setMagasins(data || []);
+      return data || [];
+    } catch (e: any) {
+      console.error('fetchMagasins error', e);
+      return [];
     }
+  };
+
+  const fetchStocksByLocation = async (locType?: 'BOUTIQUE'|'MAGASIN', magId?: number) => {
+    try {
+      const token = getAuthToken();
+      const lt = locType || locationType;
+      if (lt === 'MAGASIN') {
+        const idToUse = magId || selectedMagasinId;
+        if (!idToUse) return [];
+        const res = await fetch(`http://localhost:8085/api/magasins/${idToUse}/stocks`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        if (!res.ok) throw new Error('Impossible de charger les produits du magasin');
+        const data = await res.json();
+        setStocks(data || []);
+        return data || [];
+      } else {
+        const res = await fetch('http://localhost:8085/api/stocks', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        if (!res.ok) throw new Error('Impossible de charger les stocks');
+        const data = await res.json();
+        const boutiqueOnly = (data || []).filter((s: any) => !s.magasin);
+        setStocks(boutiqueOnly);
+        return boutiqueOnly;
+      }
+    } catch (e: any) {
+      Swal.fire('Erreur', e.message || 'Erreur lors du chargement des stocks', 'error');
+      return [];
+    }
+  };
+
+  // Pour sélectionner une vente à livrer (reprend le comportement de la réception pour sélectionner une commande fournisseur)
+  const [ventes, setVentes] = useState<any[]>([]);
+  const [selectedVenteId, setSelectedVenteId] = useState<string | null>(venteId);
+
+  // Référence et date de livraison (similaire à réception)
+  const generateRefLivraison = () => `LV-${new Date().toISOString().replace(/[:.]/g,'').slice(0,15)}`;
+  const [refLivraison] = useState(generateRefLivraison());
+  const [dateLivraisonIso] = useState(new Date().toISOString());
+  const [serverError, setServerError] = useState<{ message: string; details?: any } | null>(null);
+
+
+
+  useEffect(() => {
+    (async () => {
+      await fetchMagasins();
+      // Vente livraison defaults to boutique
+      setLocationType('BOUTIQUE');
+      setSelectedMagasinId(null);
+      await fetchStocksByLocation('BOUTIQUE');
+      // Toujours charger la liste des ventes/commandes à livrer pour peupler le select
+      await fetchVentesToDeliver();
+      // Si un param venteId est fourni, sélectionner et charger ses lignes
+      if (venteId) {
+        setSelectedVenteId(venteId);
+        fetchVenteAndLines(venteId);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [venteId]);
 
@@ -77,7 +129,7 @@ const VenteLivraison: React.FC = () => {
     try {
       const token = getAuthToken();
       // S'assurer que les stocks sont chargés en premier pour enrichir les lignes
-      if (!stocks || stocks.length === 0) await fetchStocks();
+      if (!stocks || stocks.length === 0) await fetchStocksByLocation('BOUTIQUE');
 
       const [resV, resC] = await Promise.all([
         fetch('http://localhost:8085/api/ventes', { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
@@ -197,17 +249,7 @@ const VenteLivraison: React.FC = () => {
 
 
 
-  const fetchStocks = async () => {
-    try {
-      const token = getAuthToken();
-      const res = await fetch('http://localhost:8085/api/stocks', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
-      if (!res.ok) throw new Error('Impossible de charger les stocks');
-      const data = await res.json();
-      setStocks(data || []);
-    } catch (e: any) {
-      Swal.fire('Erreur', e.message || 'Erreur lors du chargement des stocks', 'error');
-    }
-  };
+
 
   const fetchVenteAndLines = async (id: string) => {
     setLoading(true);
@@ -588,6 +630,35 @@ const VenteLivraison: React.FC = () => {
                   </select>
 
                 </div>
+              </div>
+
+              <div className="form-group mb-3 d-flex align-items-center" style={{ gap: 8 }}>
+                <label className="me-2">Emplacement</label>
+                <select
+                  className="form-select form-select-sm me-2"
+                  value={locationType === 'MAGASIN' ? `MAGASIN:${selectedMagasinId || ''}` : 'BOUTIQUE'}
+                  onChange={async (e) => {
+                    const val = e.target.value;
+                    if (val.startsWith('MAGASIN:')) {
+                      const idVal = Number(val.split(':')[1]);
+                      setLocationType('MAGASIN');
+                      setSelectedMagasinId(idVal);
+                      await fetchStocksByLocation('MAGASIN', idVal);
+                      // refresh lines to reflect updated stock info
+                      if (selectedVenteId) fetchVenteAndLines(selectedVenteId);
+                    } else {
+                      setLocationType('BOUTIQUE');
+                      setSelectedMagasinId(null);
+                      await fetchStocksByLocation('BOUTIQUE');
+                      if (selectedVenteId) fetchVenteAndLines(selectedVenteId);
+                    }
+                  }}
+                >
+                  <option value="BOUTIQUE">Dépôt boutique</option>
+                  {magasins.map(m => (
+                    <option key={m.id} value={`MAGASIN:${m.id}`}>{`Magasin - ${m.nom}`}</option>
+                  ))}
+                </select>
               </div>
 
               <table className="table table-bordered table-striped">

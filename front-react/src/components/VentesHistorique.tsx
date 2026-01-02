@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { jsPDF } from 'jspdf';
 import { useUser } from '../contexts/UserContext';
@@ -32,23 +33,51 @@ const VentesHistorique: React.FC = () => {
   const [error, setError] = useState('');
   const [filterType, setFilterType] = useState<'ALL' | 'LIVRAISON' | 'PAIEMENT'>('ALL');
   const [search, setSearch] = useState('');
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
+    // If a query param type=PAIEMENT is present, pre-select the paiement filter (for quick access from vente page)
+    try {
+      const qp = new URLSearchParams(location.search);
+      const t = qp.get('type');
+      if (t && t.toUpperCase() === 'PAIEMENT') setFilterType('PAIEMENT');
+    } catch (e) {}
     if (currentBoutique) fetchHistorique(viewingAnnulations);
-  }, [currentBoutique, viewingAnnulations]);
+  }, [currentBoutique, viewingAnnulations, location.search]);
 
   const fetchHistorique = async (annulations = false) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('smb_token');
       const endpoint = annulations ? `/api/historique/ventes/annulations/boutique/${currentBoutique?.id}` : `/api/historique/ventes/boutique/${currentBoutique?.id}`;
-      const res = await fetch(`http://localhost:8085${endpoint}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      console.debug('fetchHistorique: token present?', !!token, 'endpoint=', endpoint);
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(`http://localhost:8085${endpoint}`, { headers });
       if (res.status === 401) {
-        await Swal.fire({ icon: 'warning', title: 'Session expirée', text: 'Votre session est expirée ou non authentifiée. Vous allez être redirigé vers la connexion.' });
-        logout();
-        throw new Error('Authentification requise (401)');
+        const txt = await res.text().catch(() => null);
+        console.debug('fetchHistorique: 401 body=', txt);
+        const result = await Swal.fire({
+          icon: 'warning',
+          title: 'Session expirée ?',
+          html: `<div>Le serveur a répondu 401 (non autorisé). Détails: <pre style="white-space:pre-wrap">${txt || ''}</pre></div>`,
+          showCancelButton: true,
+          confirmButtonText: 'Se reconnecter',
+          cancelButtonText: 'Rester ici'
+        });
+        if (result.isConfirmed) {
+          logout();
+          throw new Error('Authentification requise (401)');
+        } else {
+          setError('Session invalide (401) — reconnectez-vous si nécessaire.');
+          return;
+        }
       }
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
+      if (!res.ok) {
+        const txt = await res.text().catch(() => null);
+        console.debug('fetchHistorique: non-ok status', res.status, txt);
+        throw new Error(`Erreur ${res.status}`);
+      }
       const data = await res.json();
       // Debug: log payload and counts per type to help diagnose missing LIVRAISON entries
       try {
@@ -376,11 +405,12 @@ const VentesHistorique: React.FC = () => {
     if (filterType !== 'ALL' && i.type !== filterType) return false;
     if (!search) return true;
     const s = search.toLowerCase();
-    // search in reference, referenceCommande, client or fournisseur (server returns client name in "fournisseur")
+    // search in reference, referenceCommande, client, fournisseur or responsable
     const clientName = ((i.client || i.fournisseur) || '').toLowerCase();
+    const responsableName = (i as any).responsable ? (i as any).responsable.toLowerCase() : '';
     return (i.reference && i.reference.toLowerCase().includes(s)) ||
       (i.referenceCommande && i.referenceCommande.toLowerCase().includes(s)) ||
-      clientName.includes(s);
+      clientName.includes(s) || responsableName.includes(s);
   });
 
   // permission helpers
@@ -436,85 +466,132 @@ const VentesHistorique: React.FC = () => {
                 <thead>
                   <tr>
                     <th>Date</th>
-                    <th>Type</th>
-                    <th>Référence</th>
-                    {canSeeCaisse && <th>Réf Caisse</th>}
-                    <th>Réf Commande</th>
-                    <th>Client</th>
-                    <th>Montant</th>
-                    {viewingAnnulations ? <th>Annulé par</th> : <th>Opérations</th>}
+                    {filterType === 'PAIEMENT' && !viewingAnnulations ? (
+                      <>
+                        <th>Client</th>
+                        <th>Responsable</th>
+                        <th>Montant</th>
+                        <th>Opérations</th>
+                      </>
+                    ) : (
+                      <>
+                        <th>Type</th>
+                        <th>Référence</th>
+                        {canSeeCaisse && <th>Réf Caisse</th>}
+                        <th>Réf Commande</th>
+                        <th>Client</th>
+                        <th>Montant</th>
+                        {viewingAnnulations ? <th>Annulé par</th> : <th>Opérations</th>}
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map(item => (
                     <tr key={`${item.type}-${item.id}`}>
                       <td>{formatServerDate(item.dateIso || item.date || '')}</td>
-                      <td>
-                        {(() => {
-                          const label = item.type ?? '';
-                          const key = (label || '').toString().toUpperCase();
-                          let cls = 'bg-secondary';
-                          if (key.includes('PAIEMENT') || key.includes('ENTREE') || key.includes('CREDIT')) cls = 'bg-success';
-                          else if (key.includes('LIVRAISON') || key.includes('RECEPTION') || key.includes('SORTIE') || key.includes('DEPENSE')) cls = 'bg-danger';
-                          else cls = 'bg-secondary';
-                          return <span className={`badge ${cls}`}>{label}</span>;
-                        })()}
-                      </td>
-                      <td>{item.reference}</td>
-                      {canSeeCaisse && <td>{item.referenceCaisse ?? '-'}</td>}
-                      <td>{item.referenceCommande}</td>
-                      <td>{item.client ?? item.fournisseur}</td>
-                      <td>{item.montant != null ? item.montant.toFixed(0) : '-'}</td>
-                      {viewingAnnulations ? (
-                        <td>{item.annule ? (item.annuleParNom || (item.annulePar != null ? String(item.annulePar) : '-')) : '-'}</td>
+
+                      {filterType === 'PAIEMENT' && !viewingAnnulations ? (
+                        <>
+                          <td>{item.client ?? item.fournisseur}</td>
+                          <td>{(item as any).responsable ?? '-'}</td>
+                          <td>{item.montant != null ? item.montant.toFixed(0) : '-'}</td>
+                          <td>
+                            <button
+                              className={`btn btn-sm btn-outline-primary me-1 ${item.referenceCommande ? '' : 'disabled'}`}
+                              title={item.referenceCommande ? 'Détail commande' : 'Détail indisponible'}
+                              onClick={() => { if (item.referenceCommandeId) navigate(`/ventes/appercu/${item.referenceCommandeId}`); }}
+                            ><i className="ri-eye-line"></i></button>
+
+                            <button
+                              className={`btn btn-sm me-1 btn-outline-success`}
+                              title={'Imprimer'}
+                              onClick={() => { if (item.type === 'PAIEMENT') generatePdfForPaiementClient(item.id); }}
+                            >
+                              <i className="ri-printer-line"></i>
+                            </button>
+
+                            {canAnnulerPaiement && (
+                              <button
+                                className="btn btn-sm btn-outline-danger"
+                                title="Supprimer"
+                                onClick={() => handleDeletePaiementClient(item.id)}
+                              >
+                                <i className="ri-delete-bin-line"></i>
+                              </button>
+                            )}
+                          </td>
+                        </>
                       ) : (
-                        <td>
-                          {/* Aperçu */}
-                          {/* {item.referenceCommandeId ? (
-                            <a className="btn btn-sm btn-outline-primary me-1" href={`/ventes/livraisons?venteId=${item.referenceCommandeId}`} title="Aperçu Commande"><i className="ri-eye-line"></i></a>
+                        <>
+                          <td>
+                            {(() => {
+                              const label = item.type ?? '';
+                              const key = (label || '').toString().toUpperCase();
+                              let cls = 'bg-secondary';
+                              if (key.includes('PAIEMENT') || key.includes('ENTREE') || key.includes('CREDIT')) cls = 'bg-success';
+                              else if (key.includes('LIVRAISON') || key.includes('RECEPTION') || key.includes('SORTIE') || key.includes('DEPENSE')) cls = 'bg-danger';
+                              else cls = 'bg-secondary';
+                              return <span className={`badge ${cls}`}>{label}</span>;
+                            })()}
+                          </td>
+                          <td>{item.reference}</td>
+                          {canSeeCaisse && <td>{item.referenceCaisse ?? '-'}</td>}
+                          <td>{item.referenceCommande}</td>
+                          <td>{item.client ?? item.fournisseur}</td>
+                          <td>{item.montant != null ? item.montant.toFixed(0) : '-'}</td>
+                          {viewingAnnulations ? (
+                            <td>{item.annule ? (item.annuleParNom || (item.annulePar != null ? String(item.annulePar) : '-')) : '-'}</td>
                           ) : (
-                            <button className="btn btn-sm btn-outline-primary me-1 disabled" title="Aperçu indisponible"><i className="ri-eye-line"></i></button>
-                          )} */}
+                            <td>
+                              {/* Aperçu */}
+                              {/* {item.referenceCommandeId ? (
+                                <a className="btn btn-sm btn-outline-primary me-1" href={`/ventes/livraisons?venteId=${item.referenceCommandeId}`} title="Aperçu Commande"><i className="ri-eye-line"></i></a>
+                              ) : (
+                                <button className="btn btn-sm btn-outline-primary me-1 disabled" title="Aperçu indisponible"><i className="ri-eye-line"></i></button>
+                              )} */}
 
-                          {/* PDF Paiement (enabled for PAIEMENT rows) */}
-                          <button
-                            className={`btn btn-sm me-1 ${item.type === 'PAIEMENT' ? 'btn-outline-success' : 'btn-outline-secondary disabled'}`}
-                            title={item.type === 'PAIEMENT' ? 'PDF Paiement' : 'PDF Paiement (non applicable)'}
-                            onClick={() => { if (item.type === 'PAIEMENT') generatePdfForPaiementClient(item.id); }}
-                          >
-                            <i className="ri-wallet-2-line"></i>
-                          </button>
+                              {/* PDF Paiement (enabled for PAIEMENT rows) */}
+                              <button
+                                className={`btn btn-sm me-1 ${item.type === 'PAIEMENT' ? 'btn-outline-success' : 'btn-outline-secondary disabled'}`}
+                                title={item.type === 'PAIEMENT' ? 'PDF Paiement' : 'PDF Paiement (non applicable)'}
+                                onClick={() => { if (item.type === 'PAIEMENT') generatePdfForPaiementClient(item.id); }}
+                              >
+                                <i className="ri-wallet-2-line"></i>
+                              </button>
 
-                          {/* PDF Livraison (enabled for LIVRAISON rows) */}
-                          <button
-                            className={`btn btn-sm me-1 ${item.type === 'LIVRAISON' ? 'btn-outline-info' : 'btn-outline-secondary disabled'}`}
-                            title={item.type === 'LIVRAISON' ? 'PDF Livraison' : 'PDF Livraison (non applicable)'}
-                            onClick={() => { if (item.type === 'LIVRAISON') generatePdfForLivraison(item.id); }}
-                          >
-                            <i className="ri-truck-line"></i>
-                          </button>
+                              {/* PDF Livraison (enabled for LIVRAISON rows) */}
+                              <button
+                                className={`btn btn-sm me-1 ${item.type === 'LIVRAISON' ? 'btn-outline-info' : 'btn-outline-secondary disabled'}`}
+                                title={item.type === 'LIVRAISON' ? 'PDF Livraison' : 'PDF Livraison (non applicable)'}
+                                onClick={() => { if (item.type === 'LIVRAISON') generatePdfForLivraison(item.id); }}
+                              >
+                                <i className="ri-truck-line"></i>
+                              </button>
 
-                          {/* Annulation (for paiement clients use DELETE endpoint if available) */}
-                          {item.type === 'PAIEMENT' && canAnnulerPaiement && (
-                            <button
-                              className="btn btn-sm btn-outline-danger"
-                              title="Annuler"
-                              onClick={() => handleDeletePaiementClient(item.id)}
-                            >
-                              <i className="ri-close-line"></i>
-                            </button>
+                              {/* Annulation (for paiement clients use DELETE endpoint if available) */}
+                              {item.type === 'PAIEMENT' && canAnnulerPaiement && (
+                                <button
+                                  className="btn btn-sm btn-outline-danger"
+                                  title="Annuler"
+                                  onClick={() => handleDeletePaiementClient(item.id)}
+                                >
+                                  <i className="ri-close-line"></i>
+                                </button>
+                              )}
+
+                              {item.type === 'LIVRAISON' && canAnnulerLivraison && (
+                                <button
+                                  className="btn btn-sm btn-outline-danger"
+                                  title="Annuler"
+                                  onClick={() => handleDeleteLivraison(item.id)}
+                                >
+                                  <i className="ri-close-line"></i>
+                                </button>
+                              )}
+                            </td>
                           )}
-
-                          {item.type === 'LIVRAISON' && canAnnulerLivraison && (
-                            <button
-                              className="btn btn-sm btn-outline-danger"
-                              title="Annuler"
-                              onClick={() => handleDeleteLivraison(item.id)}
-                            >
-                              <i className="ri-close-line"></i>
-                            </button>
-                          )}
-                        </td>
+                        </>
                       )}
                     </tr>
                   ))}

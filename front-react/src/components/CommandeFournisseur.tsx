@@ -106,12 +106,20 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
 
   // Robust product display name resolver: handles different product field shapes
   const getProductDisplayName = (stockInfo?: Stock, ligne?: any) => {
+    // Prefer explicit name returned by the stock API
+    if (stockInfo && (stockInfo as any).nomProduit) return (stockInfo as any).nomProduit;
+
     const prod = (stockInfo && (stockInfo as any).produit) || (ligne && ligne.produit) || (ligne && ligne.stock && ligne.stock.produit);
     if (prod) {
       return (prod.nomProduit || prod.nom || prod.designation || prod.libelle || prod.name || prod.label || '').toString().trim() || (ligne && ligne.designation) || 'Produit inconnu';
     }
+
+    // If stock contains only a produitId, show a helpful fallback
+    const pid = stockInfo && ((stockInfo as any).produitId || (stockInfo as any).idProduit || (stockInfo as any).id_produit);
+    if (pid) return `Produit #${pid}`;
+
     return (ligne && ligne.designation) || 'Produit inconnu';
-  }; 
+  };
 
   // prettyJson helper removed (unused)
 
@@ -135,20 +143,129 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
   const canCreateFournisseur = useHasPermission('FOURNISSEUR_CREER');
   const canCreateClient = useHasPermission('CLIENT_CREER');
 
+  // Location (boutique / magasin) state and helpers
+  const [magasins, setMagasins] = useState<any[]>([]);
+  const [locationType, setLocationType] = useState<'BOUTIQUE'|'MAGASIN'>('BOUTIQUE');
+  const [selectedMagasinId, setSelectedMagasinId] = useState<number | null>(null);
+
+  // Products cache to enrich stocks (ensure prices are available when stock.produit is absent)
+  const [produits, setProduits] = useState<any[]>([]);
+  const fetchProduits = async () => {
+    try {
+      const token = localStorage.getItem('smb_token');
+      const res = await fetch('http://localhost:8085/api/produits', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      if (!res.ok) throw new Error('Erreur lors du chargement des produits');
+      const data = await res.json();
+      setProduits(data || []);
+      return data || [];
+    } catch (e: any) {
+      console.error('fetchProduits error', e);
+      return [];
+    }
+  };
+
+  const fetchMagasins = async () => {
+    try {
+      const token = localStorage.getItem('smb_token');
+      const res = await fetch('http://localhost:8085/api/magasins', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      if (!res.ok) throw new Error('Erreur lors du chargement des magasins');
+      const data = await res.json();
+      setMagasins(data || []);
+      return data || [];
+    } catch (e: any) {
+      console.error('fetchMagasins error', e);
+      return [];
+    }
+  };
+
+  const fetchStocksByLocation = async (locType?: 'BOUTIQUE'|'MAGASIN', magId?: number) => {
+    try {
+      const token = localStorage.getItem('smb_token');
+      const lt = locType || locationType;
+      if (lt === 'MAGASIN') {
+        const idToUse = magId || selectedMagasinId;
+        if (!idToUse) return [];
+        const res = await fetch(`http://localhost:8085/api/magasins/${idToUse}/stocks`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        if (!res.ok) throw new Error('Impossible de charger les produits du magasin');
+        const data = await res.json();
+        // Normalize stocks so that product name and prices are available even when API returns produitId / nomProduit only
+        const productMap: Record<string, any> = {};
+        (produits || []).forEach((p: any) => { if (p && p.id) productMap[String(p.id)] = p; });
+
+        const normalized = (data || []).map((s: any) => {
+          const prodId = s.produitId || s.idProduit || s.id_produit || (s.produit && s.produit.id);
+          // prefer s.produit if available, else use catalog product if present
+          let produit = s.produit;
+          if (!produit && prodId && productMap[String(prodId)]) {
+            produit = productMap[String(prodId)];
+          }
+          // fallback minimal produit with id and placeholder name
+          if (!produit && prodId) produit = { id: prodId, nomProduit: s.nomProduit || `Produit ${prodId}` };
+
+          // Ensure price fields are present when possible (prixAchat/prixDetail/prixEnGros)
+          const prixAchat = produit ? (produit.prixAchat ?? produit.prix_a_achat ?? produit.prix) : undefined;
+          const prixDetail = produit ? (produit.prixDetail ?? produit.prix_detail ?? produit.prix_detaille ?? produit.prixDetaille) : undefined;
+          const prixEnGros = produit ? (produit.prixEnGros ?? produit.prix_en_gros ?? produit.prixGros) : undefined;
+
+          const finalProduit = { ...produit, prixAchat, prixDetail, prixEnGros };
+
+          return { ...s, produit: finalProduit, nomProduit: s.nomProduit || (finalProduit ? (finalProduit.nomProduit || finalProduit.nom) : undefined) };
+        });
+        setStocks(normalized);
+        return normalized;
+      } else {
+        const res = await fetch('http://localhost:8085/api/stocks', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        if (!res.ok) throw new Error('Impossible de charger les stocks');
+        const data = await res.json();
+        const boutiqueOnly = (data || []).filter((s: any) => !s.magasin).map((s: any) => {
+          const prodId = s.produitId || s.idProduit || s.id_produit || (s.produit && s.produit.id);
+          const prodName = s.nomProduit || s.produit?.nomProduit || s.produit?.nom || s.produit?.name;
+          const produit = s.produit || (prodId ? { id: prodId, nomProduit: prodName || `Produit ${prodId}` } : undefined);
+          return { ...s, produit, nomProduit: s.nomProduit || (produit ? (produit.nomProduit || produit.nom) : undefined) };
+        });
+        setStocks(boutiqueOnly);
+        return boutiqueOnly;
+      }
+    } catch (e: any) {
+      Swal.fire('Erreur', e.message || 'Erreur lors du chargement des stocks', 'error');
+      return [];
+    }
+  };
+
   useEffect(() => {
     (async () => {
-      const s = await fetchStocks();
-      await fetchFournisseurs();
-      await fetchClients();
-      generateReference();
-      // default local datetime for datetime-local input (avoid using toISOString which yields UTC)
-      const now = new Date();
-      const pad = (n: number) => n.toString().padStart(2, '0');
-      const localDt = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-      setDateCommande(localDt);
-      if (id) {
-        setIsEditMode(true);
-        await fetchCommandeForEdit(parseInt(id), s);
+      setLoading(true);
+      try {
+        // load products first so we can enrich stocks with price info
+        await fetchProduits();
+
+        const mags = await fetchMagasins();
+        // Default selection rules: achats (commande fournisseur) prefer magasin if exists; ventes prefer boutique
+        if (!isVente && mags && mags.length > 0) {
+          setLocationType('MAGASIN');
+          setSelectedMagasinId(mags[0].id);
+          await fetchStocksByLocation('MAGASIN', mags[0].id);
+        } else {
+          setLocationType('BOUTIQUE');
+          await fetchStocksByLocation('BOUTIQUE');
+        }
+
+        await fetchFournisseurs();
+        await fetchClients();
+        generateReference();
+        // default local datetime for datetime-local input (avoid using toISOString which yields UTC)
+        const now = new Date();
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const localDt = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        setDateCommande(localDt);
+        if (id) {
+          setIsEditMode(true);
+          await fetchCommandeForEdit(parseInt(id), stocks);
+        }
+      } catch (err: any) {
+        setError(err.message || 'Erreur inconnue');
+      } finally {
+        setLoading(false);
       }
     })();
   }, [id]);
@@ -250,22 +367,31 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
     generateReference();
   }, [isVente]);
 
-  const fetchStocks = async () => {
-    try {
-      const token = localStorage.getItem('smb_token');
-      const res = await fetch('http://localhost:8085/api/stocks', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('Erreur lors du chargement des stocks');
-      const data = await res.json();
-      setStocks(data);
-      return data;
-    } catch (err: any) {
-      setError(err.message || 'Erreur inconnue');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // When the mode switches between Vente and Achat, ensure default location reflects the business rule:
+  // - Achat / Commande fournisseur => default MAGASIN if magasins exist
+  // - Vente / Commande client => default BOUTIQUE
+  useEffect(() => {
+    (async () => {
+      if (isVente) {
+        setLocationType('BOUTIQUE');
+        setSelectedMagasinId(null);
+        await fetchStocksByLocation('BOUTIQUE');
+      } else {
+        const mags = await fetchMagasins();
+        if (mags && mags.length > 0) {
+          setLocationType('MAGASIN');
+          setSelectedMagasinId(mags[0].id);
+          await fetchStocksByLocation('MAGASIN', mags[0].id);
+        } else {
+          setLocationType('BOUTIQUE');
+          setSelectedMagasinId(null);
+          await fetchStocksByLocation('BOUTIQUE');
+        }
+      }
+    })();
+  }, [isVente]);
+
+
 
   const fetchFournisseurs = async () => {
     try {
@@ -840,35 +966,57 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                     </div>
                     <div className="card-body">
                       <div className="d-flex justify-content-between align-items-center mb-3" style={{ gap: 8 }}>
-                        <div style={{ flex: 1 }}>
-                          <SearchableSelect
-                            options={stocks.map((stock) => {
-                              const mult = getProduitMultiplicateur(stock);
-                              const multLabel = mult > 1 ? ` - ${mult}u/cond` : '';
-                              const price = isVente && stock.produit ? (priceModeDefault === 'DETAIL' ? (stock.produit?.prixDetail ?? stock.produit?.prixAchat) : (stock.produit?.prixEnGros ?? stock.produit?.prixAchat)) : (stock.produit?.prixAchat ?? 0);
-                              return {
-                                value: stock.id,
-                                label: `${getProductDisplayName(stock)}${multLabel} - ${price} FCFA - ${stock.magasin?.nom || 'Dépôt inconnu'} (Stock: ${stock.quantiteDisponible || 0})`
-                              }; 
-                            })}
-                            value={selectedStockOption}
-                            onChange={(val) => {
-                              // reflect the choice in the select briefly
-                              setSelectedStockOption(val);
-                              if (val !== null) {
-                                // show an info if the selected stock is out of stock
-                                // const st = stocks.find(s => s.id === Number(val));
-                                // if (st && (st.quantiteDisponible === 0 || st.quantiteDisponible === undefined)) {
-                                //   Swal.fire('Note', 'Ce produit est actuellement en rupture de stock sur ce magasin. Vous pouvez quand même l\'approvisionner.', 'info');
-                                // }
-                                handleProductSelect(String(val));
-                                // reset selection to allow reselecting the same product later
-                                setTimeout(() => setSelectedStockOption(null), 0);
-                              }
-                            }}
-                            placeholder="Sélectionner un produit"
-                            allowClear={true}
-                          />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                          <div style={{ minWidth: 220 }}>
+                            <select
+                              className="form-select form-select-sm"
+                              value={locationType === 'MAGASIN' ? `MAGASIN:${selectedMagasinId || ''}` : 'BOUTIQUE'}
+                              onChange={async (e) => {
+                                const val = e.target.value;
+                                if (val.startsWith('MAGASIN:')) {
+                                  const idVal = Number(val.split(':')[1]);
+                                  setLocationType('MAGASIN');
+                                  setSelectedMagasinId(idVal);
+                                  await fetchStocksByLocation('MAGASIN', idVal);
+                                } else {
+                                  setLocationType('BOUTIQUE');
+                                  setSelectedMagasinId(null);
+                                  await fetchStocksByLocation('BOUTIQUE');
+                                }
+                              }}
+                            >
+                              <option value="BOUTIQUE">Dépôt boutique</option>
+                              {magasins.map(m => (
+                                <option key={m.id} value={`MAGASIN:${m.id}`}>{`Magasin - ${m.nom}`}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div style={{ flex: 1 }}>
+                            <SearchableSelect
+                              options={stocks.map((stock) => {
+                                const mult = getProduitMultiplicateur(stock);
+                                const multLabel = mult > 1 ? ` - ${mult}u/cond` : '';
+                                const price = isVente && stock.produit ? (priceModeDefault === 'DETAIL' ? (stock.produit?.prixDetail ?? stock.produit?.prixAchat) : (stock.produit?.prixEnGros ?? stock.produit?.prixAchat)) : (stock.produit?.prixAchat ?? 0);
+                                return {
+                                  value: stock.id,
+                                  label: `${getProductDisplayName(stock)}${multLabel} - ${price} FCFA - ${stock.magasin?.nom || 'Dépôt boutique'} (Stock: ${stock.quantiteDisponible || 0})`
+                                };
+                              })}
+                              value={selectedStockOption}
+                              onChange={(val) => {
+                                // reflect the choice in the select briefly
+                                setSelectedStockOption(val);
+                                if (val !== null) {
+                                  handleProductSelect(String(val));
+                                  // reset selection to allow reselecting the same product later
+                                  setTimeout(() => setSelectedStockOption(null), 0);
+                                }
+                              }}
+                              placeholder="Sélectionner un produit"
+                              allowClear={true}
+                            />
+                          </div>
                         </div>
                         <button 
                           className="btn btn-outline-secondary btn-sm ms-2" 
@@ -896,7 +1044,7 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                                     <small className="text-muted">{Number(stock.produit?.prixAchat ?? 0)} FCFA</small>
                                   </div>
                                   <div>
-                                    <span className="badge bg-primary me-1">{stock.magasin?.nom || 'Dépôt inconnu'}</span>
+                                    <span className="badge bg-primary me-1">{stock.magasin?.nom || 'Dépôt boutique'}</span>
                                     <span className="badge bg-danger">
                                       Stock: {stock.quantiteDisponible ?? 0}
                                     </span>

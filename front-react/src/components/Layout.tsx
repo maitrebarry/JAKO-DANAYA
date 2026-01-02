@@ -268,6 +268,13 @@ const Sidebar = () => {
                   <span>Liste produits</span>
                 </Link>
               </li>
+              { (normalizedPermissions.includes('TRANSFERT_VOIR') || normalizedPermissions.includes('INVENTAIRE_LECTURE')) && (
+              <li>
+                <Link to="/produits/transfert" className="side-nav-link" style={{ paddingLeft: '40px' }}>
+                  <span>Transfert</span>
+                </Link>
+              </li>
+              ) }
               <li>
                 <a href="#" className="side-nav-link" style={{ paddingLeft: '40px' }}>
                   <span>Mouvement</span>
@@ -328,7 +335,7 @@ const Sidebar = () => {
                   <span>Historique Ventes</span>
                 </Link>
               </li>
-              
+            
             </ul>
           </li>
           )}

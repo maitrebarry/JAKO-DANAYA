@@ -44,6 +44,9 @@ public class HistoriqueController {
     @Autowired
     private com.smboutique.api.service.PaiementClientService paiementClientService;
 
+    @Autowired
+    private com.smboutique.api.service.VenteService venteService;
+
     private Utilisateur getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -62,6 +65,8 @@ public class HistoriqueController {
         public Long referenceCommandeId;
         public String referenceCommande;
         public String fournisseur;
+        public String responsable; // utilisateur responsible for the operation (display name)
+        public String client;
         public Double montant; // only for paiements
         // Optional: show reference caisse for paiements if user has required permission
         public String referenceCaisse;
@@ -313,6 +318,9 @@ public class HistoriqueController {
                 it.referenceCommande = l.getCommandeClient().getReference();
                 if (l.getCommandeClient().getClient() != null)
                     it.fournisseur = l.getCommandeClient().getClient().getNom() + " " + l.getCommandeClient().getClient().getPrenom();
+                if (l.getCommandeClient().getUtilisateur() != null) {
+                    it.responsable = (l.getCommandeClient().getUtilisateur().getNom() != null ? l.getCommandeClient().getUtilisateur().getNom() : "") + " " + (l.getCommandeClient().getUtilisateur().getPrenom() != null ? l.getCommandeClient().getUtilisateur().getPrenom() : "");
+                }
             }
             itemsV.add(it);
         }
@@ -336,6 +344,9 @@ public class HistoriqueController {
                 it.referenceCommande = p.getCommandeClient().getReference();
                 if (p.getCommandeClient().getClient() != null)
                     it.fournisseur = p.getCommandeClient().getClient().getNom() + " " + p.getCommandeClient().getClient().getPrenom();
+                if (p.getCommandeClient().getUtilisateur() != null) {
+                    it.responsable = (p.getCommandeClient().getUtilisateur().getNom() != null ? p.getCommandeClient().getUtilisateur().getNom() : "") + " " + (p.getCommandeClient().getUtilisateur().getPrenom() != null ? p.getCommandeClient().getUtilisateur().getPrenom() : "");
+                }
             }
             // include reference caisse only if the current user has caisse viewing permissions
             it.referenceCaisse = canSeeCaisse ? p.getReferenceCaisse() : null;
@@ -358,6 +369,134 @@ public class HistoriqueController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(sortedV);
+    }
+
+    // --- VENTES EN ESPÈCES (PAIEMENTS CLIENTS) ---
+    @GetMapping("/ventes/especes/boutique/{boutiqueId}")
+    public ResponseEntity<List<HistoriqueItem>> getVentesEspecesByBoutique(@PathVariable Long boutiqueId) {
+        try {
+            // Add defensive logging to help diagnose 401/403 cases where authentication or permission checks fail
+            try {
+                org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                log.info("getVentesEspecesByBoutique: entry - boutiqueId={} authenticationPresent={}", boutiqueId, auth != null);
+                if (auth != null) log.debug("getVentesEspecesByBoutique: auth principal={} authorities={}", auth.getPrincipal(), auth.getAuthorities());
+            } catch (Exception e) {
+                log.warn("getVentesEspecesByBoutique: unable to inspect SecurityContext: {}", e.getMessage());
+            }
+
+            Utilisateur current;
+            try {
+                current = getCurrentUser();
+            } catch (RuntimeException ex) {
+                // Authentication exists in SecurityContext but cannot be resolved to an application user
+                log.warn("getVentesEspecesByBoutique: getCurrentUser failed: {}", ex.getMessage());
+                // return 401 to indicate authentication problem
+                return ResponseEntity.status(401).build();
+            }
+
+            // Check boutique access and return 403 if user is not allowed
+            if (!isSuperAdmin(current) && (current.getBoutique() == null || !current.getBoutique().getId().equals(boutiqueId))) {
+                log.info("getVentesEspecesByBoutique: access denied for user={} userBoutiqueId={} requestedBoutiqueId={}", current != null ? current.getEmail() : "ANON", current != null && current.getBoutique() != null ? current.getBoutique().getId() : null, boutiqueId);
+                return ResponseEntity.status(403).build();
+            }
+
+            boolean canSeeCaisse = isSuperAdmin(current) || (current != null && (utilisateurService.hasPermission(current, "CAISSE_VOIR") || utilisateurService.hasPermission(current, "CAISSE_LECTURE")));
+            try {
+                java.util.List<String> perms = current != null && current.getPermissions() != null ? current.getPermissions().stream().map(p -> p.getName()).sorted().toList() : java.util.Collections.emptyList();
+                log.info("getVentesEspecesByBoutique: user={} canSeeCaisse={} perms={}", current != null ? current.getEmail() : "ANON", canSeeCaisse, perms);
+            } catch (Exception e) {
+                log.warn("Unable to log permissions for user while computing canSeeCaisse: {}", e.getMessage());
+            }
+
+            List<HistoriqueItem> items = new ArrayList<>();
+            DateTimeFormatter displayFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+
+            java.util.List<com.smboutique.api.model.PaiementClient> paies;
+            try {
+                paies = paiementClientService.findByBoutiqueId(boutiqueId);
+            } catch (Exception ex) {
+                log.error("getVentesEspecesByBoutique: failed to fetch paiements for boutique {}: {}", boutiqueId, ex.getMessage(), ex);
+                return ResponseEntity.status(500).build();
+            }
+
+            try {
+                java.util.List<String> sampleRefs = paies == null ? java.util.Collections.emptyList() : paies.stream().limit(5).map(p -> p.getReference() == null ? "(no-ref)" : p.getReference()).collect(java.util.stream.Collectors.toList());
+                log.info("getVentesEspecesByBoutique: found {} paiements for boutique {} sampleRefs={}", paies == null ? 0 : paies.size(), boutiqueId, sampleRefs);
+            } catch (Exception e) {
+                log.warn("getVentesEspecesByBoutique: unable to log paiement sample", e);
+            }
+
+            for (com.smboutique.api.model.PaiementClient p : paies) {
+                if (p.getAnnule() != null && p.getAnnule()) continue;
+                HistoriqueItem it = new HistoriqueItem();
+                it.type = "PAIEMENT";
+                it.id = p.getId();
+                if (p.getDatePaie() != null) {
+                    java.time.ZonedDateTime z = p.getDatePaie().atZone(java.time.ZoneId.systemDefault());
+                    it.date = z.format(displayFormatter);
+                    it.dateIso = z.format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+                }
+                it.reference = p.getReference();
+                it.montant = p.getMontantPaye() != null ? p.getMontantPaye().doubleValue() : null;
+
+                if (p.getCommandeClient() != null) {
+                    it.referenceCommandeId = p.getCommandeClient().getId();
+                    it.referenceCommande = p.getCommandeClient().getReference();
+                    if (p.getCommandeClient().getClient() != null)
+                        it.fournisseur = p.getCommandeClient().getClient().getNom() + " " + p.getCommandeClient().getClient().getPrenom();
+                    if (p.getCommandeClient().getUtilisateur() != null) {
+                        it.responsable = (p.getCommandeClient().getUtilisateur().getNom() != null ? p.getCommandeClient().getUtilisateur().getNom() : "") + " " + (p.getCommandeClient().getUtilisateur().getPrenom() != null ? p.getCommandeClient().getUtilisateur().getPrenom() : "");
+                    }
+                }
+                it.referenceCaisse = canSeeCaisse ? p.getReferenceCaisse() : null;
+                items.add(it);
+            }
+
+            // Also include cash sales from Vente table (if any) for this boutique so 'Ventes en Espèces' shows them
+            try {
+                java.util.List<com.smboutique.api.model.Vente> ventes = venteService.findByBoutiqueId(boutiqueId);
+                java.util.List<String> sampleVentes = ventes == null ? java.util.Collections.emptyList() : ventes.stream().limit(5).map(v -> v.getId() == null ? "(no-id)" : String.valueOf(v.getId())).collect(java.util.stream.Collectors.toList());
+                log.info("getVentesEspecesByBoutique: found {} ventes for boutique {} sampleIds={}", ventes == null ? 0 : ventes.size(), boutiqueId, sampleVentes);
+                for (com.smboutique.api.model.Vente v : ventes) {
+                    HistoriqueItem itv = new HistoriqueItem();
+                    itv.type = "VENTE";
+                    itv.id = v.getId();
+                    if (v.getDateVente() != null) {
+                        java.time.ZonedDateTime z = v.getDateVente().atZone(java.time.ZoneId.systemDefault());
+                        itv.date = z.format(displayFormatter);
+                        itv.dateIso = z.format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+                    }
+                    itv.reference = v.getReferenceCaisse();
+                    itv.montant = v.getMontantTotal() != null ? v.getMontantTotal().doubleValue() : null;
+                    itv.client = v.getNomClient();
+                    if (v.getUtilisateur() != null) itv.responsable = (v.getUtilisateur().getNom() != null ? v.getUtilisateur().getNom() : "") + " " + (v.getUtilisateur().getPrenom() != null ? v.getUtilisateur().getPrenom() : "");
+                    itv.referenceCaisse = v.getReferenceCaisse();
+                    items.add(itv);
+                }
+            } catch (Exception e) {
+                log.warn("getVentesEspecesByBoutique: unable to include ventes from Vente table: {}", e.getMessage());
+            }
+
+            List<HistoriqueItem> sorted = items.stream()
+                    .sorted(Comparator.comparing((HistoriqueItem i) -> {
+                        if (i.dateIso == null) return java.time.Instant.MIN;
+                        try {
+                            return java.time.OffsetDateTime.parse(i.dateIso).toInstant();
+                        } catch (Exception e) {
+                            try {
+                                return java.time.LocalDateTime.parse(i.dateIso).atZone(java.time.ZoneId.systemDefault()).toInstant();
+                            } catch (Exception ex) {
+                                return java.time.Instant.MIN;
+                            }
+                        }
+                    }).reversed())
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(sorted);
+        } catch (Exception e) {
+            log.error("getVentesEspecesByBoutique: unexpected error", e);
+            return ResponseEntity.status(500).build();
+        }
     }
 
     @GetMapping("/ventes/annulations/boutique/{boutiqueId}")
@@ -431,6 +570,9 @@ public class HistoriqueController {
                 it.referenceCommandeId = p.getCommandeClient().getId();
                 it.referenceCommande = p.getCommandeClient().getReference();
                 if (p.getCommandeClient().getClient() != null) it.fournisseur = p.getCommandeClient().getClient().getNom() + " " + p.getCommandeClient().getClient().getPrenom();
+                if (p.getCommandeClient().getUtilisateur() != null) {
+                    it.responsable = (p.getCommandeClient().getUtilisateur().getNom() != null ? p.getCommandeClient().getUtilisateur().getNom() : "") + " " + (p.getCommandeClient().getUtilisateur().getPrenom() != null ? p.getCommandeClient().getUtilisateur().getPrenom() : "");
+                }
             }
             // include reference caisse only if the current user has caisse viewing permissions
             it.referenceCaisse = canSeeCaisse ? p.getReferenceCaisse() : null;

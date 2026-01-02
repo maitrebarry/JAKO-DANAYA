@@ -33,4 +33,9 @@ public class VenteServiceImpl implements VenteService {
     public void deleteById(Long id) {
         venteRepository.deleteById(id);
     }
+
+    @Override
+    public List<Vente> findByBoutiqueId(Long boutiqueId) {
+        return venteRepository.findByBoutiqueId(boutiqueId);
+    }
 }

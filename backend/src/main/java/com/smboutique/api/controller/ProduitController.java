@@ -117,13 +117,17 @@ public class ProduitController {
                                  @RequestParam(value = "uniteConditionnementId", required = false) Long uniteConditionnementId,
                                  @RequestParam(value = "nombreUnitesParConditionnement", required = false) String nombreUnitesParConditionnement,
                                  @RequestParam("quantiteInitiale") String quantiteInitiale,
-                                 @RequestParam(value = "magasinIds", required = false) List<Long> magasinIds) throws IOException {
+                                 @RequestParam(value = "magasinIds", required = false) List<Long> magasinIds,
+                                 @RequestParam(value = "caracteristique", required = false) String caracteristique) throws IOException {
         Utilisateur current = getCurrentUser();
         if (!hasPermission(current, "PRODUIT_CREER") && !isSuperAdmin(current)) {
             return ResponseEntity.status(403).body("Permission manquante : PRODUIT_CREER");
         }
         Produit produit = new Produit();
         produit.setNomProduit(nomProduit);
+        if (caracteristique != null) {
+            produit.setCaracteristique(caracteristique);
+        }
 
         // Handle image
         if (imageFile != null && !imageFile.isEmpty()) {
@@ -245,32 +249,20 @@ public class ProduitController {
 
         Produit savedProduit = produitService.save(produit);
 
-        // Créer les stocks pour les magasins sélectionnés ou pour tous les magasins de la boutique si non précisé
+        // Business rule: At product creation, DO NOT create magasin stocks.
+        // Create a single boutique-level stock (magasin = NULL) with the initial quantity (or 0).
+        Stock boutiqueStock = new Stock();
+        boutiqueStock.setProduit(savedProduit);
+        boutiqueStock.setMagasin(null);
+        // set boutique owner and create with zero quantity at product creation
+        boutiqueStock.setBoutique(current.getBoutique());
+        boutiqueStock.setQuantiteDisponible(0);
+        boutiqueStock.setCostAverage(null);
+        boutiqueStock.setLastPurchasePrice(null);
+        stockService.saveStock(boutiqueStock);
+        // If client provided magasinIds, ignore here and advise to use stock assignation endpoint.
         if (magasinIds != null && !magasinIds.isEmpty()) {
-            for (Long magasinId : magasinIds) {
-                Stock stock = new Stock();
-                stock.setProduit(savedProduit);
-                Magasin magasin = magasinRepository.findById(magasinId)
-                        .orElseThrow(() -> new IllegalArgumentException("Magasin non trouvé"));
-                stock.setMagasin(magasin);
-                stock.setQuantiteDisponible(stockReel);
-                stockService.saveStock(stock);
-            }
-        }
-        else {
-            // No magasin specified -> create stock entries for all boutique magasins
-            Utilisateur currentUser = getCurrentUser();
-            if (currentUser != null && currentUser.getBoutique() != null) {
-                Long boutiqueId = currentUser.getBoutique().getId();
-                List<Magasin> magasins = magasinRepository.findByBoutiqueId(boutiqueId);
-                for (Magasin mg : magasins) {
-                    Stock stock = new Stock();
-                    stock.setProduit(savedProduit);
-                    stock.setMagasin(mg);
-                    stock.setQuantiteDisponible(stockReel);
-                    stockService.saveStock(stock);
-                }
-            }
+            org.slf4j.LoggerFactory.getLogger(ProduitController.class).info("magasinIds provided on product creation are ignored; use /api/stocks to assign products to magasins with quantite=0");
         }
 
         return ResponseEntity.ok(savedProduit);
@@ -304,7 +296,8 @@ public class ProduitController {
                                                  @RequestParam(value = "uniteConditionnementId", required = false) Long uniteConditionnementId,
                                                  @RequestParam(value = "nombreUnitesParConditionnement", required = false) String nombreUnitesParConditionnement,
                                                  @RequestParam(value = "quantiteInitiale", required = false) String quantiteInitiale,
-                                                 @RequestParam(value = "magasinIds", required = false) List<Long> magasinIds) throws IOException {
+                                                 @RequestParam(value = "magasinIds", required = false) List<Long> magasinIds,
+                                                 @RequestParam(value = "caracteristique", required = false) String caracteristique) throws IOException {
         Utilisateur current = getCurrentUser();
         if (!hasPermission(current, "PRODUIT_MODIFIER") && !isSuperAdmin(current)) {
             return ResponseEntity.status(403).body("Permission manquante : PRODUIT_MODIFIER");
@@ -314,6 +307,10 @@ public class ProduitController {
         return produitOpt
                 .map(produit -> {
                     produit.setNomProduit(nomProduit);
+                    // Optional caracteristique
+                    if (caracteristique != null) {
+                        produit.setCaracteristique(caracteristique);
+                    }
 
                     // Handle image
                     if (imageFile != null && !imageFile.isEmpty()) {
@@ -394,6 +391,7 @@ public class ProduitController {
                                     Stock s = new Stock();
                                     s.setProduit(saved);
                                     s.setMagasin(magasinOpt.get());
+                                    s.setBoutique(magasinOpt.get().getBoutique());
                                     s.setQuantiteDisponible(0);
                                     stockService.saveStock(s);
                                 }

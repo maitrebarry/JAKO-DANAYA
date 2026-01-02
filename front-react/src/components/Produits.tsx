@@ -16,7 +16,18 @@ const Produits: React.FC = () => {
   const [magasins, setMagasins] = useState<any[]>([]);
   const [selectedMagasins, setSelectedMagasins] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Assignation UI state
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignSelectedMagasin, setAssignSelectedMagasin] = useState<number | null>(null);
+  const [assignSelectedProductIds, setAssignSelectedProductIds] = useState<number[]>([]);
+  const [assignSelectAll, setAssignSelectAll] = useState(false);
+  const [assignSearch, setAssignSearch] = useState('');
   const [error, setError] = useState('');
+  const [assignExistingProductIds, setAssignExistingProductIds] = useState<number[]>([]);
+  const [assignSuccess, setAssignSuccess] = useState(false);
+
+
   const [showModal, setShowModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -28,6 +39,7 @@ const Produits: React.FC = () => {
   const [newProduit, setNewProduit] = useState({
     nomProduit: '',
     productImage: '',
+    caracteristique: '',
     prixEnGros: '',
     prixDetail: '',
     prixAchat: '',
@@ -54,11 +66,13 @@ const Produits: React.FC = () => {
   const [imageType, setImageType] = useState<'url' | 'file'>('url');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [showNombreUnites, setShowNombreUnites] = useState(false);
+  const [showCaracteristique, setShowCaracteristique] = useState(false);
 
   const resetForm = () => {
     setNewProduit({
       nomProduit: '',
       productImage: '',
+      caracteristique: '',
       prixEnGros: '',
       prixDetail: '',
       prixAchat: '',
@@ -67,11 +81,12 @@ const Produits: React.FC = () => {
       nombreUnitesParConditionnement: '',
       quantiteInitiale: ''
     });
-    // default selected magasins to all magasins if available
-    setSelectedMagasins(magasins && magasins.length > 0 ? magasins.map(m => m.id) : []);
+    // magasin selection moved to Assignation UI
+    setSelectedMagasins([]);
     setImageType('url');
     setImageFile(null);
     setShowNombreUnites(false);
+    setShowCaracteristique(false);
     // reset manual-edit flags
     setPrixEnGrosTouched(false);
     setPrixDetailTouched(false);
@@ -338,10 +353,11 @@ const Produits: React.FC = () => {
       formData.append('prixDetail', newProduit.prixDetail || '');
       formData.append('prixAchat', newProduit.prixAchat || '');
       formData.append('alerteStock', newProduit.alerteStock || '');
-      if (selectedMagasins.length > 0) formData.append('magasinIds', selectedMagasins.join(','));
+
       if (newProduit.uniteConditionnementId) formData.append('uniteConditionnementId', newProduit.uniteConditionnementId.toString());
       if (newProduit.nombreUnitesParConditionnement) formData.append('nombreUnitesParConditionnement', newProduit.nombreUnitesParConditionnement);
       if (newProduit.quantiteInitiale) formData.append('quantiteInitiale', newProduit.quantiteInitiale);
+      if (newProduit.caracteristique) formData.append('caracteristique', newProduit.caracteristique);
 
       const res = await fetch(url, {
         method: editing ? 'PUT' : 'POST',
@@ -404,6 +420,72 @@ const Produits: React.FC = () => {
     }
   };
 
+  // Assignation helpers
+  const toggleAssignProduct = (id: number) => {
+    if (assignSelectedProductIds.includes(id)) {
+      setAssignSelectedProductIds(assignSelectedProductIds.filter(i => i !== id));
+      setAssignSelectAll(false);
+    } else {
+      setAssignSelectedProductIds([...assignSelectedProductIds, id]);
+    }
+  };
+
+  const toggleAssignAll = () => {
+    if (assignSelectAll) {
+      setAssignSelectedProductIds([]);
+      setAssignSelectAll(false);
+    } else {
+      const ids = produits.map((p: any) => p.id).filter(Boolean);
+      setAssignSelectedProductIds(ids);
+      setAssignSelectAll(true);
+    }
+  };
+
+  const fetchAssignedProducts = async (magasinId: number) => {
+    try {
+      const token = localStorage.getItem('smb_token'); if (!token) { navigate('/'); return; }
+      const res = await fetch(`http://localhost:8085/api/magasins/${magasinId}/stocks`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Impossible de récupérer les produits assignés');
+      const data = await res.json();
+      // map produitIds assigned in this magasin
+      const ids = (data || []).map((x: any) => x.produitId).filter(Boolean);
+      setAssignExistingProductIds(ids);
+    } catch (err: any) {
+      setMessage(err.message || 'Erreur lors du chargement');
+    }
+  };
+
+  const handleAssignSubmit = async () => {
+    if (!assignSelectedMagasin) { setMessage('Sélectionnez un magasin'); return; }
+    if (assignSelectedProductIds.length === 0) { setMessage('Sélectionnez au moins un produit'); return; }
+    try {
+      const token = localStorage.getItem('smb_token');
+      if (!token) { navigate('/'); return; }
+      const res = await fetch(`http://localhost:8085/api/magasins/${assignSelectedMagasin}/assign-products`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productIds: assignSelectedProductIds })
+      });
+      if (res.status === 401) { navigate('/'); return; }
+      if (res.status === 403) { setMessage('Accès refusé : permission manquante'); return; }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || 'Erreur lors de l\'assignation'); }
+      const data = await res.json();
+      setAssignSuccess(true);
+      setMessage(`Assignation réussie (${data.count || data.createdProductIds?.length || 0} produits).`);
+      // success message should be green - we use assignSuccess state to control
+      setShowAssignModal(false);
+      setAssignSelectedProductIds([]);
+      setAssignSelectAll(false);
+      fetchProduits();
+      // refresh assigned IDs for selected magasin
+      fetchAssignedProducts(assignSelectedMagasin);
+      setTimeout(() => { setMessage(''); setAssignSuccess(false); }, 4000);
+    } catch (err: any) {
+      setMessage(err.message || 'Erreur inconnue');
+    }
+  };
+
+
   const filtered = produits.filter((p: any) => {
     const target = `${p.nomProduit || ''} ${p.unite?.libelle || ''}`.toLowerCase();
     const matchesSearch = target.includes(search.toLowerCase());
@@ -417,7 +499,7 @@ const Produits: React.FC = () => {
   return (
     <>
       {message && (
-        <div className={`alert ${message.includes('succès') ? 'alert-success' : 'alert-danger'} mb-3`}>
+        <div className={`alert ${assignSuccess ? 'alert-success' : (message.includes('succès') ? 'alert-success' : 'alert-danger')} mb-3`}>
           {message}
         </div>
       )}
@@ -462,6 +544,26 @@ const Produits: React.FC = () => {
                     <RequirePermission permission="PRODUIT_CREER">
                       <button className="btn btn-outline-primary mb-3 mb-lg-0" onClick={() => setShowImportModal(true)}>
                         <i className='bx bx-import'></i> Import Excel
+                      </button>
+                    </RequirePermission>
+                  </div>
+                  <div className="me-3">
+                    <RequirePermission permission="INVENTAIRE_MODIFIER">
+                      <button className="btn btn-outline-success mb-3 mb-lg-0" onClick={() => {
+                        setAssignSelectedProductIds([]);
+                        setAssignSelectAll(false);
+                        setAssignSelectedMagasin(magasins && magasins.length > 0 ? magasins[0].id : null);
+                        setAssignSearch('');
+                        setShowAssignModal(true);
+                      }}>
+                        <i className='bx bx-transfer'></i> Assignation magasins
+                      </button>
+                    </RequirePermission>
+                  </div>
+                  <div className="me-3">
+                    <RequirePermission permission="INVENTAIRE_MODIFIER">
+                      <button className="btn btn-outline-warning mb-3 mb-lg-0" onClick={() => { navigate('/produits/transfert'); }}>
+                        <i className='bx bx-package'></i> Transfert stock
                       </button>
                     </RequirePermission>
                   </div>
@@ -603,6 +705,63 @@ const Produits: React.FC = () => {
         </div>
       )}
 
+      {/* Assignation modal */}
+      {showAssignModal && (
+        <div className="modal show d-block" tabIndex={-1} role="dialog">
+          <div className="modal-dialog modal-xl" role="document">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Assignation produits au magasin</h5>
+                <button type="button" className="btn-close" onClick={() => setShowAssignModal(false)} />
+              </div>
+              <div className="modal-body">
+                <div className="mb-3 row g-2">
+                  <div className="col-md-6">
+                    <select className="form-control" value={assignSelectedMagasin || ''} onChange={(e) => { const val = Number(e.target.value); setAssignSelectedMagasin(val); if (val) fetchAssignedProducts(val); else setAssignExistingProductIds([]); }}>
+                      <option value="">Sélectionner un magasin</option>
+                      {magasins.map((m: any) => (
+                        <option key={m.id} value={m.id}>{m.nom}{m.adresse ? ` (${m.adresse})` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-md-6">
+                    <input type="text" className="form-control" placeholder="Rechercher un produit..." value={assignSearch} onChange={(e) => setAssignSearch(e.target.value)} />
+                  </div>
+                </div>
+                <div className="mb-2">
+                  <div className="form-check">
+                    <input className="form-check-input" type="checkbox" id="assign-select-all" checked={assignSelectAll} onChange={toggleAssignAll} />
+                    <label className="form-check-label" htmlFor="assign-select-all">Sélectionner tout (filtré)</label>
+                  </div>
+                </div>
+                <div style={{ maxHeight: '50vh', overflowY: 'auto' }}>
+                  <div className="list-group">
+                    {produits.filter((p: any) => p.nomProduit.toLowerCase().includes(assignSearch.toLowerCase())).map((p: any) => {
+                      const isAssigned = assignExistingProductIds.includes(p.id);
+                      return (
+                      <label key={p.id} className="list-group-item d-flex align-items-center">
+                        <input type="checkbox" className="form-check-input me-2" checked={isAssigned ? true : assignSelectedProductIds.includes(p.id)} onChange={() => toggleAssignProduct(p.id)} disabled={isAssigned} />
+                        <div className="flex-grow-1">
+                          <strong>{p.nomProduit}</strong> <small className="text-muted">{p.unite?.libelle ? `(${p.unite.libelle})` : ''}</small>
+                        </div>
+                        {isAssigned && <span className="badge bg-success ms-3">Affecté</span>}
+                      </label>
+                    )})}
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowAssignModal(false)}>Annuler</button>
+                <button type="button" className="btn btn-primary" disabled={!assignSelectedMagasin || assignSelectedProductIds.length === 0} onClick={handleAssignSubmit}>Assigner</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showAssignModal && <div className="modal-backdrop fade show"></div>}
+
+      {/* Transfer modal */}
+
       {/* Affichage des produits en cartes */}
       <div className="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 row-cols-xxl-5 product-grid">
         {filtered.map((produit: any) => (
@@ -630,6 +789,7 @@ const Produits: React.FC = () => {
                       setNewProduit({
                         nomProduit: produit.nomProduit || '',
                         productImage: produit.productImage || '',
+                        caracteristique: produit.caracteristique || '',
                         prixEnGros: produit.prixEnGros?.toString() || '',
                         prixDetail: produit.prixDetail?.toString() || '',
                         prixAchat: produit.prixAchat?.toString() || '',
@@ -652,6 +812,7 @@ const Produits: React.FC = () => {
                       setImageType(isUrl ? 'url' : 'file');
                       setImageFile(null);
                       setShowNombreUnites(Boolean(produit.unite || produit.nombreUnitesParConditionnement));
+                      setShowCaracteristique(Boolean(produit.caracteristique && produit.caracteristique.trim() !== ''));
                       // reset manual-edit flags when starting to edit
                       setPrixEnGrosTouched(false);
                       setPrixDetailTouched(false);
@@ -697,8 +858,8 @@ const Produits: React.FC = () => {
       <div className={`modal fade ${showModal ? 'show' : ''}`} style={{ display: showModal ? 'block' : 'none' }} tabIndex={-1}>
         <div className="modal-dialog modal-lg">
           <div className="modal-content">
-            <div className="modal-header">
-              <h5 className="modal-title">{editing ? 'Modifier le produit' : 'Créer un produit'}</h5>
+            <div className="modal-header bg-black">
+              <h5 className="modal-title text-white">{editing ? 'Modifier le produit' : 'Créer un produit'}</h5>
               <button type="button" className="btn-close" onClick={() => { setShowModal(false); setEditing(null); resetForm(); }} />
             </div>
             <div className="modal-body">
@@ -706,7 +867,19 @@ const Produits: React.FC = () => {
                 <div className="col-md-6">
                   <label className="form-label">Nom</label>
                   <input type="text" className={`form-control ${!newProduit.nomProduit.trim() && formErrors.includes('Le nom est obligatoire.') ? 'is-invalid' : ''}`} value={newProduit.nomProduit} onChange={(e) => setNewProduit({ ...newProduit, nomProduit: e.target.value })} />
+                  <div className="mt-2">
+                    <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => setShowCaracteristique(prev => !prev)}>
+                      {showCaracteristique ? 'Masquer caractéristiques' : 'Ajouter des caractéristiques'}
+                    </button>
+                  </div>
                 </div>
+                {showCaracteristique && (
+                  <div className="col-md-12">
+                    <label className="form-label">Caractéristiques (optionnel)</label>
+                    <textarea className="form-control" rows={5} value={newProduit.caracteristique} onChange={(e) => setNewProduit({ ...newProduit, caracteristique: e.target.value })} placeholder="Entrez les caractéristiques, une par ligne ..."></textarea>
+                  </div>
+                )}
+
                 <div className="col-md-6">
                   <label className="form-label">Image produit</label>
                   <div className="mb-2">
@@ -759,11 +932,11 @@ const Produits: React.FC = () => {
                     />
                   )}
                 </div>
-                    <div className="col-md-4">
+                    <div className="col-md-6">
                   <label className="form-label">Prix d'achat</label>
                   <input type="number" className={`form-control ${formErrors.some(e => e.includes("prix d'achat")) ? 'is-invalid' : ''}`} value={newProduit.prixAchat} onChange={(e) => setNewProduit({ ...newProduit, prixAchat: e.target.value })} />
                 </div>
-                <div className="col-md-4">
+                <div className="col-md-6">
                   <label className="form-label">Prix en gros</label>
                   <input
                     type="number"
@@ -774,7 +947,7 @@ const Produits: React.FC = () => {
                   />
                   {!editing && margeConfig && <small className="text-muted">Calculé automatiquement selon la configuration de marge ({margeConfig.typeMarge}).</small>}
                 </div>
-                <div className="col-md-4">
+                <div className="col-md-6">
                   <label className="form-label">Prix détail</label>
                   <input
                     type="number"
@@ -785,6 +958,10 @@ const Produits: React.FC = () => {
                   />
                   {!editing && margeConfig && <small className="text-muted">Calculé automatiquement selon la configuration de marge ({margeConfig.typeMarge}).</small>}
                 </div>
+                <div className="col-md-6">
+                  <label className="form-label">Alerte stock</label>
+                  <input type="number" className="form-control" value={newProduit.alerteStock} onChange={(e) => setNewProduit({ ...newProduit, alerteStock: e.target.value })} />
+                </div> 
               
 
                 {/* Unité de conditionnement + nombre + quantité initiale */}
@@ -820,11 +997,6 @@ const Produits: React.FC = () => {
                 </div>
 
                 <div className="col-md-6">
-                  <label className="form-label">Alerte stock</label>
-                  <input type="number" className="form-control" value={newProduit.alerteStock} onChange={(e) => setNewProduit({ ...newProduit, alerteStock: e.target.value })} />
-                </div>
-
-                <div className="col-md-6">
                   <label className="form-label">Quantité initiale {showNombreUnites ? `(${selectedUnite ? selectedUnite.libelle.toLowerCase() + 's' : 'conditionnements'})` : '(unités)'}</label>
                   <input
                     type="number"
@@ -836,33 +1008,7 @@ const Produits: React.FC = () => {
                   />
                 </div>
 
-                <div className="col-12">
-                  <label className="form-label">Magasins (sélectionnez ceux où initialiser le stock à 0)</label>
-                  <div className="row">
-                    {magasins.map((m: any) => (
-                      <div key={m.id} className="col-md-4">
-                        <div className="form-check">
-                          <input
-                            className="form-check-input"
-                            type="checkbox"
-                            id={`magasin-${m.id}`}
-                            checked={selectedMagasins.includes(m.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedMagasins([...selectedMagasins, m.id]);
-                              } else {
-                                setSelectedMagasins(selectedMagasins.filter(id => id !== m.id));
-                              }
-                            }}
-                          />
-                          <label className="form-check-label" htmlFor={`magasin-${m.id}`}>
-                            {m.nom} ({m.adresse})
-                          </label>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                {/* Magasin assignment moved to the Assignation module */}
 
               </div>
             </div>
@@ -912,6 +1058,12 @@ const Produits: React.FC = () => {
                     <p><strong>Alerte stock :</strong> {detailProduit.alerteStock ?? 0}</p>
                     <p><strong>Unité de conditionnement :</strong> {detailProduit.unite?.libelle ? `${detailProduit.unite.libelle} (${detailProduit.nombreUnitesParConditionnement ?? 1} unités)` : 'Unité de base'}</p>
                     <p><strong>Quantité initiale :</strong> {detailProduit.quantiteInitialeConditionnements !== undefined && detailProduit.quantiteInitialeConditionnements !== null ? detailProduit.quantiteInitialeConditionnements : 'N/A'} {detailProduit.unite?.libelle ? detailProduit.unite.libelle.toLowerCase() + 's' : 'unités'}</p>
+                    {detailProduit.caracteristique && (
+                      <div style={{ whiteSpace: 'pre-wrap', marginTop: 12 }}>
+                        <h6>Caractéristiques</h6>
+                        <div>{detailProduit.caracteristique}</div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 {detailProduit.magasinStocks && detailProduit.magasinStocks.length > 0 && (

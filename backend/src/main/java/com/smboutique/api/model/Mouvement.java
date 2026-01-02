@@ -37,6 +37,10 @@ public class Mouvement {
     @JoinColumn(name = "id_boutique")
     private Boutique boutique;
 
+    @ManyToOne
+    @JoinColumn(name = "id_transfer")
+    private Transfer transfer;
+
     private Integer quantite;
     
     @Column(name = "type_mvnt")

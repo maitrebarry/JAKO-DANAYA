@@ -11,6 +11,6 @@ import java.util.List;
 @Repository
 public interface ProduitRepository extends JpaRepository<Produit, Long> {
 
-    @Query("SELECT DISTINCT p FROM Produit p JOIN p.stocks s JOIN s.magasin m WHERE m.boutique.id = :boutiqueId")
+    @Query("SELECT DISTINCT p FROM Produit p JOIN p.stocks s WHERE s.boutique.id = :boutiqueId")
     List<Produit> findByBoutiqueId(@Param("boutiqueId") Long boutiqueId);
 }

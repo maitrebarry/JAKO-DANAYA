@@ -5,6 +5,7 @@ import java.util.List;
 public class ProduitDTO {
     private String nomProduit;
     private String productImage;
+    private String caracteristique;
     private Integer prixDetail;
     private Integer prixEnGros;
     private Integer alerteStock;
@@ -26,6 +27,9 @@ public class ProduitDTO {
 
     public Integer getAlerteStock() { return alerteStock; }
     public void setAlerteStock(Integer alerteStock) { this.alerteStock = alerteStock; }
+
+    public String getCaracteristique() { return caracteristique; }
+    public void setCaracteristique(String caracteristique) { this.caracteristique = caracteristique; }
 
     public UniteDTO getUnite() { return unite; }
     public void setUnite(UniteDTO unite) { this.unite = unite; }

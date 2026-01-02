@@ -37,6 +37,9 @@ public class Produit {
     @Column(name = "product_image")
     private String productImage;
 
+    @Column(name = "caracteristique", columnDefinition = "TEXT")
+    private String caracteristique;
+
     @Column(name = "prix_detail")
     private Integer prixDetail;
 
