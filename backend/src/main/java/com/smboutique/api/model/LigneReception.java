@@ -20,6 +20,9 @@ public class LigneReception {
     @Column(name = "quantite_recu")
     private Integer quantiteRecu;
 
+    @Column(name = "quantite_conditionnement")
+    private Integer quantiteConditionnement;
+
     @ManyToOne
     @JoinColumn(name = "id_produit")
     private Produit produit;

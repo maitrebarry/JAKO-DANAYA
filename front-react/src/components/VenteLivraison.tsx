@@ -125,6 +125,18 @@ const VenteLivraison: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [venteId]);
 
+  const [livraisonParCond, setLivraisonParCond] = useState<Record<number, boolean>>({});
+  const [livraisonCondQty, setLivraisonCondQty] = useState<Record<number, number>>({});
+
+  const toggleLivraisonParCond = (idx: number, checked: boolean) => {
+    setLivraisonParCond(prev => ({ ...prev, [idx]: checked }));
+    if (checked && (livraisonCondQty[idx] === undefined)) setLivraisonCondQty(prev => ({ ...prev, [idx]: 1 }));
+  };
+
+  const setLivraisonCondQuantity = (idx: number, qty: number) => {
+    setLivraisonCondQty(prev => ({ ...prev, [idx]: qty }));
+  };
+
   const fetchVentesToDeliver = async () => {
     try {
       const token = getAuthToken();
@@ -449,12 +461,13 @@ const VenteLivraison: React.FC = () => {
       }
       // Construire le payload attendu par le backend : { ligneCommandeId, stockId, quantite }
       // Construire le payload des lignes tel qu'attendu par le backend
-      const lignesToSend = lignes.map(l => ({
-        ligneCommandeId: l.id,
-        stockId: l.id_stock,
-        // Normaliser différents noms de champs pour la quantité livrée
-        quantite: l.quantiteLivreeNow ?? l.quantiteLivre ?? l.qte_livre ?? l.quantite ?? 0,
-      })).filter(l => (l.quantite || 0) > 0);
+      const lignesToSend = lignes.map((l, idx) => {
+        const baseQty = l.quantiteLivreeNow ?? l.quantiteLivre ?? l.qte_livre ?? l.quantite ?? 0;
+        if (livraisonParCond[idx] && (livraisonCondQty[idx] ?? 0) > 0) {
+          return { ligneCommandeId: l.id, stockId: l.id_stock, quantiteConditionnement: livraisonCondQty[idx] };
+        }
+        return { ligneCommandeId: l.id, stockId: l.id_stock, quantite: baseQty };
+      }).filter(l => ((l.quantite && l.quantite > 0) || (l.quantiteConditionnement && l.quantiteConditionnement > 0)));
 
       // debug: afficher le payload de livraison
       console.debug('lignesToSend payload', lignesToSend);
@@ -468,14 +481,17 @@ const VenteLivraison: React.FC = () => {
       for (const item of lignesToSend) {
         const original = lignes.find(x => (x.id === item.ligneCommandeId));
         const remaining = (original?.quantiteCommande || 0) - (original?.quantiteLivre || 0);
-        const qty = item.quantite || 0;
-        if (qty > remaining) {
-          Swal.fire('Erreur', `Quantité demandée (${qty}) supérieure à la quantité restante (${remaining}) pour la ligne ${original?.designation || original?.id}` , 'warning');
+        const stockInfo = item.stockId ? stocks.find(s => s.id === item.stockId) : undefined;
+
+        // compute real quantity in UNITS
+        const realQty = item.quantite !== undefined ? item.quantite : ((item.quantiteConditionnement !== undefined && item.quantiteConditionnement !== null) ? (item.quantiteConditionnement * (stockInfo?.produit?.nombreUnitesParConditionnement ?? stockInfo?.nombreUnitesParConditionnement ?? 1)) : 0);
+
+        if (realQty > remaining) {
+          Swal.fire('Erreur', `Quantité demandée (${realQty}) supérieure à la quantité restante (${remaining}) pour la ligne ${original?.designation || original?.id}` , 'warning');
           return;
         }
         if (item.stockId) {
-          const stockInfo = stocks.find(s => s.id === item.stockId);
-          if (stockInfo && qty > (stockInfo.quantiteDisponible || 0)) {
+          if (stockInfo && realQty > (stockInfo.quantiteDisponible || 0)) {
             Swal.fire('Erreur', `Stock insuffisant (${stockInfo.quantiteDisponible}) pour la ligne ${original?.designation || original?.id}`, 'warning');
             return;
           }
@@ -689,28 +705,79 @@ const VenteLivraison: React.FC = () => {
                       <td>{l.quantiteLivre || 0}</td>
                       <td>{remaining}</td>
                       <td>
-                        <input
-                          type="number"
-                          className="form-control"
-                          value={l.quantiteLivreeNow || 0}
-                          min={0}
-                          max={remaining}
-                          onChange={(e) => {
-                            const newVal = Number(e.target.value) || 0;
-                            if (newVal > remaining) {
-                              Swal.fire('Erreur', `La quantité ne peut pas dépasser ${remaining} (quantité restante)`, 'warning');
-                              return;
-                            }
-                            if (l.id_stock) {
-                              const stock = stocks.find(s => s.id === l.id_stock);
-                              if (stock && newVal > (stock.quantiteDisponible || 0)) {
-                                Swal.fire('Erreur', `Stock insuffisant (${stock.quantiteDisponible}) pour cette ligne`, 'warning');
-                                return;
-                              }
-                            }
-                            handleChangeLine(i, 'quantiteLivreeNow', newVal);
-                          }}
-                        />
+                        <div style={{ display: 'flex', gap: 8, flexDirection: 'column' }}>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <div className="form-check">
+                              <input className="form-check-input" type="checkbox" id={`liv_cond_${i}`} checked={!!livraisonParCond[i]} onChange={(e) => {
+                                const checked = e.target.checked;
+                                toggleLivraisonParCond(i, checked);
+                                if (!checked) { handleChangeLine(i, 'quantiteLivreeNow', 0); setLivraisonCondQuantity(i, 0); }
+                              }} />
+                              <label className="form-check-label small" htmlFor={`liv_cond_${i}`}>Par cond.</label>
+                            </div>
+
+                            {!livraisonParCond[i] ? (
+                              <input
+                                type="number"
+                                className="form-control"
+                                value={l.quantiteLivreeNow || 0}
+                                min={0}
+                                max={remaining}
+                                onChange={(e) => {
+                                  const newVal = Number(e.target.value) || 0;
+                                  if (newVal > remaining) {
+                                    Swal.fire('Erreur', `La quantité ne peut pas dépasser ${remaining} (quantité restante)`, 'warning');
+                                    return;
+                                  }
+                                  if (l.id_stock) {
+                                    const stock = stocks.find(s => s.id === l.id_stock);
+                                    if (stock && newVal > (stock.quantiteDisponible || 0)) {
+                                      Swal.fire('Erreur', `Stock insuffisant (${stock.quantiteDisponible}) pour cette ligne`, 'warning');
+                                      return;
+                                    }
+                                  }
+                                  handleChangeLine(i, 'quantiteLivreeNow', newVal);
+                                }}
+                                style={{ width: 140 }}
+                              />
+                            ) : (
+                              <input
+                                type="number"
+                                className="form-control"
+                                value={livraisonCondQty[i] ?? 0}
+                                min={0}
+                                onChange={(e) => {
+                                  const newVal = Number(e.target.value) || 0;
+                                  const mult = stockInfo?.produit?.nombreUnitesParConditionnement ?? stockInfo?.nombreUnitesParConditionnement ?? 1;
+                                  const real = newVal * (mult || 1);
+                                  if (real > remaining) {
+                                    Swal.fire('Erreur', `La quantité réelle (${real}) ne peut pas dépasser ${remaining} (quantité restante)`, 'warning');
+                                    return;
+                                  }
+                                  if (l.id_stock) {
+                                    const stock = stocks.find(s => s.id === l.id_stock);
+                                    if (stock && real > (stock.quantiteDisponible || 0)) {
+                                      Swal.fire('Erreur', `Stock insuffisant (${stock.quantiteDisponible}) pour cette ligne`, 'warning');
+                                      return;
+                                    }
+                                  }
+                                  setLivraisonCondQuantity(i, newVal);
+                                }}
+                                style={{ width: 140 }}
+                              />
+                            )}
+
+                          </div>
+
+                          <small className="text-muted">{livraisonParCond[i] && (livraisonCondQty[i] ?? 0) > 0 ? (() => {
+                            const q = livraisonCondQty[i] || 0;
+                            const mult = stockInfo?.produit?.nombreUnitesParConditionnement ?? stockInfo?.nombreUnitesParConditionnement ?? 1;
+                            const unitRaw = stockInfo?.produit?.unite?.libelle ?? 'cond';
+                            const unit = typeof unitRaw === 'string' ? unitRaw : String(unitRaw);
+                            const unitPlural = (q > 1 && !unit.toLowerCase().endsWith('s')) ? `${unit}s` : unit;
+                            return `${q} ${unitPlural} ≈ ${q * mult} unités`;
+                          })() : `Réel: ${l.quantiteLivreeNow || 0}`}</small>
+                        </div>
                       </td>
                     </tr>
                   );

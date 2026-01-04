@@ -243,13 +243,63 @@ public class PdfServiceImpl implements PdfService {
 
                     int qteRestante = Math.max(qteCommande - cumulativeUpToThis, 0);
 
+                    // Compute conditionnement-aware fields
+                    Integer nombreUnites = null;
+                    String uniteLibelle = null;
+                    try {
+                        if (lc.getStock() != null && lc.getStock().getProduit() != null) {
+                            nombreUnites = lc.getStock().getProduit().getNombreUnitesParConditionnement();
+                            if (lc.getStock().getProduit().getUnite() != null) uniteLibelle = lc.getStock().getProduit().getUnite().getLibelle();
+                        }
+                    } catch (Exception ex) {
+                        // ignore
+                    }
+
+                    Integer quantiteConditionnementCommande = null;
+                    Integer quantiteConditionnementRecueThis = null;
+                    Integer quantiteConditionnementRestante = null;
+                    // Prefer explicit stored quantiteConditionnement on the commande ligne when available
+                    try {
+                        if (lc.getQuantiteConditionnement() != null && lc.getQuantiteConditionnement() > 0) {
+                            quantiteConditionnementCommande = lc.getQuantiteConditionnement();
+                        } else if (nombreUnites != null && nombreUnites > 1) {
+                            if (qteCommande % nombreUnites == 0) quantiteConditionnementCommande = qteCommande / nombreUnites;
+                        }
+                        // For received and remaining, prefer explicit conditionnement values in LigneReception; otherwise derive from unit counts when divisible
+                        if (nombreUnites != null && nombreUnites > 1) {
+                            // derive from units
+                            if (qteRecueThis % nombreUnites == 0) quantiteConditionnementRecueThis = qteRecueThis / nombreUnites;
+                            if (qteRestante % nombreUnites == 0) quantiteConditionnementRestante = qteRestante / nombreUnites;
+                        }
+                    } catch (Exception ex) {
+                        // ignore
+                    }
+
                     m.put("designation", designation);
                     m.put("qteCommande", qteCommande);
                     m.put("qteRecueThis", qteRecueThis);
                     m.put("qteRestante", qteRestante);
+                    m.put("nombreUnitesParConditionnement", nombreUnites);
+                    m.put("uniteConditionnementLibelle", uniteLibelle);
+                    m.put("quantiteConditionnementCommande", quantiteConditionnementCommande);
+                    m.put("quantiteConditionnementRecueThis", quantiteConditionnementRecueThis);
+                    m.put("quantiteConditionnementRestante", quantiteConditionnementRestante);
                     lignesView.add(m);
                 }
                 ctx.setVariable("lignesView", lignesView);
+                // Debug: persist lignesView as JSON for inspection and a simple text summary
+                try {
+                    String j = new com.fasterxml.jackson.databind.ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(lignesView);
+                    java.nio.file.Files.write(java.nio.file.Paths.get("/tmp/reception_" + receptionId + "_lines.json"), j.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    // also write plaintext summary for easier grepping
+                    StringBuilder sb = new StringBuilder();
+                    for (java.util.Map<String,Object> mm : lignesView) {
+                        sb.append(mm.toString()).append("\n");
+                    }
+                    java.nio.file.Files.write(java.nio.file.Paths.get("/tmp/reception_" + receptionId + "_lines.txt"), sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                } catch (Exception ex) {
+                    // ignore
+                }
             } catch (Exception ex) {
                 // ignore
             }

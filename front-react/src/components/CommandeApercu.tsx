@@ -4,7 +4,7 @@ import Swal from 'sweetalert2';
 import { formatServerDate } from '../utils/date';
 // import SearchableSelect from './SearchableSelect';
 
-interface Ligne { id: number; stockId: number; nom: string; quantite: number; prix: number; montant: number; }
+interface Ligne { id: number; stockId: number; nom: string; quantite: number; prix: number; montant: number; quantiteConditionnement?: number | null; multiplicateur?: number | null; quantiteDisplay?: number | null; unitLabel?: string | null; }
 const CommandeApercu: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -37,10 +37,17 @@ const CommandeApercu: React.FC = () => {
             const nom = stockInfo?.produit?.nomProduit || l.produit?.nomProduit || l.produit?.designation || l.designation || 'Produit';
             // Resolve price: prefer newPrice then ligne.prix then stock product price
             const prix = (l.newPrice !== undefined && l.newPrice !== null) ? Number(l.newPrice) : ((l.prix !== undefined && l.prix !== null) ? Number(l.prix) : (Number(stockInfo?.produit?.prixAchat ?? (l.stock?.produit?.prixAchat ?? 0))));
-            const quantite = l.quantite || 0;
-            return { id: l.id, stockId, nom, quantite, prix, montant: prix * quantite } as Ligne;
+
+            // Handle conditionnement: prefer quantiteConditionnement when present
+            const qCond = l.quantiteConditionnement !== undefined && l.quantiteConditionnement !== null ? Number(l.quantiteConditionnement) : null;
+            const mul = stockInfo?.produit?.nombreUnitesParConditionnement ?? l.stock?.produit?.nombreUnitesParConditionnement ?? 1;
+            const quantiteUnits = qCond ? qCond * mul : (l.quantite || 0);
+            const quantiteDisplay = qCond ? qCond : (l.quantite || 0);
+            const unitLabel = stockInfo?.produit?.unite?.libelle ?? 'carton';
+
+            return { id: l.id, stockId, nom, quantite: quantiteUnits, quantiteConditionnement: qCond, multiplicateur: mul, quantiteDisplay, prix, montant: prix * quantiteUnits, unitLabel } as any;
           });
-          setLignes(computed);
+          setLignes(computed as any);
         }
       } catch (err: any) {
         Swal.fire('Erreur', err.message || 'Erreur lors de la récupération de la commande', 'error');
@@ -122,8 +129,17 @@ const CommandeApercu: React.FC = () => {
                     <tbody>
                       {lignes.map(l => (
                         <tr key={l.id}>
-                          <td>{l.nom}</td>
-                          <td>{l.quantite}</td>
+                          <td>
+                            {l.nom}
+                            {((l.quantiteConditionnement && l.quantiteConditionnement > 0) || (l.multiplicateur && l.multiplicateur > 1 && l.quantite % l.multiplicateur === 0)) ? (
+                              (() => {
+                                const mul = l.multiplicateur || 1;
+                                const condCount = l.quantiteConditionnement ? l.quantiteConditionnement : (mul > 1 ? (l.quantite / mul) : 0);
+                                return <div><small className="text-muted">{condCount} {l.unitLabel ?? 'carton'} ≈ {l.quantite} u {mul ? `(1 ${l.unitLabel ?? 'carton'} = ${mul} u)` : ''}</small></div>;
+                              })()
+                            ) : null}
+                          </td>
+                          <td>{(l.quantiteConditionnement && l.quantiteConditionnement > 0) || (l.multiplicateur && l.multiplicateur > 1 && l.quantite % l.multiplicateur === 0) ? `${(l.quantiteConditionnement && l.quantiteConditionnement > 0) ? l.quantiteConditionnement : (l.quantite / (l.multiplicateur || 1))} ${l.unitLabel ?? 'carton'}` : l.quantite}</td>
                           <td>{l.prix}</td>
                           <td>{(l.montant).toFixed(2)}</td>
                         </tr>

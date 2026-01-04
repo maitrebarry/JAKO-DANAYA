@@ -280,11 +280,22 @@ const VentesHistorique: React.FC = () => {
       startY += 12;
 
       (detail.lignesLivraison || []).forEach((ligne: any, i: number) => {
-        const y = startY + i * 14;
-        pdf.text(ligne.designation || '', 40, y);
-        pdf.text(String(ligne.qteCommande || ligne.quantiteCommande || ''), 240, y);
-        pdf.text(String(ligne.qteLivree || ligne.quantiteLivre || ligne.quantiteRecu || ''), 320, y);
-        pdf.text(String((ligne.qteCommande || ligne.quantiteCommande || 0) - (ligne.qteLivree || ligne.quantiteLivre || ligne.quantiteRecu || 0)), 420, y);
+        const y = startY + i * 18;
+        if (ligne.quantiteConditionnement && ligne.quantiteConditionnement > 0) {
+          pdf.text(ligne.designation || '', 40, y);
+          const approx = ligne.nombreUnitesParConditionnement ? `≈ ${ligne.quantiteConditionnement * ligne.nombreUnitesParConditionnement} u` : `(${ligne.quantiteConditionnement} carton)`;
+          pdf.setFontSize(9);
+          pdf.text(`${ligne.quantiteConditionnement} carton ${approx}`, 40, y + 10);
+          pdf.setFontSize(10);
+          pdf.text(String(ligne.qteCommande || ligne.quantiteCommande || ''), 240, y);
+          pdf.text(String(ligne.qteLivree || ligne.quantiteLivre || ligne.quantiteRecu || ''), 320, y);
+          pdf.text(String((ligne.qteCommande || ligne.quantiteCommande || 0) - (ligne.qteLivree || ligne.quantiteLivre || ligne.quantiteRecu || 0)), 420, y);
+        } else {
+          pdf.text(ligne.designation || '', 40, y);
+          pdf.text(String(ligne.qteCommande || ligne.quantiteCommande || ''), 240, y);
+          pdf.text(String(ligne.qteLivree || ligne.quantiteLivre || ligne.quantiteRecu || ''), 320, y);
+          pdf.text(String((ligne.qteCommande || ligne.quantiteCommande || 0) - (ligne.qteLivree || ligne.quantiteLivre || ligne.quantiteRecu || 0)), 420, y);
+        }
       });
 
       pdf.save(`livraison-${detail.reference || livraisonId}.pdf`);

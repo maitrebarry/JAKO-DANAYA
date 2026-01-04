@@ -61,6 +61,8 @@ public class CommandeClientLivraisonController {
         public Long ligneCommandeId;
         public Long stockId;
         public Integer quantite;
+        // optional: quantity expressed in conditionnement (e.g., cartons)
+        public Integer quantiteConditionnement;
     }
 
     public static class CommandeClientLivraisonRequest {
@@ -101,32 +103,39 @@ public class CommandeClientLivraisonController {
             Livraison savedLiv = livraisonService.save(liv);
 
             for (LivraisonLineRequest lr : request.lignes) {
-                if (lr.quantite == null || lr.quantite <= 0) continue;
+                if ((lr.quantite == null || lr.quantite <= 0) && (lr.quantiteConditionnement == null || lr.quantiteConditionnement <= 0)) continue;
                 LigneCommandeClient lcc = ligneCommandeClientService.findById(lr.ligneCommandeId).orElseThrow(() -> new RuntimeException("LigneCommandeClient introuvable"));
                 Stock stock = stockService.getStockById(lr.stockId).orElseThrow(() -> new RuntimeException("Stock introuvable"));
 
+                // compute quantity in units
+                int qtyUnits = 0;
+                if (lr.quantite != null && lr.quantite > 0) qtyUnits = lr.quantite;
+                else if (lr.quantiteConditionnement != null && lr.quantiteConditionnement > 0) {
+                    int mul = lcc.getProduit() != null && lcc.getProduit().getNombreUnitesParConditionnement() != null ? lcc.getProduit().getNombreUnitesParConditionnement() : 1;
+                    qtyUnits = lr.quantiteConditionnement * mul;
+                }
+
                 // decrement stock
                 Integer available = stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0;
-                stock.setQuantiteDisponible(available - lr.quantite);
+                stock.setQuantiteDisponible(available - qtyUnits);
                 stockService.saveStock(stock);
 
                 // create ligne livraison
                 com.smboutique.api.model.LigneLivraison ligneLivraison = new com.smboutique.api.model.LigneLivraison();
                 ligneLivraison.setLivraison(savedLiv);
-                ligneLivraison.setQuantiteRecu(lr.quantite);
+                ligneLivraison.setQuantiteRecu(qtyUnits);
                 ligneLivraison.setProduit(lcc.getProduit());
                 ligneLivraisonService.save(ligneLivraison);
 
                 // update qte_livre on ligne commande client
                 Integer qteLivreActuelle = lcc.getQuantiteLivre() != null ? lcc.getQuantiteLivre() : 0;
-                lcc.setQuantiteLivre(qteLivreActuelle + lr.quantite);
+                lcc.setQuantiteLivre(qteLivreActuelle + qtyUnits);
                 ligneCommandeClientService.save(lcc);
 
                 // create mouvement (SORTIE)
                 Mouvement mv = new Mouvement();
                 mv.setProduit(lcc.getProduit());
-                mv.setQuantite(lr.quantite);
-                mv.setTypeMouvement("SORTIE");
+                mv.setQuantite(qtyUnits);
                 mv.setDateMouvement(LocalDateTime.now());
                 mv.setStock(stock);
                 mv.setBoutique(user.getBoutique());

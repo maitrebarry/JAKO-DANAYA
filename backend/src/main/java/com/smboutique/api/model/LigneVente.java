@@ -23,6 +23,9 @@ public class LigneVente {
     private Produit produit;
 
     private Integer quantite;
+
+    @Column(name = "quantite_conditionnement")
+    private Integer quantiteConditionnement;
     
     @Column(name = "new_price_vente")
     private Integer newPrice;

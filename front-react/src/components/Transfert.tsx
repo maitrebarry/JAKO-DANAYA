@@ -3,7 +3,7 @@ import Swal from 'sweetalert2';
 import { useUser } from '../contexts/UserContext';
 
 interface Magasin { id: number; nom: string; adresse?: string }
-interface TransferStock { produitId: number; nomProduit: string; quantiteDisponible: number; unite?: string }
+interface TransferStock { produitId: number; nomProduit: string; quantiteDisponible: number; unite?: string; multiplicateur?: number; uniteCondLibelle?: string }
 
 const Transfert: React.FC = () => {
   const { currentBoutique, permissions } = useUser();
@@ -18,6 +18,17 @@ const Transfert: React.FC = () => {
   const [transferSelectedIds, setTransferSelectedIds] = useState<number[]>([]);
   const [transferSelectAll, setTransferSelectAll] = useState(false);
   const [transferQuantities, setTransferQuantities] = useState<Record<number, number>>({});
+  const [transferIsCond, setTransferIsCond] = useState<Record<number, boolean>>({});
+  const [transferCondQuantities, setTransferCondQuantities] = useState<Record<number, number>>({});
+
+  const toggleTransferCond = (pid: number, checked: boolean) => {
+    setTransferIsCond(prev => ({ ...prev, [pid]: checked }));
+    if (checked && (transferCondQuantities[pid] === undefined)) setTransferCondQuantities(prev => ({ ...prev, [pid]: 1 }));
+  };
+
+  const setCondQty = (pid: number, qty: number) => {
+    setTransferCondQuantities(prev => ({ ...prev, [pid]: qty }));
+  };
 
   const [destType, setDestType] = useState<'BOUTIQUE' | 'MAGASIN'>('BOUTIQUE');
   const [destMagasinId, setDestMagasinId] = useState<number | null>(null);
@@ -53,7 +64,14 @@ const Transfert: React.FC = () => {
       if (!res.ok) throw new Error('Impossible de charger les produits du magasin');
       const data = await res.json();
       // API returns items with produit info
-      const mapped = (data || []).map((s: any) => ({ produitId: s.produitId ?? s.produit?.id, nomProduit: s.nomProduit ?? s.produit?.nomProduit ?? 'Produit', quantiteDisponible: s.quantiteDisponible ?? s.quantite ?? 0, unite: s.unite }));
+      const mapped = (data || []).map((s: any) => ({
+        produitId: s.produitId ?? s.produit?.id,
+        nomProduit: s.nomProduit ?? s.produit?.nomProduit ?? s.produit?.nom ?? 'Produit',
+        quantiteDisponible: s.quantiteDisponible ?? s.quantite ?? 0,
+        unite: s.unite,
+        multiplicateur: s.produit?.nombreUnitesParConditionnement ?? s.nombreUnitesParConditionnement ?? 1,
+        uniteCondLibelle: s.produit?.unite?.libelle ?? 'carton'
+      }));
       setTransferStocks(mapped);
       // reset selection/quantities
       setTransferSelectedIds([]);
@@ -90,20 +108,27 @@ const Transfert: React.FC = () => {
     setTransferQuantities(prev => ({ ...prev, [pid]: qty }));
   };
 
-  const validateItems = (items: { produitId: number; quantite: number }[]) => {
+  const validateItems = (items: { produitId: number; quantite?: number; quantiteConditionnement?: number; }[]) => {
     if (!sourceMagasinId) { setMessage('Sélectionnez un magasin source'); return false; }
     if (!items || items.length === 0) { setMessage('Aucun produit sélectionné'); return false; }
     for (const it of items) {
-      if (!it.quantite || it.quantite <= 0) { setMessage('Quantités invalides détectées'); return false; }
       const s = transferStocks.find(ts => ts.produitId === it.produitId);
       if (!s) { setMessage('Produit introuvable dans le stock sélectionné'); return false; }
-      if (it.quantite > s.quantiteDisponible) { setMessage(`Quantité supérieure au disponible pour ${s.nomProduit}`); return false; }
+
+      if (it.quantiteConditionnement !== undefined && it.quantiteConditionnement !== null) {
+        if (it.quantiteConditionnement <= 0) { setMessage('Quantités invalides détectées'); return false; }
+        const real = (it.quantiteConditionnement || 0) * (s.multiplicateur || 1);
+        if (real > (s.quantiteDisponible || 0)) { setMessage(`Quantité supérieure au disponible pour ${s.nomProduit}`); return false; }
+      } else {
+        if (!it.quantite || it.quantite <= 0) { setMessage('Quantités invalides détectées'); return false; }
+        if (it.quantite > (s.quantiteDisponible || 0)) { setMessage(`Quantité supérieure au disponible pour ${s.nomProduit}`); return false; }
+      }
     }
     if (destType === 'MAGASIN' && !destMagasinId) { setMessage('Sélectionnez un magasin destination'); return false; }
     return true;
   };
 
-  const doTransfer = async (items: { produitId: number; quantite: number }[]) => {
+  const doTransfer = async (items: { produitId: number; quantite?: number; quantiteConditionnement?: number }[]) => {
     if (!validateItems(items)) return;
     setLoading(true);
     try {
@@ -126,12 +151,19 @@ const Transfert: React.FC = () => {
   };
 
   const handleIndividualTransfer = async (produitId: number) => {
-    const qty = transferQuantities[produitId] || 0;
-    await doTransfer([{ produitId, quantite: qty }]);
+    if (transferIsCond[produitId]) {
+      const qCond = transferCondQuantities[produitId] || 0;
+      await doTransfer([{ produitId, quantiteConditionnement: qCond }]);
+    } else {
+      const qty = transferQuantities[produitId] || 0;
+      await doTransfer([{ produitId, quantite: qty }]);
+    }
   };
 
   const handleBulkTransfer = async () => {
-    const items = transferSelectedIds.map(pid => ({ produitId: pid, quantite: transferQuantities[pid] || 0 }));
+    const items = transferSelectedIds.map(pid => (
+      transferIsCond[pid] ? { produitId: pid, quantiteConditionnement: transferCondQuantities[pid] || 0 } : { produitId: pid, quantite: transferQuantities[pid] || 0 }
+    ));
     await doTransfer(items);
   };
 
@@ -181,8 +213,29 @@ const Transfert: React.FC = () => {
                         <strong>{s.nomProduit}</strong> <small className="text-muted">{s.unite ? `(${s.unite})` : ''}</small>
                       </div>
                       <div className="me-3">Dispo: <span className="fw-bold">{s.quantiteDisponible ?? 0}</span></div>
-                      <div className="me-3" style={{ width: 120 }}>
-                        <input type="number" min={0} max={s.quantiteDisponible ?? 0} className="form-control form-control-sm" value={transferQuantities[s.produitId] ?? 0} onChange={(e) => setQty(s.produitId, Number(e.target.value))} />
+                      <div className="me-3" style={{ width: 180 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div className="form-check">
+                            <input className="form-check-input" type="checkbox" id={`transfer_cond_${s.produitId}`} checked={!!transferIsCond[s.produitId]} onChange={(e) => toggleTransferCond(s.produitId, e.target.checked)} />
+                            <label className="form-check-label small" htmlFor={`transfer_cond_${s.produitId}`}>Par cond.</label>
+                          </div>
+
+                          {transferIsCond[s.produitId] ? (
+                            <input type="number" min={0} className="form-control form-control-sm" value={transferCondQuantities[s.produitId] ?? 0} onChange={(e) => setCondQty(s.produitId, Number(e.target.value))} style={{ width: 100 }} />
+                          ) : (
+                            <input type="number" min={0} max={s.quantiteDisponible ?? 0} className="form-control form-control-sm" value={transferQuantities[s.produitId] ?? 0} onChange={(e) => setQty(s.produitId, Number(e.target.value))} style={{ width: 100 }} />
+                          )}
+                        </div>
+                        <small className="text-muted">
+                          {transferIsCond[s.produitId] && (transferCondQuantities[s.produitId] ?? 0) > 0 ? (() => {
+                            const q = transferCondQuantities[s.produitId] || 0;
+                            const mul = s.multiplicateur || 1;
+                            const unitRaw = s.uniteCondLibelle || 'cond';
+                            const unit = typeof unitRaw === 'string' ? unitRaw : String(unitRaw);
+                            const unitPlural = (q > 1 && !unit.toLowerCase().endsWith('s')) ? `${unit}s` : unit;
+                            return `${q} ${unitPlural} ≈ ${q * mul} unités`;
+                          })() : ''}
+                        </small>
                       </div>
                       <button className="btn btn-sm btn-primary" onClick={() => handleIndividualTransfer(s.produitId)}>Transférer</button>
                     </label>

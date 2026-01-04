@@ -13,7 +13,7 @@ import com.smboutique.api.service.UtilisateurService;
 import com.smboutique.api.dto.ProduitCreateDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -250,13 +250,13 @@ public class ProduitController {
         Produit savedProduit = produitService.save(produit);
 
         // Business rule: At product creation, DO NOT create magasin stocks.
-        // Create a single boutique-level stock (magasin = NULL) with the initial quantity (or 0).
+        // Create a single boutique-level stock (magasin = NULL) with the initial quantity (in units).
         Stock boutiqueStock = new Stock();
         boutiqueStock.setProduit(savedProduit);
         boutiqueStock.setMagasin(null);
-        // set boutique owner and create with zero quantity at product creation
+        // set boutique owner and create with the initial stock (converted to units)
         boutiqueStock.setBoutique(current.getBoutique());
-        boutiqueStock.setQuantiteDisponible(0);
+        boutiqueStock.setQuantiteDisponible(stockReel);
         boutiqueStock.setCostAverage(null);
         boutiqueStock.setLastPurchasePrice(null);
         stockService.saveStock(boutiqueStock);

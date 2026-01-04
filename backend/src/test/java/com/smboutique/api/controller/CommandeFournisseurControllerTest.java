@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -97,5 +98,99 @@ public class CommandeFournisseurControllerTest {
 
         // Verify a mouvement of type RECEPTION was created
         verify(mouvementService, times(1)).save(argThat(m -> "RECEPTION".equals(m.getTypeMouvement()) && m.getQuantite() == 3));
+    }
+
+    @Test
+    public void create_with_quantiteConditionnement_sets_ligne_quantite_in_units() {
+        // Prepare current user in security context
+        org.springframework.security.core.Authentication auth = mock(org.springframework.security.core.Authentication.class);
+        when(auth.getName()).thenReturn("testuser");
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+
+        Utilisateur u = new Utilisateur();
+        u.setId(1L);
+        Boutique b = new Boutique(); b.setId(10L);
+        u.setBoutique(b);
+        when(utilisateurService.findByEmail("testuser")).thenReturn(java.util.Optional.of(u));
+        when(utilisateurService.hasPermission(u, "COMMANDE_CREER")).thenReturn(true);
+
+        // Prepare stock with product multiplicateur
+        Stock stock = new Stock(); stock.setId(500L);
+        Produit p = new Produit(); p.setId(600L); p.setNombreUnitesParConditionnement(4);
+        stock.setProduit(p);
+        when(stockRepository.findById(500L)).thenReturn(Optional.of(stock));
+
+        // Prepare request with quantiteConditionnement=2 -> expected units = 8
+        CommandeFournisseurRequest req = new CommandeFournisseurRequest();
+        req.setReference("REF-1");
+        req.setDateCommande("2026-01-01 10:00");
+        CommandeFournisseurRequest.FournisseurDTO fd = new CommandeFournisseurRequest.FournisseurDTO();
+        fd.setId(123L);
+        req.setFournisseur(fd);
+        req.setTotal(8000);
+        CommandeFournisseurRequest.ProduitSelectionne ps = new CommandeFournisseurRequest.ProduitSelectionne();
+        ps.setId_stock(500L);
+        ps.setQuantiteConditionnement(2);
+        ps.setPrix(1000);
+        req.setProduitsSelectionnes(java.util.List.of(ps));
+
+        when(commandeFournisseurService.save(any(CommandeFournisseur.class))).thenAnswer(invocation -> {
+            CommandeFournisseur c = invocation.getArgument(0);
+            // debug assertion: ensure controller set quantiteConditionnement on the created ligne before save
+            assertNotNull(c.getLignes());
+            assertEquals(1, c.getLignes().size());
+            assertEquals(Integer.valueOf(2), c.getLignes().get(0).getQuantiteConditionnement());
+            c.setId(777L);
+            return c;
+        });
+
+        ResponseEntity<CommandeFournisseur> resp = commandeController.createCommandeFournisseur(req);
+        assertEquals(200, resp.getStatusCode().value());
+        CommandeFournisseur saved = resp.getBody();
+        assertEquals(1, saved.getLignes().size());
+        LigneCommande lcSaved = saved.getLignes().get(0);
+        assertEquals(8, lcSaved.getQuantite());
+        assertEquals(2, lcSaved.getQuantiteConditionnement());
+        assertEquals(1000, lcSaved.getNewPrice());
+    }
+
+    @Test
+    public void update_with_quantiteConditionnement_updates_existing_ligne_quantity() {
+        // Setup authenticated user
+        org.springframework.security.core.Authentication auth = mock(org.springframework.security.core.Authentication.class);
+        when(auth.getName()).thenReturn("testuser2");
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+
+        Utilisateur u = new Utilisateur();
+        u.setId(2L);
+        Boutique b = new Boutique(); b.setId(20L);
+        u.setBoutique(b);
+        when(utilisateurService.findByEmail("testuser2")).thenReturn(java.util.Optional.of(u));
+        when(utilisateurService.hasPermission(u, "COMMANDE_CREER")).thenReturn(true);
+
+        // Existing commande with one ligne
+        CommandeFournisseur cmd = new CommandeFournisseur(); cmd.setId(888L); cmd.setBoutique(b);
+        LigneCommande existing = new LigneCommande(); existing.setId(100L);
+        Stock stk = new Stock(); stk.setId(400L); Produit prod = new Produit(); prod.setId(401L); prod.setNombreUnitesParConditionnement(5); stk.setProduit(prod); existing.setStock(stk); existing.setQuantite(2);
+        when(commandeFournisseurService.findById(888L)).thenReturn(java.util.Optional.of(cmd));
+        when(ligneCommandeRepository.findByCommandeFournisseurId(888L)).thenReturn(java.util.List.of(existing));
+
+        // Prepare update request with quantiteConditionnement=3 for same stock
+        CommandeFournisseurRequest reqUpd = new CommandeFournisseurRequest();
+        reqUpd.setReference("REF-UPD");
+        reqUpd.setDateCommande("2026-01-02 12:00");
+        reqUpd.setTotal(15000);
+        CommandeFournisseurRequest.ProduitSelectionne psel = new CommandeFournisseurRequest.ProduitSelectionne();
+        psel.setId_stock(400L);
+        psel.setQuantiteConditionnement(3);
+        psel.setPrix(500);
+        reqUpd.setProduitsSelectionnes(java.util.List.of(psel));
+
+        when(commandeFournisseurService.save(any(CommandeFournisseur.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ResponseEntity<?> resp = commandeController.updateCommandeFournisseur(888L, reqUpd);
+        assertEquals(200, resp.getStatusCode().value());
+        // verify that existing ligne has been updated to quantite=15
+        verify(ligneCommandeRepository, atLeastOnce()).save(argThat(l -> l.getQuantite() == 15));
     }
 }

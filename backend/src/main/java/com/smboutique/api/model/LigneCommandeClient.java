@@ -2,9 +2,11 @@ package com.smboutique.api.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 
 @Entity
 @Data
+@ToString(exclude = {"commandeClient"})
 @Table(name = "ligne_commande_client")
 public class LigneCommandeClient {
     @Id
@@ -22,6 +24,9 @@ public class LigneCommandeClient {
     private CommandeClient commandeClient;
 
     private Integer quantite;
+
+    @Column(name = "quantite_conditionnement")
+    private Integer quantiteConditionnement;
     
     @Column(name = "qte_livre")
     private Integer quantiteLivre;

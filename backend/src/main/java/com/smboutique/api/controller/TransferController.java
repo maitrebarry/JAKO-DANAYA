@@ -20,6 +20,9 @@ public class TransferController {
     @Autowired
     private com.smboutique.api.service.TransferModuleService transferModuleService;
 
+    @Autowired
+    private com.smboutique.api.repository.StockRepository stockRepository;
+
     private Utilisateur getCurrentUser() {
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -58,7 +61,7 @@ public class TransferController {
     }
 
     // High level transfer between locations (boutique/magasin)
-    public static class LocationTransferItem { public Long produitId; public Integer quantite; }
+    public static class LocationTransferItem { public Long produitId; public Integer quantite; public Integer quantiteConditionnement; }
     public static class LocationTransferRequest { public String sourceType; public Long sourceId; public String destType; public Long destId; public java.util.List<LocationTransferItem> items; }
 
     @PostMapping("/locations")
@@ -69,7 +72,21 @@ public class TransferController {
                 return ResponseEntity.status(403).body("Permission refusée pour effectuer un transfert");
             }
             if (req.items == null || req.items.isEmpty()) return ResponseEntity.badRequest().body(java.util.Map.of("error", "items requis"));
-            java.util.List<com.smboutique.api.service.TransferModuleService.TransferItem> items = req.items.stream().map(i -> new com.smboutique.api.service.TransferModuleService.TransferItem(i.produitId, i.quantite)).toList();
+            java.util.List<com.smboutique.api.service.TransferModuleService.TransferItem> items = new java.util.ArrayList<>();
+            for (TransferController.LocationTransferItem i : req.items) {
+                int q = i.quantite != null ? i.quantite : 0;
+                if (i.quantiteConditionnement != null) {
+                    // lookup product multiplicateur
+                    java.util.Optional<com.smboutique.api.model.Produit> prodOpt = java.util.Optional.empty();
+                    // Try to find a stock that matches the produit to get multiplicateur; else try direct product repository if available
+                    java.util.List<com.smboutique.api.model.Stock> stocks = stockRepository.findByProduitId(i.produitId);
+                    if (stocks != null && !stocks.isEmpty() && stocks.get(0).getProduit() != null) prodOpt = java.util.Optional.of(stocks.get(0).getProduit());
+                    int mul = 1;
+                    if (prodOpt.isPresent() && prodOpt.get().getNombreUnitesParConditionnement() != null) mul = prodOpt.get().getNombreUnitesParConditionnement();
+                    q = i.quantiteConditionnement * mul;
+                }
+                items.add(new com.smboutique.api.service.TransferModuleService.TransferItem(i.produitId, q));
+            }
             String username = user.getEmail();
             transferModuleService.transferBetweenLocations(req.sourceType, req.sourceId, req.destType, req.destId, items, username);
             return ResponseEntity.ok(java.util.Map.of("success", true, "count", items.size()));

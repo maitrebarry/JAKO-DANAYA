@@ -4,10 +4,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import java.util.Set;
 
 @Entity
 @Data
+@ToString(exclude = {"permissions", "utilisateurs"})
 @EqualsAndHashCode(exclude = {"permissions", "utilisateurs"})
 @Table(name = "role")
 public class Role {

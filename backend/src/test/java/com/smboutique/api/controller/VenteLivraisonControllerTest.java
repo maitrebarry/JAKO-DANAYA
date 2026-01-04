@@ -180,7 +180,9 @@ public class VenteLivraisonControllerTest {
         // Verify rollback: stock unchanged, no livraison, no mouvement for this stock
         Stock updated = stockRepository.findById(stock.getId()).orElseThrow();
         assertThat(updated.getQuantiteDisponible()).isEqualTo(10);
-        assertThat(livraisonRepository.findAll()).isEmpty();
+        // ensure no livraison with this reference was persisted and no mouvement for this stock
+        boolean noMatchingLiv = livraisonRepository.findAll().stream().noneMatch(l -> "LV-TEST".equals(l.getReference()));
+        assertThat(noMatchingLiv).isTrue();
         assertThat(mouvementRepository.findAll().stream().anyMatch(mt -> mt.getStock() != null && mt.getStock().getId().equals(stock.getId()))).isFalse();
     }
 

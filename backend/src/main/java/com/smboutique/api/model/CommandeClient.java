@@ -2,10 +2,12 @@ package com.smboutique.api.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 import java.time.LocalDateTime;
 
 @Entity
 @Data
+@ToString(exclude = {"lignes"})
 @Table(name = "commande_client")
 public class CommandeClient {
     @Id

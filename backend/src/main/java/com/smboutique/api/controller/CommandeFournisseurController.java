@@ -233,21 +233,43 @@ public class CommandeFournisseurController {
         fournisseur.setId(request.getFournisseur().getId());
         commande.setFournisseur(fournisseur);
 
-        // Create lignes
-        List<com.smboutique.api.model.LigneCommande> lignes = new java.util.ArrayList<>();
-        for (CommandeFournisseurRequest.ProduitSelectionne ps : request.getProduitsSelectionnes()) {
-            com.smboutique.api.model.LigneCommande ligne = new com.smboutique.api.model.LigneCommande();
-            Stock stock = new Stock();
-            stock.setId(ps.getId_stock());
-            ligne.setStock(stock);
-            ligne.setQuantite(ps.getQuantite());
-            ligne.setNewPrice((int) ps.getPrix());
-            ligne.setCommandeFournisseur(commande);
-            lignes.add(ligne);
-        }
-        commande.setLignes(lignes);
+        try {
+            // Create lignes
+            List<com.smboutique.api.model.LigneCommande> lignes = new java.util.ArrayList<>();
+            if (request.getProduitsSelectionnes() != null) {
+                for (CommandeFournisseurRequest.ProduitSelectionne ps : request.getProduitsSelectionnes()) {
+                    if (ps == null || ps.getId_stock() == null) continue;
 
-        return ResponseEntity.ok(commandeFournisseurService.save(commande));
+                    com.smboutique.api.model.LigneCommande ligne = new com.smboutique.api.model.LigneCommande();
+                    Stock stock = new Stock();
+                    stock.setId(ps.getId_stock());
+                    ligne.setStock(stock);
+
+                    // compute effective quantity in UNITS. Prefer quantiteConditionnement when provided.
+                    int effectiveQty = ps.getQuantite();
+                    if (ps.getQuantiteConditionnement() != null) {
+                        if (ps.getQuantiteConditionnement() < 0) throw new IllegalArgumentException("Quantité invalide");
+                        int mul = 1;
+                        java.util.Optional<Stock> sOpt = stockRepository.findById(ps.getId_stock());
+                        if (sOpt.isPresent() && sOpt.get().getProduit() != null && sOpt.get().getProduit().getNombreUnitesParConditionnement() != null) {
+                            mul = sOpt.get().getProduit().getNombreUnitesParConditionnement();
+                        }
+                        effectiveQty = ps.getQuantiteConditionnement() * mul;
+                    }
+
+                    ligne.setQuantite(effectiveQty);
+                    ligne.setQuantiteConditionnement(ps.getQuantiteConditionnement());
+                    ligne.setNewPrice((int) ps.getPrix());
+                    ligne.setCommandeFournisseur(commande);
+                    lignes.add(ligne);
+                }
+            }
+            commande.setLignes(lignes);
+
+            return ResponseEntity.ok(commandeFournisseurService.save(commande));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST).body((CommandeFournisseur) null);
+        }
     }
     @PostMapping("/{id}/paiement")
     public ResponseEntity<CommandeFournisseur> enregistrerPaiement(@PathVariable Long id, @RequestBody PaiementRequest request) {
@@ -343,68 +365,90 @@ public class CommandeFournisseurController {
     public ResponseEntity<CommandeFournisseur> enregistrerReception(@PathVariable Long id, @RequestBody ReceptionRequest request, @RequestParam Long boutiqueId) {
         return commandeFournisseurService.findByIdAndBoutiqueId(id, boutiqueId)
                 .map(cmd -> {
-                    if (request.getLignes() != null) {
-                        request.getLignes().forEach(l -> {
-                            Long ligneId = l.getLigneId();
-                            if (ligneId == null) return;
-                            ligneCommandeRepository.findById(ligneId).ifPresent(existing -> {
-                                Integer newQteLivre = l.getQuantiteLivre() != null ? l.getQuantiteLivre() : existing.getQuantiteLivre();
-                                Integer oldQteLivre = existing.getQuantiteLivre() != null ? existing.getQuantiteLivre() : 0;
-                                int delta = (newQteLivre != null ? newQteLivre : 0) - oldQteLivre;
-                                // update delivered quantity on ligne
-                                existing.setQuantiteLivre(newQteLivre);
-                                ligneCommandeRepository.save(existing);
+                    try {
+                        if (request.getLignes() != null) {
+                            request.getLignes().forEach(l -> {
+                                Long ligneId = l.getLigneId();
+                                if (ligneId == null) return;
 
-                                // If more items were received (delta > 0), create a Reception + LigneReception, update stock and create a RECEPTION mouvement
-                                if (delta > 0 && existing.getStock() != null && existing.getStock().getId() != null) {
-                                    Long stockId = existing.getStock().getId();
-                                    if (stockId != null) {
-                                        stockRepository.findById(stockId).ifPresent(stock -> {
-                                            Integer currentQty = stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0;
-
-                                            // Create a Reception wrapper for this batch if not already created for this request
-                                            // We'll create one Reception per API call linked to the commande
-                                            Reception reception = new Reception();
-                                            reception.setCommandeFournisseur(cmd);
-                                            reception.setBoutique(new Boutique());
-                                            reception.getBoutique().setId(boutiqueId);
-                                            reception.setDateReception(java.time.LocalDateTime.now());
-                                            reception = receptionService.save(reception);
-
-                                            // Create LigneReception snapshot and link to the Reception
-                                            LigneReception lr = new LigneReception();
-                                            lr.setReception(reception);
-                                            lr.setQuantiteRecu(delta);
-                                            lr.setProduit(stock.getProduit());
-                                            lr.setBeforeStockQuantite(currentQty);
-                                            lr.setBeforeStockCostAverage(stock.getCostAverage());
-                                            if (stock.getProduit() != null) lr.setBeforeProduitPrixAchat(stock.getProduit().getPrixAchat());
-                                            ligneReceptionService.save(lr);
-
-                                            // Update stock quantity
-                                            stock.setQuantiteDisponible(currentQty + delta);
-                                            stockRepository.save(stock);
-
-                                            // create mouvement RECEPTION
-                                            Mouvement mv = new Mouvement();
-                                            mv.setStock(stock);
-                                            mv.setProduit(stock.getProduit());
-                                            mv.setQuantite(delta);
-                                            mv.setTypeMouvement("RECEPTION");
-                                            mv.setDateMouvement(java.time.LocalDateTime.now());
-                                            // boutique for mouvement: if stock has magasin use its boutique, otherwise use commande.boutique
-                                            if (stock.getMagasin() != null && stock.getMagasin().getBoutique() != null) mv.setBoutique(stock.getMagasin().getBoutique());
-                                            else mv.setBoutique(cmd.getBoutique());
-                                            mouvementService.save(mv);
-                                        });
-                                    }
+                                // reject negative quantities early
+                                if ((l.getQuantiteLivre() != null && l.getQuantiteLivre() < 0) || (l.getQuantiteConditionnement() != null && l.getQuantiteConditionnement() < 0)) {
+                                    throw new IllegalArgumentException("Quantité de réception invalide");
                                 }
+
+                                ligneCommandeRepository.findById(ligneId).ifPresent(existing -> {
+                                    // Determine new delivered quantity in UNITS. Accept either quantiteLivre (units) or quantiteConditionnement (conditionnement count)
+                                    Integer newQteLivre;
+                                    if (l.getQuantiteLivre() != null) {
+                                        newQteLivre = l.getQuantiteLivre();
+                                    } else if (l.getQuantiteConditionnement() != null && existing.getStock() != null && existing.getStock().getProduit() != null) {
+                                        Integer mul = existing.getStock().getProduit().getNombreUnitesParConditionnement() == null ? 1 : existing.getStock().getProduit().getNombreUnitesParConditionnement();
+                                        newQteLivre = l.getQuantiteConditionnement() * mul;
+                                    } else {
+                                        newQteLivre = existing.getQuantiteLivre();
+                                    }
+                                    Integer oldQteLivre = existing.getQuantiteLivre() != null ? existing.getQuantiteLivre() : 0;
+                                    int delta = (newQteLivre != null ? newQteLivre : 0) - oldQteLivre;
+                                    // update delivered quantity on ligne
+                                    existing.setQuantiteLivre(newQteLivre);
+                                    ligneCommandeRepository.save(existing);
+
+                                    // If more items were received (delta > 0), create a Reception + LigneReception, update stock and create a RECEPTION mouvement
+                                    if (delta > 0 && existing.getStock() != null && existing.getStock().getId() != null) {
+                                        Long stockId = existing.getStock().getId();
+                                        if (stockId != null) {
+                                            stockRepository.findById(stockId).ifPresent(stock -> {
+                                                Integer currentQty = stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0;
+
+                                                // Create a Reception wrapper for this batch if not already created for this request
+                                                // We'll create one Reception per API call linked to the commande
+                                                Reception reception = new Reception();
+                                                reception.setCommandeFournisseur(cmd);
+                                                reception.setBoutique(new Boutique());
+                                                reception.getBoutique().setId(boutiqueId);
+                                                reception.setDateReception(java.time.LocalDateTime.now());
+                                                reception = receptionService.save(reception);
+
+                                                // Create LigneReception snapshot and link to the Reception
+                                                LigneReception lr = new LigneReception();
+                                                lr.setReception(reception);
+                                                lr.setQuantiteRecu(delta);
+                                                // save original conditionnement when provided in request (handled earlier) - fallback null
+                                                // Note: the ReceptionRequest.ReceptionLigne provided quantiteConditionnement is not directly available here; however the controller previously computed delta from request, so we set quantiteConditionnement only when present in the request processing scope. For create per-call, set it from l.getQuantiteConditionnement() if available.
+                                                lr.setQuantiteConditionnement(l.getQuantiteConditionnement());
+                                                lr.setProduit(stock.getProduit());
+                                                lr.setBeforeStockQuantite(currentQty);
+                                                lr.setBeforeStockCostAverage(stock.getCostAverage());
+                                                if (stock.getProduit() != null) lr.setBeforeProduitPrixAchat(stock.getProduit().getPrixAchat());
+                                                ligneReceptionService.save(lr);
+
+                                                // Update stock quantity
+                                                stock.setQuantiteDisponible(currentQty + delta);
+                                                stockRepository.save(stock);
+
+                                                // create mouvement RECEPTION
+                                                Mouvement mv = new Mouvement();
+                                                mv.setStock(stock);
+                                                mv.setProduit(stock.getProduit());
+                                                mv.setQuantite(delta);
+                                                mv.setTypeMouvement("RECEPTION");
+                                                mv.setDateMouvement(java.time.LocalDateTime.now());
+                                                // boutique for mouvement: if stock has magasin use its boutique, otherwise use commande.boutique
+                                                if (stock.getMagasin() != null && stock.getMagasin().getBoutique() != null) mv.setBoutique(stock.getMagasin().getBoutique());
+                                                else mv.setBoutique(cmd.getBoutique());
+                                                mouvementService.save(mv);
+                                            });
+                                        }
+                                    }
+                                });
                             });
-                        });
+                        }
+                        // Persist potential changes on the commande (if necessary, save the command)
+                        CommandeFournisseur updated = commandeFournisseurService.save(cmd);
+                        return ResponseEntity.ok(updated);
+                    } catch (IllegalArgumentException ex) {
+                        return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST).body((CommandeFournisseur) null);
                     }
-                    // Persist potential changes on the commande (if necessary, save the command)
-                    CommandeFournisseur updated = commandeFournisseurService.save(cmd);
-                    return ResponseEntity.ok(updated);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -457,7 +501,10 @@ public class CommandeFournisseurController {
 
     public static class ReceptionLigne {
         private Long ligneId;
+        // quantity in units (preferred)
         private Integer quantiteLivre;
+        // optional: quantity expressed in conditionnement (e.g., cartons)
+        private Integer quantiteConditionnement;
 
         public Long getLigneId() {
             return ligneId;
@@ -474,6 +521,9 @@ public class CommandeFournisseurController {
         public void setQuantiteLivre(Integer quantiteLivre) {
             this.quantiteLivre = quantiteLivre;
         }
+
+        public Integer getQuantiteConditionnement() { return quantiteConditionnement; }
+        public void setQuantiteConditionnement(Integer quantiteConditionnement) { this.quantiteConditionnement = quantiteConditionnement; }
     }
 
     @PutMapping("/{id}")
@@ -520,8 +570,25 @@ public class CommandeFournisseurController {
                             incomingStockIds.add(stokId);
                             com.smboutique.api.model.LigneCommande existing = existingByStock.get(stokId);
                             if (existing != null) {
-                                // update quantities/prices
-                                existing.setQuantite(ps.getQuantite());
+                                // update quantities/prices - support quantiteConditionnement
+                                int effectiveQty = ps.getQuantite();
+                                if (ps.getQuantiteConditionnement() != null) {
+                                    if (ps.getQuantiteConditionnement() < 0) {
+                                        java.util.Map<String, Object> err = new java.util.HashMap<>();
+                                        err.put("error", "Quantité invalide");
+                                        return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST).body(err);
+                                    }
+                                    int mul = 1;
+                                    if (existing.getStock() != null && existing.getStock().getProduit() != null && existing.getStock().getProduit().getNombreUnitesParConditionnement() != null) {
+                                        mul = existing.getStock().getProduit().getNombreUnitesParConditionnement();
+                                    } else {
+                                        java.util.Optional<Stock> sOpt = stockRepository.findById(stokId);
+                                        if (sOpt.isPresent() && sOpt.get().getProduit() != null && sOpt.get().getProduit().getNombreUnitesParConditionnement() != null) mul = sOpt.get().getProduit().getNombreUnitesParConditionnement();
+                                    }
+                                    effectiveQty = ps.getQuantiteConditionnement() * mul;
+                                }
+                                existing.setQuantite(effectiveQty);
+                                existing.setQuantiteConditionnement(ps.getQuantiteConditionnement());
                                 existing.setNewPrice((int) ps.getPrix());
                                 ligneCommandeRepository.save(existing);
                                 // also update the in-memory commande.lignes if present
@@ -529,6 +596,7 @@ public class CommandeFournisseurController {
                                     for (com.smboutique.api.model.LigneCommande lc : commande.getLignes()) {
                                         if (lc.getId() != null && lc.getId().equals(existing.getId())) {
                                             lc.setQuantite(existing.getQuantite());
+                                            lc.setQuantiteConditionnement(existing.getQuantiteConditionnement());
                                             lc.setNewPrice(existing.getNewPrice());
                                             break;
                                         }
@@ -543,7 +611,19 @@ public class CommandeFournisseurController {
                                 }
                                 Stock s = stockOpt.get();
                                 newL.setStock(s);
-                                newL.setQuantite(ps.getQuantite());
+                                int effectiveQtyNew = ps.getQuantite();
+                                if (ps.getQuantiteConditionnement() != null) {
+                                    if (ps.getQuantiteConditionnement() < 0) {
+                                        java.util.Map<String, Object> err = new java.util.HashMap<>();
+                                        err.put("error", "Quantité invalide");
+                                        return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST).body(err);
+                                    }
+                                    int mul = 1;
+                                    if (s.getProduit() != null && s.getProduit().getNombreUnitesParConditionnement() != null) mul = s.getProduit().getNombreUnitesParConditionnement();
+                                    effectiveQtyNew = ps.getQuantiteConditionnement() * mul;
+                                }
+                                newL.setQuantite(effectiveQtyNew);
+                                newL.setQuantiteConditionnement(ps.getQuantiteConditionnement());
                                 newL.setNewPrice((int) ps.getPrix());
                                 newL.setCommandeFournisseur(commande);
                                 // add to commande.lignes so cascade will persist it when saving commande

@@ -2,11 +2,13 @@ package com.smboutique.api.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 import java.time.LocalDateTime;
 import java.util.Set;
 
 @Entity
 @Data
+@ToString(exclude = {"roles", "permissions"})
 @Table(name = "utilisateur")
 public class Utilisateur {
     @Id

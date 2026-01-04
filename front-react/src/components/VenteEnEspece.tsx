@@ -437,7 +437,13 @@ const VenteEnEspece: React.FC = () => {
                                       ) : (
                                         <input type="number" min={0} className="form-control" value={l.quantiteConditionnement || 0} onChange={e => handleLineChange(idx, 'quantiteConditionnement', Number(e.target.value))} />
                                       )}
-                                      <small className="text-muted">Réel: {qreelle}</small>
+                                      <small className="text-muted">{l.venteParConditionnement && (l.quantiteConditionnement ?? 0) > 0 ? (() => {
+                                        const q = l.quantiteConditionnement || 0;
+                                        const unitRaw = l.produit?.unite?.libelle ?? 'cond';
+                                        const unit = typeof unitRaw === 'string' ? unitRaw : String(unitRaw);
+                                        const unitPlural = (q > 1 && !unit.toLowerCase().endsWith('s')) ? `${unit}s` : unit;
+                                        return `${q} ${unitPlural} ≈ ${qreelle} unités`;
+                                      })() : `Réel: ${qreelle}`}</small>
                                     </td>
                                     <td>
                                       <div className="input-group">

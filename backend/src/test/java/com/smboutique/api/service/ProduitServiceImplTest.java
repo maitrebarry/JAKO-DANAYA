@@ -73,7 +73,8 @@ public class ProduitServiceImplTest {
         Stock stock = captor.getValue();
         assertNull(stock.getMagasin(), "The created stock should be a boutique-level stock (magasin == null)");
         assertNotNull(stock.getQuantiteDisponible());
-        assertEquals(0, stock.getQuantiteDisponible().intValue());
+        // quantiteInitiale is expressed in conditionnements and should be converted to units (1*2 = 2)
+        assertEquals(2, stock.getQuantiteDisponible().intValue());
         assertNotNull(stock.getProduit());
         assertEquals(123L, stock.getProduit().getId().longValue());
         assertNotNull(stock.getBoutique());

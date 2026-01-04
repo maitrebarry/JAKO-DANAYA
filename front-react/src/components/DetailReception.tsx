@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import { formatServerDate } from '../utils/date';
+import { useUser } from '../contexts/UserContext';
 
 interface LigneReceptionDTO {
   idProduit: number;
@@ -10,6 +12,11 @@ interface LigneReceptionDTO {
   qteCommande: number;
   qteRecue: number;
   receptionActuelle: number;
+  quantiteConditionnement?: number | null;
+  quantiteConditionnementRecueThis?: number | null;
+  quantiteConditionnementRestante?: number | null;
+  nombreUnitesParConditionnement?: number | null;
+  uniteConditionnementLibelle?: string | null;
 }
 
 interface ReceptionDetail {
@@ -26,6 +33,7 @@ interface ReceptionDetail {
 const DetailReception: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { logout } = useUser();
   const [detail, setDetail] = useState<ReceptionDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -101,10 +109,25 @@ const DetailReception: React.FC = () => {
                         <tbody>
                           {detail.lignesReception.map((ligne, index) => (
                             <tr key={index}>
-                              <td>{ligne.designation}</td>
-                              <td>{ligne.qteCommande}</td>
-                              <td>{ligne.qteRecue}</td>
-                              <td>{ligne.receptionActuelle}</td>
+                              <td>
+                                {((ligne.quantiteConditionnement && ligne.quantiteConditionnement > 0) || (ligne.nombreUnitesParConditionnement && ligne.nombreUnitesParConditionnement > 1 && ligne.qteCommande % ligne.nombreUnitesParConditionnement === 0)) ? (
+                                  (() => {
+                                    const mul = ligne.nombreUnitesParConditionnement || 1;
+                                    const condCount = ligne.quantiteConditionnement && ligne.quantiteConditionnement > 0 ? ligne.quantiteConditionnement : Math.floor(ligne.qteCommande / mul);
+                                    return (
+                                      <div>
+                                        <div><strong>{condCount} {ligne.uniteConditionnementLibelle || 'carton'} {ligne.designation}</strong></div>
+                                        <div><small className="text-muted"># {ligne.qteCommande} u — 1 {ligne.uniteConditionnementLibelle ?? 'carton'} = {mul} u</small></div>
+                                      </div>
+                                    );
+                                  })()
+                                ) : (
+                                  <>{ligne.designation}</>
+                                )}
+                              </td>
+                              <td>{((ligne.quantiteConditionnement && ligne.quantiteConditionnement > 0) || (ligne.nombreUnitesParConditionnement && ligne.nombreUnitesParConditionnement > 1 && ligne.qteCommande % ligne.nombreUnitesParConditionnement === 0)) ? `${ligne.quantiteConditionnement && ligne.quantiteConditionnement > 0 ? ligne.quantiteConditionnement : Math.floor(ligne.qteCommande / (ligne.nombreUnitesParConditionnement || 1))} ${ligne.uniteConditionnementLibelle ?? 'carton'}` : ligne.qteCommande}</td>
+                              <td>{(ligne.quantiteConditionnementRecueThis && ligne.quantiteConditionnementRecueThis > 0) || ((ligne.nombreUnitesParConditionnement && ligne.nombreUnitesParConditionnement > 1 && ligne.qteRecue % ligne.nombreUnitesParConditionnement === 0) ? `${Math.floor(ligne.qteRecue / (ligne.nombreUnitesParConditionnement || 1))} ${ligne.uniteConditionnementLibelle ?? 'carton'}` : ligne.qteRecue)}</td>
+                              <td>{(ligne.quantiteConditionnementRestante && ligne.quantiteConditionnementRestante > 0) || ((ligne.nombreUnitesParConditionnement && ligne.nombreUnitesParConditionnement > 1 && ligne.receptionActuelle % ligne.nombreUnitesParConditionnement === 0) ? `${Math.floor(ligne.receptionActuelle / (ligne.nombreUnitesParConditionnement || 1))} ${ligne.uniteConditionnementLibelle ?? 'carton'}` : ligne.receptionActuelle)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -125,6 +148,11 @@ const DetailReception: React.FC = () => {
                       try {
                         const token = localStorage.getItem('smb_token');
                         const res = await fetch(`http://localhost:8085/api/receptions/${id}/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+                        if (res.status === 401) {
+                          await Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la page de connexion.', 'error');
+                          try { logout(); } catch (e) {}
+                          return;
+                        }
                         if (!res.ok) throw new Error('Impossible de générer le PDF');
                         const blob = await res.blob();
                         const url = URL.createObjectURL(blob);

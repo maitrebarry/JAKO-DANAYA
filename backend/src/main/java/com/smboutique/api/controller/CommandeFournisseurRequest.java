@@ -34,6 +34,7 @@ public class CommandeFournisseurRequest {
     public static class ProduitSelectionne {
         private Long id_stock;
         private int quantite;
+        private Integer quantiteConditionnement; // optional: quantity expressed in conditionnements
         private double prix;
 
         public Long getId_stock() { return id_stock; }
@@ -41,6 +42,9 @@ public class CommandeFournisseurRequest {
 
         public int getQuantite() { return quantite; }
         public void setQuantite(int quantite) { this.quantite = quantite; }
+
+        public Integer getQuantiteConditionnement() { return quantiteConditionnement; }
+        public void setQuantiteConditionnement(Integer quantiteConditionnement) { this.quantiteConditionnement = quantiteConditionnement; }
 
         public double getPrix() { return prix; }
         public void setPrix(double prix) { this.prix = prix; }

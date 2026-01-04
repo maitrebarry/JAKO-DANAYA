@@ -3,11 +3,13 @@ package com.smboutique.api.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 
 @Entity
 @Data
+@ToString(exclude = {"produit"})
 @Table(name = "stock")
 public class Stock {
     @Id

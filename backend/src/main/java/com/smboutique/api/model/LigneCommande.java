@@ -22,6 +22,9 @@ public class LigneCommande {
     private CommandeFournisseur commandeFournisseur;
 
     private Integer quantite;
+
+    @Column(name = "quantite_conditionnement")
+    private Integer quantiteConditionnement;
     
     @Column(name = "qte_livre")
     private Integer quantiteLivre;

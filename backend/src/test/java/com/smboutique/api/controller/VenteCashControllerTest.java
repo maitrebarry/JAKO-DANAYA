@@ -144,12 +144,12 @@ public class VenteCashControllerTest {
 
         List<Vente> ventes = venteRepository.findAll();
         assertThat(ventes).isNotEmpty();
-        Vente v = ventes.get(0);
+        Vente v = ventes.stream().filter(x -> Integer.valueOf(5000).equals(x.getMontantTotal()) && Integer.valueOf(5000).equals(x.getMontantRecu())).findFirst().orElseGet(() -> ventes.get(0));
         assertThat(v.getMontantTotal()).isEqualTo(5000);
 
         List<LigneVente> lvs = ligneVenteRepository.findAll();
         assertThat(lvs).isNotEmpty();
-        LigneVente lv = lvs.get(0);
+        LigneVente lv = lvs.stream().filter(a -> a.getProduit() != null && a.getProduit().getId().equals(produit.getId())).findFirst().orElseGet(() -> lvs.get(0));
         assertThat(lv.getQuantite()).isEqualTo(2);
 
         // Find the mouvement related to the stock we used in this test to avoid colliding with pre-existing mouvements
@@ -193,8 +193,9 @@ public class VenteCashControllerTest {
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail())))
                 .andExpect(status().isBadRequest());
 
-        // Verify rollback: no vente persisted and stock unchanged
-        assertThat(venteRepository.findAll()).isEmpty();
+        // Verify rollback: no vente with this reference or montant persisted and stock unchanged
+        boolean noMatchingVente = venteRepository.findAll().stream().noneMatch(v -> "CASH-2".equals(v.getReferenceCaisse()) || Integer.valueOf(100000).equals(v.getMontantTotal()));
+        assertThat(noMatchingVente).isTrue();
         Stock updated = stockRepository.findById(stock.getId()).orElseThrow();
         assertThat(updated.getQuantiteDisponible()).isEqualTo(10);
     }
@@ -238,6 +239,7 @@ public class VenteCashControllerTest {
         assertThat(lvs).isNotEmpty();
         LigneVente lv = lvs.get(0);
         assertThat(lv.getQuantite()).isEqualTo(12);
+        assertThat(lv.getQuantiteConditionnement()).isEqualTo(1);
 
         List<Mouvement> mvts = mouvementRepository.findAll().stream().filter(mt -> mt.getStock() != null && mt.getStock().getId().equals(savedS2.getId())).toList();
         assertThat(mvts).isNotEmpty();
@@ -286,6 +288,7 @@ public class VenteCashControllerTest {
 
         LigneVente lv = ligneVenteRepository.findAll().stream().filter(l -> l.getProduit() != null && l.getProduit().getId().equals(savedP3.getId())).findFirst().orElseThrow();
         assertThat(lv.getQuantite()).isEqualTo(real);
+        assertThat(lv.getQuantiteConditionnement()).isEqualTo(qCond);
 
         Mouvement m = mouvementRepository.findAll().stream().filter(mt -> mt.getStock() != null && mt.getStock().getId().equals(savedS3.getId())).findFirst().orElseThrow();
         assertThat(m.getQuantite()).isEqualTo(real);

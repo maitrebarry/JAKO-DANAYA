@@ -229,8 +229,9 @@ public class MagasinController {
         }
         Long produitId = body.get("produitId") == null ? null : Long.valueOf(body.get("produitId").toString());
         Integer quantite = body.get("quantite") == null ? null : Integer.valueOf(body.get("quantite").toString());
-        if (produitId == null || quantite == null) {
-            return ResponseEntity.badRequest().body(java.util.Map.of("error", "produitId et quantite sont requis"));
+        Integer quantiteConditionnement = body.get("quantiteConditionnement") == null ? null : Integer.valueOf(body.get("quantiteConditionnement").toString());
+        if (produitId == null || (quantite == null && quantiteConditionnement == null)) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", "produitId et quantite (ou quantiteConditionnement) sont requis"));
         }
 
         return magasinService.findById(id)
@@ -261,8 +262,14 @@ public class MagasinController {
                     }
 
                     try {
+                        // compute final quantity in units without mutating enclosing variable
+                        Integer finalQuantite = quantite;
+                        if (finalQuantite == null && quantiteConditionnement != null) {
+                            Integer mul = source.getProduit() != null && source.getProduit().getNombreUnitesParConditionnement() != null ? source.getProduit().getNombreUnitesParConditionnement() : 1;
+                            finalQuantite = quantiteConditionnement * mul;
+                        }
                         // delegate to TransferService (transactional)
-                        transferService.transfer(source.getId(), dest.getId(), quantite);
+                        transferService.transfer(source.getId(), dest.getId(), finalQuantite);
                         // reload stocks to report quantities
                         java.util.Optional<com.smboutique.api.model.Stock> s2 = stockService.getStockByProduitAndMagasin(produitId, id);
                         java.util.List<com.smboutique.api.model.Stock> bs2 = stockService.getStocksByProduitAndBoutique(produitId, magasin.getBoutique().getId());
@@ -273,7 +280,7 @@ public class MagasinController {
                                 if (bs.getMagasin() == null) { boutQty = bs.getQuantiteDisponible() == null ? 0 : bs.getQuantiteDisponible(); break; }
                             }
                         }
-                        return ResponseEntity.ok(java.util.Map.of("success", true, "quantiteTransferee", quantite, "stockMagasin", magQty, "stockBoutique", boutQty));
+                        return ResponseEntity.ok(java.util.Map.of("success", true, "quantiteTransferee", finalQuantite, "stockMagasin", magQty, "stockBoutique", boutQty));
                     } catch (IllegalArgumentException ex) {
                         return ResponseEntity.badRequest().body(java.util.Map.of("error", ex.getMessage()));
                     } catch (Exception ex) {

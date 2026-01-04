@@ -78,8 +78,26 @@
     <tbody>
     <tr th:each="ligne : ${lignesView}">
         <td th:text="${ligne.designation}"></td>
-        <td class="right" th:text="${#numbers.formatInteger(ligne.qteCommande, 0)}"></td>
-        <td class="right" th:text="${#numbers.formatInteger(ligne.qteLivreeThis != null ? ligne.qteLivreeThis : (ligne.quantite != null ? ligne.quantite : 0), 0)}"></td>
+        <td class="right">
+            <span th:if="${ligne.quantiteConditionnement != null and ligne.quantiteConditionnement > 0}">
+                <span th:text="${#numbers.formatInteger(ligne.quantiteConditionnement,0)}">0</span> <span th:text="${ligne.stock != null && ligne.stock.produit != null && ligne.stock.produit.unite != null ? ligne.stock.produit.unite.libelle : 'carton'}">carton</span>
+                <br/>
+                <small>(≈ <span th:text="${#numbers.formatInteger(ligne.qteCommande,0)}">0</span> u
+                    <span th:if="${ligne.stock != null and ligne.stock.produit != null and ligne.stock.produit.nombreUnitesParConditionnement != null}"> — 1 <span th:text="${ligne.stock.produit.unite != null ? ligne.stock.produit.unite.libelle : 'carton'}">carton</span> = <span th:text="${ligne.stock.produit.nombreUnitesParConditionnement}">0</span> u</span>
+                 )</small>
+            </span>
+            <span th:unless="${ligne.quantiteConditionnement != null and ligne.quantiteConditionnement > 0}" th:text="${#numbers.formatInteger(ligne.qteCommande, 0)}">0</span>
+        </td>
+        <td class="right">
+            <span th:if="${ligne.quantiteConditionnement != null and ligne.quantiteConditionnement > 0}">
+                <span th:text="${#numbers.formatInteger(ligne.quantiteConditionnement,0)}">0</span> cond
+                <br/>
+                <small>(≈ <span th:text="${#numbers.formatInteger(ligne.qteLivreeThis != null ? ligne.qteLivreeThis : (ligne.quantite != null ? ligne.quantite : 0),0)}">0</span> u
+                    <span th:if="${ligne.stock != null and ligne.stock.produit != null and ligne.stock.produit.nombreUnitesParConditionnement != null}"> — 1 cond = <span th:text="${ligne.stock.produit.nombreUnitesParConditionnement}">0</span> u</span>
+                 )</small>
+            </span>
+            <span th:unless="${ligne.quantiteConditionnement != null and ligne.quantiteConditionnement > 0}" th:text="${#numbers.formatInteger(ligne.qteLivreeThis != null ? ligne.qteLivreeThis : (ligne.quantite != null ? ligne.quantite : 0), 0)}">0</span>
+        </td>
         <td class="right" th:text="${#numbers.formatInteger(ligne.qteRestante != null ? ligne.qteRestante : 0, 0)}"></td>
     </tr>
     </tbody>

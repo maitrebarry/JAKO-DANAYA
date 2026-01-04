@@ -240,6 +240,23 @@ const Historique: React.FC = () => {
         }
       }
 
+      // Top metadata block (Réf / Date / Commande)
+      pdf.setFontSize(10);
+      const metaX = 40;
+      pdf.text(`Réf: ${detail.reference || receptionId}`, metaX, headerY + 18);
+      pdf.text(`Date: ${formatServerDate(detail.dateReception) || ''}`, metaX, headerY + 34);
+      pdf.text(`Commande: ${detail.commandeFournisseur?.reference || ''}`, metaX, headerY + 50);
+
+      // Boutique info centered above the title (fallback to sensible defaults)
+      pdf.setFontSize(11);
+      const boutiqueName = detail.commandeFournisseur?.boutique?.nom || 'MAKAN-SERVICE';
+      const boutiquePhone = detail.commandeFournisseur?.boutique?.telephone || '76543218';
+      const boutiqueVille = detail.commandeFournisseur?.boutique?.ville || 'Kayes';
+      pdf.text(boutiqueName, pageWidth / 2, headerY + 12, { align: 'center' });
+      pdf.setFontSize(10);
+      pdf.text(`${boutiquePhone}`, pageWidth / 2, headerY + 26, { align: 'center' });
+      pdf.text(`${boutiqueVille}`, pageWidth / 2, headerY + 40, { align: 'center' });
+
       // Centered boxed title
       const title = `BON DE RECEPTION N : ${detail.reference || receptionId}`;
       pdf.setLineWidth(0.9);
@@ -247,30 +264,66 @@ const Historique: React.FC = () => {
       const tw = pdf.getTextWidth(title);
       const rectW = tw + 12;
       const rectX = (pageWidth - rectW) / 2;
-      pdf.rect(rectX, headerY + 8, rectW, 14);
-      pdf.text(title, pageWidth / 2, headerY + 18, { align: 'center' });
+      pdf.rect(rectX, headerY + 54, rectW, 14);
+      pdf.text(title, pageWidth / 2, headerY + 66, { align: 'center' });
 
-      // Metadata centered below
+      // Supplier / received date centered below
       pdf.setFontSize(10);
       const fournisseurText = `FOURNISSEUR: ${detail.fournisseur || ''}   RECU le: ${formatServerDate(detail.dateReception) || ''}`;
-      pdf.text(fournisseurText, pageWidth / 2, headerY + 36, { align: 'center' });
+      pdf.text(fournisseurText, pageWidth / 2, headerY + 84, { align: 'center' });
 
-      // Table header
-      let startY = headerY + 60;
+      // Table header for reception lines
+      let startY = headerY + 104;
       pdf.setFontSize(10);
-      pdf.text('Désignation', 40, startY);
-      pdf.text('Qté Cmd', 240, startY);
-      pdf.text('Qté Reçue', 320, startY);
-      pdf.text('Qté Restante', 420, startY);
+      pdf.text('DÉSIGNATION', 40, startY);
+      pdf.text('QTÉ CMD', 240, startY);
+      pdf.text('QTÉ REÇUE', 340, startY);
+      pdf.text('QTÉ RESTANTE', 460, startY);
       startY += 12;
 
+      // Render each reception line with conditionnement-aware designation and qty displays
       (detail.lignesReception || []).forEach((ligne: any, i: number) => {
-        const y = startY + i * 14;
-        pdf.text(ligne.designation || '', 40, y);
-        pdf.text(String(ligne.qteCommande || ''), 240, y);
-        pdf.text(String(ligne.qteRecue || ''), 320, y);
-        pdf.text(String((ligne.qteCommande || 0) - (ligne.qteRecue || 0)), 420, y);
+        const y = startY + i * 20;
+        const mul = ligne.nombreUnitesParConditionnement || 1;
+        const unitLabel = ligne.uniteConditionnementLibelle || 'carton';
+        const condCmd = (ligne.quantiteConditionnement && ligne.quantiteConditionnement > 0) ? ligne.quantiteConditionnement : ((mul > 1 && ligne.qteCommande % mul === 0) ? Math.floor(ligne.qteCommande / mul) : null);
+
+        if (condCmd) {
+          const approx = mul ? `(# ${ligne.qteCommande} u — 1 ${unitLabel} = ${mul} u )` : '';
+          pdf.setFontSize(10);
+          pdf.text(`${condCmd} ${unitLabel} de ${ligne.designation || ''}`, 40, y);
+          pdf.setFontSize(9);
+          if (approx) pdf.text(`${approx}`, 40, y + 10);
+          pdf.setFontSize(10);
+
+          const qCmdDisplay = `${condCmd} ${unitLabel}`;
+          const condRec = (ligne.quantiteConditionnementRecueThis && ligne.quantiteConditionnementRecueThis > 0) ? ligne.quantiteConditionnementRecueThis : ((mul > 1 && (ligne.qteRecue || 0) % mul === 0) ? Math.floor((ligne.qteRecue || 0) / mul) : null);
+          const qRecDisplay = condRec ? `${condRec} ${unitLabel}` : String(ligne.qteRecue || 0);
+          const condRest = (ligne.quantiteConditionnementRestante && ligne.quantiteConditionnementRestante > 0) ? ligne.quantiteConditionnementRestante : ((mul > 1 && (ligne.receptionActuelle || 0) % mul === 0) ? Math.floor((ligne.receptionActuelle || 0) / mul) : null);
+          const qRestDisplay = condRest ? `${condRest} ${unitLabel}` : String(ligne.receptionActuelle || 0);
+
+          pdf.text(qCmdDisplay, 240, y);
+          pdf.text(qRecDisplay, 340, y);
+          pdf.text(qRestDisplay, 460, y);
+        } else {
+          pdf.setFontSize(10);
+          pdf.text(ligne.designation || '', 40, y);
+          pdf.text(String(ligne.qteCommande || ''), 240, y);
+          pdf.text(String(ligne.qteRecue || ''), 340, y);
+          pdf.text(String(ligne.receptionActuelle || ''), 460, y);
+        }
       });
+
+      // Signature line and footer company info
+      let afterLinesY = startY + Math.max((detail.lignesReception || []).length * 20, 20) + 20;
+      pdf.setFontSize(10);
+      pdf.text('Signature: __________________________', 40, afterLinesY);
+
+      // Repeated company footer
+      afterLinesY += 24;
+      pdf.text(boutiqueName, 40, afterLinesY);
+      pdf.text(boutiquePhone, 40, afterLinesY + 14);
+      pdf.text(boutiqueVille, 40, afterLinesY + 28);
 
       pdf.save(`reception-${detail.reference || receptionId}.pdf`);
       Swal.close();
@@ -361,10 +414,20 @@ const Historique: React.FC = () => {
         pdf.text('Qté Reçue', 320, startY);
         startY += 12;
         (paie.commandeFournisseur.lignes || []).forEach((ligne: any, i: number) => {
-          const y = startY + i * 14;
-          pdf.text(ligne.designation || '', 40, y);
-          pdf.text(String(ligne.quantite || ''), 240, y);
-          pdf.text(String(ligne.quantiteLivre || ''), 320, y);
+          const y = startY + i * 18;
+          if (ligne.quantiteConditionnement && ligne.quantiteConditionnement > 0) {
+            pdf.text(ligne.designation || '', 40, y);
+            const approx = ligne.nombreUnitesParConditionnement ? `≈ ${ligne.quantiteConditionnement * ligne.nombreUnitesParConditionnement} u` : `(${ligne.quantiteConditionnement} carton)`;
+            pdf.setFontSize(9);
+            pdf.text(`${ligne.quantiteConditionnement} carton ${approx}`, 40, y + 10);
+            pdf.setFontSize(10);
+            pdf.text(String(ligne.quantite || ''), 240, y);
+            pdf.text(String(ligne.quantiteLivre || ''), 320, y);
+          } else {
+            pdf.text(ligne.designation || '', 40, y);
+            pdf.text(String(ligne.quantite || ''), 240, y);
+            pdf.text(String(ligne.quantiteLivre || ''), 320, y);
+          }
         });
       }
 

@@ -182,6 +182,7 @@ public class VenteController {
 
                 lcc.setProduit(s.getProduit());
                 lcc.setQuantite(quantiteReelle);
+                lcc.setQuantiteConditionnement(pl.quantiteConditionnement);
                 lcc.setQuantiteLivre(0);
                 lcc.setNewPrice(pl.prix == null ? 0 : pl.prix);
                 // set price mode if provided
@@ -331,6 +332,7 @@ public class VenteController {
                 lv.setVente(v);
                 lv.setProduit(s.getProduit());
                 lv.setQuantite(quantiteReelle);
+                lv.setQuantiteConditionnement(pl.quantiteConditionnement);
                 lv.setQuantiteLivre(quantiteReelle);
                 lv.setNewPrice(pl.prix == null ? 0 : pl.prix);
                 if (pl.priceMode != null) {

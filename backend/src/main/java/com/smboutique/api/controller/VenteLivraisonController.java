@@ -61,6 +61,8 @@ public class VenteLivraisonController {
         public Long ligneVenteId;
         public Long stockId;
         public Integer quantite;
+        // optional: quantity expressed in conditionnement (e.g., packs)
+        public Integer quantiteConditionnement;
     }
 
     public static class VenteLivraisonRequest {
@@ -142,28 +144,36 @@ public class VenteLivraisonController {
                             .orElseThrow(() -> new RuntimeException("Stock boutique introuvable pour ce produit dans la boutique de l'utilisateur"));
                 }
 
+                // compute requested qty in units
+                int qtyUnits = 0;
+                if (lr.quantite != null && lr.quantite > 0) qtyUnits = lr.quantite;
+                else if (lr.quantiteConditionnement != null && lr.quantiteConditionnement > 0) {
+                    Integer mul = lc.getProduit() != null && lc.getProduit().getNombreUnitesParConditionnement() != null ? lc.getProduit().getNombreUnitesParConditionnement() : 1;
+                    qtyUnits = lr.quantiteConditionnement * mul;
+                }
+
                 // decrement stock
                 Integer available = stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0;
-                stock.setQuantiteDisponible(available - lr.quantite);
+                stock.setQuantiteDisponible(available - qtyUnits);
                 stockService.saveStock(stock);
 
                 // create ligne livraison
                 LigneLivraison ligneLivraison = new LigneLivraison();
                 ligneLivraison.setLivraison(savedLiv);
-                ligneLivraison.setQuantiteRecu(lr.quantite);
+                ligneLivraison.setQuantiteRecu(qtyUnits);
                 ligneLivraison.setProduit(lc.getProduit());
                 ligneLivraisonService.save(ligneLivraison);
 
                 // update qte_livre on ligne vente
                 Integer qteLivreActuelle = lc.getQuantiteLivre() != null ? lc.getQuantiteLivre() : 0;
-                lc.setQuantiteLivre(qteLivreActuelle + lr.quantite);
+                lc.setQuantiteLivre(qteLivreActuelle + qtyUnits);
                 ligneVenteService.save(lc);
 
                 // create mouvement (SORTIE)
                 Mouvement mv = new Mouvement();
                 mv.setLigneVente(lc);
                 mv.setProduit(lc.getProduit());
-                mv.setQuantite(lr.quantite);
+                mv.setQuantite(qtyUnits);
                 mv.setTypeMouvement("SORTIE");
                 mv.setDateMouvement(LocalDateTime.now());
                 mv.setStock(stock);

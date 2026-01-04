@@ -325,18 +325,80 @@ public class ReceptionController {
         List<ReceptionDTO.LigneReceptionDTO> lignesDTO = new ArrayList<>();
         for (LigneCommande lc : lignesCommande) {
             ReceptionDTO.LigneReceptionDTO ligneDTO = new ReceptionDTO.LigneReceptionDTO();
-            ligneDTO.setIdProduit(lc.getStock().getProduit().getId());
-            ligneDTO.setDesignation(lc.getStock().getProduit().getNomProduit());
-            ligneDTO.setDepot(""); // Assuming no depot
-            ligneDTO.setStock(0); // Assuming no stock
+            // Defensive access: stock or produit may be null
+            if (lc.getStock() != null && lc.getStock().getProduit() != null) {
+                ligneDTO.setIdProduit(lc.getStock().getProduit().getId());
+                ligneDTO.setDesignation(lc.getStock().getProduit().getNomProduit());
+            } else {
+                ligneDTO.setIdProduit(null);
+                ligneDTO.setDesignation(lc.getDesignation() != null ? lc.getDesignation() : "Produit");
+            }
+            ligneDTO.setDepot(""); // Depot will be resolved client-side when needed
+            ligneDTO.setStock(lc.getStock() != null && lc.getStock().getQuantiteDisponible() != null ? lc.getStock().getQuantiteDisponible() : 0);
             ligneDTO.setQteCommande(lc.getQuantite());
-            // Find qteRecue
-            Integer qteRecue = lignesReception.stream()
-                .filter(lr -> lr.getProduit().getId().equals(lc.getStock().getProduit().getId()))
+            // carry over quantiteConditionnement when present; also derive from units if divisible
+            try { 
+                Integer qCond = lc.getQuantiteConditionnement();
+                Integer nombreUnites = null;
+                String uniteLibelle = null;
+                if (lc.getStock() != null && lc.getStock().getProduit() != null) {
+                    nombreUnites = lc.getStock().getProduit().getNombreUnitesParConditionnement();
+                    if (lc.getStock().getProduit().getUnite() != null) uniteLibelle = lc.getStock().getProduit().getUnite().getLibelle();
+                    ligneDTO.setNombreUnitesParConditionnement(nombreUnites);
+                    ligneDTO.setUniteConditionnementLibelle(uniteLibelle);
+                }
+                // If explicit conditionnement count is missing but qteCommande is divisible, derive it
+                if (qCond == null && nombreUnites != null && nombreUnites > 1 && lc.getQuantite() != null && lc.getQuantite() % nombreUnites == 0) {
+                    qCond = lc.getQuantite() / nombreUnites;
+                }
+                ligneDTO.setQuantiteConditionnement(qCond);
+            } catch (Exception ex) { /* ignore */ }
+            // Compute cumulative received up to and including this reception (sum over all receptions for the commande)
+            int cumulativeRecue = 0;
+            try {
+                java.util.List<com.smboutique.api.model.Reception> allRecsForCommande = receptionService.findByCommandeFournisseurId(reception.getCommandeFournisseur().getId());
+                if (allRecsForCommande != null) {
+                    for (com.smboutique.api.model.Reception r : allRecsForCommande) {
+                        if (r.getDateReception() == null || reception.getDateReception() == null) continue;
+                        boolean beforeOrEqual = r.getDateReception().isBefore(reception.getDateReception()) || r.getDateReception().isEqual(reception.getDateReception());
+                        if (!beforeOrEqual) continue;
+                        java.util.List<com.smboutique.api.model.LigneReception> lrs = ligneReceptionService.findByReceptionId(r.getId());
+                        int s = lrs.stream()
+                                .filter(lr -> lr.getProduit() != null && lr.getProduit().getId() != null && lc.getStock() != null && lc.getStock().getProduit() != null && lr.getProduit().getId().equals(lc.getStock().getProduit().getId()))
+                                .mapToInt(com.smboutique.api.model.LigneReception::getQuantiteRecu)
+                                .sum();
+                        cumulativeRecue += s;
+                    }
+                }
+            } catch (Exception ex) { /* ignore */ }
+
+            // qteRecue should be the quantity received IN THIS reception (units)
+            Integer qteRecueThis = lignesReception.stream()
+                .filter(lr -> lr.getProduit() != null && lc.getStock() != null && lc.getStock().getProduit() != null && lr.getProduit().getId().equals(lc.getStock().getProduit().getId()))
                 .mapToInt(LigneReception::getQuantiteRecu)
                 .sum();
-            ligneDTO.setQteRecue(qteRecue);
-            ligneDTO.setReceptionActuelle(lc.getQuantite() - qteRecue);
+            // conditionnement received this reception (if any)
+            Integer qteCondRecueThis = lignesReception.stream()
+                .filter(lr -> lr.getProduit() != null && lc.getStock() != null && lc.getStock().getProduit() != null && lr.getProduit().getId().equals(lc.getStock().getProduit().getId()))
+                .mapToInt(lr -> lr.getQuantiteConditionnement() != null ? lr.getQuantiteConditionnement() : 0)
+                .sum();
+
+            ligneDTO.setQteRecue(qteRecueThis);
+            // Remaining quantity after this reception (cumulative across receptions up to this one)
+            ligneDTO.setReceptionActuelle(Math.max(lc.getQuantite() - cumulativeRecue, 0));
+
+            // set conditionnement-specific received and remaining counts when divisible
+            Integer nombreUnites = ligneDTO.getNombreUnitesParConditionnement();
+            if (nombreUnites != null && nombreUnites > 1) {
+                if (lc.getQuantite() % nombreUnites == 0) ligneDTO.setQuantiteConditionnement(lc.getQuantite() / nombreUnites);
+                // if we have explicit cond counts from LigneReception use them; otherwise derive from unit counts when divisible
+                if (qteCondRecueThis != null && qteCondRecueThis > 0) {
+                    ligneDTO.setQuantiteConditionnementRecueThis(qteCondRecueThis);
+                } else if (qteRecueThis != null && nombreUnites > 1 && qteRecueThis % nombreUnites == 0) {
+                    ligneDTO.setQuantiteConditionnementRecueThis(qteRecueThis / nombreUnites);
+                }
+                if (Math.max(lc.getQuantite() - cumulativeRecue,0) % nombreUnites == 0) ligneDTO.setQuantiteConditionnementRestante(Math.max(lc.getQuantite() - cumulativeRecue,0) / nombreUnites);
+            }
             lignesDTO.add(ligneDTO);
         }
         dto.setLignesReception(lignesDTO);
@@ -436,14 +498,30 @@ public class ReceptionController {
 
             for (LigneCommande ligne : commande.getLignes()) {
                 Integer qteLivre = ligne.getQuantiteLivre() != null ? ligne.getQuantiteLivre() : 0;
-                
+
                 // Ne retourner que les articles qui ne sont pas complètement reçus
                 if (ligne.getQuantite() > qteLivre) {
                     ReceptionDTO.LigneReceptionDTO dto = new ReceptionDTO.LigneReceptionDTO();
-                    dto.setIdProduit(ligne.getStock().getProduit().getId());
-                    dto.setDesignation(ligne.getStock().getProduit().getNomProduit());
-                    dto.setDepot(ligne.getStock().getMagasin().getNom());
-                    dto.setStock(ligne.getStock().getQuantiteDisponible());
+                    // Defensive: stock or produit may be null in some legacy records
+                    Stock s = ligne.getStock();
+                    if (s != null && s.getProduit() != null) {
+                        dto.setIdProduit(s.getProduit().getId());
+                        dto.setDesignation(s.getProduit().getNomProduit());
+                    } else {
+                        // fallback to ligne.designation if present, else null
+                        dto.setIdProduit(null);
+                        dto.setDesignation(ligne.getDesignation() != null ? ligne.getDesignation() : "Produit");
+                    }
+
+                    // Depot: prefer magasin name when present, else boutique name, else empty
+                    String depotName = "";
+                    if (s != null) {
+                        if (s.getMagasin() != null && s.getMagasin().getNom() != null) depotName = s.getMagasin().getNom();
+                        else if (s.getBoutique() != null && s.getBoutique().getNom() != null) depotName = s.getBoutique().getNom();
+                    }
+                    dto.setDepot(depotName);
+
+                    dto.setStock(s != null && s.getQuantiteDisponible() != null ? s.getQuantiteDisponible() : 0);
                     dto.setQteCommande(ligne.getQuantite());
                     dto.setQteRecue(qteLivre);
                     // Quantité restante à recevoir = quantité commandée - quantité déjà reçue
@@ -669,12 +747,14 @@ public class ReceptionController {
         Stock stock = ligneCommande.getStock();
         if (stock == null) return java.math.BigDecimal.ZERO;
 
-        // Convert reception quantity to real units according to product's conditionnement
+        // receptionQty is expected to be expressed in UNITS (base units). Older code multiplied by multiplicateur
+        // (conditionnement) which caused double multiplication when front-end already provided unit counts.
+        // Therefore we treat receptionQty as units and use it directly as quantiteReelle.
         com.smboutique.api.model.Produit produit = stock.getProduit();
         int multiplicateur = (produit != null && produit.getNombreUnitesParConditionnement() != null && produit.getNombreUnitesParConditionnement() > 0)
                 ? produit.getNombreUnitesParConditionnement()
                 : 1;
-        int quantiteReelle = receptionQty * multiplicateur;
+        int quantiteReelle = receptionQty; // already units
 
         int currentQty = stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0;
         java.math.BigDecimal currentCostAverage = stock.getCostAverage() != null ? stock.getCostAverage() : java.math.BigDecimal.ZERO;

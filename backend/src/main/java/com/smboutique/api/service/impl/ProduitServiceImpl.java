@@ -185,10 +185,10 @@ public class ProduitServiceImpl implements ProduitService {
         Stock boutiqueStock = new Stock();
         boutiqueStock.setProduit(savedProduit);
         boutiqueStock.setMagasin(null); // stock global de la boutique
-        // set boutique owner and create with zero quantity at product creation
+        // set boutique owner and create with the computed initial quantity (in units)
         com.smboutique.api.model.Boutique b = boutiqueRepository.findById(boutiqueId).orElse(null);
         boutiqueStock.setBoutique(b);
-        boutiqueStock.setQuantiteDisponible(0);
+        boutiqueStock.setQuantiteDisponible(stockReel);
         // CMP / last purchase intentionally left null until first reception
         boutiqueStock.setCostAverage(null);
         boutiqueStock.setLastPurchasePrice(null);

@@ -346,7 +346,15 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
             multiplicateur = getProduitMultiplicateur(miniProd as any);
           }
 
-          return { uid: uidVal, id_stock: stockId || null, ligneId: l.id || null, produitId: l.produit?.id || null, nom: nomProduit, quantite, prix, montant: prix * quantite, multiplicateur, ...(isVente ? { venteParConditionnement: false, quantiteConditionnement: 1 } : {}) };
+          // Determine if the saved ligne was entered by conditionnement and restore it for editing
+          let savedQuantiteConditionnement = undefined as number | undefined;
+          if (l.quantiteConditionnement !== undefined && l.quantiteConditionnement !== null) savedQuantiteConditionnement = l.quantiteConditionnement;
+          else if (multiplicateur > 1 && l.quantite && l.quantite % multiplicateur === 0) savedQuantiteConditionnement = l.quantite / multiplicateur;
+
+          const venteParConditionnement = savedQuantiteConditionnement !== undefined && savedQuantiteConditionnement > 0;
+          const qCond = savedQuantiteConditionnement || 1;
+
+          return { uid: uidVal, id_stock: stockId || null, ligneId: l.id || null, produitId: l.produit?.id || null, nom: nomProduit, quantite: quantite, prix, montant: prix * quantite, multiplicateur, venteParConditionnement, quantiteConditionnement: venteParConditionnement ? qCond : undefined };
         });
         setCart(loadedCart);
       }
@@ -452,18 +460,24 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
       }
 
       const multiplicateur = getProduitMultiplicateur(stock);
+      // Default behaviour: for achats (isVente === false) prefer saisie par conditionnement
+      const defaultVenteParConditionnement = !isVente;
+      const initialQuantiteConditionnement = 1;
+      const initialQuantiteUnits = (multiplicateur && multiplicateur > 0) ? (multiplicateur * initialQuantiteConditionnement) : 1;
       const newItem: CartItem = {
         uid: nextUid(),
         id_stock: stock.id,
         produitId: stock.produit?.id,
         nom: getProductDisplayName(stock),
-        quantite: 1,
+        // quantite always represents units; when using conditionnement we keep quantiteConditionnement
+        quantite: defaultVenteParConditionnement ? initialQuantiteUnits : 1,
         prix: defaultPrice,
-        montant: defaultPrice,
+        montant: defaultPrice * (defaultVenteParConditionnement ? initialQuantiteUnits : 1),
         multiplicateur: multiplicateur,
-        // Add conditionnement fields only for sales so achat remains unchanged
-        ...(isVente ? { venteParConditionnement: false, quantiteConditionnement: 1 } : {})
-      };  
+        // Default to conditionnement for achats, unit for ventes
+        venteParConditionnement: defaultVenteParConditionnement,
+        quantiteConditionnement: initialQuantiteConditionnement
+      };
 
       setCart(prev => [...prev, newItem]);
     } catch (error) {
@@ -485,22 +499,21 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
   };
 
   const updateConditionnementQuantity = (uid: string, quantiteConditionnement: number) => {
-    if (!isVente) return; // guard: only for ventes
     setCart(prev => prev.map(item => {
       if (item.uid !== uid) return item;
       if (!item.venteParConditionnement) return item;
       const stock = stocks.find(s => s.id === item.id_stock);
       const multiplier = getProduitMultiplicateur(stock);
-      const realQ = quantiteConditionnement * multiplier;
+      const realQ = quantiteConditionnement * (multiplier || 1);
       const newMontant = item.prix * realQ;
-      const updated = { ...item, quantiteConditionnement, montant: newMontant };
+      // Keep quantite in units for stock-impact and history
+      const updated = { ...item, quantiteConditionnement, quantite: realQ, montant: newMontant };
       if (process.env.NODE_ENV !== 'production') console.debug('updateConditionnementQuantity', { uid, quantiteConditionnement, multiplier, updated });
       return updated;
     }));
   };
 
   const toggleVenteParConditionnement = (uid: string, venteParConditionnement: boolean) => {
-    if (!isVente) return; // guard: only allow toggling in sale mode
     setCart(prev => prev.map(item => {
       if (item.uid !== uid) return item;
       const stock = stocks.find(s => s.id === item.id_stock);
@@ -508,13 +521,26 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
       console.debug('toggleVenteParConditionnement called', { uid, venteParConditionnement, multiplier });
       // initialize quantiteConditionnement to 1 when turning on
       const qCond = venteParConditionnement ? (item.quantiteConditionnement || 1) : item.quantite;
-      const realQ = venteParConditionnement ? qCond * (multiplier || 1) : (item.quantite || 1);
-      // If product has no multiplier, do not switch to conditionnement
-      if (venteParConditionnement && (!multiplier || multiplier <= 1)) {
-        console.debug('Cannot switch to conditionnement: multiplier missing or <=1', { uid, multiplier });
-        return item;
+
+      // Business rules:
+      // - For Vente: allow unit input; conditionnement only if multiplier>1 (keep existing behavior)
+      // - For Achat: default is conditionnement; switching to units is allowed ONLY if multiplier>1 (fractionnable)
+      if (isVente) {
+        if (venteParConditionnement && (!multiplier || multiplier <= 1)) {
+          console.debug('Cannot switch to conditionnement in vente: multiplier missing or <=1', { uid, multiplier });
+          return item;
+        }
+      } else {
+        // Achat flows: disallow switching to unit input when product is not fractionnable
+        if (!venteParConditionnement && (!multiplier || multiplier <= 1)) {
+          Swal.fire('Interdit', 'La saisie à l\'unité n\'est autorisée que si le produit est fractionnable (nombre_unites_par_conditionnement > 1).', 'error');
+          return item;
+        }
       }
-      return { ...item, venteParConditionnement, quantiteConditionnement: venteParConditionnement ? qCond : undefined, quantite: venteParConditionnement ? 1 : (item.quantite || 1), montant: item.prix * realQ };
+
+      // Update stored unit quantity when conditionnement changes so stock-impacting quantity is always in units
+      const updatedQuantite = venteParConditionnement ? (qCond * (multiplier || 1)) : (item.quantite || 1);
+      return { ...item, venteParConditionnement, quantiteConditionnement: venteParConditionnement ? qCond : undefined, quantite: updatedQuantite, montant: item.prix * (updatedQuantite || 0) };
     }));
   };
 
@@ -544,20 +570,14 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
   useEffect(() => {
     setCart(prev => prev.map(item => {
       const stock = stocks.find(s => s.id === item.id_stock);
-      // ensure vente-only fields are present only when in vente mode
+      // ensure conditionnement fields are present (support both achat and vente)
       let venteParConditionnement = item.venteParConditionnement;
       let quantiteConditionnement = item.quantiteConditionnement;
       let multiplicateur = item.multiplicateur;
-      if (isVente) {
-        if (venteParConditionnement === undefined) venteParConditionnement = false;
-        if (quantiteConditionnement === undefined) quantiteConditionnement = 1;
-        // Recompute multiplicateur if missing or previously zero (handles add-before-stocks-loaded case)
-        if (multiplicateur === undefined || multiplicateur <= 1) multiplicateur = getProduitMultiplicateur(stock);
-      } else {
-        venteParConditionnement = undefined;
-        quantiteConditionnement = undefined;
-        multiplicateur = undefined;
-      }
+      if (venteParConditionnement === undefined) venteParConditionnement = false;
+      if (quantiteConditionnement === undefined) quantiteConditionnement = 1;
+      // Recompute multiplicateur if missing or previously zero (handles add-before-stocks-loaded case)
+      if (multiplicateur === undefined || multiplicateur <= 1) multiplicateur = getProduitMultiplicateur(stock);
 
       // determine price (use global priceModeDefault)
       let newPrix = item.prix;
@@ -624,9 +644,23 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
     // client-side payload building
     const produitsSelectionnes: any[] = [];
     const blockedForStock: number[] = [];
-    cart.forEach(item => {
+    for (const item of cart) {
       const stock = stocks.find(s => s.id === item.id_stock);
       const multiplier = getProduitMultiplicateur(stock);
+
+      // Client-side validations: ensure quantities make sense
+      if (item.venteParConditionnement) {
+        if (!item.quantiteConditionnement || item.quantiteConditionnement <= 0) {
+          Swal.fire('Erreur', `Quantité conditionnement invalide pour ${item.nom}`, 'error');
+          return;
+        }
+      } else {
+        if (!item.quantite || item.quantite <= 0) {
+          Swal.fire('Erreur', `Quantité invalide pour ${item.nom}`, 'error');
+          return;
+        }
+      }
+
       // For sales, realQ is computed using conditionnement when applicable.
       // For purchases, we always treat quantite as units ordered and do NOT validate stock availability here.
       const realQ = (isVente && item.venteParConditionnement) ? ((item.quantiteConditionnement || 0) * multiplier) : item.quantite;
@@ -654,12 +688,22 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
         priceMode: isVente ? priceModeDefault : undefined
       };
 
-      if (isVente && item.venteParConditionnement) {
-        produitsSelectionnes.push({ ...baseObj, venteParConditionnement: true, quantiteConditionnement: item.quantiteConditionnement });
+      if (isVente) {
+        if (item.venteParConditionnement) {
+          produitsSelectionnes.push({ ...baseObj, venteParConditionnement: true, quantiteConditionnement: item.quantiteConditionnement });
+        } else {
+          produitsSelectionnes.push({ ...baseObj, quantite: item.quantite });
+        }
       } else {
-        produitsSelectionnes.push({ ...baseObj, quantite: item.quantite });
+        // Achat flows: always send unit quantity for stock impact (quantite in units)
+        if (item.venteParConditionnement) {
+          const units = (item.quantiteConditionnement || 0) * (multiplier || 1);
+          produitsSelectionnes.push({ ...baseObj, quantite: units, quantiteConditionnement: item.quantiteConditionnement });
+        } else {
+          produitsSelectionnes.push({ ...baseObj, quantite: item.quantite });
+        }
       }
-    });
+    }
 
     if (blockedForStock.length > 0) {
       const labels = blockedForStock.map(id => {
@@ -826,6 +870,11 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
         for (const ep of tryEndpoints) {
           try {
             const res = await fetch(ep.path, { method: 'GET', headers: { Authorization: `Bearer ${token}` } });
+            if (res.status === 401) {
+              await Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la page de connexion.', 'warning');
+              navigate('/login');
+              return;
+            }
             if (res.ok) {
               const blob = await res.blob();
               const url = URL.createObjectURL(blob);
@@ -850,6 +899,11 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
           method: 'GET',
           headers: { Authorization: `Bearer ${token}` }
         });
+        if (res.status === 401) {
+          await Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la page de connexion.', 'warning');
+          navigate('/login');
+          return;
+        }
         if (!res.ok) {
           const text = await res.text().catch(() => '');
           throw new Error(`${res.status} ${res.statusText}: ${text}`);
@@ -996,7 +1050,8 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                             <SearchableSelect
                               options={stocks.map((stock) => {
                                 const mult = getProduitMultiplicateur(stock);
-                                const multLabel = mult > 1 ? ` - ${mult}u/cond` : '';
+                                const unitLabel = (stock?.produit as any)?.unite?.libelle ?? 'carton';
+                                const multLabel = mult > 1 ? ` - ${mult}u/${unitLabel}` : ''; 
                                 const price = isVente && stock.produit ? (priceModeDefault === 'DETAIL' ? (stock.produit?.prixDetail ?? stock.produit?.prixAchat) : (stock.produit?.prixEnGros ?? stock.produit?.prixAchat)) : (stock.produit?.prixAchat ?? 0);
                                 return {
                                   value: stock.id,
@@ -1105,9 +1160,17 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
 
                                         {item.venteParConditionnement ? (
                                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                            <label className="small">Qté (cond.)</label>
-                                            <input type="number" className="form-control" value={item.quantiteConditionnement ?? 1} min={1} onChange={(e) => updateConditionnementQuantity(item.uid, parseInt(e.target.value) || 1)} style={{ width: 120 }} disabled={multiplier <= 1} />
-                                            <div className="text-muted small">1 cond = {multiplier}u</div>
+                                            {(() => { const unitLabel = ((stock?.produit as any)?.unite?.libelle) ?? 'carton'; return (<><label className="small">Qté ({unitLabel})</label><input type="number" className="form-control" value={item.quantiteConditionnement ?? 1} min={1} onChange={(e) => updateConditionnementQuantity(item.uid, parseInt(e.target.value) || 1)} style={{ width: 120 }} disabled={multiplier <= 1} /></>); })()} 
+                                            {/* Affichage clair: "20 cartons ≈ 240 unités" */}
+                                            <div className="text-muted small">
+                                              {(() => {
+                                                const q = item.quantiteConditionnement ?? 1;
+                                                const unitRaw = ((stock?.produit as any)?.unite?.libelle) ?? 'carton';
+                                                const unit = typeof unitRaw === 'string' ? unitRaw : String(unitRaw);
+                                                const unitPlural = (q > 1 && !unit.toLowerCase().endsWith('s')) ? `${unit}s` : unit;
+                                                return `${q} ${unitPlural} ≈ ${q * multiplier} unités`;
+                                              })()}
+                                            </div>
                                           </div>
                                         ) : (
                                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -1124,7 +1187,7 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                                         )}
                                       </>
                                     ) : (
-                                      // Achat mode: keep the original simple quantity input (no radios)
+                                      // Achat mode: allow saisie par conditionnement (checkbox + cond qty) and smaller Qté field
                                       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                         <label className="small">Qté</label>
                                         <input
@@ -1133,8 +1196,21 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                                           value={item.quantite}
                                           min="1"
                                           onChange={(e) => updateQuantity(item.uid, parseInt(e.target.value) || 1)}
-                                          style={{ width: 120 }}
+                                          style={{ width: 80 }}
+                                          disabled={!!item.venteParConditionnement || (!isVente && (multiplier <= 1))}
                                         />
+
+                                        <div className="form-check form-check-inline" style={{ marginLeft: 8 }}>
+                                          <input className="form-check-input" type="checkbox" id={`achat_cond_${item.uid}`} checked={!!item.venteParConditionnement} onChange={(e) => toggleVenteParConditionnement(item.uid, e.target.checked)} disabled={multiplier <= 1} />
+                                          {(() => { const unitLabel = ((stock?.produit as any)?.unite?.libelle) ?? 'carton'; return <label className="form-check-label small" htmlFor={`achat_cond_${item.uid}`}>Par {unitLabel} {multiplier > 1 ? `(${multiplier}u)` : ''}</label>; })()} 
+                                        </div>
+
+                                        {item.venteParConditionnement ? (
+                                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                            {(() => { const unitLabel = ((stock?.produit as any)?.unite?.libelle) ?? 'carton'; return (<><label className="small">Qté ({unitLabel})</label><input type="number" className="form-control" value={item.quantiteConditionnement ?? 1} min={1} onChange={(e) => updateConditionnementQuantity(item.uid, parseInt(e.target.value) || 1)} style={{ width: 80 }} disabled={multiplier <= 1} /></>); })()} 
+                                            <div className="text-muted small">1 {((stock?.produit as any)?.unite?.libelle) ?? 'carton'} = {multiplier} u</div>
+                                          </div>
+                                        ) : null}
                                       </div>
                                     )}
                                   </div>
@@ -1144,13 +1220,14 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
 
                                     <input
                                       type="number"
-                                      className="form-control form-control-sm"
+                                      className="form-control"
                                       value={item.prix}
                                       min="0"
                                       step="0.01"
                                       onChange={(e) => updatePrice(item.uid, parseFloat(e.target.value) || 0)}
                                       disabled={isVente}
                                       title={isVente ? 'Prix calculé automatiquement pour les ventes (DÉTAIL / GROS)' : ''}
+                                      style={{ width: 160, fontSize: '1rem' }}
                                     />
                                     {isVente ? (
                                       <span className="input-group-text" title="Prix automatique"><i className="bx bx-lock"></i></span>

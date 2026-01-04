@@ -25,16 +25,20 @@ interface ArticleData {
   idProduit: number;
   designation: string;
   depot: string;
-  stock: number;
+  stock: number | null;
   qteCommande: number;
   qteRecue: number;
   receptionActuelle: number;
+  quantiteConditionnement?: number | null;
+  useConditionnement?: boolean;
+  nombreUnitesParConditionnement?: number | null;
+  uniteConditionnementLibelle?: string | null;
 }
 
 const Reception: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { currentBoutique, permissions } = useUser();
+  const { currentBoutique, permissions, logout } = useUser();
   const normalizedPermissions = Array.isArray(permissions) ? permissions.map(p => p.toUpperCase()) : [];
   // Rely only on explicit permissions for creation/validation
   const canCreateReception = normalizedPermissions.includes('RECEPTION_ECRITURE') || normalizedPermissions.includes('RECEPTION_CREER');
@@ -53,6 +57,11 @@ const Reception: React.FC = () => {
     try {
       const token = localStorage.getItem('smb_token');
       const res = await fetch('http://localhost:8085/api/magasins', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401) {
+        await Swal.fire('Session expirée', 'Votre session est expirée ou non authentifiée. Vous allez être redirigé vers la connexion.', 'warning');
+        try { logout(); } catch (e) { /* ignore */ }
+        return [];
+      }
       if (!res.ok) throw new Error('Erreur lors du chargement des magasins');
       const data = await res.json();
       setMagasins(data || []);
@@ -71,11 +80,21 @@ const Reception: React.FC = () => {
         const idToUse = magId || selectedMagasinId;
         if (!idToUse) return [];
         const res = await fetch(`http://localhost:8085/api/magasins/${idToUse}/stocks`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.status === 401) {
+          await Swal.fire('Session expirée', 'Votre session est expirée. Vous allez être redirigé vers la connexion.', 'warning');
+          try { logout(); } catch (e) {}
+          return [];
+        }
         if (!res.ok) throw new Error('Impossible de charger les produits du magasin');
         const data = await res.json();
         return data || [];
       } else {
         const res = await fetch('http://localhost:8085/api/stocks', { headers: { Authorization: `Bearer ${token}` } });
+        if (res.status === 401) {
+          await Swal.fire('Session expirée', 'Votre session est expirée. Vous allez être redirigé vers la connexion.', 'warning');
+          try { logout(); } catch (e) {}
+          return [];
+        }
         if (!res.ok) throw new Error('Impossible de charger les stocks');
         const data = await res.json();
         const boutiqueOnly = (data || []).filter((s: any) => !s.magasin);
@@ -166,6 +185,11 @@ const Reception: React.FC = () => {
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (res.status === 401) {
+        await Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la page de connexion.', 'error');
+        try { logout(); } catch (e) {}
+        return;
+      }
       if (!res.ok) {
         const errText = await res.text().catch(() => res.statusText || 'Erreur serveur');
         throw new Error(errText || 'Erreur lors du chargement des commandes');
@@ -197,6 +221,11 @@ const Reception: React.FC = () => {
       const commandeRes = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${commandeId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (commandeRes.status === 401) {
+        await Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la page de connexion.', 'error');
+        try { logout(); } catch (e) {}
+        return;
+      }
       if (!commandeRes.ok) throw new Error('Erreur lors du chargement de la commande');
       const commande = await commandeRes.json();
       setSelectedCommande(commande);
@@ -205,6 +234,11 @@ const Reception: React.FC = () => {
       const articlesRes = await fetch(`http://localhost:8085/api/receptions/commande/${commandeId}/articles`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (articlesRes.status === 401) {
+        await Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la page de connexion.', 'error');
+        try { logout(); } catch (e) {}
+        return;
+      }
       if (!articlesRes.ok) throw new Error('Erreur lors du chargement des articles');
       const articles = await articlesRes.json();
 
@@ -213,10 +247,38 @@ const Reception: React.FC = () => {
       const enriched = (articles || []).map((a: any) => {
         const productId = a.idProduit || a.produitId || null;
         const stockInfo = (stocksForLoc || []).find((s: any) => (s.produit && s.produit.id === productId) || s.produitId === productId || s.id_produit === productId);
+        const nombreUnitesParConditionnement = stockInfo?.produit?.nombreUnitesParConditionnement ?? a.nombreUnitesParConditionnement ?? null;
+        const uniteConditionnementLibelle = stockInfo?.produit?.unite?.libelle ?? a.uniteConditionnementLibelle ?? null;
+
+        // Compute sensible defaults for conditionnement display and reception
+
+        // Only default to conditionnement when the command was actually placed in conditionnement
+        // i.e., when quantiteConditionnement is provided OR the ordered quantity is exactly divisible
+        const isExactlyDivisible = (nombreUnitesParConditionnement && nombreUnitesParConditionnement > 0 && a.qteCommande % nombreUnitesParConditionnement === 0);
+        const commandCondCountExact = isExactlyDivisible ? (a.qteCommande / nombreUnitesParConditionnement) : null;
+
+        const defaultUseConditionnement = (a.quantiteConditionnement !== undefined && a.quantiteConditionnement !== null)
+          ? true
+          : (commandCondCountExact !== null && commandCondCountExact > 0);
+
+        const defaultQuantiteConditionnement = (a.quantiteConditionnement !== undefined && a.quantiteConditionnement !== null)
+          ? a.quantiteConditionnement
+          : (defaultUseConditionnement && commandCondCountExact !== null ? commandCondCountExact : null);
+
+        const defaultReceptionActuelle = defaultUseConditionnement && defaultQuantiteConditionnement !== null
+          ? (defaultQuantiteConditionnement * (nombreUnitesParConditionnement || 1))
+          : 0;
+
         return {
           ...a,
           depot: a.depot || (stockInfo && stockInfo.magasin ? stockInfo.magasin.nom : (stockInfo && stockInfo.produit ? 'Dépôt inconnu' : null)),
-          stock: (a.stock !== undefined && a.stock !== null) ? a.stock : (stockInfo ? stockInfo.quantiteDisponible : null)
+          stock: (a.stock !== undefined && a.stock !== null) ? a.stock : (stockInfo ? stockInfo.quantiteDisponible : null),
+          // initialize reception state: prefer conditionnement when the command was placed in cond, otherwise default to 0 received
+          useConditionnement: defaultUseConditionnement,
+          quantiteConditionnement: defaultQuantiteConditionnement ?? null,
+          nombreUnitesParConditionnement: nombreUnitesParConditionnement,
+          uniteConditionnementLibelle: uniteConditionnementLibelle,
+          receptionActuelle: defaultReceptionActuelle
         } as ArticleData;
       });
 
@@ -247,7 +309,8 @@ const Reception: React.FC = () => {
           stock: article.stock,
           qteCommande: article.qteCommande,
           qteRecue: article.qteRecue,
-          receptionActuelle: article.receptionActuelle
+          receptionActuelle: article.receptionActuelle,
+          quantiteConditionnement: article.quantiteConditionnement !== undefined ? article.quantiteConditionnement : null
         }))
       };
 
@@ -520,33 +583,100 @@ const Reception: React.FC = () => {
                           <td>
                             <span className="badge bg-info text-white">{article.depot}</span>
                           </td>
-                          <td>{article.designation}</td>
+                          <td>
+                            {article.nombreUnitesParConditionnement && article.nombreUnitesParConditionnement > 1 ? (
+                              (() => {
+                                const mul = article.nombreUnitesParConditionnement || 1;
+                                const condCount = Math.floor(article.qteCommande / mul);
+                                return (
+                                  <div>
+                                    <div><strong>{condCount} {article.uniteConditionnementLibelle || 'carton'} {article.designation}</strong></div> 
+                                    <div><small className="text-muted"># {article.qteCommande} u — 1 {article.uniteConditionnementLibelle ?? 'carton'} = {mul} u</small></div>
+                                  </div>
+                                );
+                              })()
+                            ) : (
+                              article.designation
+                            )}
+                          </td>
                           <td>{article.stock}</td>
                           <td>{article.qteCommande}</td>
                           <td>{article.qteRecue}</td>
                           <td>{article.qteCommande - article.qteRecue}</td>
                           <td>
-                            <input
-                              type="number"
-                              className="form-control"
-                              value={article.receptionActuelle}
-                              onChange={(e) => {
-                                const newValue = parseInt(e.target.value) || 0;
-                                const maxAllowed = article.qteCommande - article.qteRecue;
-                                
-                                // Validation : ne pas dépasser la quantité restante
-                                if (newValue > maxAllowed) {
-                                  Swal.fire('Erreur', `La quantité ne peut pas dépasser ${maxAllowed} (quantité restante)`, 'warning');
-                                  return;
-                                }
-                                
-                                const newArticles = [...articles];
-                                newArticles[index].receptionActuelle = newValue;
-                                setArticles(newArticles);
-                              }}
-                              min="0"
-                              max={article.qteCommande - article.qteRecue}
-                            />
+                            {article.nombreUnitesParConditionnement && article.nombreUnitesParConditionnement > 1 ? (
+                              <div>
+                                <div className="form-check form-switch mb-1">
+                                  <input className="form-check-input" type="checkbox" id={`cond_switch_${index}`} checked={!!article.useConditionnement} onChange={e => {
+                                    const useCond = e.target.checked;
+                                    const newArticles = [...articles];
+                                    newArticles[index].useConditionnement = useCond;
+                                    const mul = newArticles[index].nombreUnitesParConditionnement || 1;
+                                    const remainingUnits = Math.max(0, (newArticles[index].qteCommande || 0) - (newArticles[index].qteRecue || 0));
+                                    const condRemaining = mul > 1 ? Math.floor(remainingUnits / mul) : 0;
+                                    if (useCond) {
+                                      // Prefer existing cond qty, otherwise default to all remaining full conditionnements, or 1
+                                      const existing = newArticles[index].quantiteConditionnement;
+                                      const defaultQ = (existing !== undefined && existing !== null) ? existing : (condRemaining > 0 ? condRemaining : 1);
+                                      newArticles[index].quantiteConditionnement = defaultQ;
+                                      // set receptionActuelle in units
+                                      newArticles[index].receptionActuelle = (newArticles[index].quantiteConditionnement || 0) * mul;
+                                    } else {
+                                      // when toggling off, clear cond qty but preserve the equivalent units value so user can switch back and forth
+                                      const prevQ = newArticles[index].quantiteConditionnement || 0;
+                                      newArticles[index].quantiteConditionnement = null;
+                                      newArticles[index].receptionActuelle = prevQ * mul;
+                                    }
+                                    setArticles(newArticles);
+                                  }} />
+                                  <label className="form-check-label ms-2" htmlFor={`cond_switch_${index}`}>Par conditionnement</label>
+                                </div>
+                                {article.useConditionnement ? (
+                                  <div className="d-flex align-items-center">
+                                    <input type="number" className="form-control me-2" min={0} value={article.quantiteConditionnement ?? 0} onChange={e => {
+                                      const q = Math.max(0, parseInt(e.target.value) || 0);
+                                      const mul = article.nombreUnitesParConditionnement || 1;
+                                      const units = q * mul;
+                                      const maxAllowed = article.qteCommande - article.qteRecue;
+                                      if (units > maxAllowed) { Swal.fire('Erreur', `La quantité en unités (${units}) dépasse la quantité restante (${maxAllowed})`, 'warning'); return; }
+                                      const newArticles = [...articles];
+                                      newArticles[index].quantiteConditionnement = q;
+                                      newArticles[index].receptionActuelle = units;
+                                      setArticles(newArticles);
+                                    }} />
+                                    <div><small className="text-muted"># {article.qteCommande} u — 1 {article.uniteConditionnementLibelle ?? 'carton'} = {article.nombreUnitesParConditionnement || 1} u</small></div> 
+                                  </div>
+                                ) : (
+                                  <input type="number" className="form-control" value={article.receptionActuelle} onChange={e => {
+                                    const newValue = Math.max(0, parseInt(e.target.value) || 0);
+                                    const maxAllowed = article.qteCommande - article.qteRecue;
+                                    if (newValue > maxAllowed) { Swal.fire('Erreur', `La quantité ne peut pas dépasser ${maxAllowed} (quantité restante)`, 'warning'); return; }
+                                    // Update cond qty if perfectly divisible
+                                    const mul = article.nombreUnitesParConditionnement || 1;
+                                    const newArticles = [...articles];
+                                    newArticles[index].receptionActuelle = newValue;
+                                    if (mul > 1 && newValue % mul === 0) newArticles[index].quantiteConditionnement = newValue / mul; else newArticles[index].quantiteConditionnement = null;
+                                    setArticles(newArticles);
+                                  }} min="0" max={article.qteCommande - article.qteRecue} />
+                                )}
+                              </div>
+                            ) : (
+                              <input
+                                type="number"
+                                className="form-control"
+                                value={article.receptionActuelle}
+                                onChange={(e) => {
+                                  const newValue = parseInt(e.target.value) || 0;
+                                  const maxAllowed = article.qteCommande - article.qteRecue;
+                                  if (newValue > maxAllowed) { Swal.fire('Erreur', `La quantité ne peut pas dépasser ${maxAllowed} (quantité restante)`, 'warning'); return; }
+                                  const newArticles = [...articles];
+                                  newArticles[index].receptionActuelle = newValue;
+                                  setArticles(newArticles);
+                                }}
+                                min="0"
+                                max={article.qteCommande - article.qteRecue}
+                              />
+                            )}
                           </td>
                         </tr>
                       ))}

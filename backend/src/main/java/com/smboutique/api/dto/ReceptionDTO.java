@@ -60,9 +60,26 @@ public class ReceptionDTO {
         private Integer qteCommande;
         private Integer qteRecue;
         private Integer receptionActuelle;
+        private Integer quantiteConditionnement; // optional: quantity expressed in conditionnements
+        private Integer quantiteConditionnementRecueThis; // quantity received for THIS reception in conditionnements
+        private Integer quantiteConditionnementRestante; // remaining quantity expressed in conditionnements when divisible
+        private Integer nombreUnitesParConditionnement; // optional: multiplier (units per cond)
+        private String uniteConditionnementLibelle; // optional: unit label for cond
 
         public Long getId() { return id; }
         public void setId(Long id) { this.id = id; }
+
+        public Integer getNombreUnitesParConditionnement() { return nombreUnitesParConditionnement; }
+        public void setNombreUnitesParConditionnement(Integer nombreUnitesParConditionnement) { this.nombreUnitesParConditionnement = nombreUnitesParConditionnement; }
+
+        public String getUniteConditionnementLibelle() { return uniteConditionnementLibelle; }
+        public void setUniteConditionnementLibelle(String uniteConditionnementLibelle) { this.uniteConditionnementLibelle = uniteConditionnementLibelle; }
+
+        public Integer getQuantiteConditionnementRecueThis() { return quantiteConditionnementRecueThis; }
+        public void setQuantiteConditionnementRecueThis(Integer quantiteConditionnementRecueThis) { this.quantiteConditionnementRecueThis = quantiteConditionnementRecueThis; }
+
+        public Integer getQuantiteConditionnementRestante() { return quantiteConditionnementRestante; }
+        public void setQuantiteConditionnementRestante(Integer quantiteConditionnementRestante) { this.quantiteConditionnementRestante = quantiteConditionnementRestante; }
 
         public Long getIdProduit() { return idProduit; }
         public void setIdProduit(Long idProduit) { this.idProduit = idProduit; }
@@ -84,6 +101,9 @@ public class ReceptionDTO {
 
         public Integer getReceptionActuelle() { return receptionActuelle; }
         public void setReceptionActuelle(Integer receptionActuelle) { this.receptionActuelle = receptionActuelle; }
+
+        public Integer getQuantiteConditionnement() { return quantiteConditionnement; }
+        public void setQuantiteConditionnement(Integer quantiteConditionnement) { this.quantiteConditionnement = quantiteConditionnement; }
     }
 
     public static class LigneReceptionResultDTO {
