@@ -53,6 +53,9 @@ public class CommandeClientInstrumentationTest {
     private Boutique boutique;
     private Utilisateur user;
 
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager em;
+
     @BeforeEach
     void setUp() {
         boutique = new Boutique();
@@ -87,6 +90,7 @@ public class CommandeClientInstrumentationTest {
         CommandeClient created = objectMapper.readValue(resp, CommandeClient.class);
         assertThat(created.getId()).isNotNull();
 
+        em.clear();
         java.util.List<Mouvement> mvts = mouvementRepository.findAll().stream().filter(m -> m.getUtilisateur() != null && m.getUtilisateur().getId() != null && m.getUtilisateur().getId().equals(user.getId())).toList();
         assertThat(mvts).isNotEmpty();
         boolean found = mvts.stream().anyMatch(m -> "COMMANDE".equals(m.getTypeMouvement()) && "CREATION".equals(m.getSousType()) && m.getReferenceId() != null && m.getReferenceId().equals(created.getId()));
@@ -123,6 +127,7 @@ public class CommandeClientInstrumentationTest {
         CommandeClient updated = objectMapper.readValue(resp, CommandeClient.class);
         assertThat(updated.getPaie()).isEqualTo(500);
 
+        em.clear();
         java.util.List<Mouvement> mvts = mouvementRepository.findAll().stream().filter(m -> m.getUtilisateur() != null && m.getUtilisateur().getId() != null && m.getUtilisateur().getId().equals(user.getId())).toList();
         boolean found = mvts.stream().anyMatch(m -> "PAIEMENT".equals(m.getTypeMouvement()) && "COMMANDE_CLIENT".equals(m.getSousType()) && m.getReferenceId() != null && m.getReferenceId().equals(savedCmd.getId()) && m.getMontant() != null && m.getMontant().doubleValue() == 500.0);
         assertThat(found).isTrue();
@@ -160,6 +165,7 @@ public class CommandeClientInstrumentationTest {
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail())))
                 .andExpect(status().isOk());
 
+        em.clear();
         java.util.List<Mouvement> mvts = mouvementRepository.findAll().stream().filter(m -> m.getUtilisateur() != null && m.getUtilisateur().getId() != null && m.getUtilisateur().getId().equals(user.getId())).toList();
         boolean foundAnn = mvts.stream().anyMatch(m -> "PAIEMENT".equals(m.getTypeMouvement()) && "ANNULATION".equals(m.getSousType()) && m.getReferenceId() != null && m.getReferenceId().equals(savedCmd.getId()));
         boolean foundCmdDel = mvts.stream().anyMatch(m -> "COMMANDE".equals(m.getTypeMouvement()) && "SUPPRESSION".equals(m.getSousType()) && m.getReferenceId() != null && m.getReferenceId().equals(savedCmd.getId()));
