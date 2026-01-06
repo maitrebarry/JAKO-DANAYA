@@ -144,16 +144,18 @@ public class CommandeClientInstrumentationTest {
         c.setStatut("OUVERTE");
         caisseRepository.save(c);
 
-        // create payment directly
-        PaiementClient p = new PaiementClient();
-        p.setMontantPaye(300);
-        p.setCommandeClient(savedCmd);
-        p.setReferenceCaisse(c.getReference());
-        p = paiementClientRepository.save(p);
+        // create payment via controller endpoint (keeps logic consistent)
+        java.util.Map<String, Object> pay = new java.util.HashMap<>();
+        pay.put("montant", 300);
+        pay.put("referenceCaisse", c.getReference());
 
-        // ensure payment exists
-        assertThat(p.getId()).isNotNull();
+        mockMvc.perform(post("/api/commandes-clients/" + savedCmd.getId() + "/paiement")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(pay))
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail())))
+                .andExpect(status().isOk());
 
+        // Now delete the commande
         mockMvc.perform(delete("/api/commandes-clients/" + savedCmd.getId())
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail())))
                 .andExpect(status().isOk());
