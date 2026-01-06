@@ -99,7 +99,7 @@ public class CommandeClientInstrumentationTest {
         cmd.setReference("CMD-P-1");
         cmd.setBoutique(boutique);
         cmd.setTotal(1500);
-        cmd = commandeClientRepository.save(cmd);
+        CommandeClient savedCmd = commandeClientRepository.save(cmd);
 
         // create an open caisse with a reference
         Caisse c = new Caisse();
@@ -113,7 +113,7 @@ public class CommandeClientInstrumentationTest {
         pay.put("montant", 500);
         pay.put("referenceCaisse", "CAISSE-1");
 
-        String resp = mockMvc.perform(post("/api/commandes-clients/" + cmd.getId() + "/paiement")
+        String resp = mockMvc.perform(post("/api/commandes-clients/" + savedCmd.getId() + "/paiement")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(pay))
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail())))
@@ -124,7 +124,7 @@ public class CommandeClientInstrumentationTest {
         assertThat(updated.getPaie()).isEqualTo(500);
 
         java.util.List<Mouvement> mvts = mouvementRepository.findAll().stream().filter(m -> m.getUtilisateur() != null && m.getUtilisateur().getId() != null && m.getUtilisateur().getId().equals(user.getId())).toList();
-        boolean found = mvts.stream().anyMatch(m -> "PAIEMENT".equals(m.getTypeMouvement()) && "COMMANDE_CLIENT".equals(m.getSousType()) && m.getReferenceId() != null && m.getReferenceId().equals(cmd.getId()) && m.getMontant() != null && m.getMontant().doubleValue() == 500.0);
+        boolean found = mvts.stream().anyMatch(m -> "PAIEMENT".equals(m.getTypeMouvement()) && "COMMANDE_CLIENT".equals(m.getSousType()) && m.getReferenceId() != null && m.getReferenceId().equals(savedCmd.getId()) && m.getMontant() != null && m.getMontant().doubleValue() == 500.0);
         assertThat(found).isTrue();
     }
 
@@ -134,7 +134,7 @@ public class CommandeClientInstrumentationTest {
         cmd.setReference("CMD-D-1");
         cmd.setBoutique(boutique);
         cmd.setTotal(800);
-        cmd = commandeClientRepository.save(cmd);
+        CommandeClient savedCmd = commandeClientRepository.save(cmd);
 
         // create an open caisse and a payment
         Caisse c = new Caisse();
@@ -147,20 +147,20 @@ public class CommandeClientInstrumentationTest {
         // create payment directly
         PaiementClient p = new PaiementClient();
         p.setMontantPaye(300);
-        p.setCommandeClient(cmd);
+        p.setCommandeClient(savedCmd);
         p.setReferenceCaisse(c.getReference());
         p = paiementClientRepository.save(p);
 
         // ensure payment exists
         assertThat(p.getId()).isNotNull();
 
-        mockMvc.perform(delete("/api/commandes-clients/" + cmd.getId())
+        mockMvc.perform(delete("/api/commandes-clients/" + savedCmd.getId())
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail())))
                 .andExpect(status().isOk());
 
         java.util.List<Mouvement> mvts = mouvementRepository.findAll().stream().filter(m -> m.getUtilisateur() != null && m.getUtilisateur().getId() != null && m.getUtilisateur().getId().equals(user.getId())).toList();
-        boolean foundAnn = mvts.stream().anyMatch(m -> "PAIEMENT".equals(m.getTypeMouvement()) && "ANNULATION".equals(m.getSousType()) && m.getReferenceId() != null && m.getReferenceId().equals(cmd.getId()));
-        boolean foundCmdDel = mvts.stream().anyMatch(m -> "COMMANDE".equals(m.getTypeMouvement()) && "SUPPRESSION".equals(m.getSousType()) && m.getReferenceId() != null && m.getReferenceId().equals(cmd.getId()));
+        boolean foundAnn = mvts.stream().anyMatch(m -> "PAIEMENT".equals(m.getTypeMouvement()) && "ANNULATION".equals(m.getSousType()) && m.getReferenceId() != null && m.getReferenceId().equals(savedCmd.getId()));
+        boolean foundCmdDel = mvts.stream().anyMatch(m -> "COMMANDE".equals(m.getTypeMouvement()) && "SUPPRESSION".equals(m.getSousType()) && m.getReferenceId() != null && m.getReferenceId().equals(savedCmd.getId()));
         assertThat(foundAnn).isTrue();
         assertThat(foundCmdDel).isTrue();
     }
