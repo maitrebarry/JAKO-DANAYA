@@ -89,7 +89,7 @@ public class CommandeClientInstrumentationTest {
 
         java.util.List<Mouvement> mvts = mouvementRepository.findAll().stream().filter(m -> m.getUtilisateur() != null && m.getUtilisateur().getId() != null && m.getUtilisateur().getId().equals(user.getId())).toList();
         assertThat(mvts).isNotEmpty();
-        boolean found = mvts.stream().anyMatch(m -> "COMMANDE".equals(m.getTypeMouvement()) && "CREATE".equals(m.getSousType()) && m.getReferenceId() != null && m.getReferenceId().equals(created.getId()));
+        boolean found = mvts.stream().anyMatch(m -> "COMMANDE".equals(m.getTypeMouvement()) && "CREATION".equals(m.getSousType()) && m.getReferenceId() != null && m.getReferenceId().equals(created.getId()));
         assertThat(found).isTrue();
     }
 
@@ -160,7 +160,7 @@ public class CommandeClientInstrumentationTest {
 
         java.util.List<Mouvement> mvts = mouvementRepository.findAll().stream().filter(m -> m.getUtilisateur() != null && m.getUtilisateur().getId() != null && m.getUtilisateur().getId().equals(user.getId())).toList();
         boolean foundAnn = mvts.stream().anyMatch(m -> "PAIEMENT".equals(m.getTypeMouvement()) && "ANNULATION".equals(m.getSousType()) && m.getReferenceId() != null && m.getReferenceId().equals(cmd.getId()));
-        boolean foundCmdDel = mvts.stream().anyMatch(m -> "COMMANDE".equals(m.getTypeMouvement()) && "DELETE".equals(m.getSousType()) && m.getReferenceId() != null && m.getReferenceId().equals(cmd.getId()));
+        boolean foundCmdDel = mvts.stream().anyMatch(m -> "COMMANDE".equals(m.getTypeMouvement()) && "SUPPRESSION".equals(m.getSousType()) && m.getReferenceId() != null && m.getReferenceId().equals(cmd.getId()));
         assertThat(foundAnn).isTrue();
         assertThat(foundCmdDel).isTrue();
     }

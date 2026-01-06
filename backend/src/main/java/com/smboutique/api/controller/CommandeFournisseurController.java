@@ -168,10 +168,11 @@ public class CommandeFournisseurController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CommandeFournisseur> getCommandeFournisseurById(@PathVariable Long id) {
+    public ResponseEntity<com.smboutique.api.dto.CommandeFournisseurDTO> getCommandeFournisseurById(@PathVariable Long id) {
         Utilisateur current = getCurrentUser();
         if (isSuperAdmin(current)) {
             return commandeFournisseurService.findById(id)
+                    .map(this::convertToDTO)
                     .map(ResponseEntity::ok)
                     .orElse(ResponseEntity.notFound().build());
         }
@@ -179,6 +180,7 @@ public class CommandeFournisseurController {
             return ResponseEntity.status(403).build();
         }
         return commandeFournisseurService.findByIdAndBoutiqueId(id, current.getBoutique().getId())
+                .map(this::convertToDTO)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -266,7 +268,9 @@ public class CommandeFournisseurController {
             }
             commande.setLignes(lignes);
 
-            return ResponseEntity.ok(commandeFournisseurService.save(commande));
+            CommandeFournisseur saved = commandeFournisseurService.save(commande);
+            try { mouvementService.log("COMMANDE", "CREATION", "Commande id=" + saved.getId(), saved.getId(), saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, currentUser != null ? currentUser.getId() : null, saved.getTotal() != null ? Double.valueOf(saved.getTotal()) : null); } catch (Exception e) {}
+            return ResponseEntity.ok(saved);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST).body((CommandeFournisseur) null);
         }
@@ -339,6 +343,10 @@ public class CommandeFournisseurController {
             // Supplier payments do NOT involve caisse; persist paiement only
             paiement.setCommandeFournisseur(cmd);
             paiementService.save(paiement);
+
+            try {
+                mouvementService.log("PAIEMENT", "COMMANDE_FOURNISSEUR", "Paiement commande id=" + cmd.getId() + " montant=" + montant, cmd.getId(), cmd.getBoutique() != null ? cmd.getBoutique().getId() : null, null, current != null ? current.getId() : null, Double.valueOf(montant));
+            } catch (Exception e) { /* ignore */ }
 
             boolean caisseUpdated = false;
             Integer caisseNewTotal = null;
@@ -693,9 +701,9 @@ public class CommandeFournisseurController {
         CommandeFournisseurDTO dto = new CommandeFournisseurDTO();
         dto.setId(commande.getId());
         dto.setReference(commande.getReference());
-        // Format dateCommande as ISO_OFFSET_DATE_TIME (includes zone offset) for unambiguous client interpretation
+        // Format dateCommande as a server-local timestamp (no zone offset) so clients display the same wall time the user entered
         if (commande.getDateCommande() != null) {
-            dto.setDateCommande(commande.getDateCommande().atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+            dto.setDateCommande(commande.getDateCommande().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
         } else {
             dto.setDateCommande("");
         }
@@ -708,6 +716,38 @@ public class CommandeFournisseurController {
             fournisseurDTO.setPrenom(commande.getFournisseur().getPrenom());
             fournisseurDTO.setNom(commande.getFournisseur().getNom());
             dto.setFournisseur(fournisseurDTO);
+        }
+
+        // Build lignes details with product unit info so clients can render correct unit labels
+        if (commande.getLignes() != null) {
+            java.util.List<CommandeFournisseurDTO.LigneDTO> ld = new java.util.ArrayList<>();
+            for (com.smboutique.api.model.LigneCommande l : commande.getLignes()) {
+                CommandeFournisseurDTO.LigneDTO li = new CommandeFournisseurDTO.LigneDTO();
+                li.setId(l.getId());
+                li.setQuantite(l.getQuantite());
+                li.setQuantiteConditionnement(l.getQuantiteConditionnement());
+                li.setPrix(l.getPrice());
+                Integer q = l.getQuantite() != null ? l.getQuantite() : 0;
+                Integer p = l.getPrice() != null ? l.getPrice() : 0;
+                li.setMontant(p * q * 1.0);
+                if (l.getStock() != null) {
+                    li.setStockId(l.getStock().getId());
+                    if (l.getStock().getProduit() != null) {
+                        li.setProduitId(l.getStock().getProduit().getId());
+                        li.setNom(l.getStock().getProduit().getNomProduit());
+                        li.setMultiplicateur(l.getStock().getProduit().getNombreUnitesParConditionnement());
+                        if (l.getStock().getProduit().getUnite() != null) {
+                            CommandeFournisseurDTO.LigneDTO.UniteDTO u = new CommandeFournisseurDTO.LigneDTO.UniteDTO();
+                            u.setId(l.getStock().getProduit().getUnite().getId());
+                            u.setLibelle(l.getStock().getProduit().getUnite().getLibelle());
+                            u.setSymbole(l.getStock().getProduit().getUnite().getSymbole());
+                            li.setUnite(u);
+                        }
+                    }
+                }
+                ld.add(li);
+            }
+            dto.setLignes(ld);
         }
 
         // Calculate percentages (reused logic)

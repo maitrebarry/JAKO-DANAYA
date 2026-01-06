@@ -128,7 +128,7 @@ public class CommandeClientController {
         try {
             com.smboutique.api.model.Utilisateur current = null;
             try { current = getCurrentUser(); } catch (Exception ex) { /* ignore */ }
-            mouvementService.log("COMMANDE", "CREATE", "Commande client id=" + saved.getId(), saved.getId(), saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, current != null ? current.getId() : null, saved.getTotal() != null ? Double.valueOf(saved.getTotal()) : null);
+            mouvementService.log("COMMANDE", "CREATION", "Commande client id=" + saved.getId(), saved.getId(), saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, current != null ? current.getId() : null, saved.getTotal() != null ? Double.valueOf(saved.getTotal()) : null);
         } catch (Exception e) { /* ignore logging errors */ }
         return saved;
     }
@@ -243,7 +243,7 @@ public class CommandeClientController {
                         try {
                             com.smboutique.api.model.Utilisateur current = null;
                             try { current = getCurrentUser(); } catch (Exception ex) { /* ignore */ }
-                            mouvementService.log("COMMANDE", "MODIFY", "Commande client modifiée id=" + saved.getId(), saved.getId(), saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, current != null ? current.getId() : null, saved.getTotal() != null ? Double.valueOf(saved.getTotal()) : null);
+                            mouvementService.log("COMMANDE", "MODIFICATION", "Commande client modifiée id=" + saved.getId(), saved.getId(), saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, current != null ? current.getId() : null, saved.getTotal() != null ? Double.valueOf(saved.getTotal()) : null);
                         } catch (Exception e) { /* ignore logging errors */ }
                         return ResponseEntity.ok(saved);
                     } catch (Exception ex) {
@@ -564,7 +564,7 @@ public class CommandeClientController {
 
                     // Finally delete the commande
                     commandeClientService.deleteById(id);
-                    try { mouvementService.log("COMMANDE", "DELETE", "Commande client supprimée id=" + id, id, commandeClient.getBoutique() != null ? commandeClient.getBoutique().getId() : null, null, user != null ? user.getId() : null, null); } catch (Exception e) { /* ignore */ }
+                    try { mouvementService.log("COMMANDE", "SUPPRESSION", "Commande client supprimée id=" + id, id, commandeClient.getBoutique() != null ? commandeClient.getBoutique().getId() : null, null, user != null ? user.getId() : null, null); } catch (Exception e) { /* ignore */ }
                     return ResponseEntity.ok().<Void>build();
                 })
                 .orElse(ResponseEntity.notFound().build());

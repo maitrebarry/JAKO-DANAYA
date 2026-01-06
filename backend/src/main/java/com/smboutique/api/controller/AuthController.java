@@ -39,6 +39,9 @@ public class AuthController {
     @Autowired
     JwtUtils jwtUtils;
 
+    @Autowired
+    private com.smboutique.api.service.MouvementService mouvementService;
+
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
 
@@ -54,6 +57,14 @@ public class AuthController {
             List<String> roles = userDetails.getAuthorities().stream()
                     .map(item -> item.getAuthority())
                     .collect(Collectors.toList());
+
+            try {
+                // audit connexion
+                Long uid = userDetails.getId();
+                com.smboutique.api.model.Utilisateur u = utilisateurRepository.findById(uid).orElse(null);
+                Long boutiqueId = u != null && u.getBoutique() != null ? u.getBoutique().getId() : null;
+                mouvementService.log("AUTH", "CONNEXION", "Connexion réussie user=" + uid, null, boutiqueId, null, uid, null);
+            } catch (Exception e) { }
 
             return ResponseEntity.ok(new JwtResponse(jwt,
                     userDetails.getId(),

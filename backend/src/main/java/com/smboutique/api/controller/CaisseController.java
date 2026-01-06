@@ -24,6 +24,9 @@ public class CaisseController {
     @Autowired
     private com.smboutique.api.service.CaisseMovementService caisseMovementService;
 
+    @Autowired
+    private com.smboutique.api.service.MouvementService mouvementService;
+
     private com.smboutique.api.model.Utilisateur getCurrentUser() {
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -104,6 +107,9 @@ public class CaisseController {
                     mv.setBoutiqueId(saved.getBoutique() != null ? saved.getBoutique().getId() : null);
                     mv.setRaison("Ouverture de caisse");
                     caisseMovementService.save(mv);
+                    try {
+                        mouvementService.log("CAISSE", "OUVERTURE", "Ouverture de caisse ref=" + saved.getReference(), null, saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, current != null ? current.getId() : null, after != null ? Double.valueOf(after) : null);
+                    } catch (Exception l) {}
                 }
             } catch (Exception mvex) { }
             return ResponseEntity.ok(saved);
@@ -140,6 +146,9 @@ public class CaisseController {
                             mv.setBoutiqueId(saved.getBoutique() != null ? saved.getBoutique().getId() : null);
                             mv.setRaison("Mise à jour manuelle caisse");
                             caisseMovementService.save(mv);
+                            try {
+                                mouvementService.log("CAISSE", "OUVERTURE", "Ouverture de caisse ref=" + saved.getReference(), null, saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, current != null ? current.getId() : null, after != null ? Double.valueOf(after) : null);
+                            } catch (Exception l) {}
                         }
                     } catch (Exception mvex) {}
 

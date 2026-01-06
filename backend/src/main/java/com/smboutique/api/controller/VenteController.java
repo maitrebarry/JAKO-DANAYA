@@ -53,6 +53,9 @@ public class VenteController {
     @Autowired
     private com.smboutique.api.service.MouvementService mouvementService;
 
+    @Autowired
+    private com.smboutique.api.service.PdfService pdfService;
+
     private com.smboutique.api.model.Utilisateur getCurrentUser() {
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -85,11 +88,34 @@ public class VenteController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/{id}/lignes")
+    public ResponseEntity<java.util.List<com.smboutique.api.model.LigneVente>> getLignesByVenteId(@PathVariable Long id) {
+        try {
+            java.util.List<com.smboutique.api.model.LigneVente> lignes = ligneVenteService.findAll();
+            java.util.List<com.smboutique.api.model.LigneVente> filtered = new java.util.ArrayList<>();
+            if (lignes != null) {
+                for (com.smboutique.api.model.LigneVente lv : lignes) {
+                    if (lv.getVente() != null && lv.getVente().getId() != null && lv.getVente().getId().equals(id)) filtered.add(lv);
+                }
+            }
+            return ResponseEntity.ok(filtered);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
+    }
+
     @PostMapping
     public ResponseEntity<Vente> createVente(@RequestBody Vente vente) {
         Utilisateur user = getCurrentUser();
         if (!hasPermission(user, "VENTE_CREER") && !isSuperAdmin(user)) {
             return ResponseEntity.status(403).build();
+        }
+        // Ensure we record the creating user and boutique for audit and filtering
+        if (vente.getUtilisateur() == null && user != null) {
+            vente.setUtilisateur(user);
+        }
+        if (vente.getBoutique() == null && user != null && user.getBoutique() != null) {
+            vente.setBoutique(user.getBoutique());
         }
         return ResponseEntity.ok(venteService.save(vente));
     }
@@ -138,7 +164,7 @@ public class VenteController {
                     parsedDateCommande = java.time.LocalDateTime.parse(request.dateVente);
                 } catch (java.time.format.DateTimeParseException ex1) {
                     try {
-                        parsedDateCommande = java.time.OffsetDateTime.parse(request.dateVente).toLocalDateTime();
+                        parsedDateCommande = java.time.OffsetDateTime.parse(request.dateVente).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
                     } catch (java.time.format.DateTimeParseException ex2) {
                         return ResponseEntity.badRequest().body(java.util.Map.of("error", "Date de commande invalide"));
                     }
@@ -273,9 +299,28 @@ public class VenteController {
                 int quantiteReelle = 0;
                 if (pl.venteParConditionnement != null && pl.venteParConditionnement) {
                     Integer mul = s.getProduit().getNombreUnitesParConditionnement() == null ? 1 : s.getProduit().getNombreUnitesParConditionnement();
-                    quantiteReelle = (pl.quantiteConditionnement == null ? 0 : pl.quantiteConditionnement) * mul;
+                    // Validation rules for conditionnement-based sale
+                    if (mul == null || mul <= 1) {
+                        throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Conditionnement non autorisé pour produit " + s.getProduit().getNomProduit());
+                    }
+                    if (pl.quantiteConditionnement == null || pl.quantiteConditionnement < 1) {
+                        throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Quantité de conditionnements invalide pour produit " + s.getProduit().getNomProduit());
+                    }
+                    int totalOpenUnits = pl.quantiteConditionnement * mul;
+                    if (pl.quantite != null) {
+                        if (pl.quantite <= 0 || pl.quantite > totalOpenUnits) {
+                            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Quantité vendue invalide pour produit " + s.getProduit().getNomProduit());
+                        }
+                        quantiteReelle = pl.quantite;
+                    } else {
+                        // full conditionnement sale when quantite not specified
+                        quantiteReelle = totalOpenUnits;
+                    }
                 } else {
-                    quantiteReelle = pl.quantite == null ? 0 : pl.quantite;
+                    if (pl.quantite == null || pl.quantite <= 0) {
+                        throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Quantité invalide pour produit " + s.getProduit().getNomProduit());
+                    }
+                    quantiteReelle = pl.quantite;
                 }
 
                 if (s.getQuantiteDisponible() == null || s.getQuantiteDisponible() < quantiteReelle) {
@@ -295,7 +340,7 @@ public class VenteController {
                     parsedDateVente = java.time.LocalDateTime.parse(request.dateVente);
                 } catch (java.time.format.DateTimeParseException ex1) {
                     try {
-                        parsedDateVente = java.time.OffsetDateTime.parse(request.dateVente).toLocalDateTime();
+                        parsedDateVente = java.time.OffsetDateTime.parse(request.dateVente).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
                     } catch (java.time.format.DateTimeParseException ex2) {
                         return ResponseEntity.badRequest().body(java.util.Map.of("error", "Date de vente invalide"));
                     }
@@ -309,6 +354,10 @@ public class VenteController {
             v.setMontantRecu(request.montantRecu == null ? 0 : request.montantRecu);
             v.setMonnaieRembourse(request.monnaieRembourse == null ? 0 : request.monnaieRembourse);
             v.setUtilisateur(user);
+            // Ensure boutique is recorded for multi-boutique support
+            if (user != null && user.getBoutique() != null) {
+                v.setBoutique(user.getBoutique());
+            }
             v = venteService.save(v);
 
             // For each line create LigneVente, decrement stock and create Mouvement
@@ -323,7 +372,8 @@ public class VenteController {
                 int quantiteReelle = 0;
                 if (pl.venteParConditionnement != null && pl.venteParConditionnement) {
                     Integer mul = s.getProduit().getNombreUnitesParConditionnement() == null ? 1 : s.getProduit().getNombreUnitesParConditionnement();
-                    quantiteReelle = (pl.quantiteConditionnement == null ? 0 : pl.quantiteConditionnement) * mul;
+                    int totalOpenUnits = (pl.quantiteConditionnement == null ? 0 : pl.quantiteConditionnement) * mul;
+                    quantiteReelle = pl.quantite == null ? totalOpenUnits : pl.quantite;
                 } else {
                     quantiteReelle = pl.quantite == null ? 0 : pl.quantite;
                 }
@@ -332,20 +382,33 @@ public class VenteController {
                 lv.setVente(v);
                 lv.setProduit(s.getProduit());
                 lv.setQuantite(quantiteReelle);
-                lv.setQuantiteConditionnement(pl.quantiteConditionnement);
+                // Only record quantiteConditionnement when sale was issued from a conditionnement
+                lv.setQuantiteConditionnement((pl.venteParConditionnement != null && pl.venteParConditionnement) ? pl.quantiteConditionnement : null);
                 lv.setQuantiteLivre(quantiteReelle);
                 lv.setNewPrice(pl.prix == null ? 0 : pl.prix);
                 if (pl.priceMode != null) {
                     try { lv.setPriceMode(com.smboutique.api.model.PriceMode.valueOf(pl.priceMode)); } catch (Exception e) { }
                 }
+
+                // Compute remainder after sale for 'open carton' semantics and save on line for history
+                Integer mul = s.getProduit().getNombreUnitesParConditionnement() == null ? 1 : s.getProduit().getNombreUnitesParConditionnement();
+                Integer cur = s.getQuantiteDisponible() == null ? 0 : s.getQuantiteDisponible();
+                int after = cur - quantiteReelle;
+                if (mul != null && mul > 1) {
+                    int remAfter = ((after % mul) + mul) % mul; // normalize
+                    if (remAfter > 0) lv.setResteUnitesDansCartonApresVente(remAfter);
+                    else lv.setResteUnitesDansCartonApresVente(null);
+                } else {
+                    lv.setResteUnitesDansCartonApresVente(null);
+                }
+
                 ligneVenteService.save(lv);
 
                 // decrement stock
-                Integer cur = s.getQuantiteDisponible() == null ? 0 : s.getQuantiteDisponible();
                 s.setQuantiteDisponible(cur - quantiteReelle);
                 stockRepository.save(s);
 
-                // create mouvement
+                // create mouvement (item-level) with audit fields
                 com.smboutique.api.model.Mouvement mv = new com.smboutique.api.model.Mouvement();
                 mv.setLigneVente(lv);
                 mv.setProduit(s.getProduit());
@@ -355,6 +418,10 @@ public class VenteController {
                 mv.setTypeMouvement("SORTIE");
                 mv.setMontant((pl.prix == null ? 0 : pl.prix) * quantiteReelle);
                 mv.setDateMouvement(java.time.LocalDateTime.now());
+                mv.setUtilisateur(user);
+                mv.setDescription("Vente ligne id=" + (lv.getId() != null ? lv.getId() : "new") + " produit=" + (s.getProduit() != null ? s.getProduit().getId() : null));
+                mv.setSousType("ESPECE");
+                mv.setReferenceId(v.getId());
                 mouvementService.save(mv);
             }
 
@@ -384,6 +451,9 @@ public class VenteController {
             cm.setUserId(user.getId());
             cm.setRaison("Vente comptant");
             caisseMovementService.save(cm);
+
+            // audit-level mouvement
+            mouvementService.log("VENTE", "ESPECE", "Vente id=" + v.getId(), v.getId(), user.getBoutique() != null ? user.getBoutique().getId() : null, null, user.getId(), v.getMontantTotal() != null ? Double.valueOf(v.getMontantTotal()) : null);
 
             return ResponseEntity.ok(v);
         } catch (org.springframework.web.server.ResponseStatusException r) {
@@ -422,5 +492,14 @@ public class VenteController {
                     return ResponseEntity.ok().<Void>build();
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/pdf")
+    public void getVentePdf(@PathVariable Long id, jakarta.servlet.http.HttpServletResponse response) {
+        try {
+            pdfService.writeVentePdf(id, response);
+        } catch (Exception e) {
+            try { response.sendError(500); } catch (Exception ignored) {}
+        }
     }
 }

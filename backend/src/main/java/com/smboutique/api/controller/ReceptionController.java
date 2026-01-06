@@ -69,6 +69,9 @@ public class ReceptionController {
     @Autowired
     private UtilisateurService utilisateurService;
 
+    @Autowired
+    private com.smboutique.api.service.MouvementService mouvementService;
+
     private Utilisateur getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -230,7 +233,11 @@ public class ReceptionController {
         }
         // Assigner automatiquement la boutique de l'utilisateur connecté
         reception.setBoutique(user.getBoutique());
-        return receptionService.save(reception);
+        Reception saved = receptionService.save(reception);
+        try {
+            mouvementService.log("RECEPTION", "CREATION", "Réception id=" + saved.getId(), saved.getId(), saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, user != null ? user.getId() : null, null);
+        } catch (Exception e) { /* ignore logging failure */ }
+        return saved;
     }
 
     @PutMapping("/{id}")
@@ -256,7 +263,9 @@ public class ReceptionController {
         reception.setReference(receptionDetails.getReference());
         reception.setDateReception(receptionDetails.getDateReception());
         reception.setCommandeFournisseur(receptionDetails.getCommandeFournisseur());
-        return ResponseEntity.ok(receptionService.save(reception));
+        Reception updated = receptionService.save(reception);
+        try { mouvementService.log("RECEPTION", "MODIFICATION", "Réception modifiée id=" + updated.getId(), updated.getId(), updated.getBoutique() != null ? updated.getBoutique().getId() : null, null, user != null ? user.getId() : null, null); } catch (Exception e) {}
+        return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
@@ -279,6 +288,7 @@ public class ReceptionController {
         }
 
         receptionService.deleteById(id);
+        try { mouvementService.log("RECEPTION", "SUPPRESSION", "Réception supprimée id=" + id, id, reception.getBoutique() != null ? reception.getBoutique().getId() : null, null, user != null ? user.getId() : null, null); } catch (Exception e) {}
         return ResponseEntity.ok().build();
     }
 
@@ -477,6 +487,7 @@ public class ReceptionController {
             reception.setAnnulePar(user.getId());
             reception.setAnnuleReason(body != null ? body.getOrDefault("reason", null) : null);
             receptionService.save(reception);
+            try { mouvementService.log("RECEPTION", "ANNULATION", "Annulation réception id=" + reception.getId(), reception.getId(), reception.getBoutique() != null ? reception.getBoutique().getId() : null, null, user != null ? user.getId() : null, null); } catch (Exception e) {}
 
             return ResponseEntity.ok(java.util.Map.of("id", reception.getId(), "annule", true));
         } catch (Exception ex) {
@@ -615,6 +626,11 @@ public class ReceptionController {
             reception.setBoutique(boutique);
 
             Reception savedReception = receptionService.save(reception);
+
+            // Audit: log reception creation
+            try {
+                mouvementService.log("RECEPTION", "CREATION", "Réception id=" + savedReception.getId(), savedReception.getId(), savedReception.getBoutique() != null ? savedReception.getBoutique().getId() : null, null, user != null ? user.getId() : null, null);
+            } catch (Exception e) {}
 
             List<LigneCommande> lignesCommande = ligneCommandeRepository.findByCommandeFournisseurId(commande.getId());
             Map<Long, LigneCommande> ligneParProduit = new HashMap<>();
