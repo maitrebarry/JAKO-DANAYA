@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.smboutique.api.service.ProduitServiceImplTest
 -------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.384 s -- in com.smboutique.api.service.ProduitServiceImplTest
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.616 s -- in com.smboutique.api.service.ProduitServiceImplTest

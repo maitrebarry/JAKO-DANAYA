@@ -108,7 +108,7 @@ public class CaisseController {
                     mv.setRaison("Ouverture de caisse");
                     caisseMovementService.save(mv);
                     try {
-                        mouvementService.log("CAISSE", "OUVERTURE", "Ouverture de caisse ref=" + saved.getReference(), null, saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, current != null ? current.getId() : null, after != null ? Double.valueOf(after) : null);
+                        mouvementService.log("CAISSE", "OUVERTURE", "Ouverture de caisse", saved.getId(), saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, current != null ? current.getId() : null, after != null ? Double.valueOf(after) : null);
                     } catch (Exception l) {}
                 }
             } catch (Exception mvex) { }
@@ -147,7 +147,7 @@ public class CaisseController {
                             mv.setRaison("Mise à jour manuelle caisse");
                             caisseMovementService.save(mv);
                             try {
-                                mouvementService.log("CAISSE", "OUVERTURE", "Ouverture de caisse ref=" + saved.getReference(), null, saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, current != null ? current.getId() : null, after != null ? Double.valueOf(after) : null);
+                                mouvementService.log("CAISSE", "OUVERTURE", "Ajustement de la caisse", saved.getId(), saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, current != null ? current.getId() : null, after != null ? Double.valueOf(after) : null);
                             } catch (Exception l) {}
                         }
                     } catch (Exception mvex) {}

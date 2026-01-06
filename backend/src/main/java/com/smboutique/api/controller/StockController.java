@@ -69,6 +69,14 @@ public class StockController {
             produitDTO.setPrixDetail(stock.getProduit().getPrixDetail());
             produitDTO.setPrixEnGros(stock.getProduit().getPrixEnGros());
             produitDTO.setNombreUnitesParConditionnement(stock.getProduit().getNombreUnitesParConditionnement());
+            // include unite information for frontends
+            if (stock.getProduit().getUnite() != null) {
+                StockDTO.ProduitDTO.UniteDTO u = new StockDTO.ProduitDTO.UniteDTO();
+                u.setId(stock.getProduit().getUnite().getId());
+                u.setLibelle(stock.getProduit().getUnite().getLibelle());
+                u.setSymbole(stock.getProduit().getUnite().getSymbole());
+                produitDTO.setUnite(u);
+            }
             dto.setProduit(produitDTO);
             dto.setPrixAchat(stock.getProduit().getPrixAchat());
         }

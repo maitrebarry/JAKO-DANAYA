@@ -269,7 +269,7 @@ public class CommandeFournisseurController {
             commande.setLignes(lignes);
 
             CommandeFournisseur saved = commandeFournisseurService.save(commande);
-            try { mouvementService.log("COMMANDE", "CREATION", "Commande id=" + saved.getId(), saved.getId(), saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, currentUser != null ? currentUser.getId() : null, saved.getTotal() != null ? Double.valueOf(saved.getTotal()) : null); } catch (Exception e) {}
+            try { mouvementService.log("COMMANDE", "CREATION", "Commande fournisseur créée", saved.getId(), saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, currentUser != null ? currentUser.getId() : null, saved.getTotal() != null ? Double.valueOf(saved.getTotal()) : null); } catch (Exception e) {}
             return ResponseEntity.ok(saved);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST).body((CommandeFournisseur) null);
@@ -345,7 +345,7 @@ public class CommandeFournisseurController {
             paiementService.save(paiement);
 
             try {
-                mouvementService.log("PAIEMENT", "COMMANDE_FOURNISSEUR", "Paiement commande id=" + cmd.getId() + " montant=" + montant, cmd.getId(), cmd.getBoutique() != null ? cmd.getBoutique().getId() : null, null, current != null ? current.getId() : null, Double.valueOf(montant));
+                mouvementService.log("PAIEMENT", "COMMANDE_FOURNISSEUR", "Paiement reçu pour commande fournisseur", cmd.getId(), cmd.getBoutique() != null ? cmd.getBoutique().getId() : null, null, current != null ? current.getId() : null, Double.valueOf(montant));
             } catch (Exception e) { /* ignore */ }
 
             boolean caisseUpdated = false;

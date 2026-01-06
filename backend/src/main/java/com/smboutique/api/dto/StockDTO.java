@@ -31,6 +31,7 @@ public class StockDTO {
         private Integer prixEnGros;
         // nombre d'unités par conditionnement (ex: carton = 12)
         private Integer nombreUnitesParConditionnement;
+        private UniteDTO unite;
 
         public Long getId() { return id; }
         public void setId(Long id) { this.id = id; }
@@ -49,6 +50,24 @@ public class StockDTO {
 
         public Integer getNombreUnitesParConditionnement() { return nombreUnitesParConditionnement; }
         public void setNombreUnitesParConditionnement(Integer nombreUnitesParConditionnement) { this.nombreUnitesParConditionnement = nombreUnitesParConditionnement; }
+
+        public UniteDTO getUnite() { return unite; }
+        public void setUnite(UniteDTO unite) { this.unite = unite; }
+
+        public static class UniteDTO {
+            private Long id;
+            private String libelle;
+            private String symbole;
+
+            public Long getId() { return id; }
+            public void setId(Long id) { this.id = id; }
+
+            public String getLibelle() { return libelle; }
+            public void setLibelle(String libelle) { this.libelle = libelle; }
+
+            public String getSymbole() { return symbole; }
+            public void setSymbole(String symbole) { this.symbole = symbole; }
+        }
     }
 
     public static class MagasinDTO {

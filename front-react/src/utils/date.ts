@@ -14,15 +14,19 @@ export const formatServerDate = (d?: string | null): string => {
   // 2025-12-26 22:27:14
   const tsMatch = d.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:([+-]\d{2}:?\d{2})|Z)?$/);
   if (tsMatch) {
-    const [, y, m, day, hh, mm, ss, offset] = tsMatch;
+    const [, y, m, day, hh, mm, , offset] = tsMatch;
     // If an explicit timezone (offset or Z) is present, parse as an instant and display in client's local timezone
     if (offset || d.endsWith('Z')) {
-      const dt = new Date(d);
-      if (isNaN(dt.getTime())) return `${day}/${m}/${y} ${hh}:${mm}:${ss}`;
-      return dt.toLocaleString('fr-FR');
+      // normalize spacing to strict ISO so Date parsing is reliable across browsers
+      const iso = d.includes('T') ? d : d.replace(' ', 'T');
+      const dt = new Date(iso);
+      if (isNaN(dt.getTime())) return `${day}/${m}/${y} ${hh}:${mm}:00`;
+      // build a stable dd/MM/yyyy HH:mm:ss string using the client's local fields
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      return `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)}/${dt.getFullYear()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
     }
     // No timezone provided: treat as server-local timestamp and return literal server time
-    return `${day}/${m}/${y} ${hh}:${mm}:${ss}`;
+    return `${day}/${m}/${y} ${hh}:${mm}:00`;
   }
 
   // Handle ISO without seconds: 2025-12-26T22:27
@@ -52,10 +56,18 @@ export const toDatetimeLocalInput = (d?: string | null): string => {
   // Prefer parsing without timezone adjustments
   const tsMatch = d.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:([+-]\d{2}:?\d{2})|Z)?$/);
   if (tsMatch) {
-    const [, y, m, day, hh, mm] = tsMatch;
+    const [, y, m, day, hh, mm, , offset] = tsMatch;
+    // If an explicit timezone is present, convert to client's local time for datetime-local
+    if (offset || d.endsWith('Z')) {
+      const iso = d.includes('T') ? d : d.replace(' ', 'T');
+      const dt = new Date(iso);
+      if (isNaN(dt.getTime())) return `${y}-${m}-${day}T${hh}:${mm}`;
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+    }
     return `${y}-${m}-${day}T${hh}:${mm}`;
   }
-  const isoShort = d.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})$/);
+  const isoShort = d.match(/^([\d]{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})$/);
   if (isoShort) {
     const [, y, m, day, hh, mm] = isoShort;
     return `${y}-${m}-${day}T${hh}:${mm}`;

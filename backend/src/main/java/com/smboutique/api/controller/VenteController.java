@@ -419,7 +419,7 @@ public class VenteController {
                 mv.setMontant((pl.prix == null ? 0 : pl.prix) * quantiteReelle);
                 mv.setDateMouvement(java.time.LocalDateTime.now());
                 mv.setUtilisateur(user);
-                mv.setDescription("Vente ligne id=" + (lv.getId() != null ? lv.getId() : "new") + " produit=" + (s.getProduit() != null ? s.getProduit().getId() : null));
+                mv.setDescription("Sortie de stock liée à une vente");
                 mv.setSousType("ESPECE");
                 mv.setReferenceId(v.getId());
                 mouvementService.save(mv);
@@ -453,7 +453,7 @@ public class VenteController {
             caisseMovementService.save(cm);
 
             // audit-level mouvement
-            mouvementService.log("VENTE", "ESPECE", "Vente id=" + v.getId(), v.getId(), user.getBoutique() != null ? user.getBoutique().getId() : null, null, user.getId(), v.getMontantTotal() != null ? Double.valueOf(v.getMontantTotal()) : null);
+            mouvementService.log("VENTE", "ESPECE", "Vente en espèces enregistrée", v.getId(), user.getBoutique() != null ? user.getBoutique().getId() : null, null, user.getId(), v.getMontantTotal() != null ? Double.valueOf(v.getMontantTotal()) : null);
 
             return ResponseEntity.ok(v);
         } catch (org.springframework.web.server.ResponseStatusException r) {

@@ -2,7 +2,9 @@ package com.smboutique.api.controller;
 
 import com.smboutique.api.model.Magasin;
 import com.smboutique.api.model.Produit;
+import com.smboutique.api.model.Unite;
 import com.smboutique.api.model.Utilisateur;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import com.smboutique.api.service.MagasinService;
 import com.smboutique.api.service.ProduitService;
 import com.smboutique.api.service.StockService;
@@ -158,7 +160,8 @@ public class MagasinControllerTest {
         current.setBoutique(cb);
         when(magasinService.findById(5L)).thenReturn(Optional.of(m));
 
-        Produit p1 = new Produit(); p1.setId(10L); p1.setNomProduit("ProdX");
+        Unite u = new Unite(); u.setId(4L); u.setLibelle("Sacs"); u.setSymbole("Sac");
+        Produit p1 = new Produit(); p1.setId(10L); p1.setNomProduit("ProdX"); p1.setUnite(u);
         com.smboutique.api.model.Stock s1 = new com.smboutique.api.model.Stock(); s1.setId(100L); s1.setProduit(p1); s1.setMagasin(m); s1.setQuantiteDisponible(7);
         when(stockService.getStocksByMagasin(5L)).thenReturn(java.util.List.of(s1));
 
@@ -166,6 +169,12 @@ public class MagasinControllerTest {
         assertEquals(200, resp.getStatusCode().value());
         java.util.List<?> body = (java.util.List<?>) resp.getBody();
         assertEquals(1, body.size());
+        java.util.Map<?,?> first = (java.util.Map<?,?>) body.get(0);
+        assertNotNull(first.get("produit"));
+        java.util.Map<?,?> prodMap = (java.util.Map<?,?>) first.get("produit");
+        assertNotNull(prodMap.get("unite"));
+        java.util.Map<?,?> uniteMap = (java.util.Map<?,?>) prodMap.get("unite");
+        assertEquals("Sacs", uniteMap.get("libelle"));
     }
 }
 

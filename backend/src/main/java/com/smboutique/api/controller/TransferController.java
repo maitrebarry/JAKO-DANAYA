@@ -21,6 +21,9 @@ public class TransferController {
     private com.smboutique.api.service.TransferModuleService transferModuleService;
 
     @Autowired
+    private com.smboutique.api.service.MouvementService mouvementService;
+
+    @Autowired
     private com.smboutique.api.repository.StockRepository stockRepository;
 
     private Utilisateur getCurrentUser() {
@@ -52,6 +55,10 @@ public class TransferController {
             }
 
             transferService.transfer(req.sourceStockId, req.destStockId, req.quantite);
+            try {
+                String desc = "Transfert de stock entre emplacements";
+                mouvementService.log("TRANSFERT", "STOCK", desc, null, user != null && user.getBoutique() != null ? user.getBoutique().getId() : null, null, user != null ? user.getId() : null, req.quantite != null ? Double.valueOf(req.quantite) : null);
+            } catch (Exception l) {}
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(ex.getMessage());

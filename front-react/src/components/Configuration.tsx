@@ -2028,6 +2028,60 @@ const AssignerPermissions = () => {
     return grouped;
   }, [permissions]);
 
+  // Filter for permissions list and helpers to select/deselect visible permissions
+  const [permissionSearch, setPermissionSearch] = useState('');
+
+  const visiblePermissionsByModule = useMemo(() => {
+    if (!permissionSearch.trim()) return permissionsByModule;
+    const s = permissionSearch.toLowerCase();
+    const grouped: Record<string, any[]> = {};
+    Object.keys(permissionsByModule).forEach(m => {
+      const items = (permissionsByModule[m] || []).filter((p: any) => {
+        const name = (p.name || p.code || '').toLowerCase();
+        const desc = (p.description || '').toLowerCase();
+        return name.includes(s) || desc.includes(s);
+      });
+      if (items.length > 0) grouped[m] = items;
+    });
+    return grouped;
+  }, [permissionsByModule, permissionSearch]);
+
+  const visibleCount = useMemo(() => Object.values(visiblePermissionsByModule).reduce((a: number, b: any[]) => a + b.length, 0), [visiblePermissionsByModule]);
+
+  const allVisibleChecked = useMemo(() => {
+    const ids = Object.values(visiblePermissionsByModule).flat().map((p: any) => p.id);
+    if (ids.length === 0) return false;
+    return ids.every((id: number) => selectedUserPermissions.has(id));
+  }, [visiblePermissionsByModule, selectedUserPermissions]);
+
+  const someVisibleChecked = useMemo(() => {
+    const ids = Object.values(visiblePermissionsByModule).flat().map((p: any) => p.id);
+    if (ids.length === 0) return false;
+    const any = ids.some((id: number) => selectedUserPermissions.has(id));
+    const all = ids.every((id: number) => selectedUserPermissions.has(id));
+    return any && !all;
+  }, [visiblePermissionsByModule, selectedUserPermissions]);
+
+  const toggleSelectAllVisible = (checked: boolean) => {
+    if (checked) selectAllVisible(); else deselectAllVisible();
+  };
+
+  const selectAllVisible = () => {
+    setSelectedUserPermissions(prev => {
+      const next = new Set(prev);
+      Object.values(visiblePermissionsByModule).forEach(arr => arr.forEach(p => next.add(p.id)));
+      return next;
+    });
+  };
+
+  const deselectAllVisible = () => {
+    setSelectedUserPermissions(prev => {
+      const next = new Set(prev);
+      Object.values(visiblePermissionsByModule).forEach(arr => arr.forEach(p => next.delete(p.id)));
+      return next;
+    });
+  };
+
   const handleUserSelect = async (id: number) => {
     setSelectedUserId(id);
     setSelectedUserPermissions(new Set());
@@ -2121,6 +2175,71 @@ const AssignerPermissions = () => {
     return <div className="alert alert-danger">{error}</div>;
   }
 
+  // Precompute permissions content (helps keep JSX tidy and avoids nested ternaries inline)
+  const permissionsContent = !selectedUserId ? (
+    <div className="text-center text-muted py-5">
+      <i className="fas fa-user-lock fa-2x mb-2"></i>
+      <p className="mb-0">Sélectionnez un utilisateur pour gérer ses permissions</p>
+    </div>
+  ) : (
+    visibleCount === 0 ? (
+      <div className="text-center text-muted py-4">
+        {permissionSearch ? "Aucune permission trouvée pour ce filtre" : "Aucune permission disponible"}
+      </div>
+    ) : (
+      Object.keys(visiblePermissionsByModule).sort().map((module) => {
+        const modulePermissions = visiblePermissionsByModule[module];
+        const allChecked = modulePermissions.every((p: any) => selectedUserPermissions.has(p.id));
+        const someChecked = modulePermissions.some((p: any) => selectedUserPermissions.has(p.id));
+
+        return (
+          <div className="mb-3" key={module}>
+            <div className="d-flex justify-content-between align-items-center bg-light px-2 py-2">
+              <div className="d-flex align-items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  checked={allChecked}
+                  ref={(el) => {
+                    if (el) el.indeterminate = !allChecked && someChecked;
+                  }}
+                  onChange={(e) => toggleModulePermissions(module, e.target.checked)}
+                />
+                <strong>{module}</strong>
+                <span className="badge bg-secondary">{modulePermissions.length}</span>
+              </div>
+            </div>
+            
+            <table className="table table-sm align-middle mb-2">
+              <tbody>
+                {modulePermissions.map((permission: any) => {
+                  const action = (permission.code || permission.name || '').split('_')[1] || permission.name;
+                  const isChecked = selectedUserPermissions.has(permission.id);
+                  return (
+                    <tr key={permission.id} className={isChecked ? 'table-success' : ''}>
+                      <td style={{ width: '50px' }}>
+                        <input
+                          type="checkbox"
+                          className="form-check-input"
+                          checked={isChecked}
+                          onChange={() => togglePermission(permission.id)}
+                        />
+                      </td>
+                      <td style={{ width: '160px' }} className="text-uppercase small fw-bold">
+                        {action}
+                      </td>
+                      <td className="small">{permission.description || '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+      })
+    )
+  );
+
   return (
     <div className="row">
       <div className="col-md-4">
@@ -2179,70 +2298,39 @@ const AssignerPermissions = () => {
                 {selectedUserId ? 'Sélectionnez les permissions à attribuer' : 'Choisissez un utilisateur'}
               </small>
             </div>
-            <div>
-              <span className="badge bg-primary">{selectedCount}/{totalCount}</span>
+            <div className="d-flex align-items-center gap-2">
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="Filtrer permissions..."
+                value={permissionSearch}
+                onChange={(e) => setPermissionSearch(e.target.value)}
+                style={{ minWidth: 200 }}
+                disabled={!selectedUserId}
+              />
+
+              <div className="form-check form-check-inline text-white ms-2">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="selectAllVisible"
+                  checked={allVisibleChecked}
+                  ref={(el) => { if (el) (el as HTMLInputElement).indeterminate = !allVisibleChecked && someVisibleChecked; }}
+                  onChange={(e) => toggleSelectAllVisible(e.target.checked)}
+                  disabled={!selectedUserId || visibleCount === 0}
+                />
+                <label className="form-check-label ms-1" htmlFor="selectAllVisible">Sélectionner tout</label>
+              </div>
+
+              <span className="badge bg-primary ms-2">{selectedCount}/{totalCount}</span>
             </div>
           </div>
           
           <div className="card-body" style={{ maxHeight: '520px', overflowY: 'auto' }}>
-            {!selectedUserId ? (
-              <div className="text-center text-muted py-5">
-                <i className="fas fa-user-lock fa-2x mb-2"></i>
-                <p className="mb-0">Sélectionnez un utilisateur pour gérer ses permissions</p>
-              </div>
-            ) : (
-              Object.keys(permissionsByModule).sort().map((module) => {
-                const modulePermissions = permissionsByModule[module];
-                const allChecked = modulePermissions.every((p: any) => selectedUserPermissions.has(p.id));
-                const someChecked = modulePermissions.some((p: any) => selectedUserPermissions.has(p.id));
-                
-                return (
-                  <div className="mb-3" key={module}>
-                    <div className="d-flex justify-content-between align-items-center bg-light px-2 py-2">
-                      <div className="d-flex align-items-center gap-2">
-                        <input
-                          type="checkbox"
-                          className="form-check-input"
-                          checked={allChecked}
-                          ref={(el) => {
-                            if (el) el.indeterminate = !allChecked && someChecked;
-                          }}
-                          onChange={(e) => toggleModulePermissions(module, e.target.checked)}
-                        />
-                        <strong>{module}</strong>
-                        <span className="badge bg-secondary">{modulePermissions.length}</span>
-                      </div>
-                    </div>
-                    
-                    <table className="table table-sm align-middle mb-2">
-                      <tbody>
-                        {modulePermissions.map((permission: any) => {
-                          const action = (permission.code || permission.name || '').split('_')[1] || permission.name;
-                          const isChecked = selectedUserPermissions.has(permission.id);
-                          return (
-                            <tr key={permission.id} className={isChecked ? 'table-success' : ''}>
-                              <td style={{ width: '50px' }}>
-                                <input
-                                  type="checkbox"
-                                  className="form-check-input"
-                                  checked={isChecked}
-                                  onChange={() => togglePermission(permission.id)}
-                                />
-                              </td>
-                              <td style={{ width: '160px' }} className="text-uppercase small fw-bold">
-                                {action}
-                              </td>
-                              <td className="small">{permission.description || '—'}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })
-            )}
+            {permissionsContent}
           </div>
+                
+
           
           <div className="card-footer d-flex justify-content-between align-items-center">
             <small className="text-muted">{selectedCount} permission(s) sélectionnée(s)</small>

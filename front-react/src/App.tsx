@@ -6,6 +6,7 @@ import Configuration from './components/Configuration';
 import Fournisseurs from './components/Fournisseurs';
 import Produits from './components/Produits';
 import CommandeFournisseur from './components/CommandeFournisseur';
+import CommandeClient from './components/CommandeClient';
 import CommandeApercu from './components/CommandeApercu';
 import ListeCommandes from './components/ListeCommandes';
 import Reception from './components/Reception';
@@ -20,7 +21,9 @@ import VentesHistorique from './components/VentesHistorique';
 import VentesEspeces from './components/VentesEspeces';
 import VenteLivraison from './components/VenteLivraison';
 import VenteEnEspece from './components/VenteEnEspece';
+import VenteApercuEspece from './components/VenteApercuEspece';
 import Transfert from './components/Transfert';
+import Mouvements from './components/Mouvements';
 import { UserProvider } from './contexts/UserContext';
 
 // Composant pour protéger les routes
@@ -91,7 +94,23 @@ function App() {
               </PrivateRoute>
             }
           />
+          {/* Commande client (vente) - nouveau composant */}
           <Route 
+            path="/commande-client" 
+            element={
+              <PrivateRoute>
+                <Layout><CommandeClient /></Layout>
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/commandes-clients/update/:id" 
+            element={
+              <PrivateRoute>
+                <Layout><CommandeClient /></Layout>
+              </PrivateRoute>
+            } 
+          />          <Route 
             path="/liste-commandes" 
             element={
               <PrivateRoute>
@@ -196,7 +215,7 @@ function App() {
             path="/ventes"
             element={
               <PrivateRoute>
-                <Layout><CommandeFournisseur isVente={true} /></Layout>
+                <Layout><CommandeClient /></Layout>
               </PrivateRoute>
             }
           />
@@ -204,7 +223,7 @@ function App() {
             path="/ventes/update/:id"
             element={
               <PrivateRoute>
-                <Layout><CommandeFournisseur isVente={true} /></Layout>
+                <Layout><CommandeClient /></Layout>
               </PrivateRoute>
             }
           />
@@ -233,11 +252,28 @@ function App() {
               </PrivateRoute>
             }
           />
+          <Route 
+            path="/ventes/espece/appercu/:id"
+            element={
+              <PrivateRoute>
+                <Layout><VenteApercuEspece /></Layout>
+              </PrivateRoute>
+            }
+          />
           <Route
             path="/ventes/historique"
             element={
               <PrivateRoute>
                 <Layout><VentesHistorique /></Layout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/mouvements"
+            element={
+              <PrivateRoute>
+                <Layout><Mouvements /></Layout>
               </PrivateRoute>
             }
           />

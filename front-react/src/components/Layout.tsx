@@ -180,8 +180,7 @@ const Sidebar = () => {
     dashboard: hasAnyPermission(['TABLEAU_DE_BORD_VOIR', 'TABLEAU_DE_BORD_LECTURE']),
     inventaire: hasAnyPermission(['INVENTAIRE_VOIR', 'INVENTAIRE_LECTURE']),
     fournisseurs: hasAnyPermission(['FOURNISSEUR_VOIR', 'FOURNISSEUR_LECTURE']),
-    produits: hasAnyPermission(['PRODUIT_VOIR', 'PRODUIT_LECTURE']),
-    achats: hasAnyPermission(['ACHAT_VOIR', 'COMMANDE_LECTURE']),
+    produits: hasAnyPermission(['PRODUIT_VOIR', 'PRODUIT_LECTURE']),    mouvements: hasAnyPermission(['MOUVEMENT_AUDIT', 'CAISSE_MOUVEMENT_VIEW', 'INVENTAIRE_LECTURE']),    achats: hasAnyPermission(['ACHAT_VOIR', 'COMMANDE_LECTURE']),
     venteEspece: hasAnyPermission(['VENTE_ESPECE_VOIR', 'VENTE_LECTURE']),
     venteCredit: hasAnyPermission(['VENTE_CREDIT_VOIR', 'VENTE_LECTURE']),
     caisse: hasAnyPermission(['CAISSE_VOIR', 'CAISSE_LECTURE', 'PARAMETRES_LECTURE']),
@@ -275,11 +274,13 @@ const Sidebar = () => {
                 </Link>
               </li>
               ) }
+              {can.mouvements && (
               <li>
-                <a href="#" className="side-nav-link" style={{ paddingLeft: '40px' }}>
+                <Link to="/mouvements" className="side-nav-link" style={{ paddingLeft: '40px' }}>
                   <span>Mouvement</span>
-                </a>
+                </Link>
               </li>
+              )}
               <li>
                 <a href="#" className="side-nav-link" style={{ paddingLeft: '40px' }}>
                   <span>Utilisations/pertes</span>

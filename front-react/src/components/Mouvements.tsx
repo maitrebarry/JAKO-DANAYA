@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import useHasPermission from '../contexts/useHasPermission';
+import { useUser } from '../contexts/UserContext';
 
 interface Mouvement {
   id: number;
@@ -21,11 +22,32 @@ const AUTH_HEADER = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_
 
 const fmtDate = (s?: string) => {
   if (!s) return '';
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const formatDate = (d: Date) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  // If server returns dd/MM/yyyy HH:mm:ss, parse and reformat in the browser local timezone
+  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2}):(\d{2})$/);
+  if (m) {
+    const day = Number(m[1]), month = Number(m[2]) - 1, year = Number(m[3]);
+    const hh = Number(m[4]), mm = Number(m[5]), ss = Number(m[6]);
+    const d = new Date(year, month, day, hh, mm, ss);
+    return formatDate(d);
+  }
   try { return new Date(s).toLocaleString(); } catch (e) { return s; }
+};
+
+// Remove numeric IDs and common id patterns from description for display
+const sanitizeDescription = (s?: string) => {
+  if (!s) return '';
+  let out = (s || '').replace(/["']/g, '');
+  out = out.replace(/\bids?\s*[:=]?\s*\d+\b/ig, ''); // id:123 or ids=123
+  out = out.replace(/#\d+\b/g, ''); // #123
+  out = out.replace(/\b\d{4,}\b/g, ''); // standalone long numbers
+  return out.trim();
 };
 
 const Mouvements: React.FC = () => {
   const isAuditor = useHasPermission('MOUVEMENT_AUDIT');
+  const { currentBoutique } = useUser();
   const [from, setFrom] = useState<string>('');
   const [to, setTo] = useState<string>('');
   const [type, setType] = useState<string>('');
@@ -73,7 +95,7 @@ const Mouvements: React.FC = () => {
     if (userId) params.set('userId', String(userId));
     if (type) params.set('type', type);
     if (sousType) params.set('sousType', sousType);
-    if (boutiqueId) params.set('boutiqueId', String(boutiqueId));
+    if (boutiqueId && isAuditor) params.set('boutiqueId', String(boutiqueId));
     if (magasinId) params.set('magasinId', String(magasinId));
     if (from) params.set('from', from);
     if (to) params.set('to', to);
@@ -193,13 +215,20 @@ const Mouvements: React.FC = () => {
               <label className="form-label">Sous-type</label>
               <input className="form-control" value={sousType} onChange={e => setSousType(e.target.value)} placeholder="ex. ESPECE, OUVERTURE" />
             </div>
-            <div className="col-auto">
-              <label className="form-label">Boutique</label>
-              <select className="form-select" value={boutiqueId ?? ''} onChange={e => setBoutiqueId(e.target.value ? Number(e.target.value) : '')}>
-                <option value="">Toutes</option>
-                {boutiques.map(b => <option key={b.id} value={b.id}>{b.nom}</option>)}
-              </select>
-            </div>
+            {isAuditor ? (
+              <div className="col-auto">
+                <label className="form-label">Boutique</label>
+                <select className="form-select" value={boutiqueId ?? ''} onChange={e => setBoutiqueId(e.target.value ? Number(e.target.value) : '')}>
+                  <option value="">Toutes</option>
+                  {boutiques.map(b => <option key={b.id} value={b.id}>{b.nom}</option>)}
+                </select>
+              </div>
+            ) : (
+              <div className="col-auto">
+                <label className="form-label">Boutique</label>
+                <input className="form-control" value={currentBoutique ? currentBoutique.nom : ''} readOnly />
+              </div>
+            )}
             <div className="col-auto">
               <label className="form-label">Magasin</label>
               <select className="form-select" value={magasinId ?? ''} onChange={e => setMagasinId(e.target.value ? Number(e.target.value) : '')}>
@@ -249,27 +278,25 @@ const Mouvements: React.FC = () => {
                   <th>Quantité</th>
                   <th>Montant</th>
                   <th>Description</th>
-                  <th>Réf</th>
                 </tr>
               </thead>
               <tbody>
                 {pageItems.map(r => (
                   <tr key={r.id}>
                     <td>{fmtDate(r.dateMouvement)}</td>
-                    <td>{r.typeMouvement}</td>
-                    <td>{r.sousType}</td>
-                    <td>{r.utilisateur ? (r.utilisateur.prenom ? `${r.utilisateur.prenom} ${r.utilisateur.nom}` : r.utilisateur.email) : ''}</td>
-                    <td>{r.boutique ? r.boutique.nom : ''}</td>
-                    <td>{r.magasin ? r.magasin.nom : ''}</td>
-                    <td>{r.produit ? r.produit.nomProduit : ''}</td>
-                    <td>{r.quantite ?? ''}</td>
+                    <td><span className={`badge bg-primary`}>{r.typeMouvement}</span></td>
+                    <td><span className={`badge bg-secondary`}>{r.sousType}</span></td>
+                    <td><span className={`badge bg-info text-white`}>{r.utilisateur ? (r.utilisateur.prenom ? `${r.utilisateur.prenom} ${r.utilisateur.nom}` : r.utilisateur.email) : ''}</span></td>
+                    <td><span className={`badge bg-success`}>{r.boutique ? r.boutique.nom : ''}</span></td>
+                    <td><span className={`badge bg-light text-white`}>{r.magasin ? r.magasin.nom : ''}</span></td>
+                    <td>{r.produit && r.produit.nomProduit ? r.produit.nomProduit : ''}</td>
+                    <td>{typeof r.quantite === 'number' ? r.quantite : ''}</td>
                     <td>{r.montant ?? ''}</td>
-                    <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.description}</td>
-                    <td>{r.referenceId ?? ''}</td>
+                    <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sanitizeDescription(r.description)}</td>
                   </tr>
                 ))}
                 {pageItems.length === 0 && (
-                  <tr><td colSpan={11} className="text-center">Aucun résultat</td></tr>
+                  <tr><td colSpan={10} className="text-center">Aucun résultat</td></tr>
                 )}
               </tbody>
             </table>

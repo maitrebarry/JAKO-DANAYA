@@ -9,6 +9,7 @@ public class CommandeFournisseurDTO {
     private double montantPaye;
     private double pourcentageRecu;
     private double pourcentagePaye;
+    private java.util.List<LigneDTO> lignes;
 
     // Getters and setters
     public Long getId() { return id; }
@@ -35,6 +36,9 @@ public class CommandeFournisseurDTO {
     public double getPourcentagePaye() { return pourcentagePaye; }
     public void setPourcentagePaye(double pourcentagePaye) { this.pourcentagePaye = pourcentagePaye; }
 
+    public java.util.List<LigneDTO> getLignes() { return lignes; }
+    public void setLignes(java.util.List<LigneDTO> lignes) { this.lignes = lignes; }
+
     public static class FournisseurDTO {
         private Long id;
         private String prenom;
@@ -48,5 +52,51 @@ public class CommandeFournisseurDTO {
 
         public String getNom() { return nom; }
         public void setNom(String nom) { this.nom = nom; }
+    }
+
+    public static class LigneDTO {
+        private Long id;
+        private Long stockId;
+        private Long produitId;
+        private String nom;
+        private Integer quantite;
+        private Integer quantiteConditionnement;
+        private Integer prix;
+        private Double montant;
+        private Integer multiplicateur;
+        private UniteDTO unite;
+
+        public Long getId() { return id; }
+        public void setId(Long id) { this.id = id; }
+        public Long getStockId() { return stockId; }
+        public void setStockId(Long stockId) { this.stockId = stockId; }
+        public Long getProduitId() { return produitId; }
+        public void setProduitId(Long produitId) { this.produitId = produitId; }
+        public String getNom() { return nom; }
+        public void setNom(String nom) { this.nom = nom; }
+        public Integer getQuantite() { return quantite; }
+        public void setQuantite(Integer quantite) { this.quantite = quantite; }
+        public Integer getQuantiteConditionnement() { return quantiteConditionnement; }
+        public void setQuantiteConditionnement(Integer quantiteConditionnement) { this.quantiteConditionnement = quantiteConditionnement; }
+        public Integer getPrix() { return prix; }
+        public void setPrix(Integer prix) { this.prix = prix; }
+        public Double getMontant() { return montant; }
+        public void setMontant(Double montant) { this.montant = montant; }
+        public Integer getMultiplicateur() { return multiplicateur; }
+        public void setMultiplicateur(Integer multiplicateur) { this.multiplicateur = multiplicateur; }
+        public UniteDTO getUnite() { return unite; }
+        public void setUnite(UniteDTO unite) { this.unite = unite; }
+
+        public static class UniteDTO {
+            private Long id;
+            private String libelle;
+            private String symbole;
+            public Long getId() { return id; }
+            public void setId(Long id) { this.id = id; }
+            public String getLibelle() { return libelle; }
+            public void setLibelle(String libelle) { this.libelle = libelle; }
+            public String getSymbole() { return symbole; }
+            public void setSymbole(String symbole) { this.symbole = symbole; }
+        }
     }
 }

@@ -48,9 +48,7 @@ interface CartItem {
   montant: number;
 } 
 
-interface CommandeFournisseurProps { isVente?: boolean }
-
-const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = false }) => {
+const CommandeFournisseur: React.FC = () => {
   const navigate = useNavigate();
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
@@ -58,8 +56,7 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
   const [selectedFournisseur, setSelectedFournisseur] = useState('');
   // Vente mode: client name instead of fournisseur
 
-  // Vente: price mode toggle (DETAIL = prix_detail, GROS = prix_en_gros)
-  const [priceModeDefault, setPriceModeDefault] = useState<'DETAIL' | 'GROS'>('DETAIL');
+
   // uid generator ref to avoid collisions when creating temporary UIDs
   const uidCounterRef = React.useRef(0);
   const nextUid = () => `tmp-${uidCounterRef.current++}`;
@@ -130,18 +127,12 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
   const [newFournisseur, setNewFournisseur] = useState<{ prenom?: string; nom?: string; contact?: string; ville?: string }>({});
   const [fournisseurSearch, setFournisseurSearch] = useState('');
 
-  // Client modal & list (used in Vente mode)
-  const [clients, setClients] = useState<any[]>([]);
-  const [showClientModal, setShowClientModal] = useState(false);
-  const [newClient, setNewClient] = useState<{ prenom?: string; nom?: string; contact?: string; ville?: string }>({});
-  const [clientSearch, setClientSearch] = useState('');
-  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+
 
   // Permissions
   const canCreateCommande = useHasPermission('COMMANDE_CREER');
   const canModifyCommande = useHasPermission('COMMANDE_MODIFIER');
   const canCreateFournisseur = useHasPermission('FOURNISSEUR_CREER');
-  const canCreateClient = useHasPermission('CLIENT_CREER');
 
   // Location (boutique / magasin) state and helpers
   const [magasins, setMagasins] = useState<any[]>([]);
@@ -240,8 +231,8 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
         await fetchProduits();
 
         const mags = await fetchMagasins();
-        // Default selection rules: achats (commande fournisseur) prefer magasin if exists; ventes prefer boutique
-        if (!isVente && mags && mags.length > 0) {
+        // Default selection rules for achat: prefer MAGASIN if exists
+        if (mags && mags.length > 0) {
           setLocationType('MAGASIN');
           setSelectedMagasinId(mags[0].id);
           await fetchStocksByLocation('MAGASIN', mags[0].id);
@@ -251,7 +242,6 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
         }
 
         await fetchFournisseurs();
-        await fetchClients();
         generateReference();
         // default local datetime for datetime-local input (avoid using toISOString which yields UTC)
         const now = new Date();
@@ -272,34 +262,17 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
 
   // Ensure body class and scrolling behavior while modal is open
   useEffect(() => {
-    // If either modal is open, prevent body scrolling
-    if (showFournisseurModal || showClientModal) {
-      document.body.classList.add('modal-open');
-    } else {
-      document.body.classList.remove('modal-open');
-    }
+    if (showFournisseurModal) document.body.classList.add('modal-open'); else document.body.classList.remove('modal-open');
     return () => document.body.classList.remove('modal-open');
-  }, [showFournisseurModal, showClientModal]);
+  }, [showFournisseurModal]);
 
   const fetchCommandeForEdit = async (commandeId: number, loadedStocks?: Stock[]) => {
     try {
       const token = localStorage.getItem('smb_token');
       let res = null as any;
-      if (isVente) {
-        // Try vente endpoint first, then fallback to commandes-clients
-        res = await fetch(`http://localhost:8085/api/ventes/${commandeId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!res.ok) {
-          res = await fetch(`http://localhost:8085/api/commandes-clients/${commandeId}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-        }
-      } else {
-        res = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${commandeId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      }
+      res = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${commandeId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (!res.ok) throw new Error('Erreur lors du chargement de la commande');
       const data = await res.json();
       // populate form
@@ -308,21 +281,8 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
       if (data.dateCommande) {
         setDateCommande(toDatetimeLocalInput(data.dateCommande));
       }
-      // For ventes (commande client), populate client info; otherwise populate fournisseur
-      if (isVente) {
-        // API may return direct nomClient or a client object
-        // Use client id only for ventes; do not use free-text nomClient
-        setSelectedClientId(data.client?.id || null);
-        // If the saved lignes had a priceMode (e.g., GROS), initialize global mode so user can switch
-        if (data.lignes && data.lignes.length > 0 && data.lignes[0].priceMode) {
-          try {
-            const pm = String(data.lignes[0].priceMode).toUpperCase();
-            if (pm === 'DETAIL' || pm === 'GROS') setPriceModeDefault(pm as 'DETAIL' | 'GROS');
-          } catch (e) { /* ignore */ }
-        }
-      } else {
-        setSelectedFournisseur(data.fournisseur?.id ? String(data.fournisseur.id) : '');
-      }
+      // Populate fournisseur for achat
+      setSelectedFournisseur(data.fournisseur?.id ? String(data.fournisseur.id) : '');
       // build cart from lignes
       if (data.lignes) {
         const stocksRef = loadedStocks && loadedStocks.length > 0 ? loadedStocks : stocks;
@@ -365,39 +325,14 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
 
   const generateReference = () => {
     const now = new Date();
-    const prefix = isVente ? 'CMC' : 'CMF';
+    const prefix = 'CMF';
     const ref = `${prefix}-${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
     setReference(ref);
   };
 
-  // Ensure reference prefix updates if mode (vente/achat) changes
-  useEffect(() => {
-    generateReference();
-  }, [isVente]);
 
-  // When the mode switches between Vente and Achat, ensure default location reflects the business rule:
-  // - Achat / Commande fournisseur => default MAGASIN if magasins exist
-  // - Vente / Commande client => default BOUTIQUE
-  useEffect(() => {
-    (async () => {
-      if (isVente) {
-        setLocationType('BOUTIQUE');
-        setSelectedMagasinId(null);
-        await fetchStocksByLocation('BOUTIQUE');
-      } else {
-        const mags = await fetchMagasins();
-        if (mags && mags.length > 0) {
-          setLocationType('MAGASIN');
-          setSelectedMagasinId(mags[0].id);
-          await fetchStocksByLocation('MAGASIN', mags[0].id);
-        } else {
-          setLocationType('BOUTIQUE');
-          setSelectedMagasinId(null);
-          await fetchStocksByLocation('BOUTIQUE');
-        }
-      }
-    })();
-  }, [isVente]);
+
+
 
 
 
@@ -415,19 +350,7 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
     }
   };
 
-  const fetchClients = async () => {
-    try {
-      const token = localStorage.getItem('smb_token');
-      const res = await fetch('http://localhost:8085/api/clients-grossistes', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('Erreur lors du chargement des clients');
-      const data = await res.json();
-      setClients(data);
-    } catch (err: any) {
-      setError(err.message || 'Erreur inconnue');
-    }
-  };
+
 
   const handleProductSelect = (stockId: string) => {
     try {
@@ -443,13 +366,8 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
         return;
       }
 
-      // For Vente: prefer the configured price mode (DÉTAIL / GROS) and ignore stored lastPrice when selecting a product
       let defaultPrice = Number(stock.produit?.prixAchat ?? 0);
-      if (isVente && stock.produit) {
-        const modePrice = priceModeDefault === 'DETAIL' ? stock.produit?.prixDetail : stock.produit?.prixEnGros;
-        defaultPrice = Number(modePrice ?? stock.produit?.prixAchat ?? 0);
-      } else if (stock.produit) {
-        // Non-vente: try to use last used price if available, otherwise prixAchat
+      if (stock.produit) {
         const lastPriceKey = `lastPrice_${stock.produit.id}`;
         const lastPrice = localStorage.getItem(lastPriceKey);
         defaultPrice = lastPrice ? parseFloat(lastPrice) : Number(stock.produit?.prixAchat ?? 0);
@@ -460,8 +378,8 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
       }
 
       const multiplicateur = getProduitMultiplicateur(stock);
-      // Default behaviour: for achats (isVente === false) prefer saisie par conditionnement
-      const defaultVenteParConditionnement = !isVente;
+      // Default behaviour for achats: prefer saisie par conditionnement only when product has multiple units per package (e.g., carton)
+      const defaultVenteParConditionnement = multiplicateur > 1;
       const initialQuantiteConditionnement = 1;
       const initialQuantiteUnits = (multiplicateur && multiplicateur > 0) ? (multiplicateur * initialQuantiteConditionnement) : 1;
       const newItem: CartItem = {
@@ -522,21 +440,7 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
       // initialize quantiteConditionnement to 1 when turning on
       const qCond = venteParConditionnement ? (item.quantiteConditionnement || 1) : item.quantite;
 
-      // Business rules:
-      // - For Vente: allow unit input; conditionnement only if multiplier>1 (keep existing behavior)
-      // - For Achat: default is conditionnement; switching to units is allowed ONLY if multiplier>1 (fractionnable)
-      if (isVente) {
-        if (venteParConditionnement && (!multiplier || multiplier <= 1)) {
-          console.debug('Cannot switch to conditionnement in vente: multiplier missing or <=1', { uid, multiplier });
-          return item;
-        }
-      } else {
-        // Achat flows: disallow switching to unit input when product is not fractionnable
-        if (!venteParConditionnement && (!multiplier || multiplier <= 1)) {
-          Swal.fire('Interdit', 'La saisie à l\'unité n\'est autorisée que si le produit est fractionnable (nombre_unites_par_conditionnement > 1).', 'error');
-          return item;
-        }
-      }
+      // Allow switching between conditionnement and unit input for purchases. Single-unit products (multiplier<=1) will default to unit input.
 
       // Update stored unit quantity when conditionnement changes so stock-impacting quantity is always in units
       const updatedQuantite = venteParConditionnement ? (qCond * (multiplier || 1)) : (item.quantite || 1);
@@ -545,18 +449,13 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
   };
 
   const updatePrice = (uid: string, prix: number) => {
-    if (isVente) {
-      Swal.fire('Info', 'Le prix est calculé automatiquement pour les ventes (DÉTAIL/GROS) et ne peut pas être modifié manuellement.', 'info');
-      return;
-    }
-
     setCart(prev => prev.map(item =>
       item.uid === uid
         ? (item.venteParConditionnement ? (() => { const stock = stocks.find(s => s.id === item.id_stock); const multiplier = stock?.produit?.nombreUnitesParConditionnement || 0; const realQ = (item.quantiteConditionnement || 0) * multiplier; return { ...item, prix, montant: prix * realQ }; })() : { ...item, prix, montant: prix * item.quantite })
         : item
     ));
 
-    // Save last used price for this product in localStorage (only for non-vente flows)
+    // Save last used price for this product in localStorage
     const item = cart.find(i => i.uid === uid);
     const stock = item ? stocks.find(s => s.id === item.id_stock) : undefined;
     if (stock && stock.produit) {
@@ -565,38 +464,24 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
     }
   }; 
 
-  // When price mode toggles in Vente mode, update cart item prices to reflect selected mode
-  // When price mode, stocks or isVente change, normalize cart entries and recompute montants
+  // Normalize cart entries and recompute montants when stocks change
   useEffect(() => {
     setCart(prev => prev.map(item => {
       const stock = stocks.find(s => s.id === item.id_stock);
-      // ensure conditionnement fields are present (support both achat and vente)
       let venteParConditionnement = item.venteParConditionnement;
       let quantiteConditionnement = item.quantiteConditionnement;
       let multiplicateur = item.multiplicateur;
       if (venteParConditionnement === undefined) venteParConditionnement = false;
       if (quantiteConditionnement === undefined) quantiteConditionnement = 1;
-      // Recompute multiplicateur if missing or previously zero (handles add-before-stocks-loaded case)
       if (multiplicateur === undefined || multiplicateur <= 1) multiplicateur = getProduitMultiplicateur(stock);
-
-      // determine price (use global priceModeDefault)
-      let newPrix = item.prix;
-      if (isVente) {
-        // prefer the stock's product if available, otherwise try to find a product by produitId across stocks
-        const productSource = (stock && stock.produit) ? stock.produit : (item.produitId ? (stocks.find(s => s.produit?.id === item.produitId)?.produit) : undefined);
-        if (productSource) {
-          const modePrice = priceModeDefault === 'DETAIL' ? productSource.prixDetail : productSource.prixEnGros;
-          if (modePrice !== undefined && modePrice !== null) newPrix = Number(modePrice);
-        }
-      }
 
       const multiplier = (venteParConditionnement && multiplicateur) ? multiplicateur : 1;
       const realQ = venteParConditionnement ? ((quantiteConditionnement || 0) * multiplier) : item.quantite;
-      const newMontant = (newPrix || 0) * (realQ || 0);
+      const newMontant = (item.prix || 0) * (realQ || 0);
 
-      return { ...item, prix: newPrix, montant: newMontant, venteParConditionnement, quantiteConditionnement, multiplicateur };
+      return { ...item, montant: newMontant, venteParConditionnement, quantiteConditionnement, multiplicateur };
     }));
-  }, [priceModeDefault, stocks, isVente]);
+  }, [stocks]);
 
 
 
@@ -622,15 +507,12 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
   const zeroStockDetails = stocks.filter(stock => (stock.quantiteDisponible ?? 0) === 0);
 
   const handleSubmit = async () => {
-    if (!isVente && !selectedFournisseur) {
+    if (!selectedFournisseur) {
       Swal.fire('Erreur', 'Veuillez sélectionner un fournisseur', 'error');
       return;
     }
 
-    if (isVente && !selectedClientId) {
-      Swal.fire('Erreur', 'Veuillez sélectionner un client', 'error');
-      return;
-    }
+
 
     if (cart.length === 0) {
       Swal.fire('Erreur', 'Le panier est vide', 'error');
@@ -661,47 +543,23 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
         }
       }
 
-      // For sales, realQ is computed using conditionnement when applicable.
-      // For purchases, we always treat quantite as units ordered and do NOT validate stock availability here.
-      const realQ = (isVente && item.venteParConditionnement) ? ((item.quantiteConditionnement || 0) * multiplier) : item.quantite;
 
-      // Only enforce stock availability for sales
-      if (isVente) {
-        // Check conditionnement activation rules: multiplicateur must be >1
-        const effMultiplier = (item.multiplicateur || getProduitMultiplicateur(stock));
-        if (item.venteParConditionnement && (!effMultiplier || effMultiplier <= 1)) {
-          Swal.fire('Erreur', `Conditionnement non autorisé pour ${item.nom} : nombre_unites_par_conditionnement doit être > 1.`, 'error');
-          return;
-        }
 
-        if (stock && (stock.quantiteDisponible ?? 0) < (realQ || 0)) {
-          if (item.id_stock != null) blockedForStock.push(item.id_stock);
-        }
-      }
 
       // Build selection object and include ligneId / produitId to help backend map existing lignes when editing
       const baseObj: any = {
         id_stock: item.id_stock,
         produitId: item.produitId || undefined,
         ligneId: item.ligneId || undefined,
-        prix: item.prix,
-        priceMode: isVente ? priceModeDefault : undefined
-      };
+        prix: item.prix
+      }; 
 
-      if (isVente) {
-        if (item.venteParConditionnement) {
-          produitsSelectionnes.push({ ...baseObj, venteParConditionnement: true, quantiteConditionnement: item.quantiteConditionnement });
-        } else {
-          produitsSelectionnes.push({ ...baseObj, quantite: item.quantite });
-        }
+      // Achat flows: always send unit quantity for stock impact (quantite in units)
+      if (item.venteParConditionnement) {
+        const units = (item.quantiteConditionnement || 0) * (multiplier || 1);
+        produitsSelectionnes.push({ ...baseObj, quantite: units, quantiteConditionnement: item.quantiteConditionnement });
       } else {
-        // Achat flows: always send unit quantity for stock impact (quantite in units)
-        if (item.venteParConditionnement) {
-          const units = (item.quantiteConditionnement || 0) * (multiplier || 1);
-          produitsSelectionnes.push({ ...baseObj, quantite: units, quantiteConditionnement: item.quantiteConditionnement });
-        } else {
-          produitsSelectionnes.push({ ...baseObj, quantite: item.quantite });
-        }
+        produitsSelectionnes.push({ ...baseObj, quantite: item.quantite });
       }
     }
 
@@ -714,53 +572,18 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
       return;
     }
 
-    let payload: any;
-    if (isVente) {
-      if (isEditMode && id) {
-        // For editing an existing vente (stored as CommandeClient), include lignes modifications
-        payload = {
-          reference,
-          dateCommande: dateCommande,
-          total,
-          paie: 0,
-          client: { id: selectedClientId },
-          produitsSelectionnes
-        };
-      } else {
-        // Creation: use the VenteFullRequest shape
-        payload = {
-          reference,
-          dateVente: dateCommande,
-          client: selectedClientId ? { id: selectedClientId } : undefined,
-          produitsSelectionnes,
-          total
-        };
-      }
-    } else {
-      payload = {
-        reference,
-        dateCommande,
-        fournisseur: { id: parseInt(selectedFournisseur) },
-        produitsSelectionnes,
-        total
-      };
-    }
+    const payload = {
+      reference,
+      dateCommande,
+      fournisseur: { id: parseInt(selectedFournisseur) },
+      produitsSelectionnes,
+      total
+    };
 
     try {
       const token = localStorage.getItem('smb_token');
       let url = isEditMode && id ? `http://localhost:8085/api/commandes-fournisseurs/${id}` : 'http://localhost:8085/api/commandes-fournisseurs';
       let method = isEditMode && id ? 'PUT' : 'POST';
-      if (isVente) {
-        if (isEditMode && id) {
-          // Edit existing vente stored as CommandeClient
-          url = `http://localhost:8085/api/commandes-clients/${id}`;
-          method = 'PUT';
-        } else {
-          // Create new vente (full)
-          url = 'http://localhost:8085/api/ventes/full';
-          method = 'POST';
-        }
-      }
 
       const res = await fetch(url, {
         method,
@@ -839,8 +662,7 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
       setSelectedFournisseur('');
       generateReference();
       if (isEditMode) {
-        // navigate back to listes after edit, preserving vente mode if applicable
-        navigate('/liste-commandes' + (isVente ? '?mode=vente' : ''));
+        navigate('/liste-commandes');
       }
     } catch (err: any) {
       Swal.fire('Erreur', err.message || 'Erreur inconnue', 'error');
@@ -860,38 +682,6 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
         return;
       }
 
-      // If it's a vente (commande client), try vente PDF endpoint first, then commandes-clients as fallback
-      if (isVente) {
-        const tryEndpoints = [
-          { path: `http://localhost:8085/api/ventes/${idToOpen}/pdf`, label: 'ventes' },
-          { path: `http://localhost:8085/api/commandes-clients/${idToOpen}/pdf`, label: 'commandes-clients' }
-        ];
-        let lastError: any = null;
-        for (const ep of tryEndpoints) {
-          try {
-            const res = await fetch(ep.path, { method: 'GET', headers: { Authorization: `Bearer ${token}` } });
-            if (res.status === 401) {
-              await Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la page de connexion.', 'warning');
-              navigate('/login');
-              return;
-            }
-            if (res.ok) {
-              const blob = await res.blob();
-              const url = URL.createObjectURL(blob);
-              window.open(url, '_blank');
-              return;
-            }
-            const text = await res.text().catch(() => '');
-            lastError = `Endpoint ${ep.label} returned ${res.status} ${res.statusText}: ${text}`;
-            console.debug('openPdfPrint:', lastError);
-          } catch (e: any) {
-            lastError = `Fetch to ${ep.label} failed: ${e.message}`;
-            console.debug('openPdfPrint:', lastError);
-          }
-        }
-        Swal.fire('Erreur', `Impossible de charger le PDF (vente). Détails: ${lastError}`, 'error');
-        return;
-      }
 
       // Default: commande fournisseur
       try {
@@ -928,7 +718,7 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
         <div className="col-12">
           <div className="card">
             <div className="card-header">
-              <h5>{isVente ? 'Commande Client' : 'Exécution de la commande fournisseur'}</h5>
+              <h5>Exécution de la commande fournisseur</h5>
             </div>
             <div className="card-body">
               {/* Breadcrumb */}
@@ -938,13 +728,13 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                   <nav aria-label="breadcrumb">
                     <ol className="breadcrumb mb-0 p-0">
                       <li className="breadcrumb-item"><a href="#"><i className="bx bx-home-alt"></i></a></li>
-                      <li className="breadcrumb-item active" aria-current="page">{isVente ? 'Commande Client' : 'Commande Fournisseur '}</li>
+                      <li className="breadcrumb-item active" aria-current="page">Commande Fournisseur</li>
                     </ol>
                   </nav>
                 </div> 
                 <div className="ms-auto">
                   <div className="btn-group">
-                    <button className="btn btn-outline-primary mb-3 mb-lg-0 me-2" onClick={() => navigate('/liste-commandes' + (isVente ? '?mode=vente' : ''))}>
+                    <button className="btn btn-outline-primary mb-3 mb-lg-0 me-2" onClick={() => navigate('/liste-commandes')}>
                       <i className='bx bx-list-ul'></i> Liste Commande
                     </button>
                     {isEditMode && id && (
@@ -966,34 +756,9 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                   <label>Date et Heure</label>
                   <input type="datetime-local" className="form-control" value={dateCommande} readOnly />
                 </div>
-                {isVente && (
-                  <div className="col-md-2">
-                    <label>Mode de prix</label>
-                    <div className="form-check form-switch">
-                      <input className="form-check-input" id="priceModeToggle" type="checkbox" checked={priceModeDefault === 'DETAIL'} onChange={(e) => setPriceModeDefault(e.target.checked ? 'DETAIL' : 'GROS')} />
-                      <label className="form-check-label" htmlFor="priceModeToggle">{priceModeDefault === 'DETAIL' ? 'DÉTAIL' : 'GROS'}</label>
-                    </div>
-                  </div>
-                )}
+
                 <div className="col-md-3">
-                {isVente ? (
-                  <>
-                    <label>Client
-                      <RequirePermission permission="CLIENT_CREER" fallback={<button type="button" className="btn btn-sm btn-outline-secondary ms-2" disabled title="Permission requise"><i className='bx bx-plus'></i> Ajouter</button>}>
-                        <button type="button" className="btn btn-sm btn-outline-success ms-2" onClick={() => { setNewClient({}); setClientSearch(''); setShowClientModal(true); }}>
-                          <i className='bx bx-plus'></i> Ajouter
-                        </button>
-                      </RequirePermission>
-                    </label>
-                    <select className="form-control" value={selectedClientId ?? ''} onChange={(e) => { const v = e.target.value; setSelectedClientId(v ? parseInt(v) : null); }}>
-                      <option value="">Sélectionner un client</option>
-                      {clients.map(c => (
-                        <option key={c.id} value={c.id}>{c.prenom} {c.nom} - {c.contact}</option>
-                      ))}
-                    </select>
-                  </>
-                ) : (
-                  <>
+                <>
                     <label>Fournisseur
                       <RequirePermission permission="FOURNISSEUR_CREER" fallback={<button type="button" className="btn btn-sm btn-outline-secondary ms-2" disabled title="Permission requise"><i className='bx bx-plus'></i> Ajouter</button>}>
                         <button type="button" className="btn btn-sm btn-outline-success ms-2" onClick={() => { setNewFournisseur({}); setFournisseurSearch(''); setShowFournisseurModal(true); }}>
@@ -1008,7 +773,6 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                       ))}
                     </select>
                   </>
-                )}
               </div>
               </div>
 
@@ -1052,10 +816,16 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                                 const mult = getProduitMultiplicateur(stock);
                                 const unitLabel = (stock?.produit as any)?.unite?.libelle ?? 'carton';
                                 const multLabel = mult > 1 ? ` - ${mult}u/${unitLabel}` : ''; 
-                                const price = isVente && stock.produit ? (priceModeDefault === 'DETAIL' ? (stock.produit?.prixDetail ?? stock.produit?.prixAchat) : (stock.produit?.prixEnGros ?? stock.produit?.prixAchat)) : (stock.produit?.prixAchat ?? 0);
+                                const price = stock.produit?.prixAchat ?? 0;
                                 return {
                                   value: stock.id,
-                                  label: `${getProductDisplayName(stock)}${multLabel} - ${price} FCFA - ${stock.magasin?.nom || 'Dépôt boutique'} (Stock: ${stock.quantiteDisponible || 0})`
+                                  label: (() => {
+                                  const prodName = getProductDisplayName(stock);
+                                  const mult = getProduitMultiplicateur(stock);
+                                  const unitLabel = (stock?.produit as any)?.unite?.libelle ?? 'conditionnement';
+                                  const multPart = mult && mult > 1 ? ` — 1 ${unitLabel} = ${mult} unités` : '';
+                                  return `${prodName}${multLabel} - ${price} FCFA - ${stock.magasin?.nom || 'Dépôt boutique'}${multPart} — Stock : ${stock.quantiteDisponible || 0} unités`;
+                                })()
                                 };
                               })}
                               value={selectedStockOption}
@@ -1122,7 +892,6 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                   <div className="card">
                     <div className="card-header bg-primary text-white">
                       <h6>Panier</h6>
-                      {isVente && <small className="text-light">Prix unitaire = unité de base. Si vous vendez par conditionnement, 1 conditionnement = X unités (utilisé comme multiplicateur).</small>}
                     </div>
                     <div className="card-body">
                       <div className="table-responsive">
@@ -1140,55 +909,14 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                           {cart.map(item => {
                             const stock = stocks.find(s => s.id === item.id_stock);
                             const multiplier = (item.multiplicateur || getProduitMultiplicateur(stock));
-                            const realQ = (item.venteParConditionnement && isVente) ? ((item.quantiteConditionnement || 0) * multiplier) : item.quantite;
+                            const realQ = item.venteParConditionnement ? ((item.quantiteConditionnement || 0) * multiplier) : item.quantite;
                             const montant = (item.prix || 0) * (realQ || 0);
                             return (
                               <tr key={item.uid}>
                                 <td>{item.nom}</td>
                                 <td>
                                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                    {isVente ? (
-                                      <>
-                                        <div className="form-check form-check-inline">
-                                          <input className="form-check-input" type="radio" name={`mode_${item.uid}`} id={`mode_unite_${item.uid}`} checked={!item.venteParConditionnement} onChange={() => toggleVenteParConditionnement(item.uid, false)} onClick={() => toggleVenteParConditionnement(item.uid, false)} title="Vendre en unités" />
-                                          <label className="form-check-label" htmlFor={`mode_unite_${item.uid}`}>Unité</label>
-                                        </div>
-                                        <div className="form-check form-check-inline">
-                                          <input className="form-check-input" type="radio" name={`mode_${item.uid}`} id={`mode_cond_${item.uid}`} checked={!!item.venteParConditionnement} onChange={() => toggleVenteParConditionnement(item.uid, true)} onClick={() => toggleVenteParConditionnement(item.uid, true)} disabled={multiplier <= 1} title={multiplier <= 1 ? 'Conditionnement non disponible (nombre_unites_par_conditionnement doit être > 1)' : 'Vendre par conditionnement'} />
-                                          <label className="form-check-label" htmlFor={`mode_cond_${item.uid}`}>Conditionnement {multiplier > 1 ? `(${multiplier} unités)` : ''}</label>
-                                        </div>
-
-                                        {item.venteParConditionnement ? (
-                                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                            {(() => { const unitLabel = ((stock?.produit as any)?.unite?.libelle) ?? 'carton'; return (<><label className="small">Qté ({unitLabel})</label><input type="number" className="form-control" value={item.quantiteConditionnement ?? 1} min={1} onChange={(e) => updateConditionnementQuantity(item.uid, parseInt(e.target.value) || 1)} style={{ width: 120 }} disabled={multiplier <= 1} /></>); })()} 
-                                            {/* Affichage clair: "20 cartons ≈ 240 unités" */}
-                                            <div className="text-muted small">
-                                              {(() => {
-                                                const q = item.quantiteConditionnement ?? 1;
-                                                const unitRaw = ((stock?.produit as any)?.unite?.libelle) ?? 'carton';
-                                                const unit = typeof unitRaw === 'string' ? unitRaw : String(unitRaw);
-                                                const unitPlural = (q > 1 && !unit.toLowerCase().endsWith('s')) ? `${unit}s` : unit;
-                                                return `${q} ${unitPlural} ≈ ${q * multiplier} unités`;
-                                              })()}
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                            <label className="small">Qté</label>
-                                            <input
-                                              type="number"
-                                              className="form-control"
-                                              value={item.quantite}
-                                              min="1"
-                                              onChange={(e) => updateQuantity(item.uid, parseInt(e.target.value) || 1)}
-                                              style={{ width: 120 }}
-                                            />
-                                          </div>
-                                        )}
-                                      </>
-                                    ) : (
-                                      // Achat mode: allow saisie par conditionnement (checkbox + cond qty) and smaller Qté field
-                                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                         <label className="small">Qté</label>
                                         <input
                                           type="number"
@@ -1197,7 +925,7 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                                           min="1"
                                           onChange={(e) => updateQuantity(item.uid, parseInt(e.target.value) || 1)}
                                           style={{ width: 80 }}
-                                          disabled={!!item.venteParConditionnement || (!isVente && (multiplier <= 1))}
+                                          disabled={!!item.venteParConditionnement}
                                         />
 
                                         <div className="form-check form-check-inline" style={{ marginLeft: 8 }}>
@@ -1211,9 +939,8 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                                             <div className="text-muted small">1 {((stock?.produit as any)?.unite?.libelle) ?? 'carton'} = {multiplier} u</div>
                                           </div>
                                         ) : null}
-                                      </div>
-                                    )}
                                   </div>
+                                </div>
                                 </td>
                                 <td>
                                   <div className="input-group input-group-sm">
@@ -1225,13 +952,9 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
                                       min="0"
                                       step="0.01"
                                       onChange={(e) => updatePrice(item.uid, parseFloat(e.target.value) || 0)}
-                                      disabled={isVente}
-                                      title={isVente ? 'Prix calculé automatiquement pour les ventes (DÉTAIL / GROS)' : ''}
                                       style={{ width: 160, fontSize: '1rem' }}
                                     />
-                                    {isVente ? (
-                                      <span className="input-group-text" title="Prix automatique"><i className="bx bx-lock"></i></span>
-                                    ) : (() => {
+                                    {(() => {
                                       if (stock && stock.produit) {
                                         const lastPriceKey = `lastPrice_${stock.produit.id}`;
                                         const lastPrice = localStorage.getItem(lastPriceKey);
@@ -1371,91 +1094,7 @@ const CommandeFournisseur: React.FC<CommandeFournisseurProps> = ({ isVente = fal
         </div>
       , document.body)}
 
-      {/* Client modal (Vente mode) */}
-      {showClientModal && createPortal(
-        <div className="modal show d-block" tabIndex={-1} role="dialog" style={{ zIndex: 2000 }}>
-          <div className="modal-backdrop fade show" style={{ zIndex: 1999 }}></div>
-          <div className="modal-dialog modal-lg modal-dialog-centered" role="document" style={{ zIndex: 2001 }}>
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Ajouter / Sélectionner un client</h5>
-                <button type="button" className="btn-close" onClick={() => setShowClientModal(false)} aria-label="Close"></button>
-              </div>
-              <div className="modal-body">
-                <div className="row mb-3">
-                  <div className="col-md-6">
-                    <label className="form-label">Rechercher un client existant</label>
-                    <input className="form-control" value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} placeholder="Tapez un nom ou contact" />
-                    <div style={{ maxHeight: 200, overflowY: 'auto', marginTop: 8 }}>
-                      {clients.filter(c => {
-                        if (!clientSearch) return true;
-                        const s = clientSearch.toLowerCase();
-                        return (c.prenom || '').toLowerCase().includes(s) || (c.nom || '').toLowerCase().includes(s) || (c.contact || '').toLowerCase().includes(s);
-                      }).map(c => (
-                        <div key={c.id} className="d-flex justify-content-between align-items-center p-2 border-bottom">
-                          <div>
-                            <strong>{c.prenom} {c.nom}</strong><br />
-                            <small className="text-muted">{c.contact}</small>
-                          </div>
-                          <div>
-                            <button className="btn btn-sm btn-outline-primary" onClick={() => { setSelectedClientId(c.id); setShowClientModal(false); }}>
-                              Sélectionner
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label">Créer un nouveau client</label>
-                    <div className="mb-2">
-                      <input className="form-control" placeholder="Prénom" value={newClient.prenom || ''} onChange={(e) => setNewClient({ ...newClient, prenom: e.target.value })} />
-                    </div>
-                    <div className="mb-2">
-                      <input className="form-control" placeholder="Nom" value={newClient.nom || ''} onChange={(e) => setNewClient({ ...newClient, nom: e.target.value })} />
-                    </div>
-                    <div className="mb-2">
-                      <input className="form-control" placeholder="Contact" value={newClient.contact || ''} onChange={(e) => setNewClient({ ...newClient, contact: e.target.value })} />
-                    </div>
-                    <div className="mb-2">
-                      <input className="form-control" placeholder="Ville" value={newClient.ville || ''} onChange={(e) => setNewClient({ ...newClient, ville: e.target.value })} />
-                    </div>
 
-                    <div className="d-flex justify-content-end mt-3">
-                      <button className="btn btn-secondary me-2" onClick={() => { setNewClient({}); setClientSearch(''); setShowClientModal(false); }}>Annuler</button>
-                      <button className="btn btn-success" onClick={async () => {
-                        if (!canCreateClient) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de créer un client', 'error'); return; }
-                        // Create new client via API
-                        try {
-                          const token = localStorage.getItem('smb_token');
-                          const payload: any = { prenom: newClient.prenom, nom: newClient.nom, contact: newClient.contact, ville: newClient.ville };
-                          const res = await fetch('http://localhost:8085/api/clients-grossistes', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                            body: JSON.stringify(payload)
-                          });
-                          if (!res.ok) {
-                            const err = await res.json().catch(() => ({}));
-                            throw new Error(err && err.message ? err.message : `Erreur création client (${res.status})`);
-                          }
-                          const created = await res.json();
-                          // Add to list and select
-                          setClients(prev => [created, ...(prev || [])]);
-                          setSelectedClientId(created.id);
-                          setShowClientModal(false);
-                        } catch (err: any) {
-                          Swal.fire('Erreur', err.message || 'Erreur lors de la création du client', 'error');
-                        }
-                      }}>Créer et associer</button>
-                    </div>
-
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      , document.body)}
     </div>
     </div>
   );

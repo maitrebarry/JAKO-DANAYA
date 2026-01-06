@@ -38,6 +38,10 @@ public class LigneVente {
     @Column(name = "qte_livre")
     private Integer quantiteLivre;
 
+    // Number of units remaining *in the (open) carton* immediately after this sale, null if no open carton
+    @Column(name = "reste_unites_dans_carton_apres_vente")
+    private Integer resteUnitesDansCartonApresVente;
+
     // Price mode must be set at creation and cannot be changed afterwards
     public void setPriceMode(PriceMode mode) {
         if (this.id != null && this.priceMode != null && !this.priceMode.equals(mode)) {

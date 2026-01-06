@@ -77,20 +77,19 @@
                 <span> de </span>
                 <span th:text="${ligne.designation != null ? ligne.designation : (ligne.stock != null && ligne.stock.produit != null ? ligne.stock.produit.nomProduit : 'Produit')}"></span>
             </span>
-            <span th:unless="${ligne.quantiteConditionnement != null and ligne.quantiteConditionnement > 0}" th:text="${ligne.designation != null ? ligne.designation : (ligne.stock != null && ligne.stock.produit != null ? ligne.stock.produit.nomProduit : 'Produit')}"></span>
+            <span th:unless="${ligne.quantiteConditionnement != null and ligne.quantiteConditionnement > 0}" th:text="${ligne.designation != null ? (ligne.designation + (ligne.stock != null && ligne.stock.produit != null && ligne.stock.produit.unite != null ? ' (' + ligne.stock.produit.unite.libelle + ')' : '')) : (ligne.stock != null && ligne.stock.produit != null ? (ligne.stock.produit.nomProduit + (ligne.stock.produit.unite != null ? ' (' + ligne.stock.produit.unite.libelle + ')' : '')) : 'Produit')}"></span>
         </td>
         <td class="right">
             <span th:if="${ligne.quantiteConditionnement != null and ligne.quantiteConditionnement > 0}" th:text="|${#numbers.formatInteger(ligne.quantiteConditionnement,0)} ${ligne.stock != null && ligne.stock.produit != null && ligne.stock.produit.unite != null ? ligne.stock.produit.unite.libelle : 'carton'}|"></span>
             <span th:if="${ligne.quantiteConditionnement != null and ligne.quantiteConditionnement > 0}">
                 <br/>
-                <small>(≈ <span th:text="${#numbers.formatInteger(ligne.quantite,0)}">0</span> u
-                    <span th:if="${ligne.stock != null and ligne.stock.produit != null and ligne.stock.produit.nombreUnitesParConditionnement != null}"> — 1 <span th:text="${ligne.stock.produit.unite != null ? ligne.stock.produit.unite.libelle : 'carton'}">carton</span> = <span th:text="${ligne.stock.produit.nombreUnitesParConditionnement}">0</span> u</span>
-                    )</small>
+                <small>(# <span th:text="${#numbers.formatInteger((ligne.quantite != null ? ligne.quantite : (ligne.quantiteConditionnement != null and ligne.stock != null and ligne.stock.produit != null and ligne.stock.produit.nombreUnitesParConditionnement != null ? ligne.quantiteConditionnement * ligne.stock.produit.nombreUnitesParConditionnement : 0)),0)}">0</span> u — 1 <span th:text="${ligne.stock != null && ligne.stock.produit != null && ligne.stock.produit.unite != null ? ligne.stock.produit.unite.libelle : 'carton'}">carton</span> = <span th:text="${ligne.stock != null && ligne.stock.produit != null && ligne.stock.produit.nombreUnitesParConditionnement != null ? ligne.stock.produit.nombreUnitesParConditionnement : 0}">0</span> u)</small>
+                <div th:text="${#numbers.formatInteger((ligne.quantite != null ? ligne.quantite : (ligne.quantiteConditionnement != null and ligne.stock != null and ligne.stock.produit != null and ligne.stock.produit.nombreUnitesParConditionnement != null ? ligne.quantiteConditionnement * ligne.stock.produit.nombreUnitesParConditionnement : 0)),0)}"></div>
             </span>
-            <span th:unless="${ligne.quantiteConditionnement != null and ligne.quantiteConditionnement > 0}" th:text="${ligne.quantite != null ? #numbers.formatInteger(ligne.quantite, 0) : '0'}"></span>
+            <span th:unless="${ligne.quantiteConditionnement != null and ligne.quantiteConditionnement > 0}" th:text="|${#numbers.formatInteger(ligne.quantite != null ? ligne.quantite : 0, 0)} ${ligne.stock != null && ligne.stock.produit != null && ligne.stock.produit.unite != null ? ligne.stock.produit.unite.libelle : 'u'}|"></span>
         </td>
-        <td class="right" th:text="${ligne.price != null ? #numbers.formatInteger(ligne.price, 0) : (ligne.newPrice != null ? #numbers.formatInteger(ligne.newPrice, 0) : (ligne.stock != null && ligne.stock.produit != null ? #numbers.formatInteger(ligne.stock.produit.prixAchat, 0) : '0'))} + ' FCFA'"></td>
-        <td class="right" th:text="${ligne.montant != null ? #numbers.formatInteger(ligne.montant, 0) : #numbers.formatInteger((ligne.newPrice != null ? ligne.newPrice : (ligne.stock != null && ligne.stock.produit != null ? ligne.stock.produit.prixAchat : 0)) * (ligne.quantite != null ? ligne.quantite : 0), 0)} + ' FCFA'"></td>
+        <td class="right" th:text="${(ligne.price != null ? ligne.price : (ligne.newPrice != null ? ligne.newPrice : (ligne.stock != null && ligne.stock.produit != null ? ligne.stock.produit.prixAchat : 0))) + ' FCFA'}"></td>
+        <td class="right" th:text="${ligne.montant != null ? #numbers.formatInteger(ligne.montant, 0) : #numbers.formatInteger(((ligne.price != null ? ligne.price : (ligne.newPrice != null ? ligne.newPrice : (ligne.stock != null && ligne.stock.produit != null ? ligne.stock.produit.prixAchat : 0))) * (ligne.quantite != null ? ligne.quantite : (ligne.quantiteConditionnement != null and ligne.stock != null and ligne.stock.produit != null and ligne.stock.produit.nombreUnitesParConditionnement != null ? ligne.quantiteConditionnement * ligne.stock.produit.nombreUnitesParConditionnement : 0))), 0)} + ' FCFA'"></td>
     </tr>
     </tbody>
     <tfoot>

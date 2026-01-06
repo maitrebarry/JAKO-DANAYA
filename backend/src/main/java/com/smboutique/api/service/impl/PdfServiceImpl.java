@@ -16,6 +16,8 @@ import java.io.IOException;
 @Service
 public class PdfServiceImpl implements PdfService {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PdfServiceImpl.class);
+
     @Autowired
     private CommandeFournisseurService commandeFournisseurService;
 
@@ -40,8 +42,18 @@ public class PdfServiceImpl implements PdfService {
     @Autowired
     private com.smboutique.api.service.LigneLivraisonService ligneLivraisonService;
 
+    // Services used for vente PDF
+    @Autowired
+    private com.smboutique.api.service.VenteService venteService;
+
+    @Autowired
+    private com.smboutique.api.service.LigneVenteService ligneVenteService;
+
     @Autowired
     private com.smboutique.api.service.DepenseService depenseService;
+
+    @Autowired
+    private com.smboutique.api.repository.ProduitRepository produitRepository;
 
     @Autowired
     private com.smboutique.api.repository.BoutiqueRepository boutiqueRepository;
@@ -375,6 +387,42 @@ public class PdfServiceImpl implements PdfService {
                 ctx.setVariable("dateCommandeFormatted", "");
             } catch (Exception e) {}
 
+            // Build a normalized representation of lines so the Thymeleaf template
+            // can safely access common properties (designation, stock.produit.*)
+            java.util.List<java.util.Map<String,Object>> lignesNorm = new java.util.ArrayList<>();
+            try {
+                if (commande.getLignes() != null) {
+                    for (com.smboutique.api.model.LigneCommandeClient l : commande.getLignes()) {
+                        java.util.Map<String,Object> m = new java.util.HashMap<>();
+                        m.put("designation", null);
+                        m.put("quantiteConditionnement", l.getQuantiteConditionnement());
+                        m.put("quantite", l.getQuantite());
+                        m.put("price", null);
+                        m.put("newPrice", l.getNewPrice());
+                        m.put("montant", null);
+
+                        java.util.Map<String,Object> stock = new java.util.HashMap<>();
+                        java.util.Map<String,Object> produitMap = new java.util.HashMap<>();
+                        if (l.getProduit() != null) {
+                            produitMap.put("nomProduit", l.getProduit().getNomProduit());
+                            produitMap.put("prixAchat", l.getProduit().getPrixAchat());
+                            produitMap.put("nombreUnitesParConditionnement", l.getProduit().getNombreUnitesParConditionnement());
+                            if (l.getProduit().getUnite() != null) {
+                                java.util.Map<String,Object> uniteMap = new java.util.HashMap<>();
+                                uniteMap.put("libelle", l.getProduit().getUnite().getLibelle());
+                                produitMap.put("unite", uniteMap);
+                            }
+                        }
+                        stock.put("produit", produitMap);
+                        m.put("stock", stock);
+                        lignesNorm.add(m);
+                    }
+                }
+            } catch (Exception ex) {
+                // ignore mapping errors
+            }
+            ctx.setVariable("lignesNormalized", lignesNorm);
+
             String html = templateEngine.process("commande_pdf", ctx);
             try {
                 java.nio.file.Files.write(java.nio.file.Paths.get("/tmp/commande_client_" + commandeId + "_debug.html"), html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -528,6 +576,83 @@ public class PdfServiceImpl implements PdfService {
         log.info("writeDepensePdf finished for id={} by {}", depenseId, currentUser);
     }
 
+    @Override
+    public void writeVentePdf(Long venteId, jakarta.servlet.http.HttpServletResponse response) throws IOException {
+        org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PdfServiceImpl.class);
+        String currentUser = "anonymous";
+        try {
+            if (org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication() != null) {
+                Object p = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+                try { currentUser = p == null ? "anonymous" : (p instanceof java.security.Principal ? ((java.security.Principal)p).getName() : p.toString()); } catch (Exception e) {}
+            }
+        } catch (Exception e) {}
+        log.info("writeVentePdf start for id={} by {}", venteId, currentUser);
+
+        com.smboutique.api.model.Vente vente = null;
+        try {
+            vente = venteService.findById(venteId).orElse(null);
+        } catch (Exception e) { /* ignore */ }
+        if (vente == null) {
+            log.warn("writeVentePdf: vente {} not found", venteId);
+            response.sendError(404, "Vente not found");
+            return;
+        }
+
+        response.setContentType("application/pdf");
+        response.setHeader("Content-Disposition", "attachment; filename=vente_" + venteId + ".pdf");
+
+        try {
+            ClassLoaderTemplateResolver templateResolver = new ClassLoaderTemplateResolver();
+            templateResolver.setPrefix("/templates/");
+            templateResolver.setSuffix(".html");
+            templateResolver.setTemplateMode("HTML");
+            templateResolver.setCharacterEncoding("UTF-8");
+            TemplateEngine templateEngine = new TemplateEngine();
+            templateEngine.setTemplateResolver(templateResolver);
+
+            Context ctx = new Context();
+            ctx.setVariable("vente", vente);
+
+            java.util.List<com.smboutique.api.model.LigneVente> lignes = new java.util.ArrayList<>();
+            try {
+                lignes = ligneVenteService.findAll();
+                lignes.removeIf(lv -> lv.getVente() == null || lv.getVente().getId() == null || !lv.getVente().getId().equals(venteId));
+            } catch (Exception e) { /* ignore */ }
+            ctx.setVariable("lignes", lignes);
+
+            try {
+                if (vente.getDateVente() != null) {
+                    java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+                    String formattedDate = vente.getDateVente().format(dtf);
+                    ctx.setVariable("dateVenteFormatted", formattedDate);
+                } else {
+                    ctx.setVariable("dateVenteFormatted", "");
+                }
+            } catch (Exception e) { ctx.setVariable("dateVenteFormatted", ""); }
+
+            // Use the vente_espece template (same header/disposition as other receipts and matching the "aperçu" view)
+            String html = templateEngine.process("vente_espece", ctx);
+            try {
+                // write debug HTML for troubleshooting PDF rendering
+                try { java.nio.file.Files.write(java.nio.file.Paths.get("/tmp/vente_" + venteId + "_debug.html"), html.getBytes(java.nio.charset.StandardCharsets.UTF_8)); } catch (Exception e) { /* ignore */ }
+            } catch (Exception e) { /* ignore */ }
+            try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
+                PdfRendererBuilder builder = new PdfRendererBuilder();
+                builder.useFastMode();
+                builder.withHtmlContent(html, null);
+                builder.toStream(baos);
+                builder.run();
+                byte[] pdfBytes = baos.toByteArray();
+                response.setContentType("application/pdf");
+                response.setHeader("Content-Disposition", "attachment; filename=vente_" + venteId + ".pdf");
+                response.getOutputStream().write(pdfBytes);
+            }
+        } catch (Exception e) {
+            log.error("writeVentePdf error for id={} by {} : {}", venteId, currentUser, e.getMessage(), e);
+            throw new IOException(e.getMessage());
+        }
+        log.info("writeVentePdf finished for id={} by {}", venteId, currentUser);
+    }
 
     @Override
     public void writePaiementPdf(Long paiementId, HttpServletResponse response) throws IOException {
@@ -815,26 +940,100 @@ public class PdfServiceImpl implements PdfService {
                     m.put("designation", ll.getProduit() != null ? ll.getProduit().getNomProduit() : "Produit");
                     // try to include original ordered quantity if possible
                     Integer qteCommande = 0;
+                    String uniteLibelle = null;
+                    Integer nombreUnitesParConditionnement = null;
                     try {
                         if (livraison.getCommandeClient() != null && livraison.getCommandeClient().getLignes() != null) {
                             for (com.smboutique.api.model.LigneCommandeClient lcc : livraison.getCommandeClient().getLignes()) {
                                 if (lcc.getProduit() != null && ll.getProduit() != null && lcc.getProduit().getId() != null && lcc.getProduit().getId().equals(ll.getProduit().getId())) {
                                     qteCommande = lcc.getQuantite() != null ? lcc.getQuantite() : 0;
+                                    // if product info is richer on the commande side, use it to extract unit libelle and multiplicateur
+                                    try {
+                                        if (lcc.getProduit() != null && lcc.getProduit().getUnite() != null) {
+                                            uniteLibelle = lcc.getProduit().getUnite().getLibelle();
+                                        }
+                                    } catch (Exception ex) { /* ignore */ }
+                                    try {
+                                        if (lcc.getProduit() != null && lcc.getProduit().getNombreUnitesParConditionnement() != null) {
+                                            nombreUnitesParConditionnement = lcc.getProduit().getNombreUnitesParConditionnement();
+                                        }
+                                    } catch (Exception ex) { /* ignore */ }
                                     break;
                                 }
                             }
                         }
                     } catch (Exception e) {}
                     Integer qteLivree = ll.getQuantiteRecu() != null ? ll.getQuantiteRecu() : 0;
+                    // If not found on the commande line, try product on the livraison line itself
+                    try {
+                        if (uniteLibelle == null && ll.getProduit() != null && ll.getProduit().getUnite() != null) {
+                            uniteLibelle = ll.getProduit().getUnite().getLibelle();
+                        }
+                    } catch (Exception e) { /* ignore */ }
+                    try {
+                        if (nombreUnitesParConditionnement == null && ll.getProduit() != null && ll.getProduit().getNombreUnitesParConditionnement() != null) {
+                            nombreUnitesParConditionnement = ll.getProduit().getNombreUnitesParConditionnement();
+                        }
+                    } catch (Exception e) { /* ignore */ }
+                    // As a last resort, lookup the product directly from the repository to retrieve the unit info
+                    try {
+                        Long pid = (ll.getProduit() != null && ll.getProduit().getId() != null) ? ll.getProduit().getId() : null;
+                        if ((uniteLibelle == null || nombreUnitesParConditionnement == null) && pid != null) {
+                            com.smboutique.api.model.Produit p = produitRepository.findById(pid).orElse(null);
+                            if (p != null) {
+                                if (uniteLibelle == null && p.getUnite() != null) uniteLibelle = p.getUnite().getLibelle();
+                                if (nombreUnitesParConditionnement == null && p.getNombreUnitesParConditionnement() != null) nombreUnitesParConditionnement = p.getNombreUnitesParConditionnement();
+                            }
+                        }
+                    } catch (Exception e) { /* ignore */ }
+
                     m.put("qteCommande", qteCommande);
                     m.put("qteLivreeThis", qteLivree);
                     m.put("qteRestante", Math.max(0, qteCommande - qteLivree));
+                    m.put("uniteLibelle", uniteLibelle);
+                    m.put("nombreUnitesParConditionnement", nombreUnitesParConditionnement);
+                    // Prepare formatted labels to avoid template fallback inconsistencies
+                    String unitLabelToUse = uniteLibelle != null ? uniteLibelle : "u";
+                    try {
+                        m.put("qteCommandeLabel", String.format("%d %s", qteCommande, unitLabelToUse));
+                    } catch (Exception ex) { m.put("qteCommandeLabel", String.format("%d %s", qteCommande, unitLabelToUse)); }
+                    try {
+                        m.put("qteLivreeLabel", String.format("%d %s", qteLivree, unitLabelToUse));
+                    } catch (Exception ex) { m.put("qteLivreeLabel", String.format("%d %s", qteLivree, unitLabelToUse)); }
+                    // ensure a stock->produit->unite.libelle path is available for template fallbacks
+                    try {
+                        java.util.Map<String,Object> prodMap = new java.util.HashMap<>();
+                        if (uniteLibelle != null) prodMap.put("unite", java.util.Map.of("libelle", uniteLibelle));
+                        if (nombreUnitesParConditionnement != null) prodMap.put("nombreUnitesParConditionnement", nombreUnitesParConditionnement);
+                        if (!prodMap.isEmpty()) {
+                            java.util.Map<String,Object> stockMap = new java.util.HashMap<>();
+                            stockMap.put("produit", prodMap);
+                            m.put("stock", stockMap);
+                        }
+                    } catch (Exception ex) { /* ignore */ }
+                    // debug log values collected for this ligne
+                    try {
+                        logger.info("livraison ligne debug: produitId={}, qteCommande={}, uniteLibelle={}, nombreUnitesParConditionnement={}", (ll.getProduit()!=null && ll.getProduit().getId()!=null?ll.getProduit().getId():"null"), qteCommande, uniteLibelle, nombreUnitesParConditionnement);
+                    } catch (Exception ex) { /* ignore */ }
                     lignesView.add(m);
                 }
             }
             ctx.setVariable("lignesView", lignesView);
+            // Debug: persist lignesView as JSON for inspection
+            try {
+                String j = new com.fasterxml.jackson.databind.ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(lignesView);
+                java.nio.file.Files.write(java.nio.file.Paths.get("/tmp/livraison_" + livraisonId + "_lines.json"), j.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                StringBuilder sb = new StringBuilder();
+                for (java.util.Map<String,Object> mm : lignesView) {
+                    sb.append(mm.toString()).append("\n");
+                }
+                java.nio.file.Files.write(java.nio.file.Paths.get("/tmp/livraison_" + livraisonId + "_lines.txt"), sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            } catch (Exception ex) { /* ignore */ }
 
             String html = templateEngine.process("livraison_pdf", ctx);
+            try {
+                java.nio.file.Files.write(java.nio.file.Paths.get("/tmp/livraison_" + livraisonId + "_debug.html"), html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            } catch (Exception ex) { /* ignore */ }
             try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
                 PdfRendererBuilder builder = new PdfRendererBuilder();
                 builder.useFastMode();

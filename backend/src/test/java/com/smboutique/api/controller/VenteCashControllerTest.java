@@ -146,6 +146,9 @@ public class VenteCashControllerTest {
         assertThat(ventes).isNotEmpty();
         Vente v = ventes.stream().filter(x -> Integer.valueOf(5000).equals(x.getMontantTotal()) && Integer.valueOf(5000).equals(x.getMontantRecu())).findFirst().orElseGet(() -> ventes.get(0));
         assertThat(v.getMontantTotal()).isEqualTo(5000);
+        // Ensure boutique was persisted on cash sale
+        assertThat(v.getBoutique()).isNotNull();
+        assertThat(v.getBoutique().getId()).isEqualTo(boutique.getId());
 
         List<LigneVente> lvs = ligneVenteRepository.findAll();
         assertThat(lvs).isNotEmpty();
@@ -172,11 +175,40 @@ public class VenteCashControllerTest {
         assertThat(cms.get(0).getType()).isEqualTo(com.smboutique.api.model.CaisseMovement.MovementType.CREDIT);
         assertThat(cms.get(0).getBalanceAfter()).isEqualTo(c.getMontantTotal());
 
+        // Audit-level mouvement created for the sale
+        List<Mouvement> auditMvs = mouvementRepository.findAll().stream().filter(mt -> "VENTE".equals(mt.getTypeMouvement()) && "ESPECE".equals(mt.getSousType())).toList();
+        assertThat(auditMvs).isNotEmpty();
+        Mouvement audit = auditMvs.get(0);
+        assertThat(audit.getReferenceId()).isEqualTo(v.getId());
+        assertThat(audit.getUtilisateur()).isNotNull();
+        assertThat(audit.getUtilisateur().getId()).isEqualTo(user.getId());
+
         // CMP unchanged
         Stock after = stockRepository.findById(stock.getId()).orElseThrow();
         assertThat(after.getCostAverage()).isEqualTo(new BigDecimal("50.00"));
         produit = produitRepository.findById(produit.getId()).orElseThrow();
         assertThat(produit.getPrixAchat()).isEqualTo(1000);
+    }
+
+    @Test
+    void createVente_api_persists_boutique_when_missing() throws Exception {
+        var ventePayload = Map.of(
+                "referenceCaisse", "API-1",
+                "montantTotal", 1234
+        );
+
+        mockMvc.perform(post("/api/ventes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(ventePayload))
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail())))
+                .andExpect(status().isOk());
+
+        List<Vente> ventes = venteRepository.findAll();
+        Vente v = ventes.stream().filter(x -> "API-1".equals(x.getReferenceCaisse())).findFirst().orElseThrow();
+        assertThat(v.getBoutique()).isNotNull();
+        assertThat(v.getBoutique().getId()).isEqualTo(boutique.getId());
+        assertThat(v.getUtilisateur()).isNotNull();
+        assertThat(v.getUtilisateur().getId()).isEqualTo(user.getId());
     }
 
     @Test
@@ -293,5 +325,125 @@ public class VenteCashControllerTest {
         Mouvement m = mouvementRepository.findAll().stream().filter(mt -> mt.getStock() != null && mt.getStock().getId().equals(savedS3.getId())).findFirst().orElseThrow();
         assertThat(m.getQuantite()).isEqualTo(real);
         assertThat(m.getMontant()).isEqualTo(real * prix);
+    }
+
+    @Test
+    void createVenteCash_conditionnement_fractionnement_partial_decrementsStock_and_createsMouvement() throws Exception {
+        Produit p4 = new Produit();
+        p4.setNomProduit("P4");
+        p4.setPrixAchat(1000);
+        p4.setNombreUnitesParConditionnement(24);
+        Produit savedP4 = produitRepository.save(p4);
+
+        Stock s4 = new Stock();
+        s4.setProduit(savedP4);
+        s4.setMagasin(null);
+        s4.setBoutique(boutique);
+        s4.setQuantiteDisponible(48);
+        s4.setCostAverage(new BigDecimal("100.00"));
+        s4.setLastPurchasePrice(new BigDecimal("100.00"));
+        Stock savedS4 = stockRepository.save(s4);
+
+        int qCond = 1; // open 1 conditionnement (24 units)
+        int soldUnits = 15; // fractional sale
+        int prix = 200;
+        var payload = Map.of(
+                "reference", "CASH-PART",
+                "total", soldUnits * prix,
+                "montantRecu", soldUnits * prix,
+                "monnaieRembourse", 0,
+                "produitsSelectionnes", List.of(Map.of("id_stock", savedS4.getId(), "quantiteConditionnement", qCond, "quantite", soldUnits, "venteParConditionnement", true, "prix", prix, "priceMode", "DETAIL"))
+        );
+
+        mockMvc.perform(post("/api/ventes/cash")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(payload))
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail())))
+                .andExpect(status().isOk());
+
+        Stock updated = stockRepository.findById(savedS4.getId()).orElseThrow();
+        assertThat(updated.getQuantiteDisponible()).isEqualTo(48 - soldUnits);
+
+        LigneVente lv = ligneVenteRepository.findAll().stream().filter(l -> l.getProduit() != null && l.getProduit().getId().equals(savedP4.getId())).findFirst().orElseThrow();
+        assertThat(lv.getQuantite()).isEqualTo(soldUnits);
+        assertThat(lv.getQuantiteConditionnement()).isEqualTo(qCond);
+
+        Mouvement m = mouvementRepository.findAll().stream().filter(mt -> mt.getStock() != null && mt.getStock().getId().equals(savedS4.getId())).findFirst().orElseThrow();
+        assertThat(m.getQuantite()).isEqualTo(soldUnits);
+        assertThat(m.getMontant()).isEqualTo(soldUnits * prix);
+    }
+
+    @Test
+    void createVenteCash_conditionnement_fractionnement_quantiteExceedsOpened_shouldFail() throws Exception {
+        Produit p5 = new Produit();
+        p5.setNomProduit("P5");
+        p5.setPrixAchat(1000);
+        p5.setNombreUnitesParConditionnement(24);
+        Produit savedP5 = produitRepository.save(p5);
+
+        Stock s5 = new Stock();
+        s5.setProduit(savedP5);
+        s5.setMagasin(null);
+        s5.setBoutique(boutique);
+        s5.setQuantiteDisponible(100);
+        s5.setCostAverage(new BigDecimal("100.00"));
+        s5.setLastPurchasePrice(new BigDecimal("100.00"));
+        Stock savedS5 = stockRepository.save(s5);
+
+        int qCond = 1; // open 1 conditionnement (24 units)
+        int soldUnits = 25; // invalid: more than opened
+        int prix = 200;
+        var payload = Map.of(
+                "reference", "CASH-OVER",
+                "total", soldUnits * prix,
+                "montantRecu", soldUnits * prix,
+                "monnaieRembourse", 0,
+                "produitsSelectionnes", List.of(Map.of("id_stock", savedS5.getId(), "quantiteConditionnement", qCond, "quantite", soldUnits, "venteParConditionnement", true, "prix", prix, "priceMode", "DETAIL"))
+        );
+
+        mockMvc.perform(post("/api/ventes/cash")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(payload))
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail())))
+                .andExpect(status().isBadRequest());
+
+        // verify stock unchanged
+        Stock updated = stockRepository.findById(savedS5.getId()).orElseThrow();
+        assertThat(updated.getQuantiteDisponible()).isEqualTo(100);
+    }
+
+    @Test
+    void createVenteCash_conditionnement_notAllowed_when_multiplierLessOrEqualOne() throws Exception {
+        Produit p6 = new Produit();
+        p6.setNomProduit("P6");
+        p6.setPrixAchat(500);
+        p6.setNombreUnitesParConditionnement(1); // not fractionnable
+        Produit savedP6 = produitRepository.save(p6);
+
+        Stock s6 = new Stock();
+        s6.setProduit(savedP6);
+        s6.setMagasin(null);
+        s6.setBoutique(boutique);
+        s6.setQuantiteDisponible(50);
+        s6.setCostAverage(new BigDecimal("20.00"));
+        s6.setLastPurchasePrice(new BigDecimal("20.00"));
+        Stock savedS6 = stockRepository.save(s6);
+
+        var payload = Map.of(
+                "reference", "CASH-NOCOND",
+                "total", 1000,
+                "montantRecu", 1000,
+                "monnaieRembourse", 0,
+                "produitsSelectionnes", List.of(Map.of("id_stock", savedS6.getId(), "quantiteConditionnement", 1, "quantite", 1, "venteParConditionnement", true, "prix", 1000, "priceMode", "DETAIL"))
+        );
+
+        mockMvc.perform(post("/api/ventes/cash")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(payload))
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail())))
+                .andExpect(status().isBadRequest());
+
+        Stock updated = stockRepository.findById(savedS6.getId()).orElseThrow();
+        assertThat(updated.getQuantiteDisponible()).isEqualTo(50);
     }
 }

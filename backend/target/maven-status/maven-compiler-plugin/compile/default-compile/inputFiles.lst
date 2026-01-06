@@ -140,6 +140,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/LigneVenteService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/LivraisonService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/MagasinService.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/MouvementSearchResult.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/MouvementService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/NotificationService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/PaiementClientService.java

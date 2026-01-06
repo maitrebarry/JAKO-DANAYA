@@ -7,6 +7,7 @@ import { formatServerDate } from '../utils/date';
 
 interface Item {
   id: number;
+  type?: string | null; // "PAIEMENT" | "VENTE" | ...
   date: string | null;
   dateIso?: string | null;
   reference?: string | null;
@@ -16,6 +17,7 @@ interface Item {
   fournisseur?: string | null;
   responsable?: string | null;
   montant?: number | null;
+  lignes?: string[];
 }
 
 const VentesEspeces: React.FC = () => {
@@ -28,6 +30,7 @@ const VentesEspeces: React.FC = () => {
   const canAnnulerPaiement = useHasPermission('PAIEMENT_ANNULATION') || useHasPermission('PAIEMENT_SUPPRESSION');
 
   useEffect(() => {
+    console.debug('VentesEspeces: currentBoutique=', currentBoutique);
     if (currentBoutique) fetchEspeces();
   }, [currentBoutique]);
 
@@ -73,12 +76,29 @@ const VentesEspeces: React.FC = () => {
     } finally { setLoading(false); }
   };
 
-  const generatePdfForPaiementClient = async (paiementId: number) => {
+  const generatePdfForItem = async (it: Item) => {
     try {
       Swal.fire({ title: 'Génération PDF...', didOpen: () => Swal.showLoading() });
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/paiements-clients/${paiementId}/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-      if (!res.ok) throw new Error('Impossible de générer le PDF côté serveur');
+      let url = '';
+      if (it.type === 'VENTE') {
+        url = `http://localhost:8085/api/ventes/${it.id}/pdf`;
+      } else {
+        // default to paiement client
+        url = `http://localhost:8085/api/paiements-clients/${it.id}/pdf`;
+      }
+      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (res.status === 401) {
+        const txt = await res.text().catch(() => null);
+        Swal.close();
+        const result = await Swal.fire({ icon: 'warning', title: 'Session expirée ?', html: `<div>Le serveur a répondu 401 (non autorisé). Détails: <pre style="white-space:pre-wrap">${txt || ''}</pre></div>`, showCancelButton: true, confirmButtonText: 'Se reconnecter', cancelButtonText: 'Rester ici' });
+        if (result.isConfirmed) { logout(); throw new Error('Authentification requise (401)'); }
+        throw new Error('Authentification requise (401)');
+      }
+      if (!res.ok) {
+        const txt = await res.text().catch(() => null);
+        throw new Error(`Erreur ${res.status}: ${txt || res.statusText}`);
+      }
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
       window.open(blobUrl);
@@ -113,6 +133,86 @@ const VentesEspeces: React.FC = () => {
     }
   };
 
+  const handleDeleteVente = async (id: number) => {
+    const result = await Swal.fire({ title: 'Confirmer la suppression', text: 'Voulez-vous supprimer cette vente ?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Oui, supprimer', cancelButtonText: 'Annuler' });
+    if (!result.isConfirmed) return;
+    try {
+      const token = localStorage.getItem('smb_token');
+      const res = await fetch(`http://localhost:8085/api/ventes/${id}`, {
+        method: 'DELETE',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => null);
+        throw new Error('Impossible de supprimer la vente: ' + (txt || res.status));
+      }
+      Swal.fire('Succès', 'Vente supprimée', 'success');
+      fetchEspeces();
+    } catch (e: any) {
+      Swal.fire('Erreur', e.message || 'Impossible de supprimer la vente', 'error');
+    }
+  };
+
+  const handleDeleteItem = (it: Item) => {
+    if (it.type === 'VENTE') return handleDeleteVente(it.id);
+    return handleDeletePaiement(it.id);
+  };
+
+  // Render body content to avoid complex nested JSX expressions
+  const renderBody = () => {
+    if (loading) return <p>Chargement...</p>;
+    if (error) return <p className="text-danger">{error}</p>;
+    if (!currentBoutique) return <p className="text-muted">Aucune boutique sélectionnée.</p>;
+
+    return (
+      <div className="table-responsive">
+        <table className="table table-striped table-bordered">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Client</th>
+              <th>Responsable</th>
+              <th>Montant</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map(it => (
+              <React.Fragment key={it.id}>
+                <tr>
+                  <td>{formatServerDate((it as any).dateIso || it.date || '')}</td>
+                  <td>{it.client ?? it.fournisseur}</td>
+                  <td>{it.responsable ?? '-'}</td>
+                  <td>{it.montant != null ? it.montant.toFixed(0) : '-'}</td>
+                  <td>
+                    <button className={`btn btn-sm btn-outline-primary me-1 ${((it.type === 'VENTE') || it.referenceCommandeId) ? '' : 'disabled'}`} title={((it.type === 'VENTE') || it.referenceCommandeId) ? 'Aperçu' : 'Détail indisponible'} onClick={() => {
+                      if (it.type === 'VENTE') {
+                        navigate(`/ventes/espece/appercu/${it.id}`);
+                      } else if (it.referenceCommandeId) {
+                        navigate(`/ventes/appercu/${it.referenceCommandeId}`);
+                      }
+                    }}><i className="ri-eye-line"></i></button>
+                    <button className="btn btn-sm btn-outline-success me-1" title="Imprimer" onClick={() => generatePdfForItem(it)}><i className="ri-printer-line"></i></button>
+                    {canAnnulerPaiement && <button className="btn btn-sm btn-outline-danger" title="Supprimer" onClick={() => handleDeleteItem(it)}><i className="ri-delete-bin-line"></i></button>}
+                  </td>
+                </tr>
+                {Array.isArray((it as any).lignes) && (it as any).lignes.length > 0 && (
+                  <tr>
+                    <td colSpan={5}>
+                      <small className="text-muted">
+                        {((it as any).lignes as string[]).map((l, idx) => <div key={idx}>{l}</div>)}
+                      </small>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   return (
     <div className="container-fluid">
       <div className="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
@@ -138,36 +238,10 @@ const VentesEspeces: React.FC = () => {
             </div>
           </div>
 
-          {loading ? <p>Chargement...</p> : error ? <p className="text-danger">{error}</p> : (
-            <div className="table-responsive">
-              <table className="table table-striped table-bordered">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Client</th>
-                    <th>Responsable</th>
-                    <th>Montant</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map(it => (
-                    <tr key={it.id}>
-                      <td>{formatServerDate((it as any).dateIso || it.date || '')}</td>
-                      <td>{it.client ?? it.fournisseur}</td>
-                      <td>{it.responsable ?? '-'}</td>
-                      <td>{it.montant != null ? it.montant.toFixed(0) : '-'}</td>
-                      <td>
-                        <button className={`btn btn-sm btn-outline-primary me-1 ${it.referenceCommandeId ? '' : 'disabled'}`} title={it.referenceCommandeId ? 'Détail' : 'Détail indisponible'} onClick={() => { if (it.referenceCommandeId) navigate(`/ventes/appercu/${it.referenceCommandeId}`); }}><i className="ri-eye-line"></i></button>
-                        <button className="btn btn-sm btn-outline-success me-1" title="Imprimer" onClick={() => generatePdfForPaiementClient(it.id)}><i className="ri-printer-line"></i></button>
-                        {canAnnulerPaiement && <button className="btn btn-sm btn-outline-danger" title="Supprimer" onClick={() => handleDeletePaiement(it.id)}><i className="ri-delete-bin-line"></i></button>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {loading && <p>Chargement...</p>}
+          {!loading && error && <p className="text-danger">{error}</p>}
+          {!loading && !error && !currentBoutique && <p className="text-muted">Aucune boutique sélectionnée.</p>}
+          {renderBody()}
         </div>
       </div>
     </div>

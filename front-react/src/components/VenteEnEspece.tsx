@@ -29,6 +29,8 @@ const VenteEnEspece: React.FC = () => {
   const [magasins, setMagasins] = useState<any[]>([]);
   const [locationType, setLocationType] = useState<'BOUTIQUE'|'MAGASIN'>('BOUTIQUE');
   const [selectedMagasinId, setSelectedMagasinId] = useState<number | null>(null);
+  // By default sales occur in the boutique and the emplacement is locked; certain users can unlock
+  const [locationLocked, setLocationLocked] = useState<boolean>(true);
 
   const fetchMagasins = async () => {
     try {
@@ -112,6 +114,8 @@ const VenteEnEspece: React.FC = () => {
       // Vente defaults to boutique (dépôt boutique)
       setLocationType('BOUTIQUE');
       setSelectedMagasinId(null);
+      // keep location locked by default
+      setLocationLocked(true);
       await fetchStocksByLocation('BOUTIQUE');
     })();
     // Par défaut le panier doit être vide (aucune ligne initiale)
@@ -144,13 +148,17 @@ const VenteEnEspece: React.FC = () => {
     const prod = stock.produit || {};
     const modePrice = priceModeDefault === 'DETAIL' ? (prod.prixDetail ?? prod.prixAchat) : (prod.prixEnGros ?? prod.prixAchat);
     const defaultPrice = modePrice ?? 0;
+    // Default: checkbox should be unchecked (user explicitly requested checkbox default unchecked)
+    const defaultVenteParConditionnement = false;
+    const initialQuantiteUnits = 1;
+
     const newLine: Line = {
       id_stock: id,
       produit: prod,
       designation: prod.nomProduit || prod.nom || 'Produit',
-      quantite: 1,
-      venteParConditionnement: false,
-      quantiteConditionnement: 1,
+      quantite: initialQuantiteUnits,
+      venteParConditionnement: defaultVenteParConditionnement,
+      quantiteConditionnement: undefined,
       prix: Number(defaultPrice),
       priceMode: priceModeDefault
     };
@@ -199,6 +207,22 @@ const VenteEnEspece: React.FC = () => {
       if ((stock.quantiteDisponible || 0) < qreelle) {
         errors.push(`Stock insuffisant pour ${(stock.produit && (stock.produit.nomProduit || stock.produit.nom)) || ''} (disponible: ${stock.quantiteDisponible || 0}, demandé: ${qreelle}).`);
       }
+
+      // If sale is issued from a conditionnement, enforce rules
+      if (l.venteParConditionnement) {
+        const mult = stock.produit?.nombreUnitesParConditionnement || 1;
+        if (!mult || mult <= 1) {
+          errors.push(`Conditionnement non autorisé pour ${(stock.produit && (stock.produit.nomProduit || stock.produit.nom)) || ''}.`);
+        }
+        if (l.quantiteConditionnement == null || l.quantiteConditionnement < 1) {
+          errors.push(`Quantité de conditionnements invalide pour ${(stock.produit && (stock.produit.nomProduit || stock.produit.nom)) || ''}.`);
+        } else {
+          const totalOpen = (l.quantiteConditionnement || 0) * (mult || 1);
+          if ((l.quantite || 0) <= 0 || (l.quantite || 0) > totalOpen) {
+            errors.push(`Quantité vendue invalide pour ${(stock.produit && (stock.produit.nomProduit || stock.produit.nom)) || ''} (max ouvrable: ${totalOpen}).`);
+          }
+        }
+      }
     });
 
     const total = computeTotal();
@@ -246,7 +270,16 @@ const VenteEnEspece: React.FC = () => {
 
     const payload = {
       reference: `ES-${new Date().toISOString().replace(/[:.]/g, '').slice(0,15)}`,
-      dateVente: dateVente,
+      // send date with timezone offset so server records the intended local wall-clock time
+      dateVente: (() => {
+        const d = new Date();
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const offsetMin = -d.getTimezoneOffset(); // minutes ahead of UTC
+        const sign = offsetMin >= 0 ? '+' : '-';
+        const oh = Math.floor(Math.abs(offsetMin) / 60);
+        const om = Math.abs(offsetMin) % 60;
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}${sign}${pad(oh)}:${pad(om)}`;
+      })(),
       nomClient: nomClient || 'Clients divers',
       total: computeTotal(),
       montantRecu: montantRecu || 0,
@@ -254,7 +287,7 @@ const VenteEnEspece: React.FC = () => {
       remise: remise || 0,
       produitsSelectionnes: validLines.map(l => ({
         id_stock: l.id_stock,
-        quantite: l.venteParConditionnement ? undefined : l.quantite,
+        quantite: l.quantite,
         venteParConditionnement: l.venteParConditionnement || false,
         quantiteConditionnement: l.venteParConditionnement ? l.quantiteConditionnement : undefined,
         prix: l.prix || 0,
@@ -353,7 +386,7 @@ const VenteEnEspece: React.FC = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <div style={{ minWidth: 220 }}>
                             <select
-                              className="form-select form-select-sm"
+                              className="form-select form-select-sm" disabled={locationLocked}
                               value={locationType === 'MAGASIN' ? `MAGASIN:${selectedMagasinId || ''}` : 'BOUTIQUE'}
                               onChange={async (e) => {
                                 const val = e.target.value;
@@ -374,11 +407,51 @@ const VenteEnEspece: React.FC = () => {
                                 <option key={m.id} value={`MAGASIN:${m.id}`}>{`Magasin - ${m.nom}`}</option>
                               ))}
                             </select>
-                          </div>
-                          <div style={{ flex: 1 }}>
+                          </div>                          <RequirePermission permission="VENTE_EMPLACEMENT_MODIFIER">
+                            <div className="form-check form-switch ms-2">
+                              <input className="form-check-input" type="checkbox" id="unlock_location" checked={!locationLocked} onChange={async (e) => {
+                                const unlocked = e.target.checked;
+                                setLocationLocked(!unlocked);
+                                if (unlocked) {
+                                  // unlock -> default to first magasin if available
+                                  if (magasins && magasins.length > 0) {
+                                    setLocationType('MAGASIN');
+                                    setSelectedMagasinId(magasins[0].id);
+                                    await fetchStocksByLocation('MAGASIN', magasins[0].id);
+                                  } else {
+                                    setLocationType('BOUTIQUE');
+                                    setSelectedMagasinId(null);
+                                    await fetchStocksByLocation('BOUTIQUE');
+                                  }
+                                } else {
+                                  // lock back to boutique
+                                  setLocationType('BOUTIQUE');
+                                  setSelectedMagasinId(null);
+                                  await fetchStocksByLocation('BOUTIQUE');
+                                }
+                              }} />
+                              <label className="form-check-label small ms-2" htmlFor="unlock_location">Autoriser vente depuis magasin</label>
+                            </div>
+                          </RequirePermission>                          <div style={{ flex: 1 }}>
                             <label className="form-label">Rechercher</label>
                             <SearchableSelect
-                              options={stocks.map(s => ({ value: String(s.id), label: `${(s.produit && (s.produit.nomProduit || s.produit.nom)) || ('Stock '+s.id)} (Disponible: ${s.quantiteDisponible || 0})` }))}
+                              options={stocks.map(s => {
+                                const prodName = (s.produit && (s.produit.nomProduit || s.produit.nom)) || (`Stock ${s.id}`);
+                                const mult = s.produit?.nombreUnitesParConditionnement || 0;
+                                const unitLabel = s.produit?.unite?.libelle || 'conditionnement';
+                                const multPart = mult && mult > 1 ? ` — 1 ${unitLabel} = ${mult} unités` : '';
+                                const packagingLabel = (() => {
+                                  const u = Number(s.quantiteDisponible || 0);
+                                  if (!mult || mult <= 1) return `${u} unité${u > 1 ? 's' : ''}`;
+                                  const full = Math.floor(u / mult);
+                                  const rem = u % mult;
+                                  if (rem === 0) return `${u} unités (${full} carton${full > 1 ? 's' : ''})`;
+                                  const openPart = rem > 1 ? `${rem} unités ouvertes` : `${rem} unité ouverte`;
+                                  const fullPart = full > 0 ? `${full} carton${full > 1 ? 's' : ''} + ` : '';
+                                  return `${u} unités (${fullPart}${openPart})`;
+                                })();
+                                return { value: String(s.id), label: `${prodName}${multPart} - ${s.magasin?.nom || 'Dépôt boutique'} — Stock : ${packagingLabel}` }; 
+                              })}
                               value={null}
                               onChange={(v) => handleProductSelect(v as string)}
                               placeholder="Rechercher un produit..."
@@ -427,23 +500,63 @@ const VenteEnEspece: React.FC = () => {
                                     <td>{l.designation || (l.produit && (l.produit.nomProduit || l.produit.nom)) || '—'}</td>
                                     <td>
                                       <div className="form-check">
-                                        <input className="form-check-input" type="checkbox" checked={!!l.venteParConditionnement} onChange={e => handleLineChange(idx, 'venteParConditionnement', e.target.checked)} id={`cond-${idx}`} />
+                                        <input className="form-check-input" type="checkbox" checked={!!l.venteParConditionnement} onChange={e => {
+                                          const checked = e.target.checked;
+                                          const stock = stocks.find(s => s.id === l.id_stock);
+                                          const mult = stock?.produit?.nombreUnitesParConditionnement || 1;
+                                          if (checked && (!mult || mult <= 1)) {
+                                            Swal.fire('Interdit', 'La vente issue d\'un conditionnement n\'est pas autorisée pour ce produit.', 'error');
+                                            return;
+                                          }
+                                          // When enabling, set default quantiteConditionnement and adjust unit quantity
+                                          if (checked) {
+                                            const defaultQCond = l.quantiteConditionnement || 1;
+                                            const totalOpen = defaultQCond * (mult || 1);
+                                            const newQuant = Math.min(l.quantite || 0, totalOpen) || Math.min(1, totalOpen);
+                                            handleLineChange(idx, 'quantiteConditionnement', defaultQCond);
+                                            handleLineChange(idx, 'quantite', newQuant);
+                                          } else {
+                                            handleLineChange(idx, 'quantiteConditionnement', undefined);
+                                          }
+                                          handleLineChange(idx, 'venteParConditionnement', checked);
+                                        }} id={`cond-${idx}`} />
                                         <label className="form-check-label" htmlFor={`cond-${idx}`}>Par conditionnement</label>
                                       </div>
                                     </td>
-                                    <td style={{ minWidth: 160 }}>
-                                      {!l.venteParConditionnement ? (
-                                        <input type="number" min={0} className="form-control" value={l.quantite || 0} onChange={e => handleLineChange(idx, 'quantite', Number(e.target.value))} />
-                                      ) : (
-                                        <input type="number" min={0} className="form-control" value={l.quantiteConditionnement || 0} onChange={e => handleLineChange(idx, 'quantiteConditionnement', Number(e.target.value))} />
-                                      )}
+                                    <td style={{ minWidth: 200 }}>
+                                      <div style={{ display: 'flex', gap: 8 }}>
+                                        {!l.venteParConditionnement ? (
+                                          <div style={{ flex: 1 }}>
+                                            <label className="form-label small mb-1">Vendu (unités)</label>
+                                            <input type="number" min={0} className="form-control" value={l.quantite || 0} onChange={e => handleLineChange(idx, 'quantite', Number(e.target.value))} />
+                                          </div>
+                                        ) : (
+                                          <div style={{ width: 140 }}>
+                                            {(() => { const unitRaw = l.produit?.unite?.libelle ?? 'emballage'; const unitLabel = typeof unitRaw === 'string' ? unitRaw : String(unitRaw); return (<><label className="form-label small mb-1">Quantité ({unitLabel})</label><input type="number" min={0} className="form-control" value={l.quantiteConditionnement ?? ''} onChange={e => handleLineChange(idx, 'quantiteConditionnement', e.target.value === '' ? undefined : Number(e.target.value))} /></>); })()}
+                                          </div>
+                                        )}
+                                      </div>
                                       <small className="text-muted">{l.venteParConditionnement && (l.quantiteConditionnement ?? 0) > 0 ? (() => {
                                         const q = l.quantiteConditionnement || 0;
                                         const unitRaw = l.produit?.unite?.libelle ?? 'cond';
                                         const unit = typeof unitRaw === 'string' ? unitRaw : String(unitRaw);
                                         const unitPlural = (q > 1 && !unit.toLowerCase().endsWith('s')) ? `${unit}s` : unit;
-                                        return `${q} ${unitPlural} ≈ ${qreelle} unités`;
-                                      })() : `Réel: ${qreelle}`}</small>
+                                        return `${q} ${unitPlural} ≈ ${qreelle} unités — Vendu: ${l.quantite || 0} unités`;
+                                      })() : (() => {
+                                        const stock = stocks.find(st => st.id === l.id_stock);
+                                        if (!stock) return `Réel: ${qreelle}`;
+                                        // compute total units for the same stock across lines (including this one)
+                                        const totalUnits = lines.reduce((s, ln) => s + (computeLineQuantiteReelle(ln) || 0), 0);
+                                        const stockAfter = (stock.quantiteDisponible || 0) - totalUnits;
+                                        const mult = stock.produit?.nombreUnitesParConditionnement || 1;
+                                        if (mult > 1) {
+                                          const full = Math.floor(stockAfter / mult);
+                                          const rem = ((stockAfter % mult) + mult) % mult;
+                                          if (rem > 0) return `Carton ouvert — reste ${rem} unité${rem > 1 ? 's' : ''} dans le carton`;
+                                          return `${stockAfter} unités (${full} carton${full > 1 ? 's' : ''})`;
+                                        }
+                                        return `${stockAfter} unité${stockAfter > 1 ? 's' : ''}`;
+                                      })()}</small>
                                     </td>
                                     <td>
                                       <div className="input-group">

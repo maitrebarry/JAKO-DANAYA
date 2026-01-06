@@ -100,7 +100,7 @@
                         <br/>
                         <small>(# <span th:text="${#numbers.formatInteger(lc.quantite,0)}">0</span> u — 1 <span th:text="${uniteLib}">carton</span> = <span th:text="${nombreUnites}">0</span> u )</small>
                     </span>
-                    <span th:unless="${nombreUnites != null and nombreUnites > 1 and lc.quantite != null and lc.quantite % nombreUnites == 0}" th:text="${designation}"></span>
+                    <span th:unless="${nombreUnites != null and nombreUnites > 1 and lc.quantite != null and lc.quantite % nombreUnites == 0}" th:text="|${#numbers.formatInteger(lc.quantite, 0)} ${uniteLib}|"></span>
                 </span>
             </span>
         </td>

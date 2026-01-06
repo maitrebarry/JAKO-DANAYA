@@ -63,7 +63,7 @@ public class AuthController {
                 Long uid = userDetails.getId();
                 com.smboutique.api.model.Utilisateur u = utilisateurRepository.findById(uid).orElse(null);
                 Long boutiqueId = u != null && u.getBoutique() != null ? u.getBoutique().getId() : null;
-                mouvementService.log("AUTH", "CONNEXION", "Connexion réussie user=" + uid, null, boutiqueId, null, uid, null);
+                mouvementService.log("AUTH", "CONNEXION", "Connexion réussie", null, boutiqueId, null, uid, null);
             } catch (Exception e) { }
 
             return ResponseEntity.ok(new JwtResponse(jwt,

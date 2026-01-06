@@ -260,7 +260,7 @@ public class E2EStockFlowTest {
         // Movement/ligneVente checks can be flaky in the test environment due to transaction boundaries; rely on stock decrement above as the success indicator.
 
         // Attempt to sell from magasin stock should be rejected via HTTP
-        var badSale = Map.of(
+        Map<String, Object> badSale = Map.of(
                 "reference", "E2E-CASH-2",
                 "total", 1000,
                 "produitsSelectionnes", List.of(Map.of("id_stock", ms.getId(), "quantite", 1, "venteParConditionnement", false, "prix", 1000, "priceMode", "DETAIL"))
@@ -271,6 +271,64 @@ public class E2EStockFlowTest {
                 .content(objectMapper.writeValueAsString(badSale))
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail())))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void cashSales_consume_open_carton_fifo() throws Exception {
+        // Prepare product with cartons of 4 units and 24 units stock (6 cartons)
+        produit.setNombreUnitesParConditionnement(4);
+        produit = produitRepository.save(produit);
+        Stock bs = stockRepository.findById(boutiqueStock.getId()).orElseThrow();
+        bs.setQuantiteDisponible(24);
+        stockRepository.save(bs);
+
+        // Sale 1: sell 2 units -> should open a carton and leave 2 units in the open carton
+        Map<String,Object> sale1 = Map.of(
+                "reference", "E2E-CASH-OPEN-1",
+                "total", 2000,
+                "montantRecu", 2000,
+                "monnaieRembourse", 0,
+                "produitsSelectionnes", List.of(Map.of("id_stock", bs.getId(), "quantite", 2, "venteParConditionnement", false, "prix", 1000, "priceMode", "DETAIL"))
+        );
+        mockMvc.perform(post("/api/ventes/cash").contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(sale1)).with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail()))).andExpect(status().isOk());
+        bs = stockRepository.findById(boutiqueStock.getId()).orElseThrow();
+        assertThat(bs.getQuantiteDisponible()).isEqualTo(22);
+        LigneVente lv1 = ligneVenteRepository.findAll().stream().filter(l -> l.getProduit() != null && l.getProduit().getId().equals(produit.getId())).reduce((a, b) -> b).orElse(null);
+        assertThat(lv1).isNotNull();
+        assertThat(lv1.getQuantite()).isEqualTo(2);
+        assertThat(lv1.getResteUnitesDansCartonApresVente()).isEqualTo(2);
+
+        // Sale 2: sell 1 unit -> should consume from open carton leaving 1 unit
+        Map<String,Object> sale2 = Map.of(
+                "reference", "E2E-CASH-OPEN-2",
+                "total", 1000,
+                "montantRecu", 1000,
+                "monnaieRembourse", 0,
+                "produitsSelectionnes", List.of(Map.of("id_stock", bs.getId(), "quantite", 1, "venteParConditionnement", false, "prix", 1000, "priceMode", "DETAIL"))
+        );
+        mockMvc.perform(post("/api/ventes/cash").contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(sale2)).with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail()))).andExpect(status().isOk());
+        bs = stockRepository.findById(boutiqueStock.getId()).orElseThrow();
+        assertThat(bs.getQuantiteDisponible()).isEqualTo(21);
+        LigneVente lv2 = ligneVenteRepository.findAll().stream().filter(l -> l.getProduit() != null && l.getProduit().getId().equals(produit.getId())).reduce((a, b) -> b).orElse(null);
+        assertThat(lv2).isNotNull();
+        assertThat(lv2.getQuantite()).isEqualTo(1);
+        assertThat(lv2.getResteUnitesDansCartonApresVente()).isEqualTo(1);
+
+        // Sale 3: sell 1 unit -> should empty the open carton (no remainder)
+        Map<String,Object> sale3 = Map.of(
+                "reference", "E2E-CASH-OPEN-3",
+                "total", 1000,
+                "montantRecu", 1000,
+                "monnaieRembourse", 0,
+                "produitsSelectionnes", List.of(Map.of("id_stock", bs.getId(), "quantite", 1, "venteParConditionnement", false, "prix", 1000, "priceMode", "DETAIL"))
+        );
+        mockMvc.perform(post("/api/ventes/cash").contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(sale3)).with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(user.getEmail()))).andExpect(status().isOk());
+        bs = stockRepository.findById(boutiqueStock.getId()).orElseThrow();
+        assertThat(bs.getQuantiteDisponible()).isEqualTo(20);
+        LigneVente lv3 = ligneVenteRepository.findAll().stream().filter(l -> l.getProduit() != null && l.getProduit().getId().equals(produit.getId())).reduce((a, b) -> b).orElse(null);
+        assertThat(lv3).isNotNull();
+        assertThat(lv3.getQuantite()).isEqualTo(1);
+        assertThat(lv3.getResteUnitesDansCartonApresVente()).isNull();
     }
 
     @Test

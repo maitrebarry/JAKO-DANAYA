@@ -13,7 +13,7 @@ const CommandeApercu: React.FC = () => {
   // Note: stock data is used within fetch for resolving names, not kept in state to avoid unused warning
   const [lignes, setLignes] = useState<Ligne[]>([]);
 
-  // Detect ventes mode
+  // Detect ventes mode (legacy). If route is for vente, redirect to the dedicated vente apercu.
   const isVenteMode = window.location.pathname && window.location.pathname.includes('/ventes');
 
   useEffect(() => {
@@ -24,33 +24,44 @@ const CommandeApercu: React.FC = () => {
         const stockData = await stockRes.json();
         // We use stockData locally to compute line names and prices; do not store it unnecessarily.
         if (!id) return;
-        const path = isVenteMode ? 'commandes-clients' : 'commandes-fournisseurs';
-        const res = await fetch(`http://localhost:8085/api/${path}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-        if (!res.ok) throw new Error('Commande introuvable');
-        const data = await res.json();
-        setCommande(data);
-        if (data.lignes) {
-          const computed = data.lignes.map((l: any) => {
-            const stockId = l.stock?.id || l.id_stock || 0;
-            const stockInfo = stockData.find((s: any) => s.id === stockId);
-            // Resolve name: prefer stock product, then ligne.produit, then ligne.designation
-            const nom = stockInfo?.produit?.nomProduit || l.produit?.nomProduit || l.produit?.designation || l.designation || 'Produit';
-            // Resolve price: prefer newPrice then ligne.prix then stock product price
-            const prix = (l.newPrice !== undefined && l.newPrice !== null) ? Number(l.newPrice) : ((l.prix !== undefined && l.prix !== null) ? Number(l.prix) : (Number(stockInfo?.produit?.prixAchat ?? (l.stock?.produit?.prixAchat ?? 0))));
+        if (isVenteMode) {
+          // Do not handle vente here; redirect to dedicated vente apercu page
+          window.location.href = `/ventes/espece/appercu/${id}`;
+          return;
+        } else {
+          const path = 'commandes-fournisseurs';
+          const res = await fetch(`http://localhost:8085/api/${path}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+          if (!res.ok) throw new Error('Commande introuvable');
+          const data = await res.json();
+          setCommande(data);
+          if (data.lignes) {
+            const computed = data.lignes.map((l: any) => {
+              const stockId = l.stock?.id || l.id_stock || 0;
+              const stockInfo = stockData.find((s: any) => s.id === stockId);
+              // Resolve name: prefer stock product, then ligne.produit, then ligne.designation
+              // Prefer an explicit ligne.nom (saved with older commandes or server-side), then product/store names, then designation
+              const nom = (l.nom && l.nom.toString().trim()) || stockInfo?.produit?.nomProduit || l.produit?.nomProduit || l.produit?.designation || l.designation || 'Produit';
+              // Resolve price: prefer newPrice then ligne.prix then stock product price
+              const prix = (l.newPrice !== undefined && l.newPrice !== null) ? Number(l.newPrice) : ((l.prix !== undefined && l.prix !== null) ? Number(l.prix) : (Number(stockInfo?.produit?.prixAchat ?? (l.stock?.produit?.prixAchat ?? 0))));
 
-            // Handle conditionnement: prefer quantiteConditionnement when present
-            const qCond = l.quantiteConditionnement !== undefined && l.quantiteConditionnement !== null ? Number(l.quantiteConditionnement) : null;
-            const mul = stockInfo?.produit?.nombreUnitesParConditionnement ?? l.stock?.produit?.nombreUnitesParConditionnement ?? 1;
-            const quantiteUnits = qCond ? qCond * mul : (l.quantite || 0);
-            const quantiteDisplay = qCond ? qCond : (l.quantite || 0);
-            const unitLabel = stockInfo?.produit?.unite?.libelle ?? 'carton';
+              // Handle conditionnement: prefer quantiteConditionnement when present
+              const qCond = l.quantiteConditionnement !== undefined && l.quantiteConditionnement !== null ? Number(l.quantiteConditionnement) : null;
+              const mul = stockInfo?.produit?.nombreUnitesParConditionnement ?? l.stock?.produit?.nombreUnitesParConditionnement ?? 1;
+              const quantiteUnits = qCond ? qCond * mul : (l.quantite || 0);
+              const quantiteDisplay = qCond ? qCond : (l.quantite || 0);
+              const unitLabel = (l.unite && (l.unite.symbole || l.unite.libelle)) ? (l.unite.symbole ?? l.unite.libelle) : (stockInfo?.produit?.unite?.symbole ?? stockInfo?.produit?.unite?.libelle ?? (l.produit && (l.produit.unite?.symbole || l.produit.unite?.libelle) ? (l.produit.unite.symbole ?? l.produit.unite.libelle) : 'unité'));
 
-            return { id: l.id, stockId, nom, quantite: quantiteUnits, quantiteConditionnement: qCond, multiplicateur: mul, quantiteDisplay, prix, montant: prix * quantiteUnits, unitLabel } as any;
-          });
-          setLignes(computed as any);
+
+              // Keep product name as main label; unit shown beside it in the UI
+              const displayNom = nom;
+              return { id: l.id, stockId, nom: displayNom, quantite: quantiteUnits, quantiteConditionnement: qCond, multiplicateur: mul, quantiteDisplay, prix, montant: prix * quantiteUnits, unitLabel } as any;
+            });
+            setLignes(computed as any);
+          }
         }
-      } catch (err: any) {
-        Swal.fire('Erreur', err.message || 'Erreur lors de la récupération de la commande', 'error');
+      } catch (err) {
+        const msg = err && (err as any).message ? (err as any).message : (err ? String(err) : 'Erreur lors de la récupération de la commande');
+        Swal.fire('Erreur', msg, 'error');
       } finally { setLoading(false); }
     })();
   }, [id]);
@@ -100,7 +111,14 @@ const CommandeApercu: React.FC = () => {
     return (
       <main id="main" className="main">
         <div className="pagetitle">
-        <h1>{isVenteMode ? 'Commande Client / Aperçu' : 'Commande / Aperçu'}</h1>
+        <h1>{isVenteMode ? 'Espace de vente' : 'Commande / Aperçu'}</h1>
+        <nav>
+          <ol className="breadcrumb">
+            <li className="breadcrumb-item"><a href="/">Home</a></li>
+            <li className="breadcrumb-item">{isVenteMode ? 'Espace de vente' : 'Commande'}</li>
+            <li className="breadcrumb-item active" aria-current="page">{isVenteMode ? 'Aperçu de la vente' : 'Aperçu'}</li>
+          </ol>
+        </nav>
       </div>
       <div className="card info-card sales-card">
         <div className="card-body">
@@ -130,43 +148,81 @@ const CommandeApercu: React.FC = () => {
                       {lignes.map(l => (
                         <tr key={l.id}>
                           <td>
-                            {l.nom}
+                            {l.nom} {l.unitLabel ? <small className="text-muted">({l.unitLabel})</small> : null}
                             {((l.quantiteConditionnement && l.quantiteConditionnement > 0) || (l.multiplicateur && l.multiplicateur > 1 && l.quantite % l.multiplicateur === 0)) ? (
                               (() => {
                                 const mul = l.multiplicateur || 1;
                                 const condCount = l.quantiteConditionnement ? l.quantiteConditionnement : (mul > 1 ? (l.quantite / mul) : 0);
-                                return <div><small className="text-muted">{condCount} {l.unitLabel ?? 'carton'} ≈ {l.quantite} u {mul ? `(1 ${l.unitLabel ?? 'carton'} = ${mul} u)` : ''}</small></div>;
+                                return <div><small className="text-muted">{condCount} {l.unitLabel ?? 'unité'} ≈ {l.quantite} u {mul ? `(1 ${l.unitLabel ?? 'unité'} = ${mul} u)` : ''}</small></div>;
                               })()
                             ) : null}
                           </td>
-                          <td>{(l.quantiteConditionnement && l.quantiteConditionnement > 0) || (l.multiplicateur && l.multiplicateur > 1 && l.quantite % l.multiplicateur === 0) ? `${(l.quantiteConditionnement && l.quantiteConditionnement > 0) ? l.quantiteConditionnement : (l.quantite / (l.multiplicateur || 1))} ${l.unitLabel ?? 'carton'}` : l.quantite}</td>
+                          <td>{((l.quantiteConditionnement && l.quantiteConditionnement > 0) || (l.multiplicateur && l.multiplicateur > 1 && l.quantite % l.multiplicateur === 0)) ? `${(l.quantiteConditionnement && l.quantiteConditionnement > 0) ? l.quantiteConditionnement : (l.quantite / (l.multiplicateur || 1))} ${l.unitLabel ?? 'unité'}` : `${l.quantite} ${l.unitLabel ?? 'unité'}`}</td>
                           <td>{l.prix}</td>
                           <td>{(l.montant).toFixed(2)}</td>
                         </tr>
                       ))}
                       <tr>
                         <td colSpan={3} className="text-end"><strong>Total</strong></td>
-                        <td className="text-end">{commande.total || 0} FCFA</td>
+                        <td className="text-end">{(isVenteMode ? (commande?.montantTotal ?? commande?.total ?? 0) : (commande?.total ?? 0))} FCFA</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
               </div>
+
+              <div className="card mt-3">
+                <div className="card-body">
+                  <div className="row">
+                    <div className="col-xl-3 col-md-6">
+                      <div className="form-group">
+                        <label>Rémise</label>
+                        <input className="form-control" value={commande?.remise ?? 0} readOnly />
+                      </div>
+                    </div>
+                    <div className="col-xl-3 col-md-6">
+                      <div className="form-group">
+                        <label>Net à payer</label>
+                        <input className="form-control" value={isVenteMode ? (commande?.netAPayer ?? 0) : (commande?.netAPayer ?? 0)} readOnly />
+                      </div>
+                    </div>
+                    <div className="col-xl-3 col-md-6">
+                      <div className="form-group">
+                        <label>Montant reçu</label>
+                        <input type="number" className="form-control" defaultValue={commande?.montantRecu ?? 0} />
+                      </div>
+                    </div>
+                    <div className="col-xl-3 col-md-6">
+                      <div className="form-group">
+                        <label>Monnaie à rembourser</label>
+                        <input className="form-control" value={commande?.monnaieRembourse ?? 0} readOnly />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-xl-12 col-md-10 col-xs-12 mt-3">
+                <div className="form-group">
+                  <a href="/ventes/especes" className="btn btn-info form-control">Liste des ventes réalisées</a>
+                </div>
+              </div>
+
             </div>
             <div className="col-xl-4">
               <div className="card text-left">
                 <div className="card-body">
                   <div className="form-group">
                     <label>Référence </label>
-                    <input type="text" name="ref" className="form-control" value={commande.reference} readOnly />
+                    <input type="text" name="ref" className="form-control" value={isVenteMode ? (commande?.referenceCaisse || '') : (commande?.reference || '')} readOnly />
                   </div>
                   <div className="form-group mt-3">
                     <label>Date </label>
-                    <input type="text" name="dat" className="form-control" value={formatServerDate(commande.dateCommande)} readOnly />
+                    <input type="text" name="dat" className="form-control" value={isVenteMode ? formatServerDate(commande?.dateVente) : formatServerDate(commande?.dateCommande)} readOnly />
                   </div>
                   <div className="form-group mt-3">
                     <label>{isVenteMode ? 'Client' : 'Fournisseur'}</label>
-                    <input type="text" className="form-control" value={isVenteMode ? `${commande.client?.prenom || ''} ${commande.client?.nom || ''}` : `${commande.fournisseur?.prenom || ''} ${commande.fournisseur?.nom || ''}`} readOnly />
+                    <input type="text" className="form-control" value={isVenteMode ? (commande?.nomClient || '') : `${commande?.fournisseur?.prenom || ''} ${commande?.fournisseur?.nom || ''}`} readOnly />
                   </div>
                 </div>
               </div>
@@ -174,6 +230,10 @@ const CommandeApercu: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <footer className="footer" style={{position: 'fixed', bottom: 0, width: '100%', height: '50px', backgroundColor: '#f5f5f5'}}>
+        <div className="container-fluid py-2 text-center small">© SMBOUTIQUE</div>
+      </footer>
     </main>
   );
 };

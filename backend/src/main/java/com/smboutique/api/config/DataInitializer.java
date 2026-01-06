@@ -157,6 +157,7 @@ public class DataInitializer implements CommandLineRunner {
             {"VENTE_ESPECE_VOIR", "Permission pour voir ventes espèces"},
             {"VENTE_CREDIT_VOIR", "Permission pour voir ventes à crédit"},
             {"VENTE_HISTORIQUE", "Permission pour voir l'historique des ventes"},
+            {"VENTE_EMPLACEMENT_MODIFIER","permission pour changer l'espace de vente commande"},
 
             // Inventaire
             {"INVENTAIRE_LECTURE", "Permission pour lire l'inventaire"},
@@ -209,6 +210,8 @@ public class DataInitializer implements CommandLineRunner {
             {"CAISSE_LECTURE", "Permission pour lire la caisse"},
             {"CAISSE_VOIR", "Permission pour voir la caisse"},
             {"CAISSE_GERER", "Permission pour gérer la caisse"},
+            {"CAISSE_MOUVEMENT_VIEW", "Permission de voir les mouvements de la caisse"},
+            {"MOUVEMENT_AUDIT", "Permission pour voir toutes les actions système (audit)"},
 
             // Dépenses feature permissions
             {"DEPENSE_CREER", "Permission pour créer des dépenses"},

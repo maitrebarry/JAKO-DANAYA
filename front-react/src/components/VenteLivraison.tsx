@@ -14,6 +14,8 @@ interface VenteLine {
   quantiteLivre?: number;
   qte_livre?: number;
   quantiteLivreeNow?: number;
+  // conditionnement support
+  quantiteConditionnement?: number;
   // Informations dépôt et stock (comme pour la réception)
   depot?: string;
   stock?: number;
@@ -34,7 +36,7 @@ const VenteLivraison: React.FC = () => {
   const [isClientCommande, setIsClientCommande] = useState(false);
 
   // Location state
-  const [magasins, setMagasins] = useState<any[]>([]);
+  const [_magasins, setMagasins] = useState<any[]>([]);
   const [locationType, setLocationType] = useState<'BOUTIQUE'|'MAGASIN'>('BOUTIQUE');
   const [selectedMagasinId, setSelectedMagasinId] = useState<number | null>(null);
 
@@ -125,17 +127,7 @@ const VenteLivraison: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [venteId]);
 
-  const [livraisonParCond, setLivraisonParCond] = useState<Record<number, boolean>>({});
-  const [livraisonCondQty, setLivraisonCondQty] = useState<Record<number, number>>({});
 
-  const toggleLivraisonParCond = (idx: number, checked: boolean) => {
-    setLivraisonParCond(prev => ({ ...prev, [idx]: checked }));
-    if (checked && (livraisonCondQty[idx] === undefined)) setLivraisonCondQty(prev => ({ ...prev, [idx]: 1 }));
-  };
-
-  const setLivraisonCondQuantity = (idx: number, qty: number) => {
-    setLivraisonCondQty(prev => ({ ...prev, [idx]: qty }));
-  };
 
   const fetchVentesToDeliver = async () => {
     try {
@@ -373,6 +365,17 @@ const VenteLivraison: React.FC = () => {
         return base;
       });
 
+      // Pré-remplir la suggestion de livraison en unités lorsque la commande a une fraction de carton
+      try {
+        enriched.forEach((l) => {
+          const stockInfo = (stocks || []).find(s => s.id === l.id_stock);
+          const multiplicateur = stockInfo?.produit?.nombreUnitesParConditionnement ?? 1;
+          const qCommande = l.quantiteCommande || 0;
+          const condFromField = (l as any).quantiteConditionnement && (l as any).quantiteConditionnement > 0 ? (l as any).quantiteConditionnement : Math.floor(qCommande / multiplicateur);
+          const remainder = qCommande - (condFromField * multiplicateur);
+          (l as any).quantiteLivreeNow = remainder > 0 ? remainder : 0;
+        });
+      } catch (e) { /* ignore */ }
       setLignes(enriched);
       // Ajouter un indicateur dans l'état pour savoir comment poster les livraisons (vente ou commande-client)
       setIsClientCommande(isClientCommande);
@@ -461,13 +464,10 @@ const VenteLivraison: React.FC = () => {
       }
       // Construire le payload attendu par le backend : { ligneCommandeId, stockId, quantite }
       // Construire le payload des lignes tel qu'attendu par le backend
-      const lignesToSend = lignes.map((l, idx) => {
+      const lignesToSend = lignes.map((l) => {
         const baseQty = l.quantiteLivreeNow ?? l.quantiteLivre ?? l.qte_livre ?? l.quantite ?? 0;
-        if (livraisonParCond[idx] && (livraisonCondQty[idx] ?? 0) > 0) {
-          return { ligneCommandeId: l.id, stockId: l.id_stock, quantiteConditionnement: livraisonCondQty[idx] };
-        }
         return { ligneCommandeId: l.id, stockId: l.id_stock, quantite: baseQty };
-      }).filter(l => ((l.quantite && l.quantite > 0) || (l.quantiteConditionnement && l.quantiteConditionnement > 0)));
+      }).filter(l => ((l.quantite && l.quantite > 0)));
 
       // debug: afficher le payload de livraison
       console.debug('lignesToSend payload', lignesToSend);
@@ -483,8 +483,8 @@ const VenteLivraison: React.FC = () => {
         const remaining = (original?.quantiteCommande || 0) - (original?.quantiteLivre || 0);
         const stockInfo = item.stockId ? stocks.find(s => s.id === item.stockId) : undefined;
 
-        // compute real quantity in UNITS
-        const realQty = item.quantite !== undefined ? item.quantite : ((item.quantiteConditionnement !== undefined && item.quantiteConditionnement !== null) ? (item.quantiteConditionnement * (stockInfo?.produit?.nombreUnitesParConditionnement ?? stockInfo?.nombreUnitesParConditionnement ?? 1)) : 0);
+        // compute real quantity in UNITS (always provided as units from the UI)
+        const realQty = Number(item.quantite || 0);
 
         if (realQty > remaining) {
           Swal.fire('Erreur', `Quantité demandée (${realQty}) supérieure à la quantité restante (${remaining}) pour la ligne ${original?.designation || original?.id}` , 'warning');
@@ -648,34 +648,7 @@ const VenteLivraison: React.FC = () => {
                 </div>
               </div>
 
-              <div className="form-group mb-3 d-flex align-items-center" style={{ gap: 8 }}>
-                <label className="me-2">Emplacement</label>
-                <select
-                  className="form-select form-select-sm me-2"
-                  value={locationType === 'MAGASIN' ? `MAGASIN:${selectedMagasinId || ''}` : 'BOUTIQUE'}
-                  onChange={async (e) => {
-                    const val = e.target.value;
-                    if (val.startsWith('MAGASIN:')) {
-                      const idVal = Number(val.split(':')[1]);
-                      setLocationType('MAGASIN');
-                      setSelectedMagasinId(idVal);
-                      await fetchStocksByLocation('MAGASIN', idVal);
-                      // refresh lines to reflect updated stock info
-                      if (selectedVenteId) fetchVenteAndLines(selectedVenteId);
-                    } else {
-                      setLocationType('BOUTIQUE');
-                      setSelectedMagasinId(null);
-                      await fetchStocksByLocation('BOUTIQUE');
-                      if (selectedVenteId) fetchVenteAndLines(selectedVenteId);
-                    }
-                  }}
-                >
-                  <option value="BOUTIQUE">Dépôt boutique</option>
-                  {magasins.map(m => (
-                    <option key={m.id} value={`MAGASIN:${m.id}`}>{`Magasin - ${m.nom}`}</option>
-                  ))}
-                </select>
-              </div>
+
 
               <table className="table table-bordered table-striped">
               <thead>
@@ -699,84 +672,82 @@ const VenteLivraison: React.FC = () => {
                   return (
                     <tr key={l.id || i}>
                       <td><span className="badge bg-info text-white">{stockInfo?.magasin?.nom || (stockInfo?.produit?.nomProduit ? 'Dépôt inconnu' : '-')}</span></td>
-                      <td>{l.designation}</td>
+                      <td>{l.designation}{stockInfo?.produit?.unite?.libelle ? ` (${stockInfo.produit.unite.libelle})` : ''}</td>
                       <td>{stockInfo?.quantiteDisponible ?? '-'}</td>
-                      <td>{l.quantiteCommande}</td>
-                      <td>{l.quantiteLivre || 0}</td>
-                      <td>{remaining}</td>
+                      <td>
+                        {(() => {
+                          const unit = stockInfo?.produit?.unite?.libelle || 'u';
+                          const nombreUnites = stockInfo?.produit?.nombreUnitesParConditionnement ?? null;
+                          if (l.quantiteConditionnement && l.quantiteConditionnement > 0) {
+                            return (<>
+                              <div>{l.quantiteConditionnement} {unit}</div>
+                              <div style={{fontSize: '0.8em'}}>(≈ {l.quantiteCommande || 0} u — 1 {unit} = {nombreUnites ?? 0} u)</div>
+                            </>);
+                          }
+                          return (<span>{l.quantiteCommande || 0} {unit}</span>);
+                        })()}
+                      </td>
+                      <td>
+                        {(() => {
+                          const unit = stockInfo?.produit?.unite?.libelle || 'u';
+                          const nombreUnites = stockInfo?.produit?.nombreUnitesParConditionnement ?? null;
+                          if (l.quantiteConditionnement && l.quantiteConditionnement > 0) {
+                            // show delivered in conditionnement if possible
+                            const deliveredUnits = l.quantiteLivre || 0;
+                            const deliveredCond = nombreUnites ? Math.floor(deliveredUnits / nombreUnites) : 0;
+                            return (<>
+                              <div>{deliveredCond} {unit}</div>
+                              <div style={{fontSize: '0.8em'}}>(≈ {deliveredUnits} u)</div>
+                            </>);
+                          }
+                          return (<span>{l.quantiteLivre || 0} {unit}</span>);
+                        })()}
+                      </td>
+                      <td>
+                        {(() => {
+                          const unit = stockInfo?.produit?.unite?.libelle || 'u';
+                          const nombreUnites = stockInfo?.produit?.nombreUnitesParConditionnement ?? null;
+                          if (l.quantiteConditionnement && l.quantiteConditionnement > 0) {
+                            const deliveredUnits = l.quantiteLivre || 0;
+                            const deliveredCond = nombreUnites ? Math.floor(deliveredUnits / nombreUnites) : 0;
+                            return (<span>{Math.max((l.quantiteConditionnement || 0) - deliveredCond, 0)} {unit}</span>);
+                          }
+                          return (<span>{remaining} {unit}</span>);
+                        })()}
+                      </td>
                       <td>
                         <div style={{ display: 'flex', gap: 8, flexDirection: 'column' }}>
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <div className="form-check">
-                              <input className="form-check-input" type="checkbox" id={`liv_cond_${i}`} checked={!!livraisonParCond[i]} onChange={(e) => {
-                                const checked = e.target.checked;
-                                toggleLivraisonParCond(i, checked);
-                                if (!checked) { handleChangeLine(i, 'quantiteLivreeNow', 0); setLivraisonCondQuantity(i, 0); }
-                              }} />
-                              <label className="form-check-label small" htmlFor={`liv_cond_${i}`}>Par cond.</label>
-                            </div>
-
-                            {!livraisonParCond[i] ? (
-                              <input
-                                type="number"
-                                className="form-control"
-                                value={l.quantiteLivreeNow || 0}
-                                min={0}
-                                max={remaining}
-                                onChange={(e) => {
-                                  const newVal = Number(e.target.value) || 0;
-                                  if (newVal > remaining) {
-                                    Swal.fire('Erreur', `La quantité ne peut pas dépasser ${remaining} (quantité restante)`, 'warning');
+                            <input
+                              type="number"
+                              className="form-control"
+                              value={l.quantiteLivreeNow || 0}
+                              min={0}
+                              max={remaining}
+                              onChange={(e) => {
+                                const newVal = Number(e.target.value) || 0;
+                                if (newVal > remaining) {
+                                  Swal.fire('Erreur', `La quantité ne peut pas dépasser ${remaining} (quantité restante)`, 'warning');
+                                  return;
+                                }
+                                if (l.id_stock) {
+                                  const stock = stocks.find(s => s.id === l.id_stock);
+                                  if (stock && newVal > (stock.quantiteDisponible || 0)) {
+                                    Swal.fire('Erreur', `Stock insuffisant (${stock.quantiteDisponible}) pour cette ligne`, 'warning');
                                     return;
                                   }
-                                  if (l.id_stock) {
-                                    const stock = stocks.find(s => s.id === l.id_stock);
-                                    if (stock && newVal > (stock.quantiteDisponible || 0)) {
-                                      Swal.fire('Erreur', `Stock insuffisant (${stock.quantiteDisponible}) pour cette ligne`, 'warning');
-                                      return;
-                                    }
-                                  }
-                                  handleChangeLine(i, 'quantiteLivreeNow', newVal);
-                                }}
-                                style={{ width: 140 }}
-                              />
-                            ) : (
-                              <input
-                                type="number"
-                                className="form-control"
-                                value={livraisonCondQty[i] ?? 0}
-                                min={0}
-                                onChange={(e) => {
-                                  const newVal = Number(e.target.value) || 0;
-                                  const mult = stockInfo?.produit?.nombreUnitesParConditionnement ?? stockInfo?.nombreUnitesParConditionnement ?? 1;
-                                  const real = newVal * (mult || 1);
-                                  if (real > remaining) {
-                                    Swal.fire('Erreur', `La quantité réelle (${real}) ne peut pas dépasser ${remaining} (quantité restante)`, 'warning');
-                                    return;
-                                  }
-                                  if (l.id_stock) {
-                                    const stock = stocks.find(s => s.id === l.id_stock);
-                                    if (stock && real > (stock.quantiteDisponible || 0)) {
-                                      Swal.fire('Erreur', `Stock insuffisant (${stock.quantiteDisponible}) pour cette ligne`, 'warning');
-                                      return;
-                                    }
-                                  }
-                                  setLivraisonCondQuantity(i, newVal);
-                                }}
-                                style={{ width: 140 }}
-                              />
-                            )}
-
+                                }
+                                handleChangeLine(i, 'quantiteLivreeNow', newVal);
+                              }}
+                              style={{ width: 140 }}
+                            />
+                            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => {
+                              // Livrer tout : remplir avec la quantité restante en unités
+                              handleChangeLine(i, 'quantiteLivreeNow', remaining);
+                            }}>Livrer tout</button>
                           </div>
 
-                          <small className="text-muted">{livraisonParCond[i] && (livraisonCondQty[i] ?? 0) > 0 ? (() => {
-                            const q = livraisonCondQty[i] || 0;
-                            const mult = stockInfo?.produit?.nombreUnitesParConditionnement ?? stockInfo?.nombreUnitesParConditionnement ?? 1;
-                            const unitRaw = stockInfo?.produit?.unite?.libelle ?? 'cond';
-                            const unit = typeof unitRaw === 'string' ? unitRaw : String(unitRaw);
-                            const unitPlural = (q > 1 && !unit.toLowerCase().endsWith('s')) ? `${unit}s` : unit;
-                            return `${q} ${unitPlural} ≈ ${q * mult} unités`;
-                          })() : `Réel: ${l.quantiteLivreeNow || 0}`}</small>
+                          <small className="text-muted">{`Réel: ${l.quantiteLivreeNow || 0}${stockInfo?.produit?.unite?.libelle ? ` ${stockInfo.produit.unite.libelle}` : ''}`}</small>
                         </div>
                       </td>
                     </tr>

@@ -193,4 +193,19 @@ public class CommandeFournisseurControllerTest {
         // verify that existing ligne has been updated to quantite=15
         verify(ligneCommandeRepository, atLeastOnce()).save(argThat(l -> l.getQuantite() == 15));
     }
+
+    @Test
+    public void convertToDTO_preserves_wall_time_without_offset() throws Exception {
+        CommandeFournisseur cmd = new CommandeFournisseur();
+        cmd.setId(9999L);
+        java.time.LocalDateTime dt = java.time.LocalDateTime.of(2026, 1, 5, 11, 2, 0);
+        cmd.setDateCommande(dt);
+        cmd.setTotal(0);
+
+        java.lang.reflect.Method m = com.smboutique.api.controller.CommandeFournisseurController.class.getDeclaredMethod("convertToDTO", com.smboutique.api.model.CommandeFournisseur.class);
+        m.setAccessible(true);
+        com.smboutique.api.dto.CommandeFournisseurDTO dto = (com.smboutique.api.dto.CommandeFournisseurDTO) m.invoke(commandeController, cmd);
+        assertNotNull(dto);
+        assertEquals("2026-01-05 11:02:00", dto.getDateCommande());
+    }
 }

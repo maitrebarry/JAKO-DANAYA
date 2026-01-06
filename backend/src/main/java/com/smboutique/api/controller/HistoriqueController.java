@@ -12,7 +12,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -47,6 +46,9 @@ public class HistoriqueController {
     @Autowired
     private com.smboutique.api.service.VenteService venteService;
 
+    @Autowired
+    private com.smboutique.api.service.LigneVenteService ligneVenteService;
+
     private Utilisateur getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -77,6 +79,8 @@ public class HistoriqueController {
         // cancellation actor: user id and optional display name
         public Long annulePar;
         public String annuleParNom;
+        // Optional: human-readable lines describing products sold in this operation
+        public java.util.List<String> lignes;
     }
 
     @GetMapping("/boutique/{boutiqueId}")
@@ -85,8 +89,6 @@ public class HistoriqueController {
         if (!isSuperAdmin(current) && (current.getBoutique() == null || !current.getBoutique().getId().equals(boutiqueId))) {
             return ResponseEntity.status(403).build();
         }
-        // Determine whether current user can see caisse reference in paiement entries
-        boolean canSeeCaisse = isSuperAdmin(current) || (current != null && (utilisateurService.hasPermission(current, "CAISSE_VOIR") || utilisateurService.hasPermission(current, "CAISSE_LECTURE")));
         List<HistoriqueItem> items = new ArrayList<>();
 
         // Receptions status
@@ -289,12 +291,13 @@ public class HistoriqueController {
 
         // Livraisons (exclude cancelled)
         java.util.List<com.smboutique.api.model.Livraison> livs = livraisonService.findByBoutiqueId(boutiqueId);
+        if (livs == null) livs = java.util.Collections.emptyList();
         // Debug logging: report counts and sample references
         if (log.isDebugEnabled() || log.isInfoEnabled()) {
             try {
-                long totalLiv = livs == null ? 0 : livs.size();
+                long totalLiv = livs.size();
                 String sampleRefs = "";
-                if (livs != null && !livs.isEmpty()) {
+                if (!livs.isEmpty()) {
                     sampleRefs = livs.stream().limit(5).map(lx -> (lx.getReference() == null ? "(no-ref)" : lx.getReference())).collect(java.util.stream.Collectors.joining(", "));
                 }
                 log.info("getVentesHistoriqueByBoutique: found {} livraisons for boutique {} sampleRefs=[{}]", totalLiv, boutiqueId, sampleRefs);
@@ -327,6 +330,7 @@ public class HistoriqueController {
 
         // Paiements clients (exclude cancelled)
         java.util.List<com.smboutique.api.model.PaiementClient> paies = paiementClientService.findByBoutiqueId(boutiqueId);
+        if (paies == null) paies = java.util.Collections.emptyList();
         for (com.smboutique.api.model.PaiementClient p : paies) {
             if (p.getAnnule() != null && p.getAnnule()) continue;
             HistoriqueItem it = new HistoriqueItem();
@@ -426,6 +430,7 @@ public class HistoriqueController {
                 log.warn("getVentesEspecesByBoutique: unable to log paiement sample", e);
             }
 
+            if (paies == null) paies = java.util.Collections.emptyList();
             for (com.smboutique.api.model.PaiementClient p : paies) {
                 if (p.getAnnule() != null && p.getAnnule()) continue;
                 HistoriqueItem it = new HistoriqueItem();
@@ -447,35 +452,101 @@ public class HistoriqueController {
                     if (p.getCommandeClient().getUtilisateur() != null) {
                         it.responsable = (p.getCommandeClient().getUtilisateur().getNom() != null ? p.getCommandeClient().getUtilisateur().getNom() : "") + " " + (p.getCommandeClient().getUtilisateur().getPrenom() != null ? p.getCommandeClient().getUtilisateur().getPrenom() : "");
                     }
+
+                    // Build per-line descriptions for the commande linked to this paiement
+                    try {
+                        if (p.getCommandeClient().getLignes() != null) {
+                            it.lignes = new java.util.ArrayList<>();
+                            for (com.smboutique.api.model.LigneCommandeClient lc : p.getCommandeClient().getLignes()) {
+                                String prodName = lc.getProduit() != null ? (lc.getProduit().getNomProduit() != null ? lc.getProduit().getNomProduit() : String.valueOf(lc.getProduit().getId())) : "Produit inconnu";
+                                int mult = lc.getProduit() != null && lc.getProduit().getNombreUnitesParConditionnement() != null ? lc.getProduit().getNombreUnitesParConditionnement() : 0;
+                                String unitLabel = lc.getProduit() != null && lc.getProduit().getUnite() != null ? (lc.getProduit().getUnite().getLibelle() != null ? lc.getProduit().getUnite().getLibelle() : "conditionnement") : "conditionnement";
+                                int units = 0;
+                                if (lc.getQuantite() != null) units = lc.getQuantite();
+                                else if (lc.getQuantiteConditionnement() != null && mult > 0) units = lc.getQuantiteConditionnement() * mult;
+                                String lineDesc = prodName + " — " + units + " unités" + (mult > 1 ? " (1 " + unitLabel + " = " + mult + " unités)" : "");
+                                it.lignes.add(lineDesc);
+                            }
+                        }
+                    } catch (Exception ex) {
+                        log.warn("Failed to build line descriptions for paiement {}: {}", p.getId(), ex.getMessage());
+                    }
+                    // include paiement's referenceCaisse only if allowed
+                    it.referenceCaisse = canSeeCaisse ? p.getReferenceCaisse() : null;
+                    items.add(it);
                 }
-                it.referenceCaisse = canSeeCaisse ? p.getReferenceCaisse() : null;
-                items.add(it);
             }
 
-            // Also include cash sales from Vente table (if any) for this boutique so 'Ventes en Espèces' shows them
-            try {
-                java.util.List<com.smboutique.api.model.Vente> ventes = venteService.findByBoutiqueId(boutiqueId);
-                java.util.List<String> sampleVentes = ventes == null ? java.util.Collections.emptyList() : ventes.stream().limit(5).map(v -> v.getId() == null ? "(no-id)" : String.valueOf(v.getId())).collect(java.util.stream.Collectors.toList());
-                log.info("getVentesEspecesByBoutique: found {} ventes for boutique {} sampleIds={}", ventes == null ? 0 : ventes.size(), boutiqueId, sampleVentes);
-                for (com.smboutique.api.model.Vente v : ventes) {
-                    HistoriqueItem itv = new HistoriqueItem();
-                    itv.type = "VENTE";
-                    itv.id = v.getId();
-                    if (v.getDateVente() != null) {
-                        java.time.ZonedDateTime z = v.getDateVente().atZone(java.time.ZoneId.systemDefault());
-                        itv.date = z.format(displayFormatter);
-                        itv.dateIso = z.format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+                // Also include cash sales from Vente table (if any) for this boutique so 'Ventes en Espèces' shows them
+                try {
+                    java.util.List<com.smboutique.api.model.Vente> ventes = venteService.findByBoutiqueId(boutiqueId);
+                    java.util.List<com.smboutique.api.model.LigneVente> allLignes = ligneVenteService.findAll();
+                    java.util.Map<Long, java.util.List<com.smboutique.api.model.LigneVente>> lignesByVente = new java.util.HashMap<>();
+                    if (allLignes != null) {
+                        for (com.smboutique.api.model.LigneVente lv : allLignes) {
+                            if (lv.getVente() != null && lv.getVente().getId() != null) {
+                                lignesByVente.computeIfAbsent(lv.getVente().getId(), k -> new java.util.ArrayList<>()).add(lv);
+                            }
+                        }
                     }
-                    itv.reference = v.getReferenceCaisse();
-                    itv.montant = v.getMontantTotal() != null ? v.getMontantTotal().doubleValue() : null;
-                    itv.client = v.getNomClient();
-                    if (v.getUtilisateur() != null) itv.responsable = (v.getUtilisateur().getNom() != null ? v.getUtilisateur().getNom() : "") + " " + (v.getUtilisateur().getPrenom() != null ? v.getUtilisateur().getPrenom() : "");
-                    itv.referenceCaisse = v.getReferenceCaisse();
-                    items.add(itv);
+
+                    log.info("getVentesEspecesByBoutique: found {} ventes for boutique {} (will include them in response)", ventes == null ? 0 : ventes.size(), boutiqueId);
+                    for (com.smboutique.api.model.Vente v : ventes) {
+
+                        HistoriqueItem itv = new HistoriqueItem();
+                        itv.type = "VENTE";
+                        itv.id = v.getId();
+                        if (v.getDateVente() != null) {
+                            java.time.ZonedDateTime z = v.getDateVente().atZone(java.time.ZoneId.systemDefault());
+                            itv.date = z.format(displayFormatter);
+                            itv.dateIso = z.format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+                        }
+                        itv.reference = v.getReferenceCaisse();
+                        itv.montant = v.getMontantTotal() != null ? v.getMontantTotal().doubleValue() : null;
+                        itv.client = v.getNomClient();
+                        if (v.getUtilisateur() != null) itv.responsable = (v.getUtilisateur().getNom() != null ? v.getUtilisateur().getNom() : "") + " " + (v.getUtilisateur().getPrenom() != null ? v.getUtilisateur().getPrenom() : "");
+                        itv.referenceCaisse = v.getReferenceCaisse();
+
+                        try {
+                            java.util.List<com.smboutique.api.model.LigneVente> lvlist = lignesByVente.get(v.getId());
+                            if (lvlist != null && !lvlist.isEmpty()) {
+                                itv.lignes = new java.util.ArrayList<>();
+                                for (com.smboutique.api.model.LigneVente lv : lvlist) {
+                                    String prodName = lv.getProduit() != null ? (lv.getProduit().getNomProduit() != null ? lv.getProduit().getNomProduit() : String.valueOf(lv.getProduit().getId())) : "Produit inconnu";
+                                    int mult = lv.getProduit() != null && lv.getProduit().getNombreUnitesParConditionnement() != null ? lv.getProduit().getNombreUnitesParConditionnement() : 0;
+                                    String unitLabel = lv.getProduit() != null && lv.getProduit().getUnite() != null ? (lv.getProduit().getUnite().getLibelle() != null ? lv.getProduit().getUnite().getLibelle() : "conditionnement") : "conditionnement";
+                                    int units = 0;
+                                    if (lv.getQuantite() != null) units = lv.getQuantite();
+                                    else if (lv.getQuantiteConditionnement() != null && mult > 0) units = lv.getQuantiteConditionnement() * mult;
+
+                                    if (lv.getQuantiteConditionnement() != null && mult > 1) {
+                                        int qCond = lv.getQuantiteConditionnement();
+                                        int totalOpened = qCond * mult;
+                                        int sold = lv.getQuantite() != null ? lv.getQuantite() : totalOpened;
+                                        String unitPlural = (qCond > 1 && !unitLabel.toLowerCase().endsWith("s")) ? unitLabel + "s" : unitLabel;
+                                        String lineDesc = prodName + " — Vente issue de " + qCond + " " + unitPlural + " (" + totalOpened + " unités) — Vendu: " + sold + " unités";
+                                        if (lv.getResteUnitesDansCartonApresVente() != null) {
+                                            lineDesc += " — Reste dans carton: " + lv.getResteUnitesDansCartonApresVente() + " unité" + (lv.getResteUnitesDansCartonApresVente() > 1 ? "s" : "");
+                                        }
+                                        itv.lignes.add(lineDesc);
+                                    } else {
+                                        String lineDesc = prodName + " — " + units + " unités" + (mult > 1 ? " (1 " + unitLabel + " = " + mult + " unités)" : "");
+                                        if (lv.getResteUnitesDansCartonApresVente() != null) {
+                                            lineDesc += " — Reste dans carton: " + lv.getResteUnitesDansCartonApresVente() + " unité" + (lv.getResteUnitesDansCartonApresVente() > 1 ? "s" : "");
+                                        }
+                                        itv.lignes.add(lineDesc);
+                                    }
+                                }
+                            }
+                        } catch (Exception ex) {
+                            log.warn("Failed to build line descriptions for vente {}: {}", v.getId(), ex.getMessage());
+                        }
+
+                        items.add(itv);
+                    }
+                } catch (Exception e) {
+                    log.warn("getVentesEspecesByBoutique: unable to include ventes from Vente table: {}", e.getMessage());
                 }
-            } catch (Exception e) {
-                log.warn("getVentesEspecesByBoutique: unable to include ventes from Vente table: {}", e.getMessage());
-            }
 
             List<HistoriqueItem> sorted = items.stream()
                     .sorted(Comparator.comparing((HistoriqueItem i) -> {
@@ -547,6 +618,7 @@ public class HistoriqueController {
             log.warn("Unable to log permissions for user in annulations path: {}", e.getMessage());
         }
         java.util.List<com.smboutique.api.model.PaiementClient> paies = paiementClientService.findByBoutiqueId(boutiqueId);
+        if (paies == null) paies = java.util.Collections.emptyList();
         for (com.smboutique.api.model.PaiementClient p : paies) {
             if (p.getAnnule() == null || !p.getAnnule()) continue;
             HistoriqueItem it = new HistoriqueItem();

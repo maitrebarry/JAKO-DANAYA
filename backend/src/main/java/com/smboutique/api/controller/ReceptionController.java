@@ -235,7 +235,7 @@ public class ReceptionController {
         reception.setBoutique(user.getBoutique());
         Reception saved = receptionService.save(reception);
         try {
-            mouvementService.log("RECEPTION", "CREATION", "Réception id=" + saved.getId(), saved.getId(), saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, user != null ? user.getId() : null, null);
+            mouvementService.log("RECEPTION", "CREATION", "Réception créée", saved.getId(), saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, user != null ? user.getId() : null, null);
         } catch (Exception e) { /* ignore logging failure */ }
         return saved;
     }
@@ -264,7 +264,7 @@ public class ReceptionController {
         reception.setDateReception(receptionDetails.getDateReception());
         reception.setCommandeFournisseur(receptionDetails.getCommandeFournisseur());
         Reception updated = receptionService.save(reception);
-        try { mouvementService.log("RECEPTION", "MODIFICATION", "Réception modifiée id=" + updated.getId(), updated.getId(), updated.getBoutique() != null ? updated.getBoutique().getId() : null, null, user != null ? user.getId() : null, null); } catch (Exception e) {}
+        try { mouvementService.log("RECEPTION", "MODIFICATION", "Réception modifiée", updated.getId(), updated.getBoutique() != null ? updated.getBoutique().getId() : null, null, user != null ? user.getId() : null, null); } catch (Exception e) {}
         return ResponseEntity.ok(updated);
     }
 
@@ -288,7 +288,7 @@ public class ReceptionController {
         }
 
         receptionService.deleteById(id);
-        try { mouvementService.log("RECEPTION", "SUPPRESSION", "Réception supprimée id=" + id, id, reception.getBoutique() != null ? reception.getBoutique().getId() : null, null, user != null ? user.getId() : null, null); } catch (Exception e) {}
+        try { mouvementService.log("RECEPTION", "SUPPRESSION", "Réception supprimée", id, reception.getBoutique() != null ? reception.getBoutique().getId() : null, null, user != null ? user.getId() : null, null); } catch (Exception e) {}
         return ResponseEntity.ok().build();
     }
 
@@ -487,7 +487,7 @@ public class ReceptionController {
             reception.setAnnulePar(user.getId());
             reception.setAnnuleReason(body != null ? body.getOrDefault("reason", null) : null);
             receptionService.save(reception);
-            try { mouvementService.log("RECEPTION", "ANNULATION", "Annulation réception id=" + reception.getId(), reception.getId(), reception.getBoutique() != null ? reception.getBoutique().getId() : null, null, user != null ? user.getId() : null, null); } catch (Exception e) {}
+            try { mouvementService.log("RECEPTION", "ANNULATION", "Annulation de réception", reception.getId(), reception.getBoutique() != null ? reception.getBoutique().getId() : null, null, user != null ? user.getId() : null, null); } catch (Exception e) {}
 
             return ResponseEntity.ok(java.util.Map.of("id", reception.getId(), "annule", true));
         } catch (Exception ex) {
@@ -629,7 +629,7 @@ public class ReceptionController {
 
             // Audit: log reception creation
             try {
-                mouvementService.log("RECEPTION", "CREATION", "Réception id=" + savedReception.getId(), savedReception.getId(), savedReception.getBoutique() != null ? savedReception.getBoutique().getId() : null, null, user != null ? user.getId() : null, null);
+                mouvementService.log("RECEPTION", "CREATION", "Réception créée", savedReception.getId(), savedReception.getBoutique() != null ? savedReception.getBoutique().getId() : null, null, user != null ? user.getId() : null, null);
             } catch (Exception e) {}
 
             List<LigneCommande> lignesCommande = ligneCommandeRepository.findByCommandeFournisseurId(commande.getId());

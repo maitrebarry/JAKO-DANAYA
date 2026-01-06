@@ -11,6 +11,10 @@ quantiteEnUnites = quantiteConditionnement * produit.nombreUnitesParConditionnem
 ```
 - Validations serveur :
   - `quantite` et `quantiteConditionnement` doivent être >= 0.
+  - Si `venteParConditionnement` est vrai :
+    - `produit.nombreUnitesParConditionnement` doit être > 1, sinon 400 Bad Request.
+    - `quantiteConditionnement` doit être fourni et >= 1.
+    - Si `quantite` est fourni, il doit être <= `quantiteConditionnement * nombreUnitesParConditionnement`.
   - Si `quantiteConditionnement` fourni mais `nombreUnitesParConditionnement` absent ou <= 1 → 400 Bad Request.
 
 Exemples JSON

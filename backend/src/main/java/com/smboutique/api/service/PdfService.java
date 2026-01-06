@@ -11,4 +11,6 @@ public interface PdfService {
     void writePaiementClientPdf(Long paiementId, HttpServletResponse response) throws IOException;
     void writeLivraisonPdf(Long livraisonId, HttpServletResponse response) throws IOException;
     void writeDepensePdf(Long depenseId, HttpServletResponse response) throws IOException;
+    // Write a PDF for a cash sale (Vente)
+    void writeVentePdf(Long venteId, jakarta.servlet.http.HttpServletResponse response) throws IOException;
 }

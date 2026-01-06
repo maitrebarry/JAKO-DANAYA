@@ -312,6 +312,32 @@ public class MagasinController {
                         m.put("nomProduit", s.getProduit() != null ? s.getProduit().getNomProduit() : null);
                         m.put("quantiteDisponible", s.getQuantiteDisponible() == null ? 0 : s.getQuantiteDisponible());
                         m.put("unite", s.getProduit() != null && s.getProduit().getUnite() != null ? s.getProduit().getUnite().getLibelle() : null);
+
+                        // expose price fields so frontends can reliably display prices for magasin stocks
+                        m.put("prixAchat", s.getProduit() != null ? s.getProduit().getPrixAchat() : null);
+                        m.put("prixDetail", s.getProduit() != null ? s.getProduit().getPrixDetail() : null);
+                        m.put("prixEnGros", s.getProduit() != null ? s.getProduit().getPrixEnGros() : null);
+
+                        // also include a minimal produit object for compatibility with frontend enrich logic
+                        if (s.getProduit() != null) {
+                            java.util.Map<String, Object> p = new java.util.HashMap<>();
+                            p.put("id", s.getProduit().getId());
+                            p.put("nomProduit", s.getProduit().getNomProduit());
+                            p.put("prixAchat", s.getProduit().getPrixAchat());
+                            p.put("prixDetail", s.getProduit().getPrixDetail());
+                            p.put("prixEnGros", s.getProduit().getPrixEnGros());
+                            p.put("nombreUnitesParConditionnement", s.getProduit().getNombreUnitesParConditionnement());
+                            // include unite info (id, libelle, symbole) so clients can display proper unit labels
+                            if (s.getProduit().getUnite() != null) {
+                                java.util.Map<String, Object> u = new java.util.HashMap<>();
+                                u.put("id", s.getProduit().getUnite().getId());
+                                u.put("libelle", s.getProduit().getUnite().getLibelle());
+                                u.put("symbole", s.getProduit().getUnite().getSymbole());
+                                p.put("unite", u);
+                            }
+                            m.put("produit", p);
+                        }
+
                         resp.add(m);
                     }
                     return ResponseEntity.ok(resp);

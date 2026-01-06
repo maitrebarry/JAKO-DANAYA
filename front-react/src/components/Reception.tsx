@@ -49,9 +49,11 @@ const Reception: React.FC = () => {
   const [error, setError] = useState('');
 
   // Location state (Achat defaults to MAGASIN if any exist)
-  const [magasins, setMagasins] = useState<any[]>([]);
+  const [_magasins, setMagasins] = useState<any[]>([]);
   const [locationType, setLocationType] = useState<'BOUTIQUE'|'MAGASIN'>('MAGASIN');
   const [selectedMagasinId, setSelectedMagasinId] = useState<number | null>(null);
+  // When true the Emplacement selector is locked because the commande's articles imply a single emplacement
+  const [_locationLocked, setLocationLocked] = useState<boolean>(false);
 
   const fetchMagasins = async () => {
     try {
@@ -242,8 +244,37 @@ const Reception: React.FC = () => {
       if (!articlesRes.ok) throw new Error('Erreur lors du chargement des articles');
       const articles = await articlesRes.json();
 
+      // Detect if the commande's articles come from a single emplacement (all boutique or all the same magasin)
+      let inferredLocationType: 'BOUTIQUE'|'MAGASIN'|null = null;
+      let inferredMagId: number | null = null;
+      if (articles && articles.length > 0) {
+        // Try to infer magasin id from various possible fields
+        const magIds = (articles || []).map((a: any) => a.magasin?.id ?? a.magasinId ?? a.id_magasin ?? a.idMagasin ?? null);
+        const hasOnlyBoutique = magIds.every((id: any) => id === null);
+        const uniqueMagIds = [...new Set(magIds.filter((id: any) => id !== null))];
+
+        if (hasOnlyBoutique) {
+          inferredLocationType = 'BOUTIQUE';
+          inferredMagId = null;
+          setLocationType('BOUTIQUE');
+          setSelectedMagasinId(null);
+          setLocationLocked(true);
+        } else if (uniqueMagIds.length === 1) {
+          inferredLocationType = 'MAGASIN';
+          inferredMagId = uniqueMagIds[0] as number;
+          setLocationType('MAGASIN');
+          setSelectedMagasinId(inferredMagId);
+          setLocationLocked(true);
+        } else {
+          // mixed depots -> keep selectable
+          setLocationLocked(false);
+        }
+      } else {
+        setLocationLocked(false);
+      }
+
       // Ensure stocks for the selected location are loaded so we can show depot and available quantity
-      const stocksForLoc = await fetchStocksByLocation();
+      const stocksForLoc = await fetchStocksByLocation(inferredLocationType ?? undefined, inferredMagId ?? undefined);
       const enriched = (articles || []).map((a: any) => {
         const productId = a.idProduit || a.produitId || null;
         const stockInfo = (stocksForLoc || []).find((s: any) => (s.produit && s.produit.id === productId) || s.produitId === productId || s.id_produit === productId);
@@ -537,32 +568,7 @@ const Reception: React.FC = () => {
                 </div>
                 <hr className="mt-5" />
 
-                <div className="form-group mb-3 d-flex align-items-center" style={{ gap: 8 }}>
-                  <label className="me-2">Emplacement</label>
-                  <select
-                    className="form-select form-select-sm me-2"
-                    value={locationType === 'MAGASIN' ? `MAGASIN:${selectedMagasinId || ''}` : 'BOUTIQUE'}
-                    onChange={async (e) => {
-                      const val = e.target.value;
-                      if (val.startsWith('MAGASIN:')) {
-                        const idVal = Number(val.split(':')[1]);
-                        setLocationType('MAGASIN');
-                        setSelectedMagasinId(idVal);
-                        // refresh articles to reflect new stock info
-                        if (selectedCommande) await handleCommandeChange(String((selectedCommande as any).id));
-                      } else {
-                        setLocationType('BOUTIQUE');
-                        setSelectedMagasinId(null);
-                        if (selectedCommande) await handleCommandeChange(String((selectedCommande as any).id));
-                      }
-                    }}
-                  >
-                    <option value="BOUTIQUE">Dépôt boutique</option>
-                    {magasins.map(m => (
-                      <option key={m.id} value={`MAGASIN:${m.id}`}>{`Magasin - ${m.nom}`}</option>
-                    ))}
-                  </select>
-                </div>
+
 
                 <div className="table-responsive">
                   <table id="articles_table" className="table table-striped table-bordered">

@@ -41,6 +41,24 @@ public class Mouvement {
     @JoinColumn(name = "id_transfer")
     private Transfer transfer;
 
+    // Audit / context fields
+    @ManyToOne
+    @JoinColumn(name = "id_utilisateur")
+    private Utilisateur utilisateur;
+
+    @Column(name = "sous_type")
+    private String sousType;
+
+    @Column(columnDefinition = "text")
+    private String description;
+
+    @Column(name = "reference_id")
+    private Long referenceId;
+
+    @ManyToOne
+    @JoinColumn(name = "id_magasin")
+    private Magasin magasin;
+
     private Integer quantite;
     
     @Column(name = "type_mvnt")
@@ -49,5 +67,6 @@ public class Mouvement {
     private Integer montant;
     
     @Column(name = "date_mov")
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy HH:mm:ss")
     private LocalDateTime dateMouvement;
 }
