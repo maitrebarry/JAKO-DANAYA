@@ -52,6 +52,9 @@ public class CommandeClientController {
     @Autowired
     private com.smboutique.api.service.CaisseMovementService caisseMovementService;
 
+    @Autowired
+    private com.smboutique.api.service.MouvementService mouvementService;
+
     // Helper to get authenticated user
     private com.smboutique.api.model.Utilisateur getCurrentUser() {
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
@@ -121,7 +124,13 @@ public class CommandeClientController {
 
     @PostMapping
     public CommandeClient createCommandeClient(@RequestBody CommandeClient commandeClient) {
-        return commandeClientService.save(commandeClient);
+        CommandeClient saved = commandeClientService.save(commandeClient);
+        try {
+            com.smboutique.api.model.Utilisateur current = null;
+            try { current = getCurrentUser(); } catch (Exception ex) { /* ignore */ }
+            mouvementService.log("COMMANDE", "CREATE", "Commande client id=" + saved.getId(), saved.getId(), saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, current != null ? current.getId() : null, saved.getTotal() != null ? Double.valueOf(saved.getTotal()) : null);
+        } catch (Exception e) { /* ignore logging errors */ }
+        return saved;
     }
 
     @PutMapping("/{id}")
@@ -230,7 +239,13 @@ public class CommandeClientController {
                             commandeClient.setLignes(ligneCommandeClientService.findAll().stream().filter(l -> l.getCommandeClient() != null && l.getCommandeClient().getId().equals(commandeClient.getId())).collect(java.util.stream.Collectors.toList()));
                         }
 
-                        return ResponseEntity.ok(commandeClientService.save(commandeClient));
+                        com.smboutique.api.model.CommandeClient saved = commandeClientService.save(commandeClient);
+                        try {
+                            com.smboutique.api.model.Utilisateur current = null;
+                            try { current = getCurrentUser(); } catch (Exception ex) { /* ignore */ }
+                            mouvementService.log("COMMANDE", "MODIFY", "Commande client modifiée id=" + saved.getId(), saved.getId(), saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, current != null ? current.getId() : null, saved.getTotal() != null ? Double.valueOf(saved.getTotal()) : null);
+                        } catch (Exception e) { /* ignore logging errors */ }
+                        return ResponseEntity.ok(saved);
                     } catch (Exception ex) {
                         return ResponseEntity.status(500).body(ex.getMessage());
                     }
@@ -400,6 +415,10 @@ public class CommandeClientController {
             cmd.setPaie(paieExistante + montant);
             com.smboutique.api.model.CommandeClient savedCmd = commandeClientService.save(cmd);
 
+            try {
+                mouvementService.log("PAIEMENT", "COMMANDE_CLIENT", "Paiement commande client id=" + cmd.getId() + " montant=" + montant, cmd.getId(), cmd.getBoutique() != null ? cmd.getBoutique().getId() : null, null, current != null ? current.getId() : null, Double.valueOf(montant));
+            } catch (Exception e) { /* ignore logging errors */ }
+
             ResponseEntity.BodyBuilder builder = ResponseEntity.ok();
             builder.header("X-Caisse-Updated", String.valueOf(true));
             builder.header("X-Caisse-Total", String.valueOf(caisse.getMontantTotal()));
@@ -475,6 +494,9 @@ public class CommandeClientController {
                                 p.setAnnulePar(user.getId());
                                 p.setAnnuleReason("Annulation automatique lors de suppression commande");
                                 paiementClientService.save(p);
+                                try {
+                                    mouvementService.log("PAIEMENT", "ANNULATION", "Annulation paiement id=" + p.getId() + " commande=" + commandeClient.getId() + " montant=" + montant, commandeClient.getId(), commandeClient.getBoutique() != null ? commandeClient.getBoutique().getId() : null, null, user != null ? user.getId() : null, Double.valueOf(montant));
+                                } catch (Exception le) { /* ignore logging errors */ }
                             } catch (Exception ex) {
                                 // ignore individual payment save errors
                             }
@@ -542,6 +564,7 @@ public class CommandeClientController {
 
                     // Finally delete the commande
                     commandeClientService.deleteById(id);
+                    try { mouvementService.log("COMMANDE", "DELETE", "Commande client supprimée id=" + id, id, commandeClient.getBoutique() != null ? commandeClient.getBoutique().getId() : null, null, user != null ? user.getId() : null, null); } catch (Exception e) { /* ignore */ }
                     return ResponseEntity.ok().<Void>build();
                 })
                 .orElse(ResponseEntity.notFound().build());
