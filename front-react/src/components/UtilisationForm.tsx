@@ -235,7 +235,7 @@ const UtilisationForm: React.FC<Props> = ({ onSuccess, onClose, editing }) => {
 
   return (
     <div className="modal show d-block" tabIndex={-1} role="dialog">
-      <div className="modal-dialog" role="document">
+      <div className="modal-dialog modal-fullscreen-sm-down" role="document">
         <div className="modal-content">
           <form onSubmit={submit}>
             <div className="modal-header bg-dark text-white d-flex align-items-center justify-content-between">

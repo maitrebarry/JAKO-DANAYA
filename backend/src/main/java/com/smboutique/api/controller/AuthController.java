@@ -46,14 +46,32 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
 
+        // Validation des champs et messages d'erreur en français
+        if (loginRequest.getEmail() == null || loginRequest.getEmail().isBlank() || loginRequest.getPassword() == null || loginRequest.getPassword().isBlank()) {
+            Map<String, Object> body = new HashMap<>();
+            body.put("status", 400);
+            body.put("error", "Requête invalide");
+            body.put("message", "L'email et le mot de passe sont requis");
+            return ResponseEntity.badRequest().body(body);
+        }
+
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword()));
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            String jwt = jwtUtils.generateJwtToken(authentication);
-
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+
+            // Deny login if account is disabled
+            if (!userDetails.isEnabled()) {
+                Map<String, Object> body = new HashMap<>();
+                body.put("status", 403);
+                body.put("error", "Forbidden");
+                body.put("message", "Compte désactivé");
+                return ResponseEntity.status(403).body(body);
+            }
+
+            String jwt = jwtUtils.generateJwtToken(authentication);
 
             List<String> roles = userDetails.getAuthorities().stream()
                     .map(item -> item.getAuthority())
@@ -81,11 +99,17 @@ public class AuthController {
             body.put("error", "Non autorisé");
             body.put("message", "Identifiants incorrects");
             return ResponseEntity.status(401).body(body);
+        } catch (org.springframework.security.authentication.DisabledException ex) {
+            Map<String, Object> body = new HashMap<>();
+            body.put("status", 403);
+            body.put("error", "Compte désactivé");
+            body.put("message", "Votre compte a été désactivé, veuillez contacter un administrateur");
+            return ResponseEntity.status(403).body(body);
         } catch (org.springframework.security.core.AuthenticationException ex) {
             Map<String, Object> body = new HashMap<>();
             body.put("status", 401);
             body.put("error", "Non autorisé");
-            body.put("message", ex.getMessage());
+            body.put("message", "Erreur d'authentification");
             return ResponseEntity.status(401).body(body);
         }
     }

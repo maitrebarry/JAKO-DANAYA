@@ -605,7 +605,7 @@ const Produits: React.FC = () => {
       {/* Import modal */}
       {showImportModal && (
         <div className="modal show d-block" tabIndex={-1} role="dialog">
-          <div className="modal-dialog modal-lg" role="document">
+          <div className="modal-dialog modal-lg modal-fullscreen-sm-down" role="document">
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Importer des produits (Excel)</h5>
@@ -708,7 +708,7 @@ const Produits: React.FC = () => {
       {/* Assignation modal */}
       {showAssignModal && (
         <div className="modal show d-block" tabIndex={-1} role="dialog">
-          <div className="modal-dialog modal-xl" role="document">
+          <div className="modal-dialog modal-xl modal-fullscreen-sm-down" role="document">
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Assignation produits au magasin</h5>
@@ -856,7 +856,7 @@ const Produits: React.FC = () => {
       </div>
 
       <div className={`modal fade ${showModal ? 'show' : ''}`} style={{ display: showModal ? 'block' : 'none' }} tabIndex={-1}>
-        <div className="modal-dialog modal-lg">
+        <div className="modal-dialog modal-lg modal-fullscreen-sm-down">
           <div className="modal-content">
             <div className="modal-header bg-black">
               <h5 className="modal-title text-white">{editing ? 'Modifier le produit' : 'Créer un produit'}</h5>
@@ -1016,7 +1016,7 @@ const Produits: React.FC = () => {
               <button type="button" className="btn btn-secondary" onClick={() => { setShowModal(false); setEditing(null); resetForm(); }}>Annuler</button>
               <div className="me-auto">
                 {formErrors.length > 0 && (
-                  <div className="alert alert-danger p-2 m-0" style={{ minWidth: '300px' }}>
+                  <div className="alert alert-danger p-2 m-0" style={{ minWidth: 'min(300px, 90vw)' }}>
                     <ul className="mb-0">
                       {formErrors.map((err, idx) => <li key={idx}>{err}</li>)}
                     </ul>

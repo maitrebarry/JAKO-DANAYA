@@ -1001,7 +1001,7 @@ const CommandeClient: React.FC = () => {
 
                       <div className="card-body">
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ minWidth: 220 }}>
+                          <div style={{ minWidth: 'min(220px, 90vw)' }}>
                             <select
                               className="form-select form-select-sm"
                               disabled={locationLocked}
@@ -1276,7 +1276,7 @@ const CommandeClient: React.FC = () => {
       {showClientModal && createPortal(
         <div className="modal show d-block" tabIndex={-1} role="dialog" style={{ zIndex: 2000 }}>
           <div className="modal-backdrop fade show" style={{ zIndex: 1999 }}></div>
-          <div className="modal-dialog modal-lg modal-dialog-centered" role="document" style={{ zIndex: 2001 }}>
+          <div className="modal-dialog modal-lg modal-dialog-centered modal-fullscreen-sm-down" role="document" style={{ zIndex: 2001 }}>
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Ajouter / Sélectionner un client</h5>

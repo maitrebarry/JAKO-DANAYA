@@ -291,7 +291,7 @@ const Transfert: React.FC = () => {
                         <strong>{s.nomProduit}</strong> <small className="text-muted">{s.unite ? `(${s.unite})` : ''}</small>
                       </div>
                       <div className="me-3">Dispo: <span className="fw-bold">{s.quantiteDisponible ?? 0}</span></div>
-                      <div className="me-3 text-end p-2 border rounded bg-light" style={{ minWidth: 220 }}>
+                      <div className="me-3 text-end p-2 border rounded bg-light" style={{ minWidth: 'min(220px, 90vw)' }}>
                         {/* Show monetary values for currently entered quantity for this product */}
                         {(() => {
                           const qty = computeEffectiveQty(s);

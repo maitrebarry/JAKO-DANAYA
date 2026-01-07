@@ -96,6 +96,7 @@ const DepenseList: React.FC = () => {
       <DepenseForm onCreated={() => fetchList()} />
 
       <div className="card">
+        <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center"><h5 className="mb-0">Dépenses</h5></div>
         <div className="card-body">
           {loading ? <div>Chargement...</div> : (
             <div className="table-responsive">

@@ -384,7 +384,7 @@ const VenteEnEspece: React.FC = () => {
                       <div className="card-header bg-dark text-white">Produits Disponible</div>
                       <div className="card-body">
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ minWidth: 220 }}>
+                          <div style={{ minWidth: 'min(220px, 90vw)' }}>
                             <select
                               className="form-select form-select-sm" disabled={locationLocked}
                               value={locationType === 'MAGASIN' ? `MAGASIN:${selectedMagasinId || ''}` : 'BOUTIQUE'}
@@ -523,7 +523,7 @@ const VenteEnEspece: React.FC = () => {
                                         <label className="form-check-label" htmlFor={`cond-${idx}`}>Par conditionnement</label>
                                       </div>
                                     </td>
-                                    <td style={{ minWidth: 200 }}>
+                                    <td style={{ minWidth: 'min(200px, 90vw)' }}>
                                       <div style={{ display: 'flex', gap: 8 }}>
                                         {!l.venteParConditionnement ? (
                                           <div style={{ flex: 1 }}>

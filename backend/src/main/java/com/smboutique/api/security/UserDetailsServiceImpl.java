@@ -52,11 +52,14 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             }
         }
 
+        String s = utilisateur.getStatut();
+        boolean enabled = s != null && ("ACTIF".equalsIgnoreCase(s) || "ON".equalsIgnoreCase(s) || "ACTIVE".equalsIgnoreCase(s) || "TRUE".equalsIgnoreCase(s) || "1".equals(s));
         return new UserDetailsImpl(
                 utilisateur.getId(),
                 utilisateur.getEmail(),
                 utilisateur.getEmail(),
                 utilisateur.getMotDePasse(),
-                authorities);
+                authorities,
+                enabled);
     }
 }

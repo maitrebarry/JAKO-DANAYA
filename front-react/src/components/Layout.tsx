@@ -8,10 +8,18 @@ interface LayoutProps {
 }
 
 const Layout = ({ children }: LayoutProps) => {
+  const [sidebarOpen, setSidebarOpen] = React.useState<boolean>(typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
+  React.useEffect(() => {
+    const onResize = () => { try { setSidebarOpen(window.innerWidth >= 768); } catch(e) {} };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const toggleSidebar = () => setSidebarOpen(s => !s);
+
   return (
     <div className="wrapper">
-      <Sidebar />
-      <Topbar />
+      <Sidebar isOpen={sidebarOpen} />
+      <Topbar toggleSidebar={toggleSidebar} />
       <div className="content-page">
         <div className="content">
           <div className="container-fluid" style={{ paddingBottom: '80px' }}>
@@ -43,7 +51,7 @@ const Footer = () => {
   );
 };
 
-const Topbar = () => {
+const Topbar = ({ toggleSidebar }: { toggleSidebar?: () => void }) => {
   const navigate = useNavigate();
   const { user } = useUser();
 
@@ -143,7 +151,7 @@ const Topbar = () => {
               </span>
             </a>
           </div>
-          <button className="sidenav-toggle-button btn btn-primary btn-icon d-md-none d-flex">
+          <button className="sidenav-toggle-button btn btn-primary btn-icon d-md-none d-flex" onClick={toggleSidebar} aria-label="Toggle navigation" type="button">
             <i className="ti ti-menu-2 fs-22"></i>
           </button>
         </div>
@@ -153,7 +161,7 @@ const Topbar = () => {
               <i className="ti ti-bell fs-20"></i>
               {unreadCount > 0 && <span className="topbar-badge badge bg-danger">{unreadCount}</span>}
             </button>
-            <ul className="dropdown-menu dropdown-menu-end p-2" style={{ minWidth: 320 }}>
+            <ul className="dropdown-menu dropdown-menu-end p-2" style={{ minWidth: 'min(320px, 90vw)' }}>
               {notifications.length === 0 ? (
                 <li className="p-2 text-muted">Aucune notification</li>
               ) : (
@@ -205,7 +213,7 @@ const Topbar = () => {
   );
 };
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
   const { permissions, user, roles = [] } = useUser();
   // Only use explicit permissions to show/hide UI elements. Some menus (like Configuration)
   // are also visible to owners (PROPRIETAIRE) and SUPERADMIN by role.
@@ -257,7 +265,7 @@ const Sidebar = () => {
     }
   }, [permissions]);
   return (
-    <div className="sidenav-menu">
+    <div className={`sidenav-menu ${!isOpen ? 'd-none d-md-block' : ''}`}>
       <div className="navbar-brand-box">
         <a href="/" className="logo logo-dark">
           <span className="logo-sm">

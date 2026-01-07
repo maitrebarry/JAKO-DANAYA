@@ -176,10 +176,10 @@ const Fournisseurs: React.FC = () => {
         </div>
       )}
       <div className="card">
-        <div className="card-header d-flex justify-content-between align-items-center" style={{ backgroundColor: '#007bff', color: 'white' }}>
-          <h5>Fournisseurs</h5>
+        <div className="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+          <h6 className="mb-0">Fournisseurs</h6>
           <RequirePermission permission="FOURNISSEUR_CREER">
-            <button className="btn btn-plus" onClick={() => { setEditing(null); resetForm(); setShowModal(true); }}>+ Fournisseur</button>
+            <button className="btn btn-primary mb-3 mb-lg-0" onClick={() => { setEditing(null); resetForm(); setShowModal(true); }}>+ Fournisseur</button>
           </RequirePermission>
         </div>
         <div className="card-body">
@@ -229,7 +229,7 @@ const Fournisseurs: React.FC = () => {
       </div>
 
       <div className={`modal fade ${showModal ? 'show' : ''}`} style={{ display: showModal ? 'block' : 'none' }} tabIndex={-1}>
-        <div className="modal-dialog">
+        <div className="modal-dialog modal-fullscreen-sm-down">
           <div className="modal-content">
             <div className="modal-header">
               <h5 className="modal-title">{editing ? 'Modifier le fournisseur' : 'Créer un fournisseur'}</h5>

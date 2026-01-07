@@ -246,7 +246,7 @@ const Profile: React.FC = () => {
                     if (a.startsWith('/uploads') || a.startsWith('uploads')) return a.startsWith('/') ? API_BASE + a : API_BASE + '/' + a;
                     return a;
                   };
-                  return <img src={resolveAvatar((user as any)?.avatar)} alt="avatar" style={{ width: 160, height: 160, objectFit: 'cover', borderRadius: '50%', border: '2px solid #f0f0f0' }} />;
+                  return <img src={resolveAvatar((user as any)?.avatar)} alt="avatar" style={{ width: '100%', maxWidth: 160, height: 'auto', objectFit: 'cover', borderRadius: '50%', border: '2px solid #f0f0f0' }} />;
                 })()}
               </div>
               <div className="mt-3">

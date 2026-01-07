@@ -19,22 +19,28 @@ public class UserDetailsImpl implements UserDetails {
 
     private Collection<? extends GrantedAuthority> authorities;
 
+    private boolean enabled;
+
     public UserDetailsImpl(Long id, String username, String email, String password,
-            Collection<? extends GrantedAuthority> authorities) {
+            Collection<? extends GrantedAuthority> authorities, boolean enabled) {
         this.id = id;
         this.username = username;
         this.email = email;
         this.password = password;
         this.authorities = authorities;
+        this.enabled = enabled;
     }
 
     public static UserDetailsImpl build(com.smboutique.api.model.Utilisateur user) {
+        String s = user.getStatut();
+        boolean enabled = s != null && ("ACTIF".equalsIgnoreCase(s) || "ON".equalsIgnoreCase(s) || "ACTIVE".equalsIgnoreCase(s) || "TRUE".equalsIgnoreCase(s) || "1".equals(s));
         return new UserDetailsImpl(
                 user.getId(),
                 user.getEmail(),
                 user.getEmail(),
                 user.getMotDePasse(),
-                null); // TODO: Add authorities from roles and permissions
+                null, // authorities will be supplied by UserDetailsServiceImpl when needed
+                enabled);
     }
 
     @Override
@@ -77,7 +83,7 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return enabled;
     }
 
     @Override

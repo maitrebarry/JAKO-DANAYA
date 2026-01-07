@@ -96,7 +96,10 @@ const DetailReception: React.FC = () => {
                         <h5>Date de la réception: {formatServerDate(detail.dateReception)}</h5>
                       </div>
                     </div>
-                    <div className="table-responsive">
+                    <div className="card">
+                      <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center"><h5 className="mb-0">Articles</h5></div>
+                      <div className="card-body p-2">
+                        <div className="table-responsive">
                       <table className="table table-bordered table-striped">
                         <thead>
                           <tr>
@@ -133,6 +136,8 @@ const DetailReception: React.FC = () => {
                         </tbody>
                       </table>
                     </div>
+                  </div>
+                </div>
                   </>
                 ) : (
                   <p>Aucune donnée</p>

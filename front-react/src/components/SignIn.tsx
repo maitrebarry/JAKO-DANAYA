@@ -26,7 +26,7 @@ const SignIn = () => {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'Login failed');
+        throw new Error(err.message || 'Échec de la connexion');
       }
       const data = await res.json();
       if (data.token) {
@@ -48,11 +48,11 @@ const SignIn = () => {
         localStorage.setItem('smb_user_data', JSON.stringify(profileData));
         navigate('/dashboard');
       } else {
-        throw new Error('No token returned');
+        throw new Error('Aucun jeton renvoyé');
       }
     } catch (err: any) {
       localStorage.removeItem('smb_token');
-      setError(err.message || 'Error');
+      setError(err.message || 'Erreur');
     } finally {
       setLoading(false);
     }

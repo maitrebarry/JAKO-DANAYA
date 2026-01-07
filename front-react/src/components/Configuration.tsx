@@ -129,6 +129,8 @@ const ListeUtilisateurs = () => {
   
   const canCreateUser = useHasPermission('UTILISATEUR_CREER');
   const canModifyUser = useHasPermission('UTILISATEUR_MODIFIER');
+  const canToggleUser = useHasPermission('UTILISATEUR_ACTIVER_DESACTIVER');
+  const [togglingUserId, setTogglingUserId] = useState<number | null>(null);
 
   const { roles: sessionRoles } = useUser();
   const normalizedRoles = sessionRoles.map(r => (r || '').replace(/^ROLE_/i, '').toUpperCase());
@@ -381,6 +383,41 @@ const ListeUtilisateurs = () => {
     }
   };
 
+  const handleToggleStatus = async (user: any) => {
+    const target = user.statut === 'ACTIF' ? 'INACTIF' : 'ACTIF';
+    const result = await Swal.fire({
+      title: `${target === 'ACTIF' ? 'Activer' : 'Désactiver'} l'utilisateur ?`,
+      text: `Voulez-vous ${target === 'ACTIF' ? 'activer' : 'désactiver'} ${user.email || user.nom || ''} ?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: target === 'ACTIF' ? 'Oui, activer' : 'Oui, désactiver',
+      cancelButtonText: 'Annuler'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      setTogglingUserId(user.id);
+      const token = localStorage.getItem('smb_token');
+      const res = await fetch(`http://localhost:8085/api/users/${user.id}/statut`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ statut: target })
+      });
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        throw new Error(errBody || 'Erreur lors de la modification du statut');
+      }
+      setMessage(`Utilisateur ${target === 'ACTIF' ? 'activé' : 'désactivé'} avec succès !`);
+      loadUsers();
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err: any) {
+      setMessage(err.message || 'Erreur');
+    } finally {
+      setTogglingUserId(null);
+    }
+  };
+
   const handleEdit = (user: any) => {
     setFormData({
       id: user.id,
@@ -517,11 +554,21 @@ const ListeUtilisateurs = () => {
                         </span>
                       </td>
                       <td>
-                        <span className={`badge ${
-                          user.statut === 'ACTIF' ? 'bg-success' : 'bg-danger'
-                        }`}>
-                          {user.statut}
-                        </span>
+                        <div className="d-flex align-items-center">
+                          <span className={`badge ${user.statut === 'ACTIF' ? 'bg-success' : 'bg-danger'}`}>
+                            {user.statut}
+                          </span>
+                          {canToggleUser && (
+                            <button
+                              className="btn btn-sm btn-outline-secondary ms-2"
+                              title={user.statut === 'ACTIF' ? 'Désactiver' : 'Activer'}
+                              onClick={() => handleToggleStatus(user)}
+                              disabled={togglingUserId === user.id}
+                            >
+                              <i className={`ti ${user.statut === 'ACTIF' ? 'ti-power' : 'ti-power-off'} fs-5`}></i>
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td>
                         <small>
@@ -561,7 +608,7 @@ const ListeUtilisateurs = () => {
 
       {/* Modal */}
       <div className={`modal fade ${showModal ? 'show' : ''}`} style={{ display: showModal ? 'block' : 'none' }} tabIndex={-1}>
-        <div className="modal-dialog modal-lg">
+        <div className="modal-dialog modal-lg modal-fullscreen-sm-down">
           <div className="modal-content">
             <div className="modal-header">
               <h5 className="modal-title">{formData.id ? "Modifier l'utilisateur" : 'Créer un utilisateur'}</h5>
@@ -1425,7 +1472,7 @@ const Unite = () => {
       {showModal && (
         <>
           <div className="modal fade show" style={{ display: 'block' }} tabIndex={-1}>
-            <div className="modal-dialog">
+            <div className="modal-dialog modal-fullscreen-sm-down">
               <div className="modal-content">
                 <div className="modal-header">
                   <h5 className="modal-title">
@@ -1778,7 +1825,7 @@ const Magasins = () => {
       {showModal && (
         <>
           <div className="modal fade show" style={{ display: 'block' }} tabIndex={-1}>
-            <div className="modal-dialog">
+            <div className="modal-dialog modal-fullscreen-sm-down">
               <div className="modal-content">
                 <div className="modal-header">
                   <h5 className="modal-title">
@@ -2305,7 +2352,7 @@ const AssignerPermissions = () => {
                 placeholder="Filtrer permissions..."
                 value={permissionSearch}
                 onChange={(e) => setPermissionSearch(e.target.value)}
-                style={{ minWidth: 200 }}
+                style={{ minWidth: 'min(200px, 90vw)' }}
                 disabled={!selectedUserId}
               />
 
@@ -2611,7 +2658,7 @@ const Permissions = () => {
       {showModal && (
         <>
           <div className="modal fade show" style={{ display: 'block' }} tabIndex={-1}>
-            <div className="modal-dialog">
+            <div className="modal-dialog modal-fullscreen-sm-down">
               <div className="modal-content">
                 <div className="modal-header">
                   <h5 className="modal-title">

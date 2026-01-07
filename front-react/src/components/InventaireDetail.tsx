@@ -144,26 +144,7 @@ const InventaireDetail: React.FC = () => {
     }
   };
 
-  const handleExportPdf = async () => {
-    try {
-      const blob = await inventaireApi.exportInventairePdf(Number(id));
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `inventaire_${id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (e: any) {
-      if (e && e.status === 401) {
-        const res = await Swal.fire({ title: 'Authentification requise', text: 'Votre session a expiré. Voulez-vous vous reconnecter ?', icon: 'warning', showCancelButton: true });
-        if (res.isConfirmed) window.location.href = '/login';
-        return;
-      }
-      await Swal.fire('Erreur', e && e.message ? e.message : 'Erreur export PDF', 'error');
-    }
-  };
+
 
   const autoAddTimer = useRef<number | null>(null);
   // Auto-add when a product is selected and a valid quantity is provided (debounced to avoid duplicate calls)
@@ -188,7 +169,7 @@ const InventaireDetail: React.FC = () => {
   }, [selectedProdId, condCount, unitCount]);
 
   return (
-    <>
+    <div>
       <div className="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
         <div className="breadcrumb-title pe-3">Inventaire</div>
         <div className="ps-3">
@@ -279,11 +260,10 @@ const InventaireDetail: React.FC = () => {
             </div>
           </div>
 
-          <div className="mb-3">
-            <h5>Produit</h5>
-            <div className="small text-muted">Liste Produit</div>
-          </div>
-          <div className="table-responsive">
+          <div className="card">
+            <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center"><h5 className="mb-0">Produit</h5></div>
+            <div className="card-body p-2">
+              <div className="table-responsive">
             <table className="table table-hover">
               <thead>
                 <tr>
@@ -342,7 +322,7 @@ const InventaireDetail: React.FC = () => {
           <div className="mt-3">
             <button className="btn btn-outline-secondary me-2" onClick={handleExport}>Exporter CSV</button>                       {/* Le bouton Régulariser est sur la page liste aussi, mais on peut le proposer ici */}
             {!inventaire.regulariser && (
-              <button className="btn btn-warning" onClick={async () => {
+              <button className="btn btn-success" onClick={async () => {
                 const resp = await Swal.fire({title: 'Confirmation', text: 'Confirmer la régularisation ? Cette action est irréversible.', icon: 'warning', showCancelButton: true});
                 if (!resp.isConfirmed) return;
                 try {
@@ -354,8 +334,10 @@ const InventaireDetail: React.FC = () => {
             )}
           </div>
         </div>
+      </div>
+      </div>
       )}
-    </>
+    </div>
   );
 };
 

@@ -108,6 +108,7 @@ const ListeReceptions: React.FC = () => {
         <div className="row">
           <div className="col-lg-12">
             <div className="card">
+              <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center"><h5 className="mb-0">Réceptions</h5></div>
               <div className="card-body">
                 <ul className="nav nav-tabs" role="tablist">
                   <li className="nav-item" role="presentation">

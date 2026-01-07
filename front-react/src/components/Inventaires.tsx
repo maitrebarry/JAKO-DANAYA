@@ -78,6 +78,7 @@ const Inventaires: React.FC = () => {
         <div>Chargement...</div>
       ) : (
         <div className="card">
+          <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center"><h5 className="mb-0">Inventaires</h5></div>
           <div className="card-body p-2">
             <div className="table-responsive">
               <table className="table table-hover table-striped align-middle">
@@ -99,7 +100,7 @@ const Inventaires: React.FC = () => {
                         <a className="btn btn-sm btn-outline-primary me-2" href={`/inventaires/${inv.idInventaire || inv.id}`}>Voir</a>
                         {!inv.regulariser && (
                           <RequirePermission permission="INVENTAIRE_REGULARISER">
-                            <button className="btn btn-sm btn-warning" onClick={() => handleRegularize(inv.idInventaire || inv.id)}>Régulariser</button>
+                            <button className="btn btn-sm btn-success" onClick={() => handleRegularize(inv.idInventaire || inv.id)}>Régulariser</button>
                           </RequirePermission>
                         )}
                       </td>

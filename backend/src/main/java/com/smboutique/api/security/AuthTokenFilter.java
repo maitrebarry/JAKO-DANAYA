@@ -52,6 +52,18 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
+                    // Check that the user account is enabled before accepting the token
+                    if (!userDetails.isEnabled()) {
+                        String shortToken = jwt.length() > 10 ? jwt.substring(0,10) + "..." : jwt;
+                        log.warn("Rejected authentication for disabled user on request {} {} - user={} - tokenStartsWith={}", request.getMethod(), request.getRequestURI(), username, shortToken);
+                        // Respond with 403 Forbidden to indicate the account is disabled
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        response.setContentType("application/json;charset=UTF-8");
+                        String body = String.format("{\"error\":\"Compte désactivé\",\"message\":\"L'utilisateur est désactivé\"}");
+                        response.getWriter().write(body);
+                        return;
+                    }
+
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                     // Log successful authentication for diagnostics (do not log full token)
                     String shortToken = jwt.length() > 10 ? jwt.substring(0,10) + "..." : jwt;

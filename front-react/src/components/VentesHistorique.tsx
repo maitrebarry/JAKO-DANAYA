@@ -448,6 +448,7 @@ const VentesHistorique: React.FC = () => {
       <div className="row">
         <div className="col-12">
           <div className="card" style={{ minHeight: '65vh' }}>
+            <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center"><h5 className="mb-0">Historique Ventes</h5></div>
             <div className="card-body" style={{ minHeight: '55vh' }}>
           <div className="d-flex mb-3">
             <div className="me-3">

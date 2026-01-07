@@ -125,6 +125,7 @@ public class DataInitializer implements CommandLineRunner {
             {"UTILISATEUR_CREER", "Permission pour créer des utilisateurs"},
             {"UTILISATEUR_MODIFIER", "Permission pour modifier des utilisateurs"},
             {"UTILISATEUR_SUPPRIMER", "Permission pour supprimer des utilisateurs"},
+            {"UTILISATEUR_ACTIVER_DESACTIVER", "Permission pour activer ou désactiver des utilisateurs"},
 
             // Produits
             {"PRODUIT_LECTURE", "Permission pour lire les produits"},
@@ -265,7 +266,7 @@ public class DataInitializer implements CommandLineRunner {
             });
 
             createRole("ADMIN", "Administrateur de boutique", new String[]{
-                "TABLEAU_DE_BORD_LECTURE", "UTILISATEUR_LECTURE", "UTILISATEUR_GERER",
+                "TABLEAU_DE_BORD_LECTURE", "UTILISATEUR_LECTURE", "UTILISATEUR_GERER", "UTILISATEUR_ACTIVER_DESACTIVER",
                 "PRODUIT_LECTURE", "PRODUIT_CREER", "PRODUIT_MODIFIER", "PRODUIT_SUPPRIMER",
                 "COMMANDE_LECTURE", "COMMANDE_CREER", "COMMANDE_MODIFIER", "COMMANDE_SUPPRIMER",
                 "CLIENT_LECTURE", "CLIENT_CREER", "CLIENT_MODIFIER", "CLIENT_SUPPRIMER",
@@ -280,7 +281,7 @@ public class DataInitializer implements CommandLineRunner {
             });
 
             createRole("MANAGER", "Manager de boutique", new String[]{
-                "TABLEAU_DE_BORD_LECTURE", "UTILISATEUR_GERER",
+                "TABLEAU_DE_BORD_LECTURE", "UTILISATEUR_GERER", "UTILISATEUR_ACTIVER_DESACTIVER",
                 "PRODUIT_LECTURE", "PRODUIT_CREER", "PRODUIT_MODIFIER",
                 "COMMANDE_LECTURE", "COMMANDE_CREER", "COMMANDE_MODIFIER",
                 "CLIENT_LECTURE", "CLIENT_CREER", "CLIENT_MODIFIER",
@@ -329,6 +330,24 @@ public class DataInitializer implements CommandLineRunner {
                 } else {
                     logger.info("SUPERADMIN role already contains all permissions");
                 }
+            });
+
+            // If roles already exist, ensure ADMIN and MANAGER include the new UTILISATEUR_ACTIVER_DESACTIVER permission
+            permissionRepository.findByName("UTILISATEUR_ACTIVER_DESACTIVER").ifPresent(actPerm -> {
+                roleRepository.findByName("ADMIN").ifPresent(adminRole -> {
+                    if (!adminRole.getPermissions().contains(actPerm)) {
+                        adminRole.getPermissions().add(actPerm);
+                        roleRepository.save(adminRole);
+                        logger.info("Added UTILISATEUR_ACTIVER_DESACTIVER to ADMIN role");
+                    }
+                });
+                roleRepository.findByName("MANAGER").ifPresent(managerRole -> {
+                    if (!managerRole.getPermissions().contains(actPerm)) {
+                        managerRole.getPermissions().add(actPerm);
+                        roleRepository.save(managerRole);
+                        logger.info("Added UTILISATEUR_ACTIVER_DESACTIVER to MANAGER role");
+                    }
+                });
             });
         }
     }

@@ -167,7 +167,10 @@ const UtilisationsPage: React.FC = () => {
       {error && <div className="alert alert-danger">{error}</div>}
 
       {loading ? <div className="text-muted">Chargement...</div> : (
-        <div className="table-responsive">
+        <div className="card">
+          <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center"><h5 className="mb-0">Utilisations / Pertes</h5></div>
+          <div className="card-body p-2">
+            <div className="table-responsive">
           <table className="table table-sm table-striped">
             <thead>
               <tr>
@@ -253,6 +256,8 @@ const UtilisationsPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
       )}
 
       {showForm && <UtilisationForm editing={editItem || undefined} onClose={() => setShowForm(false)} onSuccess={() => { setShowForm(false); fetchList(); }} />}

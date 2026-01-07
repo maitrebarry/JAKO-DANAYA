@@ -218,4 +218,27 @@ public class UtilisateurController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    @PatchMapping("/{id}/statut")
+    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
+    public ResponseEntity<Utilisateur> updateStatut(@PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
+        Utilisateur current = getCurrentUser();
+        String statut = body.get("statut");
+        if (statut == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        return utilisateurService.findById(id)
+                .map(existing -> {
+                    // Ensure the current user is allowed to change status: must be superadmin or have UTILISATEUR_MODIFIER permission
+                    if (!isSuperAdmin(current) && !sameBoutique(current, existing.getBoutique())) {
+                        return ResponseEntity.status(403).<Utilisateur>build();
+                    }
+                    if (!isSuperAdmin(current) && !utilisateurService.hasPermission(current, "UTILISATEUR_ACTIVER_DESACTIVER")) {
+                        return ResponseEntity.status(403).<Utilisateur>build();
+                    }
+                    existing.setStatut(statut);
+                    return ResponseEntity.ok(utilisateurService.save(existing));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
 }
