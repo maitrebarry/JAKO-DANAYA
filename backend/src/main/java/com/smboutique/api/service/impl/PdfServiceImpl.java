@@ -61,6 +61,12 @@ public class PdfServiceImpl implements PdfService {
     @Autowired
     private com.smboutique.api.service.UtilisateurService utilisateurService;
 
+    @Autowired
+    private com.smboutique.api.repository.InventaireRepository inventaireRepository;
+
+    @Autowired
+    private com.smboutique.api.repository.LigneInventaireRepository ligneInventaireRepository;
+
     @Override
     public void writeCommandePdf(Long commandeId, HttpServletResponse response) throws IOException {
         org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PdfServiceImpl.class);
@@ -152,6 +158,64 @@ public class PdfServiceImpl implements PdfService {
     }
 
     @Override
+    public void writeInventairePdf(Long inventaireId, jakarta.servlet.http.HttpServletResponse response) throws IOException {
+        org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PdfServiceImpl.class);
+        String currentUser = "anonymous";
+        try {
+            if (org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication() != null) {
+                Object p = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+                try { currentUser = p == null ? "anonymous" : (p instanceof java.security.Principal ? ((java.security.Principal)p).getName() : p.toString()); } catch (Exception e) {}
+            }
+        } catch (Exception e) {}
+        log.info("writeInventairePdf start for id={} by {}", inventaireId, currentUser);
+
+        com.smboutique.api.model.Inventaire inv = inventaireRepository.findById(inventaireId).orElse(null);
+        if (inv == null) {
+            log.warn("writeInventairePdf: inventaire {} not found", inventaireId);
+            response.sendError(404, "Inventaire introuvable");
+            return;
+        }
+
+        java.util.List<com.smboutique.api.model.LigneInventaire> lignes = ligneInventaireRepository.findByInventaireId(inventaireId);
+
+        response.setContentType("application/pdf");
+        response.setHeader("Content-Disposition", "attachment; filename=inventaire_" + inventaireId + ".pdf");
+
+        try {
+            ClassLoaderTemplateResolver templateResolver = new ClassLoaderTemplateResolver();
+            templateResolver.setPrefix("/templates/");
+            templateResolver.setSuffix(".html");
+            templateResolver.setTemplateMode("HTML");
+            templateResolver.setCharacterEncoding("UTF-8");
+            TemplateEngine templateEngine = new TemplateEngine();
+            templateEngine.setTemplateResolver(templateResolver);
+
+            Context ctx = new Context();
+            ctx.setVariable("inventaire", inv);
+            ctx.setVariable("lignes", lignes);
+
+            String html = templateEngine.process("inventaire_pdf", ctx);
+
+            try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
+                PdfRendererBuilder builder = new PdfRendererBuilder();
+                builder.useFastMode();
+                builder.withHtmlContent(html, null);
+                builder.toStream(baos);
+                builder.run();
+                byte[] pdfBytes = baos.toByteArray();
+                response.setContentType("application/pdf");
+                response.setHeader("Content-Disposition", "attachment; filename=inventaire_" + inventaireId + ".pdf");
+                response.getOutputStream().write(pdfBytes);
+            }
+        } catch (Exception e) {
+            log.error("writeInventairePdf error for id={} by {} : {}", inventaireId, currentUser, e.getMessage(), e);
+            response.sendError(500, "Erreur génération PDF: " + (e.getMessage() != null ? e.getMessage() : "unknown"));
+        }
+
+        log.info("writeInventairePdf finished for id={} by {}", inventaireId, currentUser);
+    }
+
+    @Override
     public void writeReceptionPdf(Long receptionId, HttpServletResponse response) throws IOException {
         // Build template context for reception
         com.smboutique.api.model.Reception reception = null;
@@ -201,7 +265,7 @@ public class PdfServiceImpl implements PdfService {
             try {
                 if (reception.getDateReception() != null) {
                     java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
-                    java.time.ZonedDateTime z = reception.getDateReception().atZone(java.time.ZoneId.systemDefault()).withZoneSameInstant(java.time.ZoneOffset.UTC);
+                    java.time.ZonedDateTime z = reception.getDateReception().atZone(com.smboutique.api.util.DateUtils.DAKAR).withZoneSameInstant(java.time.ZoneOffset.UTC);
                     String formattedDate = z.format(dtf);
                     ctx.setVariable("dateReceptionFormatted", formattedDate);
                 } else {

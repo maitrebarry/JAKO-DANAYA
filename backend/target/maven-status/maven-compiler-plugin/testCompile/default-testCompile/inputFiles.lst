@@ -2,6 +2,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/test/java/com/smboutique/api/controller/CommandeClientInstrumentationTest.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/test/java/com/smboutique/api/controller/CommandeFournisseurControllerTest.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/test/java/com/smboutique/api/controller/E2EStockFlowTest.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/test/java/com/smboutique/api/controller/InventaireControllerTest.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/test/java/com/smboutique/api/controller/MagasinControllerTest.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/test/java/com/smboutique/api/controller/MouvementControllerTest.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/test/java/com/smboutique/api/controller/ReceptionControllerConditionnementTest.java

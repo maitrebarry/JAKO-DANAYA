@@ -6,4 +6,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface InventaireRepository extends JpaRepository<Inventaire, Long> {
+    java.util.List<Inventaire> findByBoutiqueId(Long boutiqueId);
+    boolean existsByBoutiqueIdAndRegulariserFalse(Long boutiqueId);
+
+    java.util.Optional<Inventaire> findTopByOrderByIdDesc();
 }

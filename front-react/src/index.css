@@ -45,3 +45,15 @@
   display: inline-block;
 }
 
+/* Custom modal backdrop for UtilisationForm: less dark and no blur */
+.custom-modal-backdrop {
+  background-color: rgba(0,0,0,0.35) !important;
+  backdrop-filter: none !important;
+  z-index: 1040 !important; /* keep backdrop behind modal content */
+}
+/* Ensure modal content is above the custom backdrop so buttons remain clickable */
+.modal.show .modal-dialog,
+.modal.show .modal-content {
+  z-index: 1060;
+  position: relative;
+}

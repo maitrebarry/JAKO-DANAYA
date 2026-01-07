@@ -8,5 +8,6 @@ public interface LigneInventaireService {
     List<LigneInventaire> findAll();
     Optional<LigneInventaire> findById(Long id);
     LigneInventaire save(LigneInventaire ligneInventaire);
+    List<LigneInventaire> findByInventaireId(Long inventaireId);
     void deleteById(Long id);
 }

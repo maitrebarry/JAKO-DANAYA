@@ -6,4 +6,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface UtilisationPertesRepository extends JpaRepository<UtilisationPertes, Long> {
+    java.util.Optional<UtilisationPertes> findByMouvementId(Long mouvementId);
+    void deleteByMouvementId(Long mouvementId);
 }

@@ -80,9 +80,32 @@ const Topbar = () => {
     return (parts[0]?.[0] || 'U').toUpperCase();
   };
 
+  // Debug: print minimal user info (sanitized) and masked storage to avoid leaking permission lists
+  try {
+    const _sanitizedStorage = (() => {
+      try {
+        const s = localStorage.getItem('smb_user_data');
+        if (!s) return null;
+        const p = JSON.parse(s);
+        if (p && p.permissions) p.permissions = `[${Array.isArray(p.permissions) ? p.permissions.length : 0} items]`;
+        return p;
+      } catch (ex) { return null; }
+    })();
+    console.debug('Topbar render - user:', { id: user?.id, name: user ? `${user.prenom || ''} ${user.nom || ''}`.trim() || user.pseudo || user.email : undefined, avatar: (user as any)?.avatar, permissionsCount: Array.isArray((user as any)?.permissions) ? (user as any).permissions.length : undefined }, 'localStorage:', _sanitizedStorage);
+  } catch (e) { /* ignore in non-browser env */ }
+
   const displayName = `${user?.prenom || ''} ${user?.nom || ''}`.trim() || user?.pseudo || user?.email || 'Profil';
-  const defaultAvatar = `assets/images/avatar.jpg`;
-  const avatarUrl = (user as any)?.avatar || defaultAvatar || `https://via.placeholder.com/64x64/0d6efd/ffffff?text=${initials()}`;
+  const defaultAvatar = `/assets/images/avatar.jpg`;
+  const API_BASE = 'http://localhost:8085';
+  const resolveAvatarUrl = (avatar?: string) => {
+    if (!avatar) return defaultAvatar || `https://via.placeholder.com/64x64/0d6efd/ffffff?text=${initials()}`;
+    if (avatar.startsWith('http')) return avatar;
+    if (avatar.startsWith('/uploads') || avatar.startsWith('uploads')) {
+      return avatar.startsWith('/') ? API_BASE + avatar : API_BASE + '/' + avatar;
+    }
+    return avatar; // assume already a valid URL or relative path
+  };
+  const avatarUrl = resolveAvatarUrl((user as any)?.avatar);
 
   const unreadCount = notifications.length;
 
@@ -152,6 +175,21 @@ const Topbar = () => {
               data-bs-toggle="dropdown"
               aria-expanded="false"
               style={{ cursor: 'pointer', width: '40px', height: '40px', objectFit: 'cover' }}
+              onError={(e) => {
+                try {
+                  console.warn('Avatar failed to load, falling back to default:', (e.currentTarget as HTMLImageElement).src);
+                  (e.currentTarget as HTMLImageElement).src = defaultAvatar;
+                } catch (ex) { console.error('Failed to apply avatar fallback', ex); }
+              }}
+              ref={el => {
+                // debug: print avatar url and page when rendered to help trace intermittent issues
+                try {
+                  if (el && (window as any).location) {
+                    // print once per render
+                    console.debug('Topbar avatar src:', el.src, 'location:', (window as any).location.pathname);
+                  }
+                } catch (ex) {}
+              }}
             />
             <span className="fw-semibold d-none d-sm-inline">{displayName}</span>
             <ul className="dropdown-menu dropdown-menu-end">
@@ -168,13 +206,17 @@ const Topbar = () => {
 };
 
 const Sidebar = () => {
-  const { permissions } = useUser();
-  // Only use explicit permissions to show/hide UI elements. No role-based bypass here.
+  const { permissions, user, roles = [] } = useUser();
+  // Only use explicit permissions to show/hide UI elements. Some menus (like Configuration)
+  // are also visible to owners (PROPRIETAIRE) and SUPERADMIN by role.
   const normalizedPermissions = permissions.map(p => p.toUpperCase());
 
   const hasAnyPermission = (codes: string[]) => {
     return codes.some(code => normalizedPermissions.includes(code.toUpperCase()));
   };
+
+  const isOwner = user && user.typeUtilisateur === 'PROPRIETAIRE';
+  const isSuperAdminRole = roles && roles.includes('SUPERADMIN');
 
   const can = {
     dashboard: hasAnyPermission(['TABLEAU_DE_BORD_VOIR', 'TABLEAU_DE_BORD_LECTURE']),
@@ -185,14 +227,30 @@ const Sidebar = () => {
     venteCredit: hasAnyPermission(['VENTE_CREDIT_VOIR', 'VENTE_LECTURE']),
     caisse: hasAnyPermission(['CAISSE_VOIR', 'CAISSE_LECTURE', 'PARAMETRES_LECTURE']),
     depense: hasAnyPermission(['DEPENSE_LECTURE']),
-    configuration: hasAnyPermission(['CONFIGURATION_VOIR', 'PARAMETRES_LECTURE', 'UTILISATEUR_LECTURE']),
+    // utilisations/pertes: visible to users with relevant permissions or owner/SUPERADMIN
+    utilisations: (hasAnyPermission(['UTILISA_PERTE_CREER','UTILISA_PERTE_VOIR','UTILISA_PERTE_MODIFIER','UTILISA_PERTE_SUPPRIMER']) || isOwner || isSuperAdminRole),
+    // configuration: visible only if explicit CONFIGURATION_VOIR permission OR owner OR SUPERADMIN
+    configuration: (hasAnyPermission(['CONFIGURATION_VOIR']) || isOwner || isSuperAdminRole),
   };
 
-  // Diagnostic: log permissions and computed menu visibility to help debug mismatches
+  // Diagnostic: log the reason the Configuration menu is shown or hidden to ease debugging
   useEffect(() => {
     try {
-      console.debug('Sidebar permissions raw:', permissions);
-      console.debug('Sidebar normalizedPermissions:', normalizedPermissions);
+      const reasonParts: string[] = [];
+      if (hasAnyPermission(['CONFIGURATION_VOIR'])) reasonParts.push('permission:CONFIGURATION_VOIR');
+      if (isOwner) reasonParts.push('owner');
+      if (isSuperAdminRole) reasonParts.push('SUPERADMIN');
+      console.debug('Configuration menu visibility:', reasonParts.length > 0 ? 'VISIBLE (' + reasonParts.join(',') + ')' : 'HIDDEN');
+    } catch (e) {
+      // ignore
+    }
+  }, [permissions, user, roles]);
+
+  // Diagnostic: log summary (counts) to avoid printing full permission lists
+  useEffect(() => {
+    try {
+      console.debug('Sidebar permissions: count=', Array.isArray(permissions) ? permissions.length : 0);
+      console.debug('Sidebar normalizedPermissions: count=', Array.isArray(normalizedPermissions) ? normalizedPermissions.length : 0);
       console.debug('Sidebar computed can:', can);
     } catch (e) {
       console.warn('Error logging sidebar diagnostics', e);
@@ -231,9 +289,14 @@ const Sidebar = () => {
             </a>
             <ul id="inventaire-nav" className="collapse" data-bs-parent="#sidebar-nav">
               <li>
-                <a href="#" className="side-nav-link" style={{ paddingLeft: '40px' }}>
+                <Link to="/inventaires" className="side-nav-link" style={{ paddingLeft: '40px' }}>
                   <span>Liste des Inventaires</span>
-                </a>
+                </Link>
+              </li>
+              <li>
+                <Link to="/inventaires/new" className="side-nav-link" style={{ paddingLeft: '40px' }}>
+                  <span>Nouveau Inventaire</span>
+                </Link>
               </li>
             </ul>
           </li>
@@ -281,11 +344,13 @@ const Sidebar = () => {
                 </Link>
               </li>
               )}
+              { can.utilisations && (
               <li>
-                <a href="#" className="side-nav-link" style={{ paddingLeft: '40px' }}>
+                <Link to="/utilisations" className="side-nav-link" style={{ paddingLeft: '40px' }}>
                   <span>Utilisations/pertes</span>
-                </a>
+                </Link>
               </li>
+              ) }
             </ul>
           </li>
           )}

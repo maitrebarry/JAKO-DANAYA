@@ -21,4 +21,15 @@ public class UtilisationPertes {
     @ManyToOne
     @JoinColumn(name = "id_article")
     private Produit produit;
+
+    @ManyToOne
+    @JoinColumn(name = "id_boutique")
+    private Boutique boutique;
+
+    @ManyToOne
+    @JoinColumn(name = "id_magasin")
+    private Magasin magasin;
+
+    @Column(name = "id_mouvement")
+    private Long mouvementId;
 }

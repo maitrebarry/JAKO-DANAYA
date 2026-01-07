@@ -8,6 +8,9 @@ interface User {
   prenom: string;
   pseudo: string;
   typeUtilisateur: string;
+  contact?: string;
+  adresse?: string;
+  avatar?: string;
 }
 
 interface UserContextType {

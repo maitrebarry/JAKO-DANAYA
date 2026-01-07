@@ -56,6 +56,13 @@ public class Mouvement {
     private Long referenceId;
 
     @ManyToOne
+    @JoinColumn(name = "id_inventaire")
+    private Inventaire inventaire;
+
+    @Column(name = "reference_inventaire")
+    private String referenceInventaire;
+
+    @ManyToOne
     @JoinColumn(name = "id_magasin")
     private Magasin magasin;
 

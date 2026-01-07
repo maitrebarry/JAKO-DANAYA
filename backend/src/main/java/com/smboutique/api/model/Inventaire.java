@@ -20,10 +20,13 @@ public class Inventaire {
     @Column(name = "date_inventaire")
     private LocalDateTime dateInventaire;
 
-    private String boutique;
+    @ManyToOne
+    @JoinColumn(name = "id_boutique")
+    private Boutique boutique;
 
     @Column(name = "reference_inventaire")
     private String reference;
 
-    private String regulariser;
+    @Column(name = "regulariser")
+    private Boolean regulariser = Boolean.FALSE;
 }

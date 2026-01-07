@@ -7,6 +7,8 @@ import java.util.Optional;
 public interface UtilisationPertesService {
     List<UtilisationPertes> findAll();
     Optional<UtilisationPertes> findById(Long id);
+    Optional<UtilisationPertes> findByMouvementId(Long mouvementId);
     UtilisationPertes save(UtilisationPertes utilisationPertes);
     void deleteById(Long id);
+    void deleteByMouvementId(Long mouvementId);
 }

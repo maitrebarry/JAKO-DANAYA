@@ -25,4 +25,7 @@ public class LigneInventaire {
 
     @Column(name = "ecart_stock")
     private Integer ecartStock;
+
+    @Column(name = "montant")
+    private Integer montant;
 }

@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import useHasPermission from '../contexts/useHasPermission';
 import { useUser } from '../contexts/UserContext';
+import CaisseSummary from './CaisseSummary';
+import { formatServerDate } from '../utils/date';
+
 
 interface Mouvement {
   id: number;
@@ -20,20 +23,7 @@ interface Mouvement {
 const API_BASE = 'http://localhost:8085/api';
 const AUTH_HEADER = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_token')}` });
 
-const fmtDate = (s?: string) => {
-  if (!s) return '';
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  const formatDate = (d: Date) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  // If server returns dd/MM/yyyy HH:mm:ss, parse and reformat in the browser local timezone
-  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2}):(\d{2})$/);
-  if (m) {
-    const day = Number(m[1]), month = Number(m[2]) - 1, year = Number(m[3]);
-    const hh = Number(m[4]), mm = Number(m[5]), ss = Number(m[6]);
-    const d = new Date(year, month, day, hh, mm, ss);
-    return formatDate(d);
-  }
-  try { return new Date(s).toLocaleString(); } catch (e) { return s; }
-};
+
 
 // Remove numeric IDs and common id patterns from description for display
 const sanitizeDescription = (s?: string) => {
@@ -47,7 +37,10 @@ const sanitizeDescription = (s?: string) => {
 
 const Mouvements: React.FC = () => {
   const isAuditor = useHasPermission('MOUVEMENT_AUDIT');
-  const { currentBoutique } = useUser();
+  const { currentBoutique, user, roles = [] } = useUser();
+  // owners (type PROPRIETAIRE), auditors (MOUVEMENT_AUDIT) and SUPERADMIN role may access the caisse summary
+  const canViewCaisseSummary = isAuditor || (user && (user.typeUtilisateur === 'PROPRIETAIRE')) || (roles && roles.includes('SUPERADMIN'));
+
   const [from, setFrom] = useState<string>('');
   const [to, setTo] = useState<string>('');
   const [type, setType] = useState<string>('');
@@ -194,6 +187,8 @@ const Mouvements: React.FC = () => {
         </div>
       </div>
 
+      {canViewCaisseSummary ? <CaisseSummary /> : null}
+
       <div className="card mb-3">
         <div className="card-body">
           <div className="row g-2 align-items-end">
@@ -283,7 +278,7 @@ const Mouvements: React.FC = () => {
               <tbody>
                 {pageItems.map(r => (
                   <tr key={r.id}>
-                    <td>{fmtDate(r.dateMouvement)}</td>
+                    <td>{formatServerDate(r.dateMouvement)}</td>
                     <td><span className={`badge bg-primary`}>{r.typeMouvement}</span></td>
                     <td><span className={`badge bg-secondary`}>{r.sousType}</span></td>
                     <td><span className={`badge bg-info text-white`}>{r.utilisateur ? (r.utilisateur.prenom ? `${r.utilisateur.prenom} ${r.utilisateur.nom}` : r.utilisateur.email) : ''}</span></td>

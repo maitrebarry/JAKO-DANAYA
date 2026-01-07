@@ -6,4 +6,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface LigneInventaireRepository extends JpaRepository<LigneInventaire, Long> {
+    java.util.List<LigneInventaire> findByInventaireId(Long inventaireId);
+    java.util.Optional<LigneInventaire> findByInventaireIdAndProduitId(Long inventaireId, Long produitId);
 }

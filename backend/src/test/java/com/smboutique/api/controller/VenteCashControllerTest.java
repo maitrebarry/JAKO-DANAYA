@@ -175,10 +175,16 @@ public class VenteCashControllerTest {
         assertThat(cms.get(0).getType()).isEqualTo(com.smboutique.api.model.CaisseMovement.MovementType.CREDIT);
         assertThat(cms.get(0).getBalanceAfter()).isEqualTo(c.getMontantTotal());
 
-        // Audit-level mouvement created for the sale
-        List<Mouvement> auditMvs = mouvementRepository.findAll().stream().filter(mt -> "VENTE".equals(mt.getTypeMouvement()) && "ESPECE".equals(mt.getSousType())).toList();
+        // Audit-level mouvement created for the sale (filter by reference to avoid collisions)
+        List<Mouvement> auditMvs = mouvementRepository.findAll().stream().filter(mt -> "VENTE".equals(mt.getTypeMouvement()) && "ESPECE".equals(mt.getSousType()) && v.getId().equals(mt.getReferenceId())).toList();
         assertThat(auditMvs).isNotEmpty();
         Mouvement audit = auditMvs.get(0);
+        // Debug prints to inspect failing values
+        System.out.println("DEBUG: caisse montantTotal=" + c.getMontantTotal());
+        System.out.println("DEBUG: first tx type=" + (txs.isEmpty() ? "<none>" : txs.get(0).getType()) + " txsCount=" + txs.size());
+        System.out.println("DEBUG: first cms balanceAfter=" + (cms.isEmpty() ? "<none>" : cms.get(0).getBalanceAfter()) + " cmsCount=" + cms.size());
+        System.out.println("DEBUG: auditRef=" + audit.getReferenceId() + " auditUserId=" + (audit.getUtilisateur()!=null?audit.getUtilisateur().getId():null));
+
         assertThat(audit.getReferenceId()).isEqualTo(v.getId());
         assertThat(audit.getUtilisateur()).isNotNull();
         assertThat(audit.getUtilisateur().getId()).isEqualTo(user.getId());

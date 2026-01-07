@@ -2,6 +2,7 @@ package com.smboutique.api.controller;
 
 import com.smboutique.api.model.Mouvement;
 import com.smboutique.api.service.MouvementService;
+import com.smboutique.api.service.UtilisationPertesService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +19,9 @@ public class MouvementController {
     @Autowired
     private com.smboutique.api.service.UtilisateurService utilisateurService;
 
+    @Autowired
+    private UtilisationPertesService utilisationPertesService;
+
     private com.smboutique.api.model.Utilisateur getCurrentUser() {
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -30,6 +34,12 @@ public class MouvementController {
         if (user == null) return false;
         // Determine superadmin by role membership only
         return user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
+    }
+
+    // Helper to format LocalDateTime to Africa/Dakar zone string
+    private String formatToDakar(java.time.LocalDateTime dt) {
+        if (dt == null) return null;
+        return com.smboutique.api.util.DateUtils.formatToDakar(dt);
     }
 
     @GetMapping
@@ -112,12 +122,11 @@ public class MouvementController {
             int p = page == null ? 1 : page;
             int s = (size == null || size <= 0) ? 25 : size;
             com.smboutique.api.service.MouvementSearchResult res = mouvementService.searchPage(userId, type, sousType, boutiqueId, magasinId, referenceId, from, to, p, s);
-            java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
             java.util.List<java.util.Map<String,Object>> items = new java.util.ArrayList<>();
             for (Mouvement m : res.getItems()) {
                 java.util.Map<String,Object> map = new java.util.HashMap<>();
                 map.put("id", m.getId());
-                map.put("dateMouvement", m.getDateMouvement() != null ? m.getDateMouvement().format(fmt) : null);
+                map.put("dateMouvement", m.getDateMouvement() != null ? formatToDakar(m.getDateMouvement()) : null);
                 map.put("typeMouvement", m.getTypeMouvement());
                 map.put("sousType", m.getSousType());
                 map.put("utilisateur", m.getUtilisateur());
@@ -141,7 +150,7 @@ public class MouvementController {
         for (Mouvement m : result) {
             java.util.Map<String,Object> map = new java.util.HashMap<>();
             map.put("id", m.getId());
-            map.put("dateMouvement", m.getDateMouvement() != null ? m.getDateMouvement().format(fmt) : null);
+            map.put("dateMouvement", m.getDateMouvement() != null ? formatToDakar(m.getDateMouvement()) : null);
             map.put("typeMouvement", m.getTypeMouvement());
             map.put("sousType", m.getSousType());
             map.put("utilisateur", m.getUtilisateur());
@@ -214,7 +223,7 @@ public class MouvementController {
             // header (French labels) - removed Réf column
             pw.println("Date,Type,Sous-type,Utilisateur,Boutique,Magasin,Produit,Quantité,Montant,Description");
             for (Mouvement m : result) {
-                String date = m.getDateMouvement() != null ? m.getDateMouvement().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")) : "";
+                String date = m.getDateMouvement() != null ? formatToDakar(m.getDateMouvement()) : "";
                 String typeOut = m.getTypeMouvement() != null ? m.getTypeMouvement() : "";
                 String sous = m.getSousType() != null ? m.getSousType() : "";
                 String userOut = "";
@@ -241,6 +250,206 @@ public class MouvementController {
             // ignore
         }
     }
+
+    @PostMapping("/utilisations")
+    public ResponseEntity<?> createUtilisation(@RequestBody com.smboutique.api.dto.UtilisationRequest req) {
+        com.smboutique.api.model.Utilisateur currentUser;
+        try { currentUser = getCurrentUser(); } catch (RuntimeException ex) { return ResponseEntity.status(401).body(java.util.Map.of("error","Authentication required")); }
+        // permission check
+        if (!isSuperAdmin(currentUser) && !utilisateurService.hasPermission(currentUser, "UTILISA_PERTE_CREER")) {
+            return ResponseEntity.status(403).body(java.util.Map.of("error","Permission requise: UTILISA_PERTE_CREER"));
+        }
+        try {
+            com.smboutique.api.model.Mouvement mv = mouvementService.createUtilisation(req, currentUser);
+            return ResponseEntity.ok(mv);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", ex.getMessage()));
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).body(java.util.Map.of("error", "Server error"));
+        }
+    }
+
+    @GetMapping("/utilisations")
+    public ResponseEntity<?> listUtilisations(
+            @RequestParam(value = "produitId", required = false) Long produitId,
+            @RequestParam(value = "magasinId", required = false) Long magasinId,
+            @RequestParam(value = "from", required = false) String fromStr,
+            @RequestParam(value = "to", required = false) String toStr,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size
+    ) {
+        com.smboutique.api.model.Utilisateur currentUser;
+        try { currentUser = getCurrentUser(); } catch (RuntimeException ex) { return ResponseEntity.status(401).body(java.util.Map.of("error","Authentication required")); }
+        boolean isAuditor = isSuperAdmin(currentUser) || utilisateurService.hasPermission(currentUser, "MOUVEMENT_AUDIT") || utilisateurService.hasPermission(currentUser, "UTILISA_PERTE_VOIR");
+
+        if (!isAuditor) {
+            // non auditors see only their boutique
+            if (currentUser.getBoutique() != null) {
+                // override magasinId if needed (we keep behavior simple and restrict to boutique)
+            }
+        }
+
+        java.time.LocalDateTime from = null, to = null;
+        try {
+            if (fromStr != null && !fromStr.isEmpty()) from = java.time.LocalDateTime.parse(fromStr);
+            if (toStr != null && !toStr.isEmpty()) to = java.time.LocalDateTime.parse(toStr);
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", "Invalid date format. Use ISO date-time."));
+        }
+
+        // delegate to mouvementService.search with type filter
+        String type = "UTILISATION";
+        if (page != null) {
+            int p = page == null ? 1 : page;
+            int s = (size == null || size <= 0) ? 25 : size;
+            com.smboutique.api.service.MouvementSearchResult res = mouvementService.searchPage(null, type, null, currentUser.getBoutique() != null ? currentUser.getBoutique().getId() : null, magasinId, null, from, to, p, s);
+            java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+            java.util.List<java.util.Map<String,Object>> items = new java.util.ArrayList<>();
+            for (com.smboutique.api.model.Mouvement m : res.getItems()) {
+                java.util.Map<String,Object> map = new java.util.HashMap<>();
+                map.put("id", m.getId());
+                map.put("dateMouvement", m.getDateMouvement() != null ? formatToDakar(m.getDateMouvement()) : null);
+                map.put("sousType", m.getSousType());
+                // ensure we expose quantity: prefer Mouvement.quantite but fallback to utilisation_pertes record when empty
+                Integer q = m.getQuantite();
+                if ((q == null || q == 0) && m.getId() != null) {
+                    try {
+                        java.util.Optional<com.smboutique.api.model.UtilisationPertes> upOpt = utilisationPertesService.findByMouvementId(m.getId());
+                        if (upOpt.isPresent()) q = upOpt.get().getQuantite();
+                    } catch (Exception ex) { /* ignore */ }
+                }
+                map.put("quantite", q);
+                map.put("produit", m.getProduit());
+                map.put("magasin", m.getMagasin());
+                map.put("boutique", m.getBoutique());
+                map.put("utilisateur", m.getUtilisateur());
+                map.put("description", m.getDescription());
+                items.add(map);
+            }
+            return ResponseEntity.ok(java.util.Map.of("total", res.getTotal(), "items", items));
+        }
+
+        java.util.List<com.smboutique.api.model.Mouvement> result = mouvementService.search(null, type, null, currentUser.getBoutique() != null ? currentUser.getBoutique().getId() : null, magasinId, null, from, to);
+        java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+        java.util.List<java.util.Map<String,Object>> out = new java.util.ArrayList<>();
+        for (com.smboutique.api.model.Mouvement m : result) {
+            java.util.Map<String,Object> map = new java.util.HashMap<>();
+            map.put("id", m.getId());
+            map.put("dateMouvement", m.getDateMouvement() != null ? formatToDakar(m.getDateMouvement()) : null);
+            map.put("sousType", m.getSousType());
+            // ensure we expose quantity: prefer Mouvement.quantite but fallback to utilisation_pertes record when empty
+            Integer q = m.getQuantite();
+            if ((q == null || q == 0) && m.getId() != null) {
+                try {
+                    java.util.Optional<com.smboutique.api.model.UtilisationPertes> upOpt = utilisationPertesService.findByMouvementId(m.getId());
+                    if (upOpt.isPresent()) q = upOpt.get().getQuantite();
+                } catch (Exception ex) { /* ignore */ }
+            }
+            map.put("quantite", q);
+            map.put("produit", m.getProduit());
+            map.put("magasin", m.getMagasin());
+            map.put("boutique", m.getBoutique());
+            map.put("utilisateur", m.getUtilisateur());
+            map.put("description", m.getDescription());
+            out.add(map);
+        }
+        return ResponseEntity.ok(out);
+    }
+
+    @GetMapping("/utilisations/export")
+    public void exportUtilisations(
+            @RequestParam(value = "produitId", required = false) Long produitId,
+            @RequestParam(value = "magasinId", required = false) Long magasinId,
+            @RequestParam(value = "from", required = false) String fromStr,
+            @RequestParam(value = "to", required = false) String toStr,
+            jakarta.servlet.http.HttpServletResponse response
+    ) {
+        com.smboutique.api.model.Utilisateur currentUser = getCurrentUser();
+        boolean isAuditor = isSuperAdmin(currentUser) || utilisateurService.hasPermission(currentUser, "MOUVEMENT_AUDIT") || utilisateurService.hasPermission(currentUser, "UTILISA_PERTE_VOIR");
+        if (!isAuditor) {
+            // non-auditors allowed but limited to their boutique (no special action necessary here)
+        }
+        java.time.LocalDateTime from = null, to = null;
+        try {
+            if (fromStr != null && !fromStr.isEmpty()) from = java.time.LocalDateTime.parse(fromStr);
+            if (toStr != null && !toStr.isEmpty()) to = java.time.LocalDateTime.parse(toStr);
+        } catch (Exception ex) {
+            response.setStatus(400);
+            try { response.getWriter().write("Invalid date format. Use ISO date-time."); } catch (Exception ignored) {}
+            return;
+        }
+
+        List<Mouvement> result = mouvementService.search(null, "UTILISATION", null, currentUser.getBoutique() != null ? currentUser.getBoutique().getId() : null, magasinId, null, from, to);
+
+        response.setContentType("text/csv; charset=utf-8");
+        String filename = "utilisations_" + java.time.LocalDateTime.now().toString().replace(':','-') + ".csv";
+        response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+
+        try (java.io.PrintWriter pw = response.getWriter()) {
+            pw.println("Date,Produit,Magasin,Boutique,Utilisateur,Quantité,Sous-type,Description");
+            java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+            for (Mouvement m : result) {
+                String date = m.getDateMouvement() != null ? formatToDakar(m.getDateMouvement()) : "";
+                String prod = m.getProduit() != null ? (m.getProduit().getNomProduit() != null ? m.getProduit().getNomProduit() : "") : "";
+                String mag = m.getMagasin() != null ? (m.getMagasin().getNom() != null ? m.getMagasin().getNom() : "") : "";
+                String b = m.getBoutique() != null ? (m.getBoutique().getNom() != null ? m.getBoutique().getNom() : "") : "";
+                String userOut = m.getUtilisateur() != null ? (m.getUtilisateur().getPrenom() != null ? m.getUtilisateur().getPrenom() + " " + (m.getUtilisateur().getNom() != null ? m.getUtilisateur().getNom() : "") : m.getUtilisateur().getEmail()) : "";
+                String q = m.getQuantite() != null ? String.valueOf(m.getQuantite()) : "";
+                String sous = m.getSousType() != null ? m.getSousType() : "";
+                String desc = m.getDescription() != null ? m.getDescription().replaceAll("\"", "\"\"") : "";
+                pw.println(String.format("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"", date, prod, mag, b, userOut, q, sous, desc));
+            }
+            pw.flush();
+        } catch (Exception e) {
+            // ignore
+        }
+    }
+
+    @GetMapping("/reports/caisse/summary")
+    public ResponseEntity<?> caisseSummary(
+            @RequestParam(value = "period", required = false, defaultValue = "day") String period,
+            @RequestParam(value = "userId", required = false) Long userId,
+            @RequestParam(value = "boutiqueId", required = false) Long boutiqueId,
+            @RequestParam(value = "magasinId", required = false) Long magasinId,
+            @RequestParam(value = "from", required = false) String fromStr,
+            @RequestParam(value = "to", required = false) String toStr
+    ) {
+        com.smboutique.api.model.Utilisateur currentUser;
+        try {
+            currentUser = getCurrentUser();
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(401).body(java.util.Map.of("error", "Authentication required"));
+        }
+
+        boolean isAuditor = isSuperAdmin(currentUser) || utilisateurService.hasPermission(currentUser, "MOUVEMENT_AUDIT");
+        boolean isOwner = "PROPRIETAIRE".equalsIgnoreCase(currentUser.getTypeUtilisateur());
+
+        // if userId filter is provided, enforce permission checks
+        if (userId != null && !userId.equals(currentUser.getId()) && !isAuditor) {
+            // owner can access only employees of own boutique
+            if (!isOwner) {
+                return ResponseEntity.status(403).body(java.util.Map.of("error", "Permission requise pour accéder aux données d'autres utilisateurs"));
+            }
+            com.smboutique.api.model.Utilisateur worker = utilisateurService.findById(userId).orElse(null);
+            if (worker == null) return ResponseEntity.status(404).body(java.util.Map.of("error", "Utilisateur introuvable"));
+            if (worker.getBoutique() == null || currentUser.getBoutique() == null || !worker.getBoutique().getId().equals(currentUser.getBoutique().getId())) {
+                return ResponseEntity.status(403).body(java.util.Map.of("error", "Utilisateur hors de votre boutique"));
+            }
+        }
+
+        // parse dates
+        java.time.LocalDateTime from = null, to = null;
+        try {
+            if (fromStr != null && !fromStr.isEmpty()) from = java.time.LocalDateTime.parse(fromStr);
+            if (toStr != null && !toStr.isEmpty()) to = java.time.LocalDateTime.parse(toStr);
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", "Invalid date format. Use ISO date-time."));
+        }
+
+        com.smboutique.api.service.dto.CaisseSummaryResult res = mouvementService.summarizeCaisse(period, userId, boutiqueId, magasinId, from, to);
+        return ResponseEntity.ok(res);
+    }
+
     @PostMapping
     public ResponseEntity<Mouvement> createMouvement(@RequestBody Mouvement mouvement) {
         com.smboutique.api.model.Utilisateur user = getCurrentUser();
@@ -253,10 +462,31 @@ public class MouvementController {
     @PutMapping("/{id}")
     public ResponseEntity<Mouvement> updateMouvement(@PathVariable Long id, @RequestBody Mouvement mouvementDetails) {
         com.smboutique.api.model.Utilisateur user = getCurrentUser();
-        if (!isSuperAdmin(user) && !utilisateurService.hasPermission(user, "INVENTAIRE_MODIFIER")) {
-            return ResponseEntity.status(403).build();
+        java.util.Optional<Mouvement> existingOpt = mouvementService.findById(id);
+        if (existingOpt.isEmpty()) return ResponseEntity.notFound().build();
+        Mouvement existing = existingOpt.get();
+        // choose permission depending on type
+        if ("UTILISATION".equalsIgnoreCase(existing.getTypeMouvement())) {
+            if (!isSuperAdmin(user) && !utilisateurService.hasPermission(user, "UTILISA_PERTE_MODIFIER")) {
+                return ResponseEntity.status(403).build();
+            }
+        } else {
+            if (!isSuperAdmin(user) && !utilisateurService.hasPermission(user, "INVENTAIRE_MODIFIER")) {
+                return ResponseEntity.status(403).build();
+            }
         }
-        return mouvementService.findById(id)
+
+        // If this is an utilisation, delegate to service which will handle stock adjustments atomically
+        if ("UTILISATION".equalsIgnoreCase(existing.getTypeMouvement())) {
+            try {
+                com.smboutique.api.model.Mouvement updated = mouvementService.updateUtilisation(id, mouvementDetails, user);
+                return ResponseEntity.ok(updated);
+            } catch (IllegalArgumentException ex) {
+                return ResponseEntity.badRequest().build();
+            }
+        }
+
+        return existingOpt
                 .map(mouvement -> {
                     mouvement.setLigneReception(mouvementDetails.getLigneReception());
                     mouvement.setLigneLivraison(mouvementDetails.getLigneLivraison());
@@ -266,7 +496,26 @@ public class MouvementController {
                     mouvement.setTypeMouvement(mouvementDetails.getTypeMouvement());
                     mouvement.setMontant(mouvementDetails.getMontant());
                     mouvement.setDateMouvement(mouvementDetails.getDateMouvement());
-                    return ResponseEntity.ok(mouvementService.save(mouvement));
+                    Mouvement saved = mouvementService.save(mouvement);
+                    // if this is a utilisation, update the corresponding utilisation_pertes record
+                    try {
+                        if ("UTILISATION".equalsIgnoreCase(saved.getTypeMouvement())) {
+                            java.util.Optional<com.smboutique.api.model.UtilisationPertes> upOpt = utilisationPertesService.findByMouvementId(saved.getId());
+                            if (upOpt.isPresent()) {
+                                com.smboutique.api.model.UtilisationPertes up = upOpt.get();
+                                up.setMotif(saved.getDescription());
+                                up.setQuantite(saved.getQuantite());
+                                up.setDate(saved.getDateMouvement() != null ? saved.getDateMouvement().toLocalDate() : java.time.LocalDate.now());
+                                up.setType(saved.getSousType());
+                                up.setProduit(saved.getProduit());
+                                utilisationPertesService.save(up);
+                            }
+                        }
+                    } catch (Exception ex) {
+                        // log and continue
+                        org.slf4j.LoggerFactory.getLogger(MouvementController.class).warn("Failed to synchronize utilisation_pertes on update: {}", ex.getMessage());
+                    }
+                    return ResponseEntity.ok(saved);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -274,14 +523,26 @@ public class MouvementController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteMouvement(@PathVariable Long id) {
         com.smboutique.api.model.Utilisateur user = getCurrentUser();
-        if (!isSuperAdmin(user) && !utilisateurService.hasPermission(user, "INVENTAIRE_SUPPRIMER")) {
-            return ResponseEntity.status(403).build();
+        java.util.Optional<Mouvement> existingOpt = mouvementService.findById(id);
+        if (existingOpt.isEmpty()) return ResponseEntity.notFound().build();
+        Mouvement existing = existingOpt.get();
+        // choose permission depending on type
+        if ("UTILISATION".equalsIgnoreCase(existing.getTypeMouvement())) {
+            if (!isSuperAdmin(user) && !utilisateurService.hasPermission(user, "UTILISA_PERTE_SUPPRIMER")) {
+                return ResponseEntity.status(403).build();
+            }
+        } else {
+            if (!isSuperAdmin(user) && !utilisateurService.hasPermission(user, "INVENTAIRE_SUPPRIMER")) {
+                return ResponseEntity.status(403).build();
+            }
         }
-        return mouvementService.findById(id)
-                .map(mouvement -> {
-                    mouvementService.deleteById(id);
-                    return ResponseEntity.ok().<Void>build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+        try {
+            mouvementService.deleteById(id);
+            // delete corresponding utilisation_pertes record if any
+            try { utilisationPertesService.deleteByMouvementId(id); } catch (Exception ex) { /* ignore */ }
+            return ResponseEntity.ok().<Void>build();
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).build();
+        }
     }
 }

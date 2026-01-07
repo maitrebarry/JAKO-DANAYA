@@ -27,6 +27,9 @@ public class VenteController {
     private com.smboutique.api.repository.StockRepository stockRepository;
 
     @Autowired
+    private com.smboutique.api.service.InventaireService inventaireService;
+
+    @Autowired
     private com.smboutique.api.service.UtilisateurService utilisateurService;
 
     @Autowired
@@ -188,6 +191,11 @@ public class VenteController {
                 cc.setBoutique(user.getBoutique());
             }
 
+            // Block creation of orders when an active inventory exists
+            if (cc.getBoutique() != null && inventaireService.existsActiveInventoryForBoutique(cc.getBoutique().getId())) {
+                return ResponseEntity.status(409).body(java.util.Map.of("code", "INVENTAIRE_ACTIVE", "message", "Opération bloquée : inventaire actif pour cette boutique"));
+            }
+
             // set utilisateur (authenticated user) who created this commande
             if (user != null) {
                 cc.setUtilisateur(user);
@@ -270,6 +278,11 @@ public class VenteController {
         try {
             Long boutiqueId = user != null && user.getBoutique() != null ? user.getBoutique().getId() : null;
             if (boutiqueId == null) return ResponseEntity.badRequest().body(java.util.Map.of("error", "Boutique introuvable pour l'utilisateur"));
+
+            // Block ventes when an active inventory exists for this boutique
+            if (inventaireService.existsActiveInventoryForBoutique(boutiqueId)) {
+                return ResponseEntity.status(409).body(java.util.Map.of("code", "INVENTAIRE_ACTIVE", "message", "Opération bloquée : inventaire actif pour cette boutique"));
+            }
 
             // find active caisse for boutique
             java.util.Optional<com.smboutique.api.model.Caisse> maybeCaisse = caisseRepository.findFirstByBoutiqueIdOrderByIdDesc(boutiqueId);

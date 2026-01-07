@@ -1,0 +1,2 @@
+-- Add unique constraint to prevent duplicate ligne_inventaire for same inventaire + produit
+ALTER TABLE ligne_inventaire ADD CONSTRAINT uq_ligne_inventaire_inventaire_produit UNIQUE (id_inventaire, id_produit);

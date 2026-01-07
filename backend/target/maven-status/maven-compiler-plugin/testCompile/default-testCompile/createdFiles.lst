@@ -1,0 +1,4 @@
+com/smboutique/api/controller/CaisseControllerTest.class
+com/smboutique/api/controller/E2EStockFlowTest.class
+com/smboutique/api/controller/CommandeFournisseurControllerTest.class
+com/smboutique/api/controller/CommandeClientInstrumentationTest.class

@@ -72,6 +72,9 @@ public class ReceptionController {
     @Autowired
     private com.smboutique.api.service.MouvementService mouvementService;
 
+    @Autowired
+    private com.smboutique.api.service.InventaireService inventaireService;
+
     private Utilisateur getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -233,6 +236,12 @@ public class ReceptionController {
         }
         // Assigner automatiquement la boutique de l'utilisateur connecté
         reception.setBoutique(user.getBoutique());
+
+        // Block receptions when an active inventory exists for this boutique
+        if (reception.getBoutique() != null && inventaireService.existsActiveInventoryForBoutique(reception.getBoutique().getId())) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Opération bloquée : inventaire actif pour cette boutique");
+        }
+
         Reception saved = receptionService.save(reception);
         try {
             mouvementService.log("RECEPTION", "CREATION", "Réception créée", saved.getId(), saved.getBoutique() != null ? saved.getBoutique().getId() : null, null, user != null ? user.getId() : null, null);
@@ -315,10 +324,10 @@ public class ReceptionController {
         dto.setId(reception.getId());
         dto.setReference(reception.getReference());
         // Provide a user-friendly formatted date and an ISO_OFFSET field for technical use
-        java.time.format.DateTimeFormatter displayFmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
-        dto.setDateReception(reception.getDateReception() != null ? reception.getDateReception().format(displayFmt) : null);
+        // Use Africa/Dakar for display and ISO_OFFSET fields
+        dto.setDateReception(reception.getDateReception() != null ? com.smboutique.api.util.DateUtils.formatToDakar(reception.getDateReception()) : null);
         if (reception.getDateReception() != null) {
-            dto.setDateReceptionIso(reception.getDateReception().atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+            dto.setDateReceptionIso(reception.getDateReception().atZone(com.smboutique.api.util.DateUtils.DAKAR).format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME));
         } else {
             dto.setDateReceptionIso(null);
         }
@@ -740,7 +749,7 @@ public class ReceptionController {
 
             receptionDTO.setId(savedReception.getId());
             // return the saved reception's timestamp in a consistent format
-            receptionDTO.setDateReception(savedReception.getDateReception() != null ? savedReception.getDateReception().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")) : LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")));
+            receptionDTO.setDateReception(savedReception.getDateReception() != null ? com.smboutique.api.util.DateUtils.formatToDakar(savedReception.getDateReception()) : com.smboutique.api.util.DateUtils.formatToDakar(LocalDateTime.now()));
             receptionDTO.setLignesResult(results);
             return ResponseEntity.ok(receptionDTO);
         } catch (RuntimeException e) {

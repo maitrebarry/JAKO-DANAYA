@@ -133,7 +133,7 @@ public class DataInitializer implements CommandLineRunner {
             {"PRODUIT_SUPPRIMER", "Permission pour supprimer des produits"},
             {"PRODUIT_VOIR", "Permission pour voir la section produits"},
             {"PRODUIT_MOUVEMENT", "Permission pour voir les mouvements produits"},
-            {"PRODUIT_PERTE", "Permission pour gérer pertes/utilisations"},
+
 
             // Commandes / Achats
             {"COMMANDE_LECTURE", "Permission pour lire les commandes"},
@@ -163,10 +163,17 @@ public class DataInitializer implements CommandLineRunner {
             {"INVENTAIRE_LECTURE", "Permission pour lire l'inventaire"},
             {"INVENTAIRE_CREER", "Permission pour créer des éléments d'inventaire"},
             {"INVENTAIRE_MODIFIER", "Permission pour modifier l'inventaire"},
+            {"INVENTAIRE_REGULARISER", "Permission pour régulariser un inventaire"},
             {"INVENTAIRE_SUPPRIMER", "Permission pour supprimer des éléments d'inventaire"},
             {"INVENTAIRE_VOIR", "Permission pour voir la section inventaire"},
             {"INVENTAIRE_MOUVEMENT", "Permission pour voir mouvements d'inventaire"},
-            {"INVENTAIRE_UTILISATIONS", "Permission pour voir utilisations/pertes"},
+
+
+            // Utilisations / Pertes (nouveau découpage)
+            {"UTILISA_PERTE_VOIR", "Permission pour voir les utilisations/pertes"},
+            {"UTILISA_PERTE_CREER", "Permission pour créer des utilisations/pertes"},
+            {"UTILISA_PERTE_MODIFIER", "Permission pour modifier des utilisations/pertes"},
+            {"UTILISA_PERTE_SUPPRIMER", "Permission pour supprimer des utilisations/pertes"},
 
             // Fournisseurs
             {"FOURNISSEUR_LECTURE", "Permission pour lire les fournisseurs"},
@@ -263,7 +270,7 @@ public class DataInitializer implements CommandLineRunner {
                 "COMMANDE_LECTURE", "COMMANDE_CREER", "COMMANDE_MODIFIER", "COMMANDE_SUPPRIMER",
                 "CLIENT_LECTURE", "CLIENT_CREER", "CLIENT_MODIFIER", "CLIENT_SUPPRIMER",
                 "VENTE_LECTURE", "VENTE_CREER", "VENTE_MODIFIER", "VENTE_SUPPRIMER",
-                "INVENTAIRE_LECTURE", "INVENTAIRE_CREER", "INVENTAIRE_MODIFIER", "INVENTAIRE_SUPPRIMER",
+                "INVENTAIRE_LECTURE", "INVENTAIRE_CREER", "INVENTAIRE_MODIFIER", "INVENTAIRE_REGULARISER", "INVENTAIRE_SUPPRIMER",
                 "FOURNISSEUR_LECTURE", "FOURNISSEUR_CREER", "FOURNISSEUR_MODIFIER", "FOURNISSEUR_SUPPRIMER",
                 "RAPPORT_LECTURE", "RAPPORT_CREER",
                 // Transferts
@@ -278,7 +285,7 @@ public class DataInitializer implements CommandLineRunner {
                 "COMMANDE_LECTURE", "COMMANDE_CREER", "COMMANDE_MODIFIER",
                 "CLIENT_LECTURE", "CLIENT_CREER", "CLIENT_MODIFIER",
                 "VENTE_LECTURE", "VENTE_CREER", "VENTE_MODIFIER",
-                "INVENTAIRE_LECTURE", "INVENTAIRE_MODIFIER",
+                "INVENTAIRE_LECTURE", "INVENTAIRE_MODIFIER", "INVENTAIRE_REGULARISER",
                 "FOURNISSEUR_LECTURE"
             });
 

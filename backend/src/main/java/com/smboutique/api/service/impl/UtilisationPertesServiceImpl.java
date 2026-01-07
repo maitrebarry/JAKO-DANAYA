@@ -30,7 +30,17 @@ public class UtilisationPertesServiceImpl implements UtilisationPertesService {
     }
 
     @Override
+    public Optional<UtilisationPertes> findByMouvementId(Long mouvementId) {
+        return utilisationPertesRepository.findByMouvementId(mouvementId);
+    }
+
+    @Override
     public void deleteById(Long id) {
         utilisationPertesRepository.deleteById(id);
+    }
+
+    @Override
+    public void deleteByMouvementId(Long mouvementId) {
+        utilisationPertesRepository.deleteByMouvementId(mouvementId);
     }
 }

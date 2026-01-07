@@ -8,6 +8,7 @@ import com.smboutique.api.security.JwtUtils;
 import com.smboutique.api.security.UserDetailsImpl;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -39,7 +40,7 @@ public class AuthController {
     @Autowired
     JwtUtils jwtUtils;
 
-    @Autowired
+    @Autowired(required = false)
     private com.smboutique.api.service.MouvementService mouvementService;
 
     @PostMapping("/login")
@@ -59,11 +60,13 @@ public class AuthController {
                     .collect(Collectors.toList());
 
             try {
-                // audit connexion
-                Long uid = userDetails.getId();
-                com.smboutique.api.model.Utilisateur u = utilisateurRepository.findById(uid).orElse(null);
-                Long boutiqueId = u != null && u.getBoutique() != null ? u.getBoutique().getId() : null;
-                mouvementService.log("AUTH", "CONNEXION", "Connexion réussie", null, boutiqueId, null, uid, null);
+                // audit connexion (if mouvementService is available)
+                if (mouvementService != null) {
+                    Long uid = userDetails.getId();
+                    com.smboutique.api.model.Utilisateur u = utilisateurRepository.findById(uid).orElse(null);
+                    Long boutiqueId = u != null && u.getBoutique() != null ? u.getBoutique().getId() : null;
+                    mouvementService.log("AUTH", "CONNEXION", "Connexion réussie", null, boutiqueId, null, uid, null);
+                }
             } catch (Exception e) { }
 
             return ResponseEntity.ok(new JwtResponse(jwt,
@@ -89,12 +92,71 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser() {
+        Utilisateur utilisateur = resolveAuthenticatedUser();
+        return ResponseEntity.ok(buildProfileResponse(utilisateur));
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<?> updateCurrentUser(@RequestBody Map<String, Object> payload) {
+        Utilisateur utilisateur = resolveAuthenticatedUser();
+        if (payload.containsKey("nom")) utilisateur.setNom((String) payload.get("nom"));
+        if (payload.containsKey("prenom")) utilisateur.setPrenom((String) payload.get("prenom"));
+        if (payload.containsKey("pseudo")) utilisateur.setPseudo((String) payload.get("pseudo"));
+        if (payload.containsKey("contact")) utilisateur.setContact((String) payload.get("contact"));
+        if (payload.containsKey("adresse")) utilisateur.setAdresse((String) payload.get("adresse"));
+        // Do not allow role/permission escalation through this endpoint
+        utilisateurRepository.save(utilisateur);
+        return ResponseEntity.ok(buildProfileResponse(utilisateur));
+    }
+
+    @PostMapping("/me/password")
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest req) {
+        Utilisateur utilisateur = resolveAuthenticatedUser();
+        if (req.getOldPassword() == null || req.getNewPassword() == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Les champs oldPassword et newPassword sont requis"));
+        }
+        if (!encoder.matches(req.getOldPassword(), utilisateur.getMotDePasse())) {
+            return ResponseEntity.status(400).body(Map.of("error", "Mot de passe actuel incorrect"));
+        }
+        utilisateur.setMotDePasse(encoder.encode(req.getNewPassword()));
+        utilisateurRepository.save(utilisateur);
+        return ResponseEntity.ok(Map.of("status", "ok"));
+    }
+
+    @Value("${app.upload.user-photo-dir}")
+    private String userPhotoDir;
+
+    @PostMapping("/me/avatar")
+    public ResponseEntity<?> uploadAvatar(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        Utilisateur utilisateur = resolveAuthenticatedUser();
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Fichier vide"));
+        }
+        try {
+            java.nio.file.Path uploadPath = java.nio.file.Paths.get(userPhotoDir);
+            java.nio.file.Files.createDirectories(uploadPath);
+            String original = java.util.UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+            java.nio.file.Path dest = uploadPath.resolve(original);
+            try (java.io.InputStream in = file.getInputStream()) {
+                java.nio.file.Files.copy(in, dest, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+            String publicPath = "/uploads/user_photo/" + original;
+            utilisateur.setAvatar(publicPath);
+            utilisateurRepository.save(utilisateur);
+            return ResponseEntity.ok(Map.of("avatar", publicPath));
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).body(Map.of("error", "Impossible d'enregistrer le fichier"));
+        }
+    }
+
+    private Utilisateur resolveAuthenticatedUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
-
-        Utilisateur utilisateur = utilisateurRepository.findByEmailIgnoreCase(email)
+        return utilisateurRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+    }
 
+    private Map<String, Object> buildProfileResponse(Utilisateur utilisateur) {
         // Aggregate permissions: direct + role-derived
         java.util.Set<String> permissions = new java.util.HashSet<>();
         if (utilisateur.getPermissions() != null) {
@@ -109,24 +171,49 @@ public class AuthController {
         }
 
         Map<String, Object> response = new HashMap<>();
-        response.put("user", Map.of(
-            "id", utilisateur.getId(),
-            "email", utilisateur.getEmail(),
-            "nom", utilisateur.getNom(),
-            "prenom", utilisateur.getPrenom(),
-            "pseudo", utilisateur.getPseudo(),
-            "typeUtilisateur", utilisateur.getTypeUtilisateur()
-        ));
+        // Build a safe user map (Map.of doesn't accept null values)
+        Map<String, Object> userMap = new HashMap<>();
+        userMap.put("id", utilisateur.getId());
+        userMap.put("email", utilisateur.getEmail());
+        userMap.put("nom", utilisateur.getNom() != null ? utilisateur.getNom() : "");
+        userMap.put("prenom", utilisateur.getPrenom() != null ? utilisateur.getPrenom() : "");
+        userMap.put("pseudo", utilisateur.getPseudo() != null ? utilisateur.getPseudo() : "");
+        userMap.put("typeUtilisateur", utilisateur.getTypeUtilisateur() != null ? utilisateur.getTypeUtilisateur() : "");
+        userMap.put("contact", utilisateur.getContact() != null ? utilisateur.getContact() : "");
+        userMap.put("adresse", utilisateur.getAdresse() != null ? utilisateur.getAdresse() : "");
+        userMap.put("avatar", utilisateur.getAvatar() != null ? utilisateur.getAvatar() : "");
+
+        response.put("user", userMap);
         response.put("permissions", permissions);
-        response.put("roles", utilisateur.getRoles().stream().map(Role::getName).collect(Collectors.toList()));
+        response.put("roles", utilisateur.getRoles() != null ? utilisateur.getRoles().stream().map(Role::getName).collect(Collectors.toList()) : java.util.List.of());
         if (utilisateur.getBoutique() != null) {
-            response.put("currentBoutique", Map.of(
-                "id", utilisateur.getBoutique().getId(),
-                "nom", utilisateur.getBoutique().getNom()
-            ));
+            Map<String, Object> cb = new HashMap<>();
+            cb.put("id", utilisateur.getBoutique().getId());
+            cb.put("nom", utilisateur.getBoutique().getNom());
+            response.put("currentBoutique", cb);
+        }
+        return response;
+    }
+
+    public static class ChangePasswordRequest {
+        private String oldPassword;
+        private String newPassword;
+
+        public String getOldPassword() {
+            return oldPassword;
         }
 
-        return ResponseEntity.ok(response);
+        public void setOldPassword(String oldPassword) {
+            this.oldPassword = oldPassword;
+        }
+
+        public String getNewPassword() {
+            return newPassword;
+        }
+
+        public void setNewPassword(String newPassword) {
+            this.newPassword = newPassword;
+        }
     }
 
     @GetMapping("/validate")

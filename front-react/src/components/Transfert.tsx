@@ -3,7 +3,7 @@ import Swal from 'sweetalert2';
 import { useUser } from '../contexts/UserContext';
 
 interface Magasin { id: number; nom: string; adresse?: string }
-interface TransferStock { produitId: number; nomProduit: string; quantiteDisponible: number; unite?: string; multiplicateur?: number; uniteCondLibelle?: string }
+interface TransferStock { produitId: number; nomProduit: string; quantiteDisponible: number; unite?: string; multiplicateur?: number; uniteCondLibelle?: string; prixAchat?: number; prixDetail?: number; prixGros?: number }
 
 const Transfert: React.FC = () => {
   const { currentBoutique, permissions } = useUser();
@@ -70,7 +70,10 @@ const Transfert: React.FC = () => {
         quantiteDisponible: s.quantiteDisponible ?? s.quantite ?? 0,
         unite: s.unite,
         multiplicateur: s.produit?.nombreUnitesParConditionnement ?? s.nombreUnitesParConditionnement ?? 1,
-        uniteCondLibelle: s.produit?.unite?.libelle ?? 'carton'
+        uniteCondLibelle: s.produit?.unite?.libelle ?? 'carton',
+        prixAchat: s.produit?.prixAchat ?? s.prixAchat ?? 0,
+        prixDetail: s.produit?.prixDetail ?? s.prixDetail ?? 0,
+        prixGros: s.produit?.prixEnGros ?? s.prixEnGros ?? 0
       }));
       setTransferStocks(mapped);
       // reset selection/quantities
@@ -150,6 +153,31 @@ const Transfert: React.FC = () => {
     }
   };
 
+  const computeEffectiveQty = (s: TransferStock) => {
+    const pid = s.produitId;
+    if (transferIsCond[pid]) {
+      const qCond = transferCondQuantities[pid] || 0;
+      return qCond * (s.multiplicateur || 1);
+    }
+    return transferQuantities[pid] || 0;
+  };
+
+  const formatMoney = (v?: number) => (v == null ? '0' : Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
+
+  const totals = useMemo(() => {
+    let tA = 0, tD = 0, tG = 0;
+    for (const pid of transferSelectedIds) {
+      const s = transferStocks.find(st => st.produitId === pid);
+      if (!s) continue;
+      const q = computeEffectiveQty(s);
+      if (!q || q <= 0) continue;
+      tA += q * (s.prixAchat || 0);
+      tD += q * (s.prixDetail || 0);
+      tG += q * (s.prixGros || 0);
+    }
+    return { totalAchat: tA, totalDetail: tD, totalGros: tG };
+  }, [transferSelectedIds, transferQuantities, transferCondQuantities, transferIsCond, transferStocks]);
+
   const handleIndividualTransfer = async (produitId: number) => {
     if (transferIsCond[produitId]) {
       const qCond = transferCondQuantities[produitId] || 0;
@@ -165,6 +193,56 @@ const Transfert: React.FC = () => {
       transferIsCond[pid] ? { produitId: pid, quantiteConditionnement: transferCondQuantities[pid] || 0 } : { produitId: pid, quantite: transferQuantities[pid] || 0 }
     ));
     await doTransfer(items);
+  };
+
+  const formatNumberCSV = (v?: number) => {
+    const n = Number(v || 0);
+    // Use dot decimal for CSV numbers with 2 decimals
+    return n.toFixed(2);
+  };
+
+  const exportSelectedCSV = () => {
+    // export selected items and totals as CSV (semicolon separated, French convention)
+    const headers = ['Produit','QuantitéSaisie','QuantitéEffective','PrixAchat','MontantAchat','PrixDetail','MontantDetail','PrixGros','MontantGros'];
+    const rows: string[] = [];
+    rows.push(headers.join(';'));
+
+    let tA = 0, tD = 0, tG = 0;
+
+    for (const pid of transferSelectedIds) {
+      const s = transferStocks.find(st => st.produitId === pid);
+      if (!s) continue;
+      const qSaisie = transferIsCond[pid] ? (transferCondQuantities[pid] || 0) : (transferQuantities[pid] || 0);
+      const qEffect = computeEffectiveQty(s);
+      if (!qSaisie || qSaisie <= 0) continue;
+      const a = qEffect * (s.prixAchat || 0);
+      const d = qEffect * (s.prixDetail || 0);
+      const g = qEffect * (s.prixGros || 0);
+      tA += a; tD += d; tG += g;
+      const line = [
+        `"${(s.nomProduit || '').replace(/"/g,'""')}"`,
+        formatNumberCSV(qSaisie),
+        formatNumberCSV(qEffect),
+        formatNumberCSV(s.prixAchat || 0),
+        formatNumberCSV(a),
+        formatNumberCSV(s.prixDetail || 0),
+        formatNumberCSV(d),
+        formatNumberCSV(s.prixGros || 0),
+        formatNumberCSV(g)
+      ].join(';');
+      rows.push(line);
+    }
+
+    // totals
+    rows.push(['', '', 'TOTALS', '', formatNumberCSV(tA), '', formatNumberCSV(tD), '', formatNumberCSV(tG)].join(';'));
+
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `transfert_export_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'_')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   return (
@@ -213,6 +291,23 @@ const Transfert: React.FC = () => {
                         <strong>{s.nomProduit}</strong> <small className="text-muted">{s.unite ? `(${s.unite})` : ''}</small>
                       </div>
                       <div className="me-3">Dispo: <span className="fw-bold">{s.quantiteDisponible ?? 0}</span></div>
+                      <div className="me-3 text-end p-2 border rounded bg-light" style={{ minWidth: 220 }}>
+                        {/* Show monetary values for currently entered quantity for this product */}
+                        {(() => {
+                          const qty = computeEffectiveQty(s);
+                          if (!qty || qty <= 0) return <div className="small text-muted">Aucune quantité saisie</div>;
+                          const a = qty * (s.prixAchat || 0);
+                          const d = qty * (s.prixDetail || 0);
+                          const g = qty * (s.prixGros || 0);
+                          return (
+                            <div className="small text-muted">
+                              <div>Achat&nbsp;: <strong>{formatMoney(a)} FCFA</strong></div>
+                              <div>Détail: <strong>{formatMoney(d)} FCFA</strong></div>
+                              <div>Gros&nbsp;: <strong>{formatMoney(g)} FCFA</strong></div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                       <div className="me-3" style={{ width: 180 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <div className="form-check">
@@ -273,6 +368,7 @@ const Transfert: React.FC = () => {
                 <div><strong>Actions</strong></div>
                 <div className="mt-2">
                   <button className="btn btn-success me-2" disabled={transferSelectedIds.length === 0 || loading} onClick={handleBulkTransfer}>{loading ? 'Transfert...' : 'Transférer sélection'}</button>
+                  <button className="btn btn-outline-info me-2" disabled={transferSelectedIds.length === 0} onClick={() => exportSelectedCSV()} title="Exporter les lignes sélectionnées">Exporter CSV</button>
                   <button className="btn btn-outline-secondary" onClick={() => { setTransferSelectedIds([]); setTransferQuantities({}); setTransferSelectAll(false); setMessage(''); }}>Réinitialiser</button>
                 </div>
               </div>
@@ -282,6 +378,17 @@ const Transfert: React.FC = () => {
               )}
 
               <hr />
+
+              <div className="mb-3">
+                <div><strong>Valeur estimée du transfert (sélection)</strong></div>
+                <div className="mt-2 small">
+                  <div>Achat total : <strong>{formatMoney(totals.totalAchat)} FCFA</strong></div>
+                  <div>Prix détail total : <strong>{formatMoney(totals.totalDetail)} FCFA</strong></div>
+                  <div>Prix gros total : <strong>{formatMoney(totals.totalGros)} FCFA</strong></div>
+                  <div className="text-muted">(Basé sur les produits sélectionnés et quantités renseignées)</div>
+                </div>
+              </div>
+
               <div><strong>Conseils</strong></div>
               <ul>
                 <li>Choisissez le magasin source puis sélectionnez les produits.</li>

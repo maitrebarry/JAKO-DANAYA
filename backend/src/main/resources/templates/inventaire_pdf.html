@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 12px; }
+    .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    .title { font-size:16px; font-weight:bold; }
+    table { width:100%; border-collapse:collapse; margin-top:10px; }
+    th, td { border:1px solid #ddd; padding:6px; text-align:left; }
+    th { background:#f5f5f5; }
+    .right { text-align:right; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="title">Inventaire</div>
+      <div>Référence: <strong th:text="${inventaire.referenceInventaire != null ? inventaire.referenceInventaire : inventaire.reference}"></strong></div>
+      <div>Date: <span th:text="${inventaire.dateInventaire}"></span></div>
+      <div>Régularisé: <span th:text="${inventaire.regulariser} ? 'Oui' : 'Non'"></span></div>
+    </div>
+    <div>
+      <div th:if="${inventaire.boutique != null}"><strong th:text="${inventaire.boutique.nom}"></strong></div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Produit</th>
+        <th>Quantité physique</th>
+        <th>Ecart</th>
+        <th class="right">Montant</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="li : ${lignes}">
+        <td th:text="${li.produit != null ? (li.produit.nomProduit != null ? li.produit.nomProduit : li.produit.nom) : '-'}"></td>
+        <td th:text="${li.quantitePhysique}"></td>
+        <td th:text="${li.ecartStock != null ? li.ecartStock : '-'}"></td>
+        <td class="right" th:text="${li.montant != null ? #numbers.formatInteger(li.montant, 0) + ' F CFA' : '-'}"></td>
+      </tr>
+    </tbody>
+  </table>
+
+</body>
+</html>

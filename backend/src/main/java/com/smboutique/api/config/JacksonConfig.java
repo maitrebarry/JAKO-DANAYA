@@ -12,9 +12,10 @@ import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+
+import com.smboutique.api.util.DateUtils;
 
 @Configuration
 public class JacksonConfig {
@@ -26,7 +27,7 @@ public class JacksonConfig {
         Jackson2ObjectMapperBuilder builder = new Jackson2ObjectMapperBuilder();
         builder.featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-        // Custom serializer for LocalDateTime: serialize as ISO_OFFSET_DATE_TIME using server system zone
+        // Custom serializer for LocalDateTime: serialize as ISO_OFFSET_DATE_TIME using Africa/Dakar timezone
         builder.serializerByType(LocalDateTime.class, new StdSerializer<LocalDateTime>(LocalDateTime.class) {
             @Override
             public void serialize(LocalDateTime value, JsonGenerator gen, SerializerProvider provider) throws IOException {
@@ -34,7 +35,7 @@ public class JacksonConfig {
                     gen.writeNull();
                     return;
                 }
-                ZonedDateTime zdt = value.atZone(ZoneId.systemDefault());
+                ZonedDateTime zdt = value.atZone(DateUtils.DAKAR);
                 String s = zdt.format(ISO_OFFSET);
                 gen.writeString(s);
             }

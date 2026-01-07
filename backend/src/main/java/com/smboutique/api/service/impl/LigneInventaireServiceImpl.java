@@ -33,4 +33,9 @@ public class LigneInventaireServiceImpl implements LigneInventaireService {
     public void deleteById(Long id) {
         ligneInventaireRepository.deleteById(id);
     }
+
+    @Override
+    public List<LigneInventaire> findByInventaireId(Long inventaireId) {
+        return ligneInventaireRepository.findByInventaireId(inventaireId);
+    }
 }

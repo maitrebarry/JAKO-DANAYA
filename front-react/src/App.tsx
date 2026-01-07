@@ -1,3 +1,4 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import SignIn from './components/SignIn';
 import Layout from './components/Layout';
@@ -24,7 +25,13 @@ import VenteEnEspece from './components/VenteEnEspece';
 import VenteApercuEspece from './components/VenteApercuEspece';
 import Transfert from './components/Transfert';
 import Mouvements from './components/Mouvements';
+import Inventaires from './components/Inventaires';
+import InventaireDetail from './components/InventaireDetail';
+import InventaireCreate from './components/InventaireCreate';
+import Profile from './components/Profile';
 import { UserProvider } from './contexts/UserContext';
+const UtilisationsPage = React.lazy(() => import('./components/UtilisationsPage'));
+
 
 // Composant pour protéger les routes
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -194,6 +201,19 @@ function App() {
           />
 
           <Route
+            path="/utilisations"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <React.Suspense fallback={<div>Chargement...</div>}>
+                    <UtilisationsPage />
+                  </React.Suspense>
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
             path="/depenses"
             element={
               <PrivateRoute>
@@ -276,6 +296,38 @@ function App() {
                 <Layout><Mouvements /></Layout>
               </PrivateRoute>
             }
+          />
+          <Route
+            path="/inventaires"
+            element={
+              <PrivateRoute>
+                <Layout><Inventaires /></Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/inventaires/new"
+            element={
+              <PrivateRoute>
+                <Layout><InventaireCreate /></Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/inventaires/:id"
+            element={
+              <PrivateRoute>
+                <Layout><InventaireDetail /></Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route 
+            path="/profile" 
+            element={
+              <PrivateRoute>
+                <Layout><Profile /></Layout>
+              </PrivateRoute>
+            } 
           />
           <Route
             path="/ventes/especes"

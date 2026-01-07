@@ -1,31 +1,40 @@
 // Utilities to format and parse server date strings without introducing timezone shifts
 
-// Format a server-sent timestamp (SQL or ISO) into a human-friendly French string
+const DAKAR_TZ = 'Africa/Dakar';
+
+function partsFor(date: Date, timeZone = DAKAR_TZ) {
+  const fmt = new Intl.DateTimeFormat('fr-FR', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  const parts = fmt.formatToParts(date);
+  const map: any = {};
+  for (const p of parts) {
+    if (p.type !== 'literal') map[p.type] = p.value;
+  }
+  return map;
+}
+
+function formatPartsToDisplay(map: any) {
+  return `${map.day}/${map.month}/${map.year} ${map.hour}:${map.minute}:${map.second}`;
+}
+
+// Format a server-sent timestamp (SQL or ISO) into a human-friendly French string in Africa/Dakar
 export const formatServerDate = (d?: string | null): string => {
   if (!d) return '';
   // If already in display format dd/MM/yyyy return as-is
   if (d.includes('/')) return d;
 
   // Handle SQL/ISO timestamps with optional microseconds and optional timezone
-  // Examples accepted:
-  // 2025-12-26 22:27:14.000000
-  // 2025-12-26T22:27:14Z
-  // 2025-12-26T22:27:14+01:00
-  // 2025-12-26 22:27:14
   const tsMatch = d.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:([+-]\d{2}:?\d{2})|Z)?$/);
   if (tsMatch) {
     const [, y, m, day, hh, mm, , offset] = tsMatch;
-    // If an explicit timezone (offset or Z) is present, parse as an instant and display in client's local timezone
+    // If an explicit timezone (offset or Z) is present, parse as an instant and display in Africa/Dakar
     if (offset || d.endsWith('Z')) {
-      // normalize spacing to strict ISO so Date parsing is reliable across browsers
       const iso = d.includes('T') ? d : d.replace(' ', 'T');
       const dt = new Date(iso);
       if (isNaN(dt.getTime())) return `${day}/${m}/${y} ${hh}:${mm}:00`;
-      // build a stable dd/MM/yyyy HH:mm:ss string using the client's local fields
-      const pad = (n: number) => n.toString().padStart(2, '0');
-      return `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)}/${dt.getFullYear()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+      const map = partsFor(dt, DAKAR_TZ);
+      return formatPartsToDisplay(map as any);
     }
-    // No timezone provided: treat as server-local timestamp and return literal server time
+    // No timezone provided: treat as server-local timestamp (assume server in Africa/Dakar) and return literal server time
     return `${day}/${m}/${y} ${hh}:${mm}:00`;
   }
 
@@ -36,34 +45,35 @@ export const formatServerDate = (d?: string | null): string => {
     return `${day}/${m}/${y} ${hh}:${mm}:00`;
   }
 
-  // Last resort: let Date format in fr-FR but it may shift the hour
+  // Last resort: let Date format in Africa/Dakar
   const dt = new Date(d);
   if (isNaN(dt.getTime())) return d;
-  return dt.toLocaleString('fr-FR');
+  const map = partsFor(dt, DAKAR_TZ);
+  return formatPartsToDisplay(map as any);
 };
 
-// Format a value as a localized client-side date (convert to local timezone)
+// Format a value as a localized date in Africa/Dakar
 export const formatLocalDate = (d?: string | Date | null): string => {
   if (!d) return '';
   const dt = d instanceof Date ? d : new Date(d);
   if (isNaN(dt.getTime())) return '';
-  return dt.toLocaleString('fr-FR');
+  const map = partsFor(dt, DAKAR_TZ);
+  return formatPartsToDisplay(map as any);
 };
 
-// Convert a server timestamp into a datetime-local input value (YYYY-MM-DDTHH:MM)
+// Convert a server timestamp into a datetime-local input value (YYYY-MM-DDTHH:MM) in Africa/Dakar
 export const toDatetimeLocalInput = (d?: string | null): string => {
   if (!d) return '';
-  // Prefer parsing without timezone adjustments
   const tsMatch = d.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:([+-]\d{2}:?\d{2})|Z)?$/);
   if (tsMatch) {
     const [, y, m, day, hh, mm, , offset] = tsMatch;
-    // If an explicit timezone is present, convert to client's local time for datetime-local
+    // If an explicit timezone is present, convert to Africa/Dakar local time for datetime-local
     if (offset || d.endsWith('Z')) {
       const iso = d.includes('T') ? d : d.replace(' ', 'T');
       const dt = new Date(iso);
       if (isNaN(dt.getTime())) return `${y}-${m}-${day}T${hh}:${mm}`;
-      const pad = (n: number) => n.toString().padStart(2, '0');
-      return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+      const map = partsFor(dt, DAKAR_TZ);
+      return `${map.year}-${map.month}-${map.day}T${map.hour}:${map.minute}`;
     }
     return `${y}-${m}-${day}T${hh}:${mm}`;
   }
@@ -72,8 +82,9 @@ export const toDatetimeLocalInput = (d?: string | null): string => {
     const [, y, m, day, hh, mm] = isoShort;
     return `${y}-${m}-${day}T${hh}:${mm}`;
   }
-  // Fallback to Date, may shift timezone
+  // Fallback to Date in Africa/Dakar
   const dt = new Date(d);
   if (isNaN(dt.getTime())) return '';
-  return dt.toISOString().slice(0, 16);
+  const map = partsFor(dt, DAKAR_TZ);
+  return `${map.year}-${map.month}-${map.day}T${map.hour}:${map.minute}`;
 };
