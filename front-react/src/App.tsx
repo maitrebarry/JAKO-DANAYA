@@ -9,6 +9,7 @@ import Produits from './components/Produits';
 import CommandeFournisseur from './components/CommandeFournisseur';
 import CommandeClient from './components/CommandeClient';
 import CommandeApercu from './components/CommandeApercu';
+import ApercuCommandeClient from './components/ApercuCommandeClient';
 import ListeCommandes from './components/ListeCommandes';
 import Reception from './components/Reception';
 import PaiementCommande from './components/PaiementCommande';
@@ -29,6 +30,8 @@ import Inventaires from './components/Inventaires';
 import InventaireDetail from './components/InventaireDetail';
 import InventaireCreate from './components/InventaireCreate';
 import Profile from './components/Profile';
+import Documents from './components/Documents';
+import Rapports from './components/Rapports';
 import { UserProvider } from './contexts/UserContext';
 const UtilisationsPage = React.lazy(() => import('./components/UtilisationsPage'));
 
@@ -221,6 +224,23 @@ function App() {
               </PrivateRoute>
             }
           />
+
+          <Route
+            path="/documents"
+            element={
+              <PrivateRoute>
+                <Layout><Documents /></Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/rapports"
+            element={
+              <PrivateRoute>
+                <Layout><Rapports /></Layout>
+              </PrivateRoute>
+            }
+          />
           <Route
             path="/depenses/:id"
             element={
@@ -269,6 +289,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Layout><CommandeApercu /></Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route 
+            path="/commandes-clients/appercu/:id"
+            element={
+              <PrivateRoute>
+                <Layout><ApercuCommandeClient /></Layout>
               </PrivateRoute>
             }
           />

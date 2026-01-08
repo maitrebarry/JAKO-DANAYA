@@ -5,6 +5,7 @@ import com.smboutique.api.repository.ConfigurationMargeRepository;
 import com.smboutique.api.service.ConfigurationMargeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.scheduling.annotation.Async;
 
 import java.util.Optional;
 
@@ -13,6 +14,8 @@ public class ConfigurationMargeServiceImpl implements ConfigurationMargeService 
 
     @Autowired
     private ConfigurationMargeRepository repository;
+
+    /* produitService removed to avoid circular dependency; recomputation handled by MarginRecomputeService */
 
     @Override
     public Optional<ConfigurationMarge> findByBoutiqueId(Long boutiqueId) {

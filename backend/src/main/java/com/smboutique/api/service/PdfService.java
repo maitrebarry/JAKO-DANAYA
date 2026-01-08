@@ -9,6 +9,8 @@ public interface PdfService {
     void writeReceptionPdf(Long receptionId, HttpServletResponse response) throws IOException;
     void writePaiementPdf(Long paiementId, HttpServletResponse response) throws IOException;
     void writePaiementClientPdf(Long paiementId, HttpServletResponse response) throws IOException;
+    // Write a PDF for a caisse transaction (when not linked to a paiement)
+    void writeCaisseTransactionPdf(Long transactionId, HttpServletResponse response) throws IOException;
     void writeLivraisonPdf(Long livraisonId, HttpServletResponse response) throws IOException;
     void writeDepensePdf(Long depenseId, HttpServletResponse response) throws IOException;
     // Write a PDF for a cash sale (Vente)

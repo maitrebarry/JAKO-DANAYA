@@ -32,6 +32,9 @@ public class LivraisonController {
     @Autowired
     private com.smboutique.api.service.PdfService pdfService;
 
+    @Autowired
+    private com.smboutique.api.service.MouvementService mouvementService;
+
     private com.smboutique.api.model.Utilisateur getCurrentUser() {
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -60,6 +63,22 @@ public class LivraisonController {
     public void getLivraisonPdf(@PathVariable Long id, jakarta.servlet.http.HttpServletResponse response) {
         try {
             pdfService.writeLivraisonPdf(id, response);
+            try {
+                Long userId = null;
+                try {
+                    var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                    if (auth != null && auth.getName() != null) {
+                        var u = utilisateurService.findByEmail(auth.getName()).orElse(null);
+                        if (u != null) userId = u.getId();
+                    }
+                } catch (Exception ignore) {}
+                var lopt = livraisonService.findById(id);
+                if (lopt.isPresent()) {
+                    var l = lopt.get();
+                    Long boutiqueId = l.getCommandeClient() != null && l.getCommandeClient().getBoutique() != null ? l.getCommandeClient().getBoutique().getId() : null;
+                    mouvementService.log("DOCUMENT", "LIVRAISON_PDF", "Génération PDF - LIVRAISON", id, boutiqueId, null, userId, null);
+                }
+            } catch (Exception ignore) {}
         } catch (Exception e) {
             try { response.sendError(500); } catch (Exception ignored) {}
         }

@@ -201,6 +201,23 @@ public class CommandeFournisseurController {
         }
         try {
             pdfService.writeCommandePdf(id, response);
+            try {
+                Long userId = null;
+                try {
+                    var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                    if (auth != null && auth.getName() != null) {
+                        var u = utilisateurService.findByEmail(auth.getName()).orElse(null);
+                        if (u != null) userId = u.getId();
+                    }
+                } catch (Exception ignore) {}
+                var copt = commandeFournisseurService.findById(id);
+                if (copt.isPresent()) {
+                    var c = copt.get();
+                    Long boutiqueId = c.getBoutique() != null ? c.getBoutique().getId() : null;
+                    Double montant = c.getTotal() != null ? Double.valueOf(c.getTotal()) : null;
+                    mouvementService.log("DOCUMENT", "COMMANDE_FOURNISSEUR_PDF", "Génération PDF - COMMANDE FOURNISSEUR", id, boutiqueId, null, userId, montant);
+                }
+            } catch (Exception ignore) {}
         } catch (Exception e) {
             try {
                 response.sendError(500, e.getMessage());

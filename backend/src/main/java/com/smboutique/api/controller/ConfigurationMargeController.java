@@ -6,9 +6,11 @@ import com.smboutique.api.service.ConfigurationMargeService;
 import com.smboutique.api.service.UtilisateurService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
+import com.smboutique.api.service.impl.RecomputeJobService;
 
 @RestController
 @RequestMapping("/api/configuration-marge")
@@ -19,6 +21,9 @@ public class ConfigurationMargeController {
 
     @Autowired
     private UtilisateurService utilisateurService;
+
+    @Autowired
+    private com.smboutique.api.service.impl.RecomputeJobService jobService;
 
     private Utilisateur getCurrentUser() {
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
@@ -109,6 +114,65 @@ public class ConfigurationMargeController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(java.util.Map.of("error", "Impossible de supprimer la configuration"));
         }
+    }
+
+    @Autowired
+    private com.smboutique.api.service.impl.MarginRecomputeService marginRecomputeService;
+
+    @PostMapping("/boutique/{id}/recompute")
+    public ResponseEntity<?> recomputeForBoutique(@PathVariable Long id) {
+        Utilisateur user = getCurrentUser();
+        // permission check
+        if (!isSuperAdmin(user)) {
+            if (!hasPermission(user, "CONFIG_MARGE_ECRITURE")) {
+                return ResponseEntity.status(403).body(java.util.Map.of("error", "Accès refusé : permission CONFIG_MARGE_ECRITURE requise"));
+            }
+            if (user.getBoutique() == null || !user.getBoutique().getId().equals(id)) {
+                return ResponseEntity.status(403).body(java.util.Map.of("error", "Accès refusé : seule la configuration de votre boutique peut être recalculée"));
+            }
+        }
+        try {
+            int updated = marginRecomputeService.recomputeForBoutique(id);
+            return ResponseEntity.ok(java.util.Map.of("updatedProducts", updated));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(java.util.Map.of("error", "Impossible de recalculer les marges"));
+        }
+    }
+
+    @PostMapping("/boutique/{id}/recompute-job")
+    public ResponseEntity<?> recomputeJob(@PathVariable Long id) {
+        Utilisateur user = getCurrentUser();
+        if (!isSuperAdmin(user)) {
+            if (!hasPermission(user, "CONFIG_MARGE_ECRITURE")) {
+                return ResponseEntity.status(403).body(java.util.Map.of("error", "Accès refusé : permission CONFIG_MARGE_ECRITURE requise"));
+            }
+            if (user.getBoutique() == null || !user.getBoutique().getId().equals(id)) {
+                return ResponseEntity.status(403).body(java.util.Map.of("error", "Accès refusé : seule la configuration de votre boutique peut être recalculée"));
+            }
+        }
+        try {
+            String jobId = jobService.startJobAsync(id);
+            return ResponseEntity.accepted().body(java.util.Map.of("jobId", jobId));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(java.util.Map.of("error", "Impossible de lancer le job de recalcul"));
+        }
+    }
+
+    @GetMapping("/job/{jobId}")
+    public ResponseEntity<?> getJobStatus(@PathVariable String jobId) {
+        RecomputeJobService.Job j = jobService.getJob(jobId);
+        if (j == null) return ResponseEntity.notFound().build();
+        java.util.Map<String, Object> m = new java.util.HashMap<>();
+        m.put("jobId", j.id);
+        m.put("status", j.status != null ? j.status.name() : null);
+        m.put("updatedCount", j.updatedCount);
+        m.put("error", j.errorMessage);
+        return ResponseEntity.ok(m);
+    }
+
+    @GetMapping("/jobs/stream")
+    public SseEmitter streamJobs() {
+        return jobService.subscribe();
     }
 
     private boolean hasPermission(Utilisateur user, String permissionName) {

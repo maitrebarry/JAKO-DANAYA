@@ -17,6 +17,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/CommandeFournisseurRequest.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/ConfigurationMargeController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/DepenseController.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/DocumentController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/FournisseurController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/HistoriqueController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/InventaireController.java
@@ -59,6 +60,8 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/ConfigurationMarge.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Depense.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/DepenseStatus.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Document.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/DocumentReference.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Fournisseur.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Inventaire.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/LigneCommande.java
@@ -93,6 +96,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/repository/CommandeFournisseurRepository.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/repository/ConfigurationMargeRepository.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/repository/DepenseRepository.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/repository/DocumentRepository.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/repository/FournisseurRepository.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/repository/InventaireRepository.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/repository/LigneCommandeClientRepository.java
@@ -132,6 +136,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/CommandeFournisseurService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/ConfigurationMargeService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/DepenseService.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/DocumentService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/FournisseurService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/InventaireService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/LigneCommandeClientService.java
@@ -170,6 +175,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/CommandeFournisseurServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/ConfigurationMargeServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/DepenseServiceImpl.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/DocumentServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/FournisseurServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/InventaireServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/LigneCommandeClientServiceImpl.java
@@ -179,6 +185,8 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/LigneReceptionServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/LigneVenteServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/LivraisonServiceImpl.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/MargeCalculator.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/MarginRecomputeService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/MouvementServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/NotificationServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/PaiementClientServiceImpl.java
@@ -186,6 +194,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/PdfServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/ProduitServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/ReceptionServiceImpl.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/RecomputeJobService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/StockServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/TransferModuleServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/TransferServiceImpl.java

@@ -199,6 +199,18 @@ public class ReceptionController {
         }
         try {
             pdfService.writeReceptionPdf(id, response);
+            try {
+                Long userId = null;
+                try {
+                    var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                    if (auth != null && auth.getName() != null) {
+                        var u = utilisateurService.findByEmail(auth.getName()).orElse(null);
+                        if (u != null) userId = u.getId();
+                    }
+                } catch (Exception ignore) {}
+                Long boutiqueId = reception.getBoutique() != null ? reception.getBoutique().getId() : null;
+                mouvementService.log("DOCUMENT", "RECEPTION_PDF", "Génération PDF - RECEPTION", id, boutiqueId, null, userId, null);
+            } catch (Exception ignore) {}
         } catch (Exception e) {
             try { response.sendError(500); } catch (Exception ignored) {}
         }

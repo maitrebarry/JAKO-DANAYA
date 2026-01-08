@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reçu de Caisse</title>
+    <style>
+        body { font-family: 'Helvetica', Arial, sans-serif; color: #2b2b2b; margin: 16px; }
+        .header { width: 100%; height: 120px; margin-bottom: 8px; border: none; padding:0; box-sizing:border-box; }
+        .header.bg-logo { background-size: cover; background-position:center; background-repeat:no-repeat; }
+        .logo { display:block; width:100%; max-height: 110px; height:auto; }
+        .no-logo-info { display:block; text-align:center; height: 100%; font-size: 16px; font-weight: bold; color: #2b2b2b; line-height: 1.5; background:#f6f6f6; padding:14px; box-sizing:border-box; }
+        .footer-info { width:100%; overflow:hidden; margin-bottom: 12px; }
+        .boutique-info { float:left; width:50%; font-size: 12px; line-height:1.4; }
+        .meta-info { float:right; width:48%; text-align:right; font-size: 12px; line-height:1.4; }
+        .table { width:100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
+        .table th, .table td { border: 1px solid #ddd; padding: 6px 8px; text-align:center; vertical-align: middle; }
+        .table .right { text-align:center; }
+        .table th { background: #fafafa; font-weight: 700; font-size: 12px; text-transform: uppercase; }
+        .meta { margin-bottom: 4px; }
+        .title { text-align:center; font-size: 20px; font-weight: 800; padding: 8px; color: #222; }
+        .right { text-align:right; }
+        .signature { margin-top: 28px; font-size: 12px; }
+        footer { margin-top: 20px; font-size: 11px; color: #666; text-align: center; }
+    </style>
+</head>
+<body>
+<div th:if="${logoBase64 != null}" class="header bg-logo" th:style="'background-image: url(' + ${logoBase64} + ');'">
+    <!-- background image fills header -->
+</div>
+<div th:if="${logoBase64 == null}" class="header">
+    <div class="no-logo-info">
+        <div><strong th:text="${boutique != null ? boutique.nom : ''}"></strong></div>
+        <div><span th:text="${boutique != null ? boutique.telephone : ''}"></span></div>
+        <div><span th:text="${boutique != null ? boutique.adresse : ''}"></span></div>
+    </div>
+</div>
+<div class="footer-info">
+    <div th:if="${logoBase64 == null}" class="boutique-info">
+        <div><strong th:text="${boutique != null ? boutique.nom : ''}"></strong></div>
+        <div><span th:text="${boutique != null ? boutique.telephone : ''}"></span></div>
+        <div><span th:text="${boutique != null ? boutique.adresse : ''}"></span></div>
+    </div>
+    <div class="meta-info">
+        <div class="meta">Réf: <span th:text="${reference}"></span></div>
+        <div class="meta">Date: <span th:text="${dateTransactionFormatted}"></span></div>
+        <div class="meta">Utilisateur: <span th:text="${tx.userId}"></span></div>
+    </div>
+</div>
+<div class="title">REÇU DE CAISSE</div>
+
+<table class="table">
+    <colgroup>
+        <col style="width:60%" />
+        <col style="width:40%" />
+    </colgroup>
+    <thead>
+    <tr>
+        <th>Description</th>
+        <th class="right">Montant</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td th:text="${raison != null ? raison : (tx.referenceCaisse != null ? tx.referenceCaisse : 'Transaction caisse')}"></td>
+        <td class="right" th:text="${#numbers.formatInteger(montant != null ? montant : (tx.montant != null ? tx.montant : 0), 0)} + ' FCFA'"></td>
+    </tr>
+    </tbody>
+</table>
+
+<div class="meta">Reference caisse: <strong th:text="${reference}"></strong></div>
+<div class="meta">Montant: <strong th:text="${#numbers.formatInteger(montant != null ? montant : (tx.montant != null ? tx.montant : 0), 0)}"></strong> FCFA</div>
+<div class="meta">Date: <strong th:text="${dateTransactionFormatted}"></strong></div>
+<div class="signature">Signature: __________________________</div>
+<footer>SMBOUTIQUE</footer>
+</body>
+</html>

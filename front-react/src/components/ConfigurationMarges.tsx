@@ -9,6 +9,13 @@ const ConfigurationMarges: React.FC = () => {
   const [editing, setEditing] = useState(false);
 
   const [form, setForm] = useState({ typeMarge: 'FIXE', valeurDetail: '', valeurGros: '', margeMinimaleDetail: '', margeMinimaleGros: '' });
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<string | null>(null);
+  const [jobUpdatedCount, setJobUpdatedCount] = useState<number | null>(null);
+  const [showRecompute, setShowRecompute] = useState<boolean>(false);
+  const [showJobModal, setShowJobModal] = useState<boolean>(false);
+  const [jobDetails, setJobDetails] = useState<any | null>(null);
+  const jobTimer = React.useRef<any>(null);
 
   // Authorize edit only when the explicit permission CONFIG_MARGE_ECRITURE is present
   const isAllowed = (() => {
@@ -56,6 +63,8 @@ const ConfigurationMarges: React.FC = () => {
 
   const handleSave = async () => {
     if (!isAllowed) { setMessage('Accès refusé'); return; }
+    // hide recompute button while saving
+    setShowRecompute(false);
     try {
       const token = localStorage.getItem('smb_token');
       const payload = {
@@ -77,11 +86,30 @@ const ConfigurationMarges: React.FC = () => {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Erreur lors de la sauvegarde');
       }
-      const saved = await res.json();
-      setConfig(saved);
-      setMessage('Configuration enregistrée');
+      const data = await res.json().catch(() => null);
+      // backend now returns { saved, jobId } when a recompute job is started
+      const savedCfg = data && data.saved ? data.saved : data;
+      const returnedJobId = data && data.jobId ? data.jobId : null;
+      setConfig(savedCfg);
+      if (returnedJobId) {
+        setMessage('Configuration enregistrée. Recalcul automatique lancé.');
+        setJobId(returnedJobId);
+        setJobStatus('RUNNING');
+        setShowRecompute(false);
+        startPollingJob(returnedJobId);
+      } else {
+        // Only show the recompute button after a successful modification (PUT)
+        if (method === 'PUT') {
+          setShowRecompute(true);
+          setMessage('Modification enregistrée. Vous pouvez cliquer sur "Recalculer maintenant" pour appliquer les changements.');
+        } else {
+          // creation: do not show recompute button automatically
+          setShowRecompute(false);
+          setMessage('Configuration créée. Les changements ne sont pas appliqués automatiquement — utilisez le bouton Recalculer après modification.');
+        }
+      }
       setEditing(false);
-      setTimeout(() => setMessage(''), 3000);
+      setTimeout(() => setMessage(''), 6000);
     } catch (err: any) {
       setMessage(err.message || 'Erreur');
     }
@@ -100,6 +128,84 @@ const ConfigurationMarges: React.FC = () => {
       setMessage(err.message || 'Erreur');
     }
   };
+
+  const handleRecomputeNow = async () => {
+    if (!isAllowed || !config) return;
+    try {
+      const token = localStorage.getItem('smb_token');
+      const res = await fetch(`http://localhost:8085/api/configuration-marge/boutique/${currentBoutique!.id}/recompute-job`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      if (res.status !== 202 && !res.ok) throw new Error('Impossible de lancer le job de recalcul');
+      const data = await res.json().catch(() => null);
+      const jid = data && data.jobId ? data.jobId : null;
+      if (jid) {
+        setJobId(jid);
+        setJobStatus('RUNNING');
+        setShowRecompute(false);
+        setMessage('Recalcul des marges lancé...');
+        startPollingJob(jid);
+      }
+    } catch (err: any) {
+      setMessage(err.message || 'Erreur');
+    }
+  };
+
+  const handleViewJob = async (jid: string) => {
+    if (!jid) return;
+    const token = localStorage.getItem('smb_token');
+    try {
+      const res = await fetch(`http://localhost:8085/api/configuration-marge/job/${jid}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401) { setMessage('Non autorisé (token invalide)'); return; }
+      if (res.status === 404) { setMessage('Job introuvable'); return; }
+      if (!res.ok) { setMessage('Impossible de récupérer le job'); return; }
+      const data = await res.json();
+      setJobDetails(data);
+      setShowJobModal(true);
+    } catch (e) {
+      setMessage('Erreur de récupération du job');
+    }
+  };
+
+  const startPollingJob = (jid: string) => {
+    if (jobTimer.current) clearInterval(jobTimer.current);
+    jobTimer.current = setInterval(async () => {
+      try {
+        const token = localStorage.getItem('smb_token');
+        const res = await fetch(`http://localhost:8085/api/configuration-marge/job/${jid}`, { headers: { Authorization: `Bearer ${token}` } });
+        // stop polling on unauthorized or not found
+        if (res.status === 401) {
+          clearInterval(jobTimer.current); jobTimer.current = null; setMessage('Non autorisé (token invalide)'); setJobId(null); setJobStatus(null); return;
+        }
+        if (res.status === 404) {
+          clearInterval(jobTimer.current); jobTimer.current = null; setMessage('Job introuvable'); setJobId(null); setJobStatus(null); return;
+        }
+        if (!res.ok) return; // ignore temporary failures
+        const data = await res.json().catch(() => null);
+        if (!data) return;
+        setJobStatus(data.status);
+        setJobUpdatedCount(data.updatedCount ?? null);
+        if (data.status === 'DONE' || data.status === 'FAILED') {
+          clearInterval(jobTimer.current);
+          jobTimer.current = null;
+          if (data.status === 'DONE') {
+            setMessage(`Recalcul terminé : ${data.updatedCount} produits mis à jour`);
+          } else {
+            setMessage(`Erreur pendant le recalcul : ${data.error || 'inconnue'}`);
+          }
+          // clear job after short delay and re-enable recompute button
+          setTimeout(() => { setJobId(null); setJobStatus(null); setJobUpdatedCount(null); setShowRecompute(true); }, 4000);
+        }
+      } catch (e) {
+        // ignore
+      }
+    }, 2000);
+  };
+
+  React.useEffect(() => {
+    return () => {
+      if (jobTimer.current) clearInterval(jobTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!currentBoutique) return <div className="alert alert-warning">Aucune boutique sélectionnée.</div>;
 
@@ -133,10 +239,31 @@ const ConfigurationMarges: React.FC = () => {
                 <p><strong>Valeur gros:</strong> {config.valeurGros}</p>
                 <p><strong>Marge minimale détail (fixe):</strong> {config.margeMinimaleDetail ?? 0}</p>
                 <p><strong>Marge minimale gros (fixe):</strong> {config.margeMinimaleGros ?? 0}</p>
+
+                {/* Banner / spinner while job running */}
+                {jobStatus === 'RUNNING' && (
+                  <div className="alert alert-info d-flex align-items-center" role="status">
+                    <div className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
+                    Recalcul des marges en cours...
+                  </div>
+                )}
+
+                {/* Small inline result messages */}
+                {jobStatus === 'DONE' && (
+                  <div className="alert alert-success">Recalcul terminé : {jobUpdatedCount ?? 0} produits mis à jour</div>
+                )}
+                {jobStatus === 'FAILED' && (
+                  <div className="alert alert-danger">Erreur lors du recalcul des marges</div>
+                )}
+
                 {isAllowed && (
                   <div>
                     <button className="btn btn-sm btn-primary me-2" onClick={() => setEditing(true)}>Modifier</button>
-                    <button className="btn btn-sm btn-danger" onClick={handleDelete}>Supprimer</button>
+                    <button className="btn btn-sm btn-danger me-2" onClick={handleDelete}>Supprimer</button>
+                    {showRecompute && (
+                      <button className="btn btn-sm btn-secondary me-2" onClick={handleRecomputeNow}>Recalculer maintenant</button>
+                    )}
+                    {jobId && <button className="btn btn-sm btn-link" onClick={() => handleViewJob(jobId)}>Voir le job</button>}
                   </div>
                 )}
               </div>
@@ -177,6 +304,27 @@ const ConfigurationMarges: React.FC = () => {
             )}
           </div>
         )}
+      {showJobModal && (
+        <>
+          <div className="modal-backdrop fade show"></div>
+          <div className="modal d-block" tabIndex={-1} role="dialog">
+            <div className="modal-dialog modal-lg" role="document">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Détail du job {jobDetails?.jobId}</h5>
+                  <button type="button" className="btn-close" onClick={() => setShowJobModal(false)} aria-label="Close"></button>
+                </div>
+                <div className="modal-body">
+                  <pre style={{whiteSpace: 'pre-wrap'}}>{JSON.stringify(jobDetails, null, 2)}</pre>
+                </div>
+                <div className="modal-footer">
+                  <button className="btn btn-secondary" onClick={() => setShowJobModal(false)}>Fermer</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
       </div>
     </div>
   );

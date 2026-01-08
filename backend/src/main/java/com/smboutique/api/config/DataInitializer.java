@@ -193,6 +193,10 @@ public class DataInitializer implements CommandLineRunner {
             {"RAPPORT_LECTURE", "Permission pour lire les rapports"},
             {"RAPPORT_CREER", "Permission pour créer des rapports"},
 
+            // Documents
+            {"DOCUMENTS_VOIR", "Permission pour voir les documents"},
+            {"DOCUMENTS_TELECHARGER", "Permission pour télécharger les documents"},
+
             // Paramètres / Configuration
 //            {"PARAMETRES_LECTURE", "Permission pour lire les paramètres"},
 //            {"PARAMETRES_MODIFIER", "Permission pour modifier les paramètres"},
@@ -273,7 +277,7 @@ public class DataInitializer implements CommandLineRunner {
                 "VENTE_LECTURE", "VENTE_CREER", "VENTE_MODIFIER", "VENTE_SUPPRIMER",
                 "INVENTAIRE_LECTURE", "INVENTAIRE_CREER", "INVENTAIRE_MODIFIER", "INVENTAIRE_REGULARISER", "INVENTAIRE_SUPPRIMER",
                 "FOURNISSEUR_LECTURE", "FOURNISSEUR_CREER", "FOURNISSEUR_MODIFIER", "FOURNISSEUR_SUPPRIMER",
-                "RAPPORT_LECTURE", "RAPPORT_CREER",
+                "RAPPORT_LECTURE", "RAPPORT_CREER", "DOCUMENTS_VOIR", "DOCUMENTS_TELECHARGER",
                 // Transferts
                 "TRANSFERT_VOIR", "TRANSFERT_LECTURE", "TRANSFERT_CREER",
                 // Dépenses
@@ -287,7 +291,7 @@ public class DataInitializer implements CommandLineRunner {
                 "CLIENT_LECTURE", "CLIENT_CREER", "CLIENT_MODIFIER",
                 "VENTE_LECTURE", "VENTE_CREER", "VENTE_MODIFIER",
                 "INVENTAIRE_LECTURE", "INVENTAIRE_MODIFIER", "INVENTAIRE_REGULARISER",
-                "FOURNISSEUR_LECTURE"
+                "FOURNISSEUR_LECTURE", "DOCUMENTS_VOIR"
             });
 
             createRole("STOREKEEPER", "Magasinier", new String[]{
@@ -346,6 +350,34 @@ public class DataInitializer implements CommandLineRunner {
                         managerRole.getPermissions().add(actPerm);
                         roleRepository.save(managerRole);
                         logger.info("Added UTILISATEUR_ACTIVER_DESACTIVER to MANAGER role");
+                    }
+                });
+            });
+
+            // Ensure DOCUMENTS permissions are assigned to appropriate roles when roles already exist
+            permissionRepository.findByName("DOCUMENTS_VOIR").ifPresent(docViewPerm -> {
+                roleRepository.findByName("ADMIN").ifPresent(adminRole -> {
+                    if (!adminRole.getPermissions().contains(docViewPerm)) {
+                        adminRole.getPermissions().add(docViewPerm);
+                        roleRepository.save(adminRole);
+                        logger.info("Added DOCUMENTS_VOIR to ADMIN role");
+                    }
+                });
+                roleRepository.findByName("MANAGER").ifPresent(managerRole -> {
+                    if (!managerRole.getPermissions().contains(docViewPerm)) {
+                        managerRole.getPermissions().add(docViewPerm);
+                        roleRepository.save(managerRole);
+                        logger.info("Added DOCUMENTS_VOIR to MANAGER role");
+                    }
+                });
+            });
+
+            permissionRepository.findByName("DOCUMENTS_TELECHARGER").ifPresent(docDownloadPerm -> {
+                roleRepository.findByName("ADMIN").ifPresent(adminRole -> {
+                    if (!adminRole.getPermissions().contains(docDownloadPerm)) {
+                        adminRole.getPermissions().add(docDownloadPerm);
+                        roleRepository.save(adminRole);
+                        logger.info("Added DOCUMENTS_TELECHARGER to ADMIN role");
                     }
                 });
             });

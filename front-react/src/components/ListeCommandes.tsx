@@ -113,7 +113,8 @@ const ListeCommandes: React.FC = () => {
             pourcentage_recu: pourcentage_recu,
             pourcentage_paye: pourcentage_paye,
             total: total,
-            paie: paie
+            paie: paie,
+            isVente: true
           };
         }
 
@@ -127,7 +128,8 @@ const ListeCommandes: React.FC = () => {
           pourcentage_paye: cmd.pourcentagePaye || 0,
           total: cmd.total || 0,
           // normalize paie field (DTO or entity)
-          paie: cmd.montantPaye != null ? cmd.montantPaye : (cmd.paie != null ? cmd.paie : 0)
+          paie: cmd.montantPaye != null ? cmd.montantPaye : (cmd.paie != null ? cmd.paie : 0),
+          isVente: false
         };
       });
 
@@ -152,19 +154,22 @@ const ListeCommandes: React.FC = () => {
     }
 
     const receptionLabel = isVenteMode ? 'Livraison' : 'Réception';
+    const viewLabel = ((selectedCommande as any).isVente === true) ? 'Voir la commande (Vente)' : 'Voir la commande (Fournisseur)';
+    const printLabel = ((selectedCommande as any).isVente === true) ? 'Imprimer (Vente)' : 'Imprimer (Fournisseur)';
+    const paymentLabel = ((selectedCommande as any).isVente === true) ? 'Paiement (Vente)' : 'Paiement (Fournisseur)';
 
     Swal.fire({
       title: `Actions pour ${selectedCommande.reference}`,
       html: `
         <div class="text-center">
           <button class="btn btn-primary w-100 my-2" onclick="window.handleActionFromSwal('view')">
-            <i class="bx bx-show me-2"></i> Voir la commande
+            <i class="bx bx-show me-2"></i> ${viewLabel}
           </button>
           <button class="btn btn-secondary w-100 my-2" onclick="window.handleActionFromSwal('print')">
-            <i class="bx bx-printer me-2"></i> Imprimer
+            <i class="bx bx-printer me-2"></i> ${printLabel}
           </button>
           <button class="btn btn-info w-100 my-2 ${!canPayment ? 'disabled' : ''}" onclick="window.handleActionFromSwal('payment')" ${!canPayment ? 'disabled' : ''}>
-            <i class="bx bx-credit-card me-2"></i> Paiement
+            <i class="bx bx-credit-card me-2"></i> ${paymentLabel}
           </button>
           <button class="btn btn-warning w-100 my-2 ${!canReception ? 'disabled' : ''}" onclick="window.handleActionFromSwal('reception')" ${!canReception ? 'disabled' : ''}>
             <i class="bx bx-box me-2"></i> ${receptionLabel}
@@ -200,22 +205,25 @@ const ListeCommandes: React.FC = () => {
   const handleAction = (action: string) => {
     if (!selectedCommande) return;
 
+    const isVenteItem = (selectedCommande as any).isVente === true;
+
     switch (action) {
       case 'view':
-        const viewPath = isVenteMode ? `/ventes/appercu/${selectedCommande.id_commande_fournisseur}` : `/commandes/appercu/${selectedCommande.id_commande_fournisseur}`;
+        // Decide view path based on the actual item type (vente vs fournisseur)
+        const viewPath = isVenteItem ? `/commandes-clients/appercu/${selectedCommande.id_commande_fournisseur}` : `/commandes/appercu/${selectedCommande.id_commande_fournisseur}`;
         navigate(viewPath);
         break;
       case 'print':
-        openCommandePdf(selectedCommande.id_commande_fournisseur);
+        openCommandePdf(selectedCommande.id_commande_fournisseur, isVenteItem);
         break;
       case 'payment':
         if (!canPayment) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de gérer les paiements', 'error'); return; }
-        // If we are in vente mode, include ?mode=vente so the paiement component loads client-mode
-        navigate(`/commandes/paiement/${selectedCommande.id_commande_fournisseur}${isVenteMode ? '?mode=vente' : ''}`);
+        // If the item is a vente, include ?mode=vente so the paiement component loads client-mode
+        navigate(`/commandes/paiement/${selectedCommande.id_commande_fournisseur}${isVenteItem ? '?mode=vente' : ''}`);
         break;
       case 'reception':
         if (!canReception) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de gérer les réceptions', 'error'); return; }
-        if (isVenteMode) {
+        if (isVenteItem) {
           navigate(`/ventes/livraisons?venteId=${selectedCommande.id_commande_fournisseur}`);
         } else {
           navigate(`/commandes/reception/${selectedCommande.id_commande_fournisseur}`);
@@ -226,7 +234,7 @@ const ListeCommandes: React.FC = () => {
         if (selectedCommande.pourcentage_recu > 0) {
           Swal.fire('Erreur', 'Impossible de modifier une commande déjà réceptionnée', 'error');
         } else {
-          const modPath = isVenteMode ? `/ventes/update/${selectedCommande.id_commande_fournisseur}` : `/commandes/update/${selectedCommande.id_commande_fournisseur}`;
+          const modPath = isVenteItem ? `/ventes/update/${selectedCommande.id_commande_fournisseur}` : `/commandes/update/${selectedCommande.id_commande_fournisseur}`;
           navigate(modPath);
         }
         break;
@@ -235,7 +243,7 @@ const ListeCommandes: React.FC = () => {
         if (selectedCommande.pourcentage_recu > 0) {
           Swal.fire('Erreur', 'Impossible de supprimer une commande déjà réceptionnée', 'error');
         } else {
-          handleDelete(selectedCommande.id_commande_fournisseur);
+          handleDelete(selectedCommande.id_commande_fournisseur, isVenteItem);
         }
         break;
     }
@@ -253,7 +261,7 @@ const ListeCommandes: React.FC = () => {
     }
   };
 
-  const openCommandePdf = async (commandeId: number) => {
+  const openCommandePdf = async (commandeId: number, isVenteItem?: boolean) => {
     try {
       const token = localStorage.getItem('smb_token');
       if (!token || isJwtExpired(token)) {
@@ -261,34 +269,52 @@ const ListeCommandes: React.FC = () => {
         try { logout(); } catch(e) {}
         return;
       }
-      const path = isVenteMode ? 'commandes-clients' : 'commandes-fournisseurs';
-      const res = await fetch(`http://localhost:8085/api/${path}/${commandeId}/pdf`, {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${token}` }
-      });
 
-      if (res.status === 401) {
-        const body = await res.text().catch(() => '');
-        console.debug('openCommandePdf unauthorized', { status: res.status, body });
-        Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la page de connexion.', 'error');
-        try { logout(); } catch(e) {}
-        return;
+      // decide which endpoint to try based on the explicit item type if provided
+      const ventePreferred = (typeof isVenteItem === 'boolean') ? isVenteItem : isVenteMode;
+      const tryPaths = ventePreferred
+        ? [`http://localhost:8085/api/ventes/${commandeId}/pdf`, `http://localhost:8085/api/commandes-clients/${commandeId}/pdf`]
+        : [`http://localhost:8085/api/commandes-fournisseurs/${commandeId}/pdf`, `http://localhost:8085/api/commandes-clients/${commandeId}/pdf`];
+
+      let lastErr: any = null;
+      for (const p of tryPaths) {
+        try {
+          const res = await fetch(p, {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${token}` }
+          });
+
+          if (res.status === 401) {
+            const body = await res.text().catch(() => '');
+            console.debug('openCommandePdf unauthorized', { status: res.status, body });
+            Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la page de connexion.', 'error');
+            try { logout(); } catch(e) {}
+            return;
+          }
+
+          if (res.ok) {
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            return;
+          } else {
+            const text = await res.text().catch(() => '');
+            lastErr = `${p} -> ${res.status} ${res.statusText}: ${text}`;
+            console.debug('openCommandePdf error', { status: res.status, statusText: res.statusText, body: text });
+          }
+        } catch (e: any) {
+          lastErr = e.message || e;
+          console.debug('openCommandePdf fetch error', lastErr);
+        }
       }
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        console.debug('openCommandePdf error', { status: res.status, statusText: res.statusText, body: text });
-        throw new Error(`${res.status} ${res.statusText}: ${text}`);
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      Swal.fire('Erreur', `Impossible de charger le PDF. Détails: ${lastErr}`, 'error');
     } catch (err: any) {
       Swal.fire('Erreur', err.message || 'Erreur lors du téléchargement du PDF', 'error');
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number, isVenteItem?: boolean) => {
     const result = await Swal.fire({
       title: 'Êtes-vous sûr ?',
       text: 'Cette action est irréversible.',
@@ -303,7 +329,7 @@ const ListeCommandes: React.FC = () => {
     if (result.isConfirmed) {
       try {
         const token = localStorage.getItem('smb_token');
-        const path = isVenteMode ? 'commandes-clients' : 'commandes-fournisseurs';
+        const path = (typeof isVenteItem === 'boolean') ? (isVenteItem ? 'commandes-clients' : 'commandes-fournisseurs') : (isVenteMode ? 'commandes-clients' : 'commandes-fournisseurs');
         const res = await fetch(`http://localhost:8085/api/${path}/${id}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }

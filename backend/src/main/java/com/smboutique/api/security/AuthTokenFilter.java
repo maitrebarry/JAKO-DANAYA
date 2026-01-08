@@ -68,12 +68,23 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                     // Log successful authentication for diagnostics (do not log full token)
                     String shortToken = jwt.length() > 10 ? jwt.substring(0,10) + "..." : jwt;
                     log.info("Authenticated request {} {} - user={} - tokenStartsWith={}", request.getMethod(), request.getRequestURI(), username, shortToken);
+                    try {
+                        // Show granted authorities for debugging (no sensitive data)
+                        java.util.Collection<?> auths = userDetails.getAuthorities();
+                        log.debug("User {} authorities: {}", username, auths);
+                    } catch (Exception ignore) {}
                 } else {
                     String shortToken = jwt.length() > 10 ? jwt.substring(0,10) + "..." : jwt;
                     log.warn("JWT validation failed for request {} {} - tokenStartsWith={} - reason={}", request.getMethod(), request.getRequestURI(), shortToken, reason);
                 }
             } else {
-                logger.debug("Authorization header missing or not a Bearer token for request " + request.getMethod() + " " + request.getRequestURI());
+                // If a document endpoint is requested without a Bearer header, log at WARN to help diagnose 401s seen by users
+                String uri = request.getRequestURI();
+                if ((uri != null && uri.startsWith("/api/documents")) && (headerAuth == null || !headerAuth.startsWith("Bearer ")) && !"OPTIONS".equalsIgnoreCase(request.getMethod())) {
+                    log.warn("Document endpoint requested without Bearer Authorization header: {} {}", request.getMethod(), uri);
+                } else {
+                    logger.debug("Authorization header missing or not a Bearer token for request " + request.getMethod() + " " + uri);
+                }
             }
         } catch (Exception e) {
             logger.error("Cannot set user authentication", e);

@@ -65,6 +65,60 @@ public class CommandeClientController {
                 .orElseThrow(() -> new RuntimeException("Utilisateur authentifié introuvable"));
     }
 
+    // Parse a flexible set of datetime formats and preserve client's wall time when an offset is present
+    private java.time.LocalDateTime parseToLocalDateTime(String dt) {
+        if (dt == null) return null;
+        logger.debug("Parsing datetime string: {}", dt);
+        // If string has offset but lacks seconds (e.g. 2026-01-08T13:50+00:00), insert seconds for OffsetDateTime parsing
+        if (dt.matches(".*T\\d{2}:\\d{2}(?:[+-].*|Z)$") && !dt.matches(".*T\\d{2}:\\d{2}:\\d{2}.*")) {
+            String norm = dt.replaceAll("T(\\d{2}:\\d{2})(?=[Z+-])", "T$1:00");
+            logger.debug("Normalized offset datetime to: {}", norm);
+            try {
+                return java.time.OffsetDateTime.parse(norm).toLocalDateTime();
+            } catch (Exception e) {
+                logger.debug("OffsetDateTime.parse(normalized) failed: {}", e.getMessage());
+            }
+        }
+
+        try {
+            // Try standard OffsetDateTime first (handles strings with offsets and seconds)
+            return java.time.OffsetDateTime.parse(dt).toLocalDateTime();
+        } catch (Exception e) {
+            logger.debug("OffsetDateTime.parse failed: {}", e.getMessage());
+        }
+
+        // Build a flexible formatter that accepts optional seconds and optional offset
+        try {
+            java.time.format.DateTimeFormatter formatter = new java.time.format.DateTimeFormatterBuilder()
+                    .appendPattern("yyyy-MM-dd'T'HH:mm")
+                    .optionalStart().appendPattern(":ss").optionalEnd()
+                    .optionalStart().appendOffset("ZZZZZ","Z").optionalEnd()
+                    .toFormatter();
+            java.time.temporal.TemporalAccessor ta = formatter.parse(dt);
+            if (ta.isSupported(java.time.temporal.ChronoField.OFFSET_SECONDS)) {
+                return java.time.OffsetDateTime.from(ta).toLocalDateTime();
+            } else {
+                return java.time.LocalDateTime.from(ta);
+            }
+        } catch (Exception e) {
+            logger.debug("Formatter parse failed: {}", e.getMessage());
+        }
+
+        // fallback to common patterns
+        try {
+            return java.time.LocalDateTime.parse(dt);
+        } catch (Exception e) {
+            logger.debug("LocalDateTime.parse(dt) failed: {}", e.getMessage());
+        }
+        try {
+            java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            return java.time.LocalDateTime.parse(dt.replace('T',' '), fmt);
+        } catch (Exception e) {
+            logger.debug("Fallback fmt parse failed: {}", e.getMessage());
+        }
+        return null;
+    }
+
     private boolean isSuperAdmin(com.smboutique.api.model.Utilisateur user) {
         if (user == null) return false;
         return user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
@@ -117,6 +171,23 @@ public class CommandeClientController {
                 if (!ok) { response.sendError(404); return; }
             }
             pdfService.writeCommandeClientPdf(id, response);
+            try {
+                Long userId = null;
+                try {
+                    var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                    if (auth != null && auth.getName() != null) {
+                        var u = utilisateurService.findByEmail(auth.getName()).orElse(null);
+                        if (u != null) userId = u.getId();
+                    }
+                } catch (Exception ignore) {}
+                var copt = commandeClientService.findById(id);
+                if (copt.isPresent()) {
+                    var c = copt.get();
+                    Long boutiqueId = c.getBoutique() != null ? c.getBoutique().getId() : null;
+                    Double montant = c.getTotal() != null ? Double.valueOf(c.getTotal()) : null;
+                    mouvementService.log("DOCUMENT", "COMMANDE_CLIENT_PDF", "Génération PDF - COMMANDE CLIENT", id, boutiqueId, null, userId, montant);
+                }
+            } catch (Exception ignore) {}
         } catch (Exception e) {
             try { response.sendError(500, e.getMessage()); } catch (java.io.IOException ex) { /* ignore */ }
         }
@@ -138,10 +209,23 @@ public class CommandeClientController {
         return commandeClientService.findById(id)
                 .map(commandeClient -> {
                     try {
+                        logger.info("Update commande payload for id {}: {}", id, payload);
                         if (payload.containsKey("reference")) commandeClient.setReference((String) payload.get("reference"));
                         if (payload.containsKey("dateCommande") || payload.containsKey("dateVente")) {
                             String dt = payload.containsKey("dateCommande") ? (String) payload.get("dateCommande") : (String) payload.get("dateVente");
-                            if (dt != null) commandeClient.setDateCommande(java.time.LocalDateTime.parse(dt));
+                            if (dt != null) {
+                                java.time.LocalDateTime parsed = parseToLocalDateTime(dt);
+                                if (parsed != null) {
+                                    commandeClient.setDateCommande(parsed);
+                                } else {
+                                    logger.warn("Could not parse dateCommande '{}' for commande id {}", dt, commandeClient.getId());
+                                }
+                            }
+
+                        // helper to parse flexible date formats
+                        // (placed here to keep change minimal; a shared util is preferable)
+                        
+                        // end mapping
                         }
                         if (payload.containsKey("total")) commandeClient.setTotal(((Number) payload.get("total")).intValue());
                         if (payload.containsKey("paie")) commandeClient.setPaie(((Number) payload.get("paie")).intValue());
@@ -247,6 +331,7 @@ public class CommandeClientController {
                         } catch (Exception e) { /* ignore logging errors */ }
                         return ResponseEntity.ok(saved);
                     } catch (Exception ex) {
+                        logger.error("Error while updating commande id {} with payload {}", id, payload, ex);
                         return ResponseEntity.status(500).body(ex.getMessage());
                     }
                 })

@@ -4,7 +4,7 @@ import Swal from 'sweetalert2';
 import { formatServerDate } from '../utils/date';
 // import SearchableSelect from './SearchableSelect';
 
-interface Ligne { id: number; stockId: number; nom: string; quantite: number; prix: number; montant: number; quantiteConditionnement?: number | null; multiplicateur?: number | null; quantiteDisplay?: number | null; unitLabel?: string | null; }
+interface Ligne { id: number; stockId: number; nom: string; quantite: number; prix: number; montant: number; quantiteConditionnement?: number | null; multiplicateur?: number | null; quantiteDisplay?: number | null; unitLabel?: string | null; qLabel?: string | null; }
 const CommandeApercu: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -15,6 +15,8 @@ const CommandeApercu: React.FC = () => {
 
   // Detect ventes mode (legacy). If route is for vente, redirect to the dedicated vente apercu.
   const isVenteMode = window.location.pathname && window.location.pathname.includes('/ventes');
+  // Detect commandes-clients preview route so we can apply the client-specific quantity display rule
+  const isClientCommande = window.location.pathname && window.location.pathname.includes('/commandes-clients');
 
   useEffect(() => {
     (async () => {
@@ -51,10 +53,28 @@ const CommandeApercu: React.FC = () => {
               const quantiteDisplay = qCond ? qCond : (l.quantite || 0);
               const unitLabel = (l.unite && (l.unite.symbole || l.unite.libelle)) ? (l.unite.symbole ?? l.unite.libelle) : (stockInfo?.produit?.unite?.symbole ?? stockInfo?.produit?.unite?.libelle ?? (l.produit && (l.produit.unite?.symbole || l.produit.unite?.libelle) ? (l.produit.unite.symbole ?? l.produit.unite.libelle) : 'unité'));
 
+              // compute qLabel using same simplified rule as client preview
+              let qLabel: string;
+              if (qCond !== null && qCond !== undefined) {
+                qLabel = `${qCond} ${unitLabel ?? 'carton'}`;
+              } else {
+                const qty = l.quantite || 0;
+                if (qty === 1) {
+                  qLabel = `1 ${unitLabel ?? 'U'}`;
+                } else if (mul && mul > 1 && qty >= mul) {
+                  const boxes = Math.floor(qty / mul);
+                  const rem = qty % mul;
+                  if (boxes > 0 && rem > 0) qLabel = `${boxes} ${unitLabel ?? 'carton'} + ${rem} U`;
+                  else if (boxes > 0) qLabel = `${boxes} ${unitLabel ?? 'carton'}`;
+                  else qLabel = `${rem} U`;
+                } else {
+                  qLabel = `${qty} U`;
+                }
+              }
 
               // Keep product name as main label; unit shown beside it in the UI
               const displayNom = nom;
-              return { id: l.id, stockId, nom: displayNom, quantite: quantiteUnits, quantiteConditionnement: qCond, multiplicateur: mul, quantiteDisplay, prix, montant: prix * quantiteUnits, unitLabel } as any;
+              return { id: l.id, stockId, nom: displayNom, quantite: quantiteUnits, quantiteConditionnement: qCond, multiplicateur: mul, quantiteDisplay, prix, montant: prix * quantiteUnits, unitLabel, qLabel } as any;
             });
             setLignes(computed as any);
           }
@@ -124,7 +144,7 @@ const CommandeApercu: React.FC = () => {
         <div className="card-body">
               <div className="mb-3 d-flex justify-content-between">
             <div>
-              <button className="btn btn-secondary me-2" onClick={() => navigate(isVenteMode ? '/liste-commandes?mode=vente' : '/liste-commandes')}><i className="ri-arrow-left-line"></i></button>
+              <button className="btn btn-secondary me-2" onClick={() => navigate(isVenteMode ? '/ventes' : '/commande-fournisseur')}><i className="ri-arrow-left-line"></i></button>
               <button className="btn btn-primary me-2" onClick={() => openPdfPrint(commande.id)}>Imprimer</button>
               <button className="btn btn-outline-secondary" onClick={() => navigate(isVenteMode ? `/ventes/update/${commande.id}` : `/commandes/update/${commande.id}`)}>
                 Modifier
@@ -157,7 +177,7 @@ const CommandeApercu: React.FC = () => {
                               })()
                             ) : null}
                           </td>
-                          <td>{((l.quantiteConditionnement && l.quantiteConditionnement > 0) || (l.multiplicateur && l.multiplicateur > 1 && l.quantite % l.multiplicateur === 0)) ? `${(l.quantiteConditionnement && l.quantiteConditionnement > 0) ? l.quantiteConditionnement : (l.quantite / (l.multiplicateur || 1))} ${l.unitLabel ?? 'unité'}` : `${l.quantite} ${l.unitLabel ?? 'unité'}`}</td>
+                          <td>{l.qLabel}</td> 
                           <td>{l.prix}</td>
                           <td>{(l.montant).toFixed(2)}</td>
                         </tr>
@@ -171,42 +191,52 @@ const CommandeApercu: React.FC = () => {
                 </div>
               </div>
 
-              <div className="card mt-3">
-                <div className="card-body">
-                  <div className="row">
-                    <div className="col-xl-3 col-md-6">
-                      <div className="form-group">
-                        <label>Rémise</label>
-                        <input className="form-control" value={commande?.remise ?? 0} readOnly />
+{isVenteMode ? (
+              <>
+                <div className="card mt-3">
+                  <div className="card-body">
+                    <div className="row">
+                      <div className="col-xl-3 col-md-6">
+                        <div className="form-group">
+                          <label>Rémise</label>
+                          <input className="form-control" value={commande?.remise ?? 0} readOnly />
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-xl-3 col-md-6">
-                      <div className="form-group">
-                        <label>Net à payer</label>
-                        <input className="form-control" value={isVenteMode ? (commande?.netAPayer ?? 0) : (commande?.netAPayer ?? 0)} readOnly />
+                      <div className="col-xl-3 col-md-6">
+                        <div className="form-group">
+                          <label>Net à payer</label>
+                          <input className="form-control" value={commande?.netAPayer ?? 0} readOnly />
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-xl-3 col-md-6">
-                      <div className="form-group">
-                        <label>Montant reçu</label>
-                        <input type="number" className="form-control" defaultValue={commande?.montantRecu ?? 0} />
+                      <div className="col-xl-3 col-md-6">
+                        <div className="form-group">
+                          <label>Montant reçu</label>
+                          <input type="number" className="form-control" defaultValue={commande?.montantRecu ?? 0} />
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-xl-3 col-md-6">
-                      <div className="form-group">
-                        <label>Monnaie à rembourser</label>
-                        <input className="form-control" value={commande?.monnaieRembourse ?? 0} readOnly />
+                      <div className="col-xl-3 col-md-6">
+                        <div className="form-group">
+                          <label>Monnaie à rembourser</label>
+                          <input className="form-control" value={commande?.monnaieRembourse ?? 0} readOnly />
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
+                <div className="col-xl-12 col-md-10 col-xs-12 mt-3">
+                  <div className="form-group">
+                    <a href="/ventes/especes" className="btn btn-info form-control">Liste des ventes réalisées</a>
+                  </div>
+                </div>
+              </>
+            ) : (
               <div className="col-xl-12 col-md-10 col-xs-12 mt-3">
                 <div className="form-group">
-                  <a href="/ventes/especes" className="btn btn-info form-control">Liste des ventes réalisées</a>
+                  <button className="btn btn-info form-control" onClick={() => navigate('/commande-fournisseur')}>Liste des commandes fournisseur</button>
                 </div>
               </div>
+            )}
 
             </div>
             <div className="col-xl-4">

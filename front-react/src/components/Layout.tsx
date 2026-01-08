@@ -237,6 +237,9 @@ const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
     depense: hasAnyPermission(['DEPENSE_LECTURE']),
     // utilisations/pertes: visible to users with relevant permissions or owner/SUPERADMIN
     utilisations: (hasAnyPermission(['UTILISA_PERTE_CREER','UTILISA_PERTE_VOIR','UTILISA_PERTE_MODIFIER','UTILISA_PERTE_SUPPRIMER']) || isOwner || isSuperAdminRole),
+    // documents: generated on demand
+    documents: hasAnyPermission(['DOCUMENTS_VOIR']),
+    rapports: hasAnyPermission(['RAPPORT_LECTURE']),
     // configuration: visible only if explicit CONFIGURATION_VOIR permission OR owner OR SUPERADMIN
     configuration: (hasAnyPermission(['CONFIGURATION_VOIR']) || isOwner || isSuperAdminRole),
   };
@@ -380,6 +383,32 @@ const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
                   <span>Historique</span>
                 </Link>
               </li>
+            </ul>
+          </li>
+          )}
+
+          {(can.documents || can.rapports) && (
+          <li className="side-nav-item">
+            <a className="side-nav-link" data-bs-target="#documents-nav" data-bs-toggle="collapse" href="#">
+              <span className="menu-icon"><i className="ti ti-file-text"></i></span>
+              <span className="menu-text">Documents/Rapports</span>
+              <i className="ti ti-chevron-down ms-auto"></i>
+            </a>
+            <ul id="documents-nav" className="collapse" data-bs-parent="#sidebar-nav">
+              {can.documents && (
+              <li>
+                <Link to="/documents" className="side-nav-link" style={{ paddingLeft: '40px' }}>
+                  <span>Documents</span>
+                </Link>
+              </li>
+              )}
+              {can.rapports && (
+              <li>
+                <Link to="/rapports" className="side-nav-link" style={{ paddingLeft: '40px' }}>
+                  <span>Rapports</span>
+                </Link>
+              </li>
+              )}
             </ul>
           </li>
           )}

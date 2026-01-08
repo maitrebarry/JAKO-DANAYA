@@ -22,6 +22,9 @@ public class PaiementClientController {
     private com.smboutique.api.service.PdfService pdfService;
 
     @Autowired
+    private com.smboutique.api.service.MouvementService mouvementService;
+
+    @Autowired
     private com.smboutique.api.service.UtilisateurService utilisateurService;
 
     @Autowired
@@ -52,6 +55,23 @@ public class PaiementClientController {
     public void getPaiementClientPdf(@PathVariable Long id, jakarta.servlet.http.HttpServletResponse response) {
         try {
             pdfService.writePaiementClientPdf(id, response);
+            try {
+                Long userId = null;
+                try {
+                    var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                    if (auth != null && auth.getName() != null) {
+                        var u = utilisateurService.findByEmail(auth.getName()).orElse(null);
+                        if (u != null) userId = u.getId();
+                    }
+                } catch (Exception ignore) {}
+                var popt = paiementClientService.findById(id);
+                if (popt.isPresent()) {
+                    var p = popt.get();
+                    Long boutiqueId = p.getCommandeClient() != null && p.getCommandeClient().getBoutique() != null ? p.getCommandeClient().getBoutique().getId() : null;
+                    Double montant = p.getMontantPaye() != null ? Double.valueOf(p.getMontantPaye()) : null;
+                    mouvementService.log("DOCUMENT", "PAIEMENT_CLIENT_PDF", "Génération PDF - PAIEMENT CLIENT", id, boutiqueId, null, userId, montant);
+                }
+            } catch (Exception ignore) {}
         } catch (Exception e) {
             try { response.sendError(500); } catch (Exception ignored) {}
         }

@@ -79,6 +79,31 @@ public class VenteController {
         return user.getPermissions().stream().anyMatch(p -> p.getName().equals(permissionName));
     }
 
+    // Parse a flexible set of datetime formats and preserve client's wall time when an offset is present
+    private java.time.LocalDateTime parseToLocalDateTime(String dt) {
+        if (dt == null) return null;
+        try {
+            return java.time.OffsetDateTime.parse(dt).toLocalDateTime();
+        } catch (Exception ignored) {}
+        try {
+            java.time.format.DateTimeFormatter formatter = new java.time.format.DateTimeFormatterBuilder()
+                    .appendPattern("yyyy-MM-dd'T'HH:mm")
+                    .optionalStart().appendPattern(":ss").optionalEnd()
+                    .optionalStart().appendOffset("ZZZZZ","Z").optionalEnd()
+                    .toFormatter();
+            java.time.temporal.TemporalAccessor ta = formatter.parse(dt);
+            if (ta.isSupported(java.time.temporal.ChronoField.OFFSET_SECONDS)) {
+                return java.time.OffsetDateTime.from(ta).toLocalDateTime();
+            } else {
+                return java.time.LocalDateTime.from(ta);
+            }
+        } catch (Exception ignored) {}
+
+        try { return java.time.LocalDateTime.parse(dt); } catch(Exception ignored) {}
+        try { java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"); return java.time.LocalDateTime.parse(dt.replace('T',' '), fmt); } catch(Exception ignored) {}
+        return null;
+    }
+
     @GetMapping
     public List<Vente> getAllVentes() {
         return venteService.findAll();
@@ -163,15 +188,9 @@ public class VenteController {
             if (request.dateVente == null) {
                 parsedDateCommande = java.time.LocalDateTime.now();
             } else {
-                try {
-                    parsedDateCommande = java.time.LocalDateTime.parse(request.dateVente);
-                } catch (java.time.format.DateTimeParseException ex1) {
-                    try {
-                        parsedDateCommande = java.time.OffsetDateTime.parse(request.dateVente).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
-                    } catch (java.time.format.DateTimeParseException ex2) {
-                        return ResponseEntity.badRequest().body(java.util.Map.of("error", "Date de commande invalide"));
-                    }
-                }
+                java.time.LocalDateTime p = parseToLocalDateTime(request.dateVente);
+                if (p == null) return ResponseEntity.badRequest().body(java.util.Map.of("error", "Date de commande invalide"));
+                parsedDateCommande = p;
             }
             cc.setDateCommande(parsedDateCommande);
             cc.setTotal(request.total == null ? 0 : request.total);
@@ -511,6 +530,23 @@ public class VenteController {
     public void getVentePdf(@PathVariable Long id, jakarta.servlet.http.HttpServletResponse response) {
         try {
             pdfService.writeVentePdf(id, response);
+            try {
+                Long userId = null;
+                try {
+                    var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                    if (auth != null && auth.getName() != null) {
+                        var u = utilisateurService.findByEmail(auth.getName()).orElse(null);
+                        if (u != null) userId = u.getId();
+                    }
+                } catch (Exception ignore) {}
+                var vopt = venteService.findById(id);
+                if (vopt.isPresent()) {
+                    var v = vopt.get();
+                    Long boutiqueId = v.getBoutique() != null ? v.getBoutique().getId() : null;
+                    Double montant = v.getMontantTotal() != null ? Double.valueOf(v.getMontantTotal()) : null;
+                    mouvementService.log("DOCUMENT", "VENTE_PDF", "Génération PDF - VENTE", id, boutiqueId, null, userId, montant);
+                }
+            } catch (Exception ignore) {}
         } catch (Exception e) {
             try { response.sendError(500); } catch (Exception ignored) {}
         }

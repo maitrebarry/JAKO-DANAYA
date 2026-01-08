@@ -37,6 +37,9 @@ public class DepenseController {
     @Autowired
     private com.smboutique.api.service.PdfService pdfService;
 
+    @Autowired
+    private com.smboutique.api.service.MouvementService mouvementService;
+
     private boolean isSuperAdmin(com.smboutique.api.model.Utilisateur user) {
         if (user == null) return false;
         return user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
@@ -274,6 +277,23 @@ public class DepenseController {
         if (!isSuper && !utilisateurService.hasPermission(user, "DEPENSE_LECTURE")) { response.sendError(403, "Permission DEPENSE_LECTURE requise"); return; }
 
         pdfService.writeDepensePdf(id, response);
+        try {
+            Long userId = null;
+            try {
+                var auth2 = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                if (auth2 != null && auth2.getName() != null) {
+                    var u = utilisateurService.findByEmail(auth2.getName()).orElse(null);
+                    if (u != null) userId = u.getId();
+                }
+            } catch (Exception ignore) {}
+            var dopt = depenseService.findById(id);
+            if (dopt.isPresent()) {
+                var dep = dopt.get();
+                Long boutiqueId = dep.getBoutiqueId();
+                Double montant = dep.getMontant() != null ? Double.valueOf(dep.getMontant()) : null;
+                mouvementService.log("DOCUMENT", "DEPENSE_PDF", "Génération PDF - DEPENSE", id, boutiqueId, null, userId, montant);
+            }
+        } catch (Exception ignore) {}
     }
 
     // --- Cancel ---

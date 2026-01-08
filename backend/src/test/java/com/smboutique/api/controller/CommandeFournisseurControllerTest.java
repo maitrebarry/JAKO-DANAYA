@@ -5,6 +5,7 @@ import com.smboutique.api.repository.LigneCommandeRepository;
 import com.smboutique.api.repository.CommandeFournisseurRepository;
 import com.smboutique.api.repository.StockRepository;
 import com.smboutique.api.service.*;
+import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -47,6 +48,12 @@ public class CommandeFournisseurControllerTest {
 
     @Mock
     private MouvementService mouvementService;
+
+    @Mock
+    private com.smboutique.api.service.PdfService pdfService;
+
+    @Mock
+    private HttpServletResponse response;
 
     @InjectMocks
     private com.smboutique.api.controller.CommandeFournisseurController commandeController;
@@ -207,5 +214,22 @@ public class CommandeFournisseurControllerTest {
         com.smboutique.api.dto.CommandeFournisseurDTO dto = (com.smboutique.api.dto.CommandeFournisseurDTO) m.invoke(commandeController, cmd);
         assertNotNull(dto);
         assertEquals("2026-01-05 11:02:00", dto.getDateCommande());
+    }
+
+    @Test
+    public void testGetCommandePdfLogsMouvement() throws Exception {
+        CommandeFournisseur c = new CommandeFournisseur();
+        c.setId(11L);
+        com.smboutique.api.model.Boutique b = new com.smboutique.api.model.Boutique();
+        b.setId(2L);
+        c.setBoutique(b);
+        c.setTotal(12345);
+
+        when(commandeFournisseurService.findById(11L)).thenReturn(Optional.of(c));
+
+        commandeController.getCommandePdf(11L, response);
+
+        verify(pdfService, times(1)).writeCommandePdf(11L, response);
+        verify(mouvementService, times(1)).log(eq("DOCUMENT"), eq("COMMANDE_FOURNISSEUR_PDF"), anyString(), eq(11L), eq(2L), isNull(), any(), eq(Double.valueOf(12345)));
     }
 }
