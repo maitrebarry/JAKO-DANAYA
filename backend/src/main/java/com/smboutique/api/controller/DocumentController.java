@@ -59,10 +59,36 @@ public class DocumentController {
     @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE') or hasAuthority('DOCUMENTS_VOIR')")
     public ResponseEntity<Page<DocumentReference>> listDocuments(
             @RequestParam(required = false) Long boutique,
+            @RequestParam(required = false) Long magasin,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String ref,
             Pageable pageable
     ) {
+        // enforce boutique scoping for non-superadmin users: if user is not superadmin and no boutique provided,
+        // default to current user's boutique; if a different boutique is requested, return 403.
+        try {
+            var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            com.smboutique.api.model.Utilisateur currentUser = null;
+            if (auth != null && auth.getName() != null) {
+                currentUser = utilisateurService.findByEmail(auth.getName()).orElse(null);
+            }
+            boolean isSuper = currentUser != null && currentUser.getRoles() != null && currentUser.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
+            if (!isSuper) {
+                // User must have a boutique assigned to access cross-boutique documents
+                Long userBoutiqueId = currentUser != null && currentUser.getBoutique() != null ? currentUser.getBoutique().getId() : null;
+                if (boutique == null) {
+                    boutique = userBoutiqueId;
+                } else {
+                    if (userBoutiqueId == null || !userBoutiqueId.equals(boutique)) {
+                        return ResponseEntity.status(403).build();
+                    }
+                }
+            }
+        } catch (Exception ignore) {
+            // In case of issue determining user scope, be conservative and deny
+            if (boutique == null) return ResponseEntity.status(403).build();
+        }
+
         List<DocumentReference> list = new ArrayList<>();
 
         // Ventes
@@ -223,48 +249,80 @@ public class DocumentController {
                 } catch (Exception ignore) {}
                 return;
             case "commande-fournisseur":
-                // Use existing command PDF writer
-                pdfService.writeCommandePdf(id, response);
+                // Authorization: ensure current user may access this resource (boutique scoped)
                 try {
+                    var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                    com.smboutique.api.model.Utilisateur current = null;
+                    if (auth != null && auth.getName() != null) {
+                        current = utilisateurService.findByEmail(auth.getName()).orElse(null);
+                    }
+                    boolean isSuper = current != null && current.getRoles() != null && current.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
+                    var copt = commandeFournisseurRepository.findById(id);
+                    if (copt.isEmpty()) { response.sendError(404); return; }
+                    var c = copt.get();
+                    Long boutiqueId = c.getBoutique() != null ? c.getBoutique().getId() : null;
+                    if (!isSuper) {
+                        Long userBoutiqueId = current != null && current.getBoutique() != null ? current.getBoutique().getId() : null;
+                        if (userBoutiqueId == null || boutiqueId == null || !userBoutiqueId.equals(boutiqueId)) {
+                            response.sendError(403); return;
+                        }
+                    }
+                    // Use existing command PDF writer
+                    pdfService.writeCommandePdf(id, response);
                     Long userId = null;
                     try {
-                        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-                        if (auth != null && auth.getName() != null) {
-                            var u = utilisateurService.findByEmail(auth.getName()).orElse(null);
-                            if (u != null) userId = u.getId();
-                        }
+                        if (current != null) userId = current.getId();
                     } catch (Exception ignore) {}
-                    var copt = commandeFournisseurRepository.findById(id);
-                    if (copt.isPresent()) {
-                        var c = copt.get();
-                        Long boutiqueId = c.getBoutique() != null ? c.getBoutique().getId() : null;
-                        mouvementService.log("DOCUMENT", "COMMANDE_FOURNISSEUR_PDF_PREVIEW", "Aperçu PDF - COMMANDE FOURNISSEUR", id, boutiqueId, null, userId, null);
-                    }
+                    mouvementService.log("DOCUMENT", "COMMANDE_FOURNISSEUR_PDF_PREVIEW", "Aperçu PDF - COMMANDE FOURNISSEUR", id, boutiqueId, null, userId, null);
                 } catch (Exception ignore) {}
                 return;
             case "commande-client":
-                pdfService.writeCommandeClientPdf(id, response);
                 try {
-                    Long userId = null;
-                    try {
-                        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-                        if (auth != null && auth.getName() != null) {
-                            var u = utilisateurService.findByEmail(auth.getName()).orElse(null);
-                            if (u != null) userId = u.getId();
-                        }
-                    } catch (Exception ignore) {}
-                    var copt = commandeClientRepository.findById(id);
-                    if (copt.isPresent()) {
-                        var c = copt.get();
-                        Long boutiqueId = c.getBoutique() != null ? c.getBoutique().getId() : null;
-                        mouvementService.log("DOCUMENT", "COMMANDE_CLIENT_PDF_PREVIEW", "Aperçu PDF - COMMANDE CLIENT", id, boutiqueId, null, userId, null);
+                    var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                    com.smboutique.api.model.Utilisateur current = null;
+                    if (auth != null && auth.getName() != null) {
+                        current = utilisateurService.findByEmail(auth.getName()).orElse(null);
                     }
+                    boolean isSuper = current != null && current.getRoles() != null && current.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
+                    var copt = commandeClientRepository.findById(id);
+                    if (copt.isEmpty()) { response.sendError(404); return; }
+                    var c = copt.get();
+                    Long boutiqueId = c.getBoutique() != null ? c.getBoutique().getId() : null;
+                    if (!isSuper) {
+                        Long userBoutiqueId = current != null && current.getBoutique() != null ? current.getBoutique().getId() : null;
+                        if (userBoutiqueId == null || boutiqueId == null || !userBoutiqueId.equals(boutiqueId)) {
+                            response.sendError(403); return;
+                        }
+                    }
+                    pdfService.writeCommandeClientPdf(id, response);
+                    Long userId = null;
+                    try { if (current != null) userId = current.getId(); } catch (Exception ignore) {}
+                    mouvementService.log("DOCUMENT", "COMMANDE_CLIENT_PDF_PREVIEW", "Aperçu PDF - COMMANDE CLIENT", id, boutiqueId, null, userId, null);
                 } catch (Exception ignore) {}
                 return;
             case "caisse":
                 var txopt = caisseTransactionRepository.findById(id);
                 if (txopt.isEmpty()) { response.sendError(404); return; }
                 var tx = txopt.get();
+                // Verify boutique scope for non-superadmin users
+                try {
+                    var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                    com.smboutique.api.model.Utilisateur current = null;
+                    if (auth != null && auth.getName() != null) {
+                        current = utilisateurService.findByEmail(auth.getName()).orElse(null);
+                    }
+                    boolean isSuper = current != null && current.getRoles() != null && current.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
+                    Long boutiqueId = tx.getBoutiqueId();
+                    if (!isSuper) {
+                        Long userBoutiqueId = current != null && current.getBoutique() != null ? current.getBoutique().getId() : null;
+                        if (userBoutiqueId == null || boutiqueId == null || !userBoutiqueId.equals(boutiqueId)) {
+                            response.sendError(403); return;
+                        }
+                    }
+                } catch (Exception ignore) {
+                    response.sendError(403); return;
+                }
+
                 if (tx.getPaiementId() != null) {
                     pdfService.writePaiementPdf(tx.getPaiementId(), response);
                     try {
@@ -307,106 +365,134 @@ public class DocumentController {
         if ("pdf".equalsIgnoreCase(format)) {
             switch (type.toLowerCase()) {
                 case "vente":
-                    pdfService.writeVentePdf(id, response);
-                    // audit
                     try {
-                        Long userId = null;
-                        try {
-                            var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-                            if (auth != null && auth.getName() != null) {
-                                var u = utilisateurService.findByEmail(auth.getName()).orElse(null);
-                                if (u != null) userId = u.getId();
-                            }
-                        } catch (Exception ignore) {}
-                        var vopt = venteRepository.findById(id);
-                        if (vopt.isPresent()) {
-                            var v = vopt.get();
-                            Long boutiqueId = v.getBoutique() != null ? v.getBoutique().getId() : null;
-                            Double montant = v.getMontantTotal() != null ? Double.valueOf(v.getMontantTotal()) : null;
-                            mouvementService.log("DOCUMENT", "VENTE_PDF", "Génération PDF - VENTE", id, boutiqueId, null, userId, montant);
+                        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                        com.smboutique.api.model.Utilisateur current = null;
+                        if (auth != null && auth.getName() != null) {
+                            current = utilisateurService.findByEmail(auth.getName()).orElse(null);
                         }
+                        boolean isSuper = current != null && current.getRoles() != null && current.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
+                        var vopt = venteRepository.findById(id);
+                        if (vopt.isEmpty()) { response.sendError(404); return; }
+                        var v = vopt.get();
+                        Long boutiqueId = v.getBoutique() != null ? v.getBoutique().getId() : null;
+                        if (!isSuper) {
+                            Long userBoutiqueId = current != null && current.getBoutique() != null ? current.getBoutique().getId() : null;
+                            if (userBoutiqueId == null || boutiqueId == null || !userBoutiqueId.equals(boutiqueId)) { response.sendError(403); return; }
+                        }
+                        pdfService.writeVentePdf(id, response);
+                        // audit
+                        Long userId = null;
+                        try { if (current != null) userId = current.getId(); } catch (Exception ignore) {}
+                        Double montant = v.getMontantTotal() != null ? Double.valueOf(v.getMontantTotal()) : null;
+                        mouvementService.log("DOCUMENT", "VENTE_PDF", "Génération PDF - VENTE", id, boutiqueId, null, userId, montant);
                     } catch (Exception ignore) {}
                     return;
                 case "reception":
-                    pdfService.writeReceptionPdf(id, response);
                     try {
-                        Long userId = null;
-                        try {
-                            var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-                            if (auth != null && auth.getName() != null) {
-                                var u = utilisateurService.findByEmail(auth.getName()).orElse(null);
-                                if (u != null) userId = u.getId();
-                            }
-                        } catch (Exception ignore) {}
-                        var ropt = receptionRepository.findById(id);
-                        if (ropt.isPresent()) {
-                            var r = ropt.get();
-                            Long boutiqueId = r.getBoutique() != null ? r.getBoutique().getId() : null;
-                            mouvementService.log("DOCUMENT", "RECEPTION_PDF", "Génération PDF - RECEPTION", id, boutiqueId, null, userId, null);
+                        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                        com.smboutique.api.model.Utilisateur current = null;
+                        if (auth != null && auth.getName() != null) {
+                            current = utilisateurService.findByEmail(auth.getName()).orElse(null);
                         }
+                        boolean isSuper = current != null && current.getRoles() != null && current.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
+                        var ropt = receptionRepository.findById(id);
+                        if (ropt.isEmpty()) { response.sendError(404); return; }
+                        var r = ropt.get();
+                        Long boutiqueId = r.getBoutique() != null ? r.getBoutique().getId() : null;
+                        if (!isSuper) {
+                            Long userBoutiqueId = current != null && current.getBoutique() != null ? current.getBoutique().getId() : null;
+                            if (userBoutiqueId == null || boutiqueId == null || !userBoutiqueId.equals(boutiqueId)) { response.sendError(403); return; }
+                        }
+                        pdfService.writeReceptionPdf(id, response);
+                        Long userId = null;
+                        try { if (current != null) userId = current.getId(); } catch (Exception ignore) {}
+                        mouvementService.log("DOCUMENT", "RECEPTION_PDF", "Génération PDF - RECEPTION", id, boutiqueId, null, userId, null);
                     } catch (Exception ignore) {}
                     return;
                 case "inventaire":
-                    pdfService.writeInventairePdf(id, response);
                     try {
-                        Long userId = null;
-                        try {
-                            var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-                            if (auth != null && auth.getName() != null) {
-                                var u = utilisateurService.findByEmail(auth.getName()).orElse(null);
-                                if (u != null) userId = u.getId();
-                            }
-                        } catch (Exception ignore) {}
-                        var iopt = inventaireRepository.findById(id);
-                        if (iopt.isPresent()) {
-                            var inv = iopt.get();
-                            Long boutiqueId = inv.getBoutique() != null ? inv.getBoutique().getId() : null;
-                            mouvementService.log("DOCUMENT", "INVENTAIRE_PDF", "Génération PDF - INVENTAIRE", id, boutiqueId, null, userId, null);
+                        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                        com.smboutique.api.model.Utilisateur current = null;
+                        if (auth != null && auth.getName() != null) {
+                            current = utilisateurService.findByEmail(auth.getName()).orElse(null);
                         }
+                        boolean isSuper = current != null && current.getRoles() != null && current.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
+                        var iopt = inventaireRepository.findById(id);
+                        if (iopt.isEmpty()) { response.sendError(404); return; }
+                        var inv = iopt.get();
+                        Long boutiqueId = inv.getBoutique() != null ? inv.getBoutique().getId() : null;
+                        if (!isSuper) {
+                            Long userBoutiqueId = current != null && current.getBoutique() != null ? current.getBoutique().getId() : null;
+                            if (userBoutiqueId == null || boutiqueId == null || !userBoutiqueId.equals(boutiqueId)) { response.sendError(403); return; }
+                        }
+                        pdfService.writeInventairePdf(id, response);
+                        Long userId = null;
+                        try { if (current != null) userId = current.getId(); } catch (Exception ignore) {}
+                        mouvementService.log("DOCUMENT", "INVENTAIRE_PDF", "Génération PDF - INVENTAIRE", id, boutiqueId, null, userId, null);
                     } catch (Exception ignore) {}
                     return;
                 case "commande-fournisseur":
-                    pdfService.writeCommandePdf(id, response);
                     try {
-                        Long userId = null;
-                        try {
-                            var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-                            if (auth != null && auth.getName() != null) {
-                                var u = utilisateurService.findByEmail(auth.getName()).orElse(null);
-                                if (u != null) userId = u.getId();
-                            }
-                        } catch (Exception ignore) {}
-                        var copt = commandeFournisseurRepository.findById(id);
-                        if (copt.isPresent()) {
-                            var c = copt.get();
-                            Long boutiqueId = c.getBoutique() != null ? c.getBoutique().getId() : null;
-                            mouvementService.log("DOCUMENT", "COMMANDE_FOURNISSEUR_PDF", "Génération PDF - COMMANDE FOURNISSEUR", id, boutiqueId, null, userId, null);
+                        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                        com.smboutique.api.model.Utilisateur current = null;
+                        if (auth != null && auth.getName() != null) {
+                            current = utilisateurService.findByEmail(auth.getName()).orElse(null);
                         }
+                        boolean isSuper = current != null && current.getRoles() != null && current.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
+                        var copt = commandeFournisseurRepository.findById(id);
+                        if (copt.isEmpty()) { response.sendError(404); return; }
+                        var c = copt.get();
+                        Long boutiqueId = c.getBoutique() != null ? c.getBoutique().getId() : null;
+                        if (!isSuper) {
+                            Long userBoutiqueId = current != null && current.getBoutique() != null ? current.getBoutique().getId() : null;
+                            if (userBoutiqueId == null || boutiqueId == null || !userBoutiqueId.equals(boutiqueId)) { response.sendError(403); return; }
+                        }
+                        pdfService.writeCommandePdf(id, response);
+                        Long userId = null; try { if (current != null) userId = current.getId(); } catch (Exception ignore) {}
+                        mouvementService.log("DOCUMENT", "COMMANDE_FOURNISSEUR_PDF", "Génération PDF - COMMANDE FOURNISSEUR", id, boutiqueId, null, userId, null);
                     } catch (Exception ignore) {}
                     return;
                 case "commande-client":
-                    pdfService.writeCommandeClientPdf(id, response);
                     try {
-                        Long userId = null;
-                        try {
-                            var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-                            if (auth != null && auth.getName() != null) {
-                                var u = utilisateurService.findByEmail(auth.getName()).orElse(null);
-                                if (u != null) userId = u.getId();
-                            }
-                        } catch (Exception ignore) {}
-                        var copt = commandeClientRepository.findById(id);
-                        if (copt.isPresent()) {
-                            var c = copt.get();
-                            Long boutiqueId = c.getBoutique() != null ? c.getBoutique().getId() : null;
-                            mouvementService.log("DOCUMENT", "COMMANDE_CLIENT_PDF", "Génération PDF - COMMANDE CLIENT", id, boutiqueId, null, userId, null);
+                        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                        com.smboutique.api.model.Utilisateur current = null;
+                        if (auth != null && auth.getName() != null) {
+                            current = utilisateurService.findByEmail(auth.getName()).orElse(null);
                         }
+                        boolean isSuper = current != null && current.getRoles() != null && current.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
+                        var copt = commandeClientRepository.findById(id);
+                        if (copt.isEmpty()) { response.sendError(404); return; }
+                        var c = copt.get();
+                        Long boutiqueId = c.getBoutique() != null ? c.getBoutique().getId() : null;
+                        if (!isSuper) {
+                            Long userBoutiqueId = current != null && current.getBoutique() != null ? current.getBoutique().getId() : null;
+                            if (userBoutiqueId == null || boutiqueId == null || !userBoutiqueId.equals(boutiqueId)) { response.sendError(403); return; }
+                        }
+                        pdfService.writeCommandeClientPdf(id, response);
+                        Long userId = null; try { if (current != null) userId = current.getId(); } catch (Exception ignore) {}
+                        mouvementService.log("DOCUMENT", "COMMANDE_CLIENT_PDF", "Génération PDF - COMMANDE CLIENT", id, boutiqueId, null, userId, null);
                     } catch (Exception ignore) {}
                     return;
                 case "caisse":
                     var txopt = caisseTransactionRepository.findById(id);
                     if (txopt.isEmpty()) { response.sendError(404); return; }
                     var tx = txopt.get();
+                    // Enforce boutique scope for downloads as well
+                    try {
+                        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                        com.smboutique.api.model.Utilisateur current = null;
+                        if (auth != null && auth.getName() != null) {
+                            current = utilisateurService.findByEmail(auth.getName()).orElse(null);
+                        }
+                        boolean isSuper = current != null && current.getRoles() != null && current.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
+                        Long boutiqueId = tx.getBoutiqueId();
+                        if (!isSuper) {
+                            Long userBoutiqueId = current != null && current.getBoutique() != null ? current.getBoutique().getId() : null;
+                            if (userBoutiqueId == null || boutiqueId == null || !userBoutiqueId.equals(boutiqueId)) { response.sendError(403); return; }
+                        }
+                    } catch (Exception ignore) { response.sendError(403); return; }
+
                     if (tx.getPaiementId() != null) {
                         pdfService.writePaiementPdf(tx.getPaiementId(), response);
                         try {

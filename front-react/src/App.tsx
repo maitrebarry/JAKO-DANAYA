@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import SignIn from './components/SignIn';
 import Layout from './components/Layout';
-import Dashboard from './components/Dashboard';
+// Dashboard removed: frontend dashboard archived in src/archive/dashboard
 import Configuration from './components/Configuration';
 import Fournisseurs from './components/Fournisseurs';
 import Produits from './components/Produits';
@@ -48,14 +48,7 @@ function App() {
       <UserProvider>
         <Routes>
           <Route path="/" element={<SignIn />} />
-          <Route 
-            path="/dashboard" 
-            element={
-              <PrivateRoute>
-                <Layout><Dashboard /></Layout>
-              </PrivateRoute>
-            } 
-          />
+          {/* Dashboard route removed - frontend dashboard was archived */}
           <Route 
             path="/configuration" 
             element={

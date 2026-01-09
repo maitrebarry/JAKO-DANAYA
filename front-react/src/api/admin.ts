@@ -7,8 +7,16 @@ export type AlertDTO = { id: number; level: 'INFO' | 'WARN' | 'CRITICAL'; messag
 export async function fetchAdminShops(): Promise<ShopDTO[]> {
   try {
     const res = await fetch(`${API_BASE}/admin/shops`, { headers: AUTH_HEADER() });
-    if (!res.ok) throw new Error(`fetchAdminShops ${res.status}`);
-    return await res.json();
+    if (!res.ok) {
+      if (res.status === 401) throw new Error('Authentification requise');
+      throw new Error(`fetchAdminShops ${res.status}`);
+    }
+    const data = await res.json();
+    if (!Array.isArray(data)) {
+      console.error('fetchAdminShops: unexpected response', data);
+      throw new Error('Invalid response from server');
+    }
+    return data;
   } catch (e) {
     // fallback: return empty list
     return [];

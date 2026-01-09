@@ -206,7 +206,7 @@ public class DataInitializer implements CommandLineRunner {
             {"CONFIG_MARGE_LECTURE", "Permission pour lire la configuration des marges"},
             {"CONFIG_MARGE_ECRITURE", "Permission pour créer/modifier la configuration des marges"},
             {"CONFIG_MARGE_SUPPRESSION", "Permission pour supprimer la configuration des marges"},
-
+                {"CONFIGURATION _VOIR", "permission pour voir le menu configuration"},
             // Paiements / Réceptions / Livraisons
             {"PAIEMENT_CREER", "Permission pour créer paiements"},
             {"PAIEMENT_MODIFIER", "Permission pour modifier paiements"},

@@ -11,11 +11,13 @@ const ManagerOverview: React.FC = () => {
   const [staff, setStaff] = useState<StaffActivity[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       if (!shopId) return;
       setLoading(true);
+      setError(null);
       try {
         const [s, po, st] = await Promise.all([
           fetchShopSalesToday(shopId),
@@ -25,8 +27,8 @@ const ManagerOverview: React.FC = () => {
         setSalesToday(s);
         setPendingOrders(po);
         setStaff(st);
-      } catch (e) {
-        // ignore
+      } catch (e: any) {
+        setError(e?.message || 'Erreur lors du chargement des données');
       } finally {
         setLoading(false);
       }
@@ -45,6 +47,14 @@ const ManagerOverview: React.FC = () => {
     }
     setActionLoading(null);
   };
+
+  if (error) {
+    return (
+      <div className="alert alert-danger" role="alert">
+        {error}
+      </div>
+    );
+  }
 
   return (
     <div>

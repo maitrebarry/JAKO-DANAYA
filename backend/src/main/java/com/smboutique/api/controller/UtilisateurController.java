@@ -91,6 +91,26 @@ public class UtilisateurController {
         return utilisateurService.findAllByBoutiqueId(current.getBoutique().getId());
     }
 
+    /** Return the authenticated user details for client-side defaulting and permission checks */
+    @GetMapping("/me")
+    public ResponseEntity<Utilisateur> getCurrentAuthenticatedUser() {
+        try {
+            Utilisateur u = getCurrentUser();
+            // Ensure returned user contains effective permissions (direct + role-inherited)
+            java.util.Set<com.smboutique.api.model.Permission> combined = new java.util.HashSet<>();
+            if (u.getPermissions() != null) combined.addAll(u.getPermissions());
+            if (u.getRoles() != null) {
+                for (com.smboutique.api.model.Role r : u.getRoles()) {
+                    if (r.getPermissions() != null) combined.addAll(r.getPermissions());
+                }
+            }
+            u.setPermissions(combined);
+            return ResponseEntity.ok(u);
+        } catch (Exception e) {
+            return ResponseEntity.status(401).build();
+        }
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
     public ResponseEntity<Utilisateur> getUserById(@PathVariable Long id) {

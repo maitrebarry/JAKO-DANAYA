@@ -12,8 +12,17 @@ export async function fetchShopOverview(shopId?: number): Promise<ShopOverview> 
   try {
     if (!shopId) throw new Error('shopId required');
     const res = await fetch(`${API_BASE}/dashboard/shops/${shopId}/overview`, { headers: AUTH_HEADER() });
-    if (!res.ok) throw new Error(`fetchShopOverview ${res.status}`);
-    return await res.json();
+    if (!res.ok) {
+      if (res.status === 401) throw new Error('Authentification requise');
+      throw new Error(`fetchShopOverview ${res.status}`);
+    }
+    const data = await res.json();
+    // validate shape: expect at least one known property
+    if (!data || (typeof data !== 'object') || (!('salesTotal' in data) && !('sales7d' in data) && !('pendingOrders' in data) && !('topProducts' in data))) {
+      console.error('fetchShopOverview: unexpected response', data);
+      throw new Error('Invalid response from server');
+    }
+    return data;
   } catch (e) {
     // fallback: return mock data
     return {

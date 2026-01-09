@@ -74,4 +74,21 @@ public class UtilisateurControllerTest {
         ResponseEntity<Utilisateur> resp = utilisateurController.createUser(toCreate);
         assertEquals(200, resp.getStatusCode().value());
     }
+
+    @Test
+    public void getCurrentUser_includesRolePermissions() {
+        Utilisateur current = new Utilisateur();
+        Role r = new Role(); r.setName("ADMINISTRATEUR");
+        com.smboutique.api.model.Permission p = new com.smboutique.api.model.Permission();
+        p.setName("DOCUMENTS_VOIR");
+        r.setPermissions(Set.of(p));
+        current.setRoles(Set.of(r));
+        when(utilisateurService.findByEmail("me@local")).thenReturn(Optional.of(current));
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken("me@local", "na"));
+
+        ResponseEntity<Utilisateur> resp = utilisateurController.getCurrentAuthenticatedUser();
+        assertEquals(200, resp.getStatusCode().value());
+        Utilisateur body = resp.getBody();
+        assertEquals(true, body.getPermissions().stream().anyMatch(pp -> "DOCUMENTS_VOIR".equals(pp.getName())));
+    }
 }

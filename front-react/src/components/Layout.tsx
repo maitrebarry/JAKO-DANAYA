@@ -53,7 +53,7 @@ const Footer = () => {
 
 const Topbar = ({ toggleSidebar }: { toggleSidebar?: () => void }) => {
   const navigate = useNavigate();
-  const { user } = useUser();
+  const { user, logout } = useUser();
 
   const [notifications, setNotifications] = React.useState<any[]>([]);
 
@@ -77,8 +77,15 @@ const Topbar = ({ toggleSidebar }: { toggleSidebar?: () => void }) => {
   }, [user]);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/');
+    try {
+      // prefer central logout from context to clean state and navigate
+      logout();
+    } catch (e) {
+      // fallback for safety
+      localStorage.removeItem('smb_token');
+      localStorage.removeItem('smb_user_data');
+      navigate('/');
+    }
   };
 
   const initials = () => {
@@ -224,7 +231,6 @@ const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
   };
 
   const isOwner = user && user.typeUtilisateur === 'PROPRIETAIRE';
-  const isSuperAdminRole = roles && roles.includes('SUPERADMIN');
 
   const can = {
     dashboard: hasAnyPermission(['TABLEAU_DE_BORD_VOIR', 'TABLEAU_DE_BORD_LECTURE']),
@@ -235,13 +241,13 @@ const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
     venteCredit: hasAnyPermission(['VENTE_CREDIT_VOIR', 'VENTE_LECTURE']),
     caisse: hasAnyPermission(['CAISSE_VOIR', 'CAISSE_LECTURE', 'PARAMETRES_LECTURE']),
     depense: hasAnyPermission(['DEPENSE_LECTURE']),
-    // utilisations/pertes: visible to users with relevant permissions or owner/SUPERADMIN
-    utilisations: (hasAnyPermission(['UTILISA_PERTE_CREER','UTILISA_PERTE_VOIR','UTILISA_PERTE_MODIFIER','UTILISA_PERTE_SUPPRIMER']) || isOwner || isSuperAdminRole),
+    // utilisations/pertes: visible to users with relevant permissions or owner
+    utilisations: (hasAnyPermission(['UTILISA_PERTE_CREER','UTILISA_PERTE_VOIR','UTILISA_PERTE_MODIFIER','UTILISA_PERTE_SUPPRIMER']) || isOwner),
     // documents: generated on demand
     documents: hasAnyPermission(['DOCUMENTS_VOIR']),
     rapports: hasAnyPermission(['RAPPORT_LECTURE']),
-    // configuration: visible only if explicit CONFIGURATION_VOIR permission OR owner OR SUPERADMIN
-    configuration: (hasAnyPermission(['CONFIGURATION_VOIR']) || isOwner || isSuperAdminRole),
+    // configuration: visible only if explicit CONFIGURATION_VOIR permission OR owner
+    configuration: (hasAnyPermission(['CONFIGURATION_VOIR']) || isOwner),
   };
 
   // Diagnostic: log the reason the Configuration menu is shown or hidden to ease debugging
@@ -250,7 +256,6 @@ const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
       const reasonParts: string[] = [];
       if (hasAnyPermission(['CONFIGURATION_VOIR'])) reasonParts.push('permission:CONFIGURATION_VOIR');
       if (isOwner) reasonParts.push('owner');
-      if (isSuperAdminRole) reasonParts.push('SUPERADMIN');
       console.debug('Configuration menu visibility:', reasonParts.length > 0 ? 'VISIBLE (' + reasonParts.join(',') + ')' : 'HIDDEN');
     } catch (e) {
       // ignore
@@ -283,14 +288,7 @@ const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
       <div className="scrollbar" style={{ height: 'calc(100vh - 70px)' }}>
         <ul className="side-nav" id="sidebar-nav">
           <li className="side-nav-title">Navigation</li>
-          {can.dashboard && (
-          <li className="side-nav-item">
-            <Link to="/dashboard" className="side-nav-link">
-              <span className="menu-icon"><i className="ti ti-dashboard"></i></span>
-              <span className="menu-text">Tableau de bord</span>
-            </Link>
-          </li>
-          )}
+          {/* Tableau de bord removed - frontend dashboard archived */}
           {can.inventaire && (
           <li className="side-nav-item">
             <a className="side-nav-link" data-bs-target="#inventaire-nav" data-bs-toggle="collapse" href="#">

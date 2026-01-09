@@ -99,10 +99,24 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   const setUserData = useCallback((data: any) => {
     setUser(data.user || null);
-    setPermissions(Array.isArray(data.permissions) ? data.permissions : []);
-    setRoles(Array.isArray(data.roles) ? data.roles : []);
+    // normalize permissions and roles to uppercase for consistent checks
+    setPermissions(Array.isArray(data.permissions) ? data.permissions.map((p:any) => p.toString().toUpperCase()) : []);
+    const incomingRoles: string[] = Array.isArray(data.roles) ? data.roles.map((r:any) => r.toString().toUpperCase()) : [];
+    // also include the typeUtilisateur as an implicit role (e.g., PROPRIETAIRE)
+    try {
+      const tu = data?.user?.typeUtilisateur;
+      if (tu && typeof tu === 'string') {
+        const ut = tu.toString().toUpperCase();
+        if (!incomingRoles.includes(ut)) incomingRoles.push(ut);
+      }
+    } catch (e) {
+      // ignore
+    }
+    setRoles(incomingRoles);
     setCurrentBoutique(data.currentBoutique || null);
     scheduleTokenExpiry(localStorage.getItem('smb_token'));
+    // debug
+    try { console.debug('UserContext setUserData - roles=', incomingRoles, 'permissions=', Array.isArray(data.permissions) ? data.permissions.length : 0); } catch(e){}
   }, [scheduleTokenExpiry]);
 
   useEffect(() => {

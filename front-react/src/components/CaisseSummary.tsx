@@ -27,8 +27,8 @@ const numberFmt = (n?: number) => (typeof n === 'number' ? n.toFixed(2) : '0.00'
 const CaisseSummary: React.FC = () => {
   const isAuditor = useHasPermission('MOUVEMENT_AUDIT');
   const { currentBoutique, user, roles = [] } = useUser();
-  // owner OR auditor OR SUPERADMIN can access this summary
-  const hasAccess = isAuditor || (user && user.typeUtilisateur === 'PROPRIETAIRE') || (roles && roles.includes('SUPERADMIN'));
+  // owner OR auditor can access this summary
+  const hasAccess = isAuditor || (user && user.typeUtilisateur === 'PROPRIETAIRE');
   const [users, setUsers] = useState<any[]>([]);
   const [userId, setUserId] = useState<number | ''>('');
   const [period, setPeriod] = useState<Period>('day');

@@ -76,7 +76,15 @@ public class AdminPermissionController {
                             return ResponseEntity.status(403).<Set<Permission>>build();
                         }
                     }
-                    return ResponseEntity.ok(utilisateur.getPermissions());
+                    // Combine direct permissions and role-inherited permissions so the UI can pre-check them
+                    java.util.Set<Permission> combined = new java.util.HashSet<>();
+                    if (utilisateur.getPermissions() != null) combined.addAll(utilisateur.getPermissions());
+                    if (utilisateur.getRoles() != null) {
+                        for (com.smboutique.api.model.Role r : utilisateur.getRoles()) {
+                            if (r.getPermissions() != null) combined.addAll(r.getPermissions());
+                        }
+                    }
+                    return ResponseEntity.ok(combined);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { AlertDTO } from '../../api/admin';
 
 type Props = { alerts: AlertDTO[] };

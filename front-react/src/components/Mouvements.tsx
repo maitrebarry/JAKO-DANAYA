@@ -38,8 +38,8 @@ const sanitizeDescription = (s?: string) => {
 const Mouvements: React.FC = () => {
   const isAuditor = useHasPermission('MOUVEMENT_AUDIT');
   const { currentBoutique, user, roles = [] } = useUser();
-  // owners (type PROPRIETAIRE), auditors (MOUVEMENT_AUDIT) and SUPERADMIN role may access the caisse summary
-  const canViewCaisseSummary = isAuditor || (user && (user.typeUtilisateur === 'PROPRIETAIRE')) || (roles && roles.includes('SUPERADMIN'));
+  // owners (type PROPRIETAIRE) and auditors (MOUVEMENT_AUDIT) may access the caisse summary
+  const canViewCaisseSummary = isAuditor || (user && (user.typeUtilisateur === 'PROPRIETAIRE'));
 
   const [from, setFrom] = useState<string>('');
   const [to, setTo] = useState<string>('');

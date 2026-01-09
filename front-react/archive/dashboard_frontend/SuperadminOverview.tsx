@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import MetricCard from '../common/MetricCard';
 import ChartWidget from '../common/ChartWidget';
 import AlertBanner from '../common/AlertBanner';

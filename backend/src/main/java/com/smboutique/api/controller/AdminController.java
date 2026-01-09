@@ -3,6 +3,7 @@ package com.smboutique.api.controller;
 import com.smboutique.api.model.Permission;
 import com.smboutique.api.model.Role;
 import com.smboutique.api.model.Utilisateur;
+import com.smboutique.api.model.Boutique;
 import com.smboutique.api.repository.PermissionRepository;
 import com.smboutique.api.repository.RoleRepository;
 import com.smboutique.api.repository.UtilisateurRepository;
@@ -11,9 +12,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -35,6 +43,9 @@ public class AdminController {
 
     @Autowired
     private UtilisateurService utilisateurService;
+
+    @Autowired
+    private com.smboutique.api.repository.BoutiqueRepository boutiqueRepository;
 
     private boolean isSuperAdmin(Utilisateur user) {
         if (user == null) return false;
@@ -122,5 +133,75 @@ public class AdminController {
             forbidden.addAll(java.util.Arrays.asList("SUPERADMIN", "ADMIN", "MANAGER"));
         }
         return all.stream().filter(r -> !forbidden.contains(r.getName().toUpperCase())).collect(Collectors.toList());
+    }
+
+    // --- Admin endpoints for dashboard ---
+    @GetMapping({"/shops/list","/shops"})
+    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
+    public List<ShopDTO> listShops() {
+        List<Boutique> shops = boutiqueRepository.findAll();
+        if (shops == null) return List.of();
+        return shops.stream().map(b -> new ShopDTO(b.getId(), b.getNom(), b.getQuartier())).collect(Collectors.toList());
+    }
+
+    @GetMapping("/alerts")
+    public List<AlertDTO> listAlerts() {
+        // read last log lines and filter
+        File log = new File("logs/application.log");
+        if (!log.exists()) return List.of();
+        try {
+            List<String> lines = Files.readAllLines(log.toPath());
+            List<AlertDTO> alerts = new ArrayList<>();
+            for (int i = Math.max(0, lines.size() - 200); i < lines.size(); i++) {
+                String line = lines.get(i);
+                if (line.contains("ERROR") || line.contains("CRITICAL") || line.contains("WARN")) {
+                    String level = line.contains("ERROR") || line.contains("CRITICAL") ? "CRITICAL" : "WARN";
+                    alerts.add(new AlertDTO(i, level, line, Instant.now().toString()));
+                }
+            }
+            Collections.reverse(alerts);
+            return alerts;
+        } catch (IOException e) {
+            return List.of();
+        }
+    }
+
+    @GetMapping("/logs")
+    public List<String> tailLogs(@RequestParam(value = "lines", required = false, defaultValue = "200") int lines) {
+        File log = new File("logs/application.log");
+        if (!log.exists()) return List.of();
+        try {
+            List<String> all = Files.readAllLines(log.toPath());
+            int from = Math.max(0, all.size() - lines);
+            return all.subList(from, all.size());
+        } catch (IOException e) {
+            return List.of();
+        }
+    }
+
+    public static class ShopDTO {
+        public Long id;
+        public String name;
+        public String statut;
+
+        public ShopDTO(Long id, String name, String statut) {
+            this.id = id;
+            this.name = name;
+            this.statut = statut;
+        }
+    }
+
+    public static class AlertDTO {
+        public int id;
+        public String level;
+        public String message;
+        public String createdAt;
+
+        public AlertDTO(int id, String level, String message, String createdAt) {
+            this.id = id;
+            this.level = level;
+            this.message = message;
+            this.createdAt = createdAt;
+        }
     }
 }

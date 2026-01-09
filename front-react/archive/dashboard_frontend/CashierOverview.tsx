@@ -9,16 +9,18 @@ const CashierOverview: React.FC = () => {
   const [totals, setTotals] = useState<{ [method: string]: number }>({});
   const [loading, setLoading] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      setError(null);
       try {
         const [tx, t] = await Promise.all([fetchCashierTransactions(), fetchCashTotals()]);
         setTransactions(tx);
         setTotals(t);
-      } catch (e) {
-        // ignore
+      } catch (e: any) {
+        setError(e?.message || 'Erreur lors du chargement des transactions');
       } finally {
         setLoading(false);
       }
@@ -38,6 +40,12 @@ const CashierOverview: React.FC = () => {
     }
     setClosing(false);
   };
+
+  if (error) {
+    return (
+      <div className="alert alert-danger" role="alert">{error}</div>
+    );
+  }
 
   return (
     <div>
