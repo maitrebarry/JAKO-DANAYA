@@ -47,7 +47,7 @@ const Dashboard = () => {
       </RoleBased>
 
       {/* Owner overview */}
-      <RoleBased allowedRoles={["ROLE_OWNER"]}>
+      <RoleBased allowedRoles={["ROLE_OWNER", "PROPRIETAIRE", "OWNER", "ROLE_PROPRIETAIRE"]}>
         <OwnerOverview />
       </RoleBased>
 
@@ -57,12 +57,12 @@ const Dashboard = () => {
       </RoleBased>
 
       {/* Cashier overview */}
-      <RoleBased allowedRoles={["ROLE_CASHIER"]}>
+      <RoleBased allowedRoles={["ROLE_CASHIER", "CASHIER"]}>
         <CashierOverview />
       </RoleBased>
 
       {/* Warehouse overview */}
-      <RoleBased allowedRoles={["ROLE_MAGASINIER"]}>
+      <RoleBased allowedRoles={["ROLE_MAGASINIER", "MAGASINIER", "STOREKEEPER"]}>
         <WarehouseOverview />
       </RoleBased>
 
