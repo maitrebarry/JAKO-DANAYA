@@ -172019,3 +172019,2214 @@
     order by
         n1_0.created_at desc
 2026-01-09 19:28:30 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Closing JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:28:33 - o.s.security.web.FilterChainProxy - Securing OPTIONS /api/notifications
+2026-01-09 19:28:33 - o.s.security.web.FilterChainProxy - Securing GET /api/notifications
+2026-01-09 19:28:33 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:28:33 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:28:33 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:33 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:28:33 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:28:33 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:28:33 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=barrymoustapha908@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:28:33 - c.s.api.security.AuthTokenFilter - User barrymoustapha908@gmail.com authorities: [UTILISA_PERTE_CREER, TRANSFERT_LECTURE, COMMANDE_MODIFIER, INVENTAIRE_REGULARISER, TABLEAU_DE_BORD_LECTURE, CONFIG_MARGE_ECRITURE, PAIEMENT_ANNULATION, VENTE_HISTORIQUE, INVENTAIRE_LECTURE, PRODUIT_MODIFIER, PAIEMENT_MODIFIER, CLIENT_CREER, DOCUMENTS_VOIR, FOURNISSEUR_MODIFIER, FOURNISSEUR_SUPPRIMER, VENTE_SUPPRIMER, ACHAT_VOIR, TRANSFERT_SUPPRIMER, DEPENSE_LECTURE, PRODUIT_MOUVEMENT, UTILISA_PERTE_MODIFIER, VENTE_MODIFIER, INVENTAIRE_SUPPRIMER, INVENTAIRE_VOIR, COMMANDE_SUPPRIMER, CAISSE_LECTURE, PRODUIT_LECTURE, COMMANDE_LECTURE, UTILISATEUR_LECTURE, CAISSE_VOIR, UTILISA_PERTE_SUPPRIMER, TABLEAU_DE_BORD_VOIR, UTILISA_PERTE_VOIR, UTILISATEUR_CREER, RECEPTION_CREER, DOCUMENTS_TELECHARGER, MOUVEMENT_AUDIT, UTILISATEUR_ACTIVER_DESACTIVER, PRODUIT_SUPPRIMER, RAPPORT_LECTURE, CONFIGURATION _VOIR, RECEPTION_ANNULATION, DEPENSE_CREER, BOUTIQUE_MODIFIER, PAIEMENT_SUPPRESSION, CONFIG_MARGE_SUPPRESSION, VENTE_CREER, BOUTIQUE_CREER, BOUTIQUE_LECTURE, VENTE_EMPLACEMENT_MODIFIER, PAIEMENT_CREER, INVENTAIRE_MOUVEMENT, DEPENSE_VALIDATION, RECEPTION_SUPPRESSION, VENTE_LECTURE, ACHAT_HISTORIQUE, UTILISATEUR_MODIFIER, TRANSFERT_CREER, CONFIG_MARGE_LECTURE, CLIENT_SUPPRIMER, PRODUIT_VOIR, CAISSE_GERER, VENTE_CREDIT_VOIR, CONFIGURATION_VOIR, RAPPORT_CREER, COMMANDE_CREER, FOURNISSEUR_VOIR, UTILISATEUR_GERER, INVENTAIRE_CREER, VENTE_ESPECE_VOIR, LIVRAISON_ECRITURE, ROLE_SUPERADMIN, FOURNISSEUR_CREER, CLIENT_MODIFIER, TRANSFERT_VOIR, CAISSE_MOUVEMENT_VIEW, TRANSFERT_MODIFIER, PRODUIT_CREER, CLIENT_LECTURE, FOURNISSEUR_LECTURE, DEPENSE_ANNULATION, UTILISATEUR_SUPPRIMER, INVENTAIRE_MODIFIER, BOUTIQUE_SUPPRIMER, RECEPTION_MODIFIER]
+2026-01-09 19:28:33 - o.s.security.web.FilterChainProxy - Secured GET /api/notifications
+2026-01-09 19:28:33 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:28:33 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:28:33 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:33 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:28:33 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:28:33 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:28:33 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=barrymoustapha908@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:28:33 - c.s.api.security.AuthTokenFilter - User barrymoustapha908@gmail.com authorities: [UTILISA_PERTE_CREER, TRANSFERT_LECTURE, COMMANDE_MODIFIER, INVENTAIRE_REGULARISER, TABLEAU_DE_BORD_LECTURE, CONFIG_MARGE_ECRITURE, PAIEMENT_ANNULATION, VENTE_HISTORIQUE, INVENTAIRE_LECTURE, PRODUIT_MODIFIER, PAIEMENT_MODIFIER, CLIENT_CREER, DOCUMENTS_VOIR, FOURNISSEUR_MODIFIER, FOURNISSEUR_SUPPRIMER, VENTE_SUPPRIMER, ACHAT_VOIR, TRANSFERT_SUPPRIMER, DEPENSE_LECTURE, PRODUIT_MOUVEMENT, UTILISA_PERTE_MODIFIER, VENTE_MODIFIER, INVENTAIRE_SUPPRIMER, INVENTAIRE_VOIR, COMMANDE_SUPPRIMER, CAISSE_LECTURE, PRODUIT_LECTURE, COMMANDE_LECTURE, UTILISATEUR_LECTURE, CAISSE_VOIR, UTILISA_PERTE_SUPPRIMER, TABLEAU_DE_BORD_VOIR, UTILISA_PERTE_VOIR, UTILISATEUR_CREER, RECEPTION_CREER, DOCUMENTS_TELECHARGER, MOUVEMENT_AUDIT, UTILISATEUR_ACTIVER_DESACTIVER, PRODUIT_SUPPRIMER, RAPPORT_LECTURE, CONFIGURATION _VOIR, RECEPTION_ANNULATION, DEPENSE_CREER, BOUTIQUE_MODIFIER, PAIEMENT_SUPPRESSION, CONFIG_MARGE_SUPPRESSION, VENTE_CREER, BOUTIQUE_CREER, BOUTIQUE_LECTURE, VENTE_EMPLACEMENT_MODIFIER, PAIEMENT_CREER, INVENTAIRE_MOUVEMENT, DEPENSE_VALIDATION, RECEPTION_SUPPRESSION, VENTE_LECTURE, ACHAT_HISTORIQUE, UTILISATEUR_MODIFIER, TRANSFERT_CREER, CONFIG_MARGE_LECTURE, CLIENT_SUPPRIMER, PRODUIT_VOIR, CAISSE_GERER, VENTE_CREDIT_VOIR, CONFIGURATION_VOIR, RAPPORT_CREER, COMMANDE_CREER, FOURNISSEUR_VOIR, UTILISATEUR_GERER, INVENTAIRE_CREER, VENTE_ESPECE_VOIR, LIVRAISON_ECRITURE, ROLE_SUPERADMIN, FOURNISSEUR_CREER, CLIENT_MODIFIER, TRANSFERT_VOIR, CAISSE_MOUVEMENT_VIEW, TRANSFERT_MODIFIER, PRODUIT_CREER, CLIENT_LECTURE, FOURNISSEUR_LECTURE, DEPENSE_ANNULATION, UTILISATEUR_SUPPRIMER, INVENTAIRE_MODIFIER, BOUTIQUE_SUPPRIMER, RECEPTION_MODIFIER]
+2026-01-09 19:28:33 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Opening JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:28:33 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:33 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:28:33 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:28:33 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:28:33 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:33 - org.hibernate.SQL - 
+    select
+        n1_0.id_notification,
+        n1_0.boutique_id,
+        n1_0.created_at,
+        n1_0.payload,
+        n1_0.is_read,
+        n1_0.type,
+        n1_0.user_id 
+    from
+        notification n1_0 
+    where
+        n1_0.user_id=? 
+        and not(n1_0.is_read) 
+    order by
+        n1_0.created_at desc
+2026-01-09 19:28:33 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Closing JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:28:46 - o.s.security.web.FilterChainProxy - Securing OPTIONS /api/notifications
+2026-01-09 19:28:46 - o.s.security.web.FilterChainProxy - Securing GET /api/notifications
+2026-01-09 19:28:46 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:28:46 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:28:46 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:28:46 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=alima@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:28:46 - c.s.api.security.AuthTokenFilter - User alima@gmail.com authorities: [VENTE_MODIFIER, UTILISATEUR_GERER, COMMANDE_MODIFIER, INVENTAIRE_REGULARISER, PRODUIT_LECTURE, COMMANDE_LECTURE, VENTE_CREER, TABLEAU_DE_BORD_LECTURE, ROLE_GERANT_BOUTIQUE, INVENTAIRE_LECTURE, PRODUIT_MODIFIER, CLIENT_MODIFIER, CLIENT_CREER, VENTE_LECTURE, DOCUMENTS_VOIR, TABLEAU_DE_BORD_VOIR, PRODUIT_CREER, UTILISATEUR_ACTIVER_DESACTIVER, CLIENT_LECTURE, ROLE_MANAGER, FOURNISSEUR_LECTURE, COMMANDE_CREER, INVENTAIRE_MODIFIER]
+2026-01-09 19:28:46 - o.s.security.web.FilterChainProxy - Secured GET /api/notifications
+2026-01-09 19:28:46 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:28:46 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:28:46 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:28:46 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=alima@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:28:46 - c.s.api.security.AuthTokenFilter - User alima@gmail.com authorities: [VENTE_MODIFIER, UTILISATEUR_GERER, COMMANDE_MODIFIER, INVENTAIRE_REGULARISER, PRODUIT_LECTURE, COMMANDE_LECTURE, VENTE_CREER, TABLEAU_DE_BORD_LECTURE, ROLE_GERANT_BOUTIQUE, INVENTAIRE_LECTURE, PRODUIT_MODIFIER, CLIENT_MODIFIER, CLIENT_CREER, VENTE_LECTURE, DOCUMENTS_VOIR, TABLEAU_DE_BORD_VOIR, PRODUIT_CREER, UTILISATEUR_ACTIVER_DESACTIVER, CLIENT_LECTURE, ROLE_MANAGER, FOURNISSEUR_LECTURE, COMMANDE_CREER, INVENTAIRE_MODIFIER]
+2026-01-09 19:28:46 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Opening JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:28:46 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:28:46 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        n1_0.id_notification,
+        n1_0.boutique_id,
+        n1_0.created_at,
+        n1_0.payload,
+        n1_0.is_read,
+        n1_0.type,
+        n1_0.user_id 
+    from
+        notification n1_0 
+    where
+        n1_0.user_id=? 
+        and not(n1_0.is_read) 
+    order by
+        n1_0.created_at desc
+2026-01-09 19:28:46 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Closing JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:28:46 - o.s.security.web.FilterChainProxy - Securing OPTIONS /api/notifications
+2026-01-09 19:28:46 - o.s.security.web.FilterChainProxy - Securing GET /api/notifications
+2026-01-09 19:28:46 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:28:46 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:28:46 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:28:46 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=karifa@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:28:46 - c.s.api.security.AuthTokenFilter - User karifa@gmail.com authorities: [DEPENSE_CREER, COMMANDE_MODIFIER, CAISSE_LECTURE, COMMANDE_LECTURE, PRODUIT_LECTURE, VENTE_CREER, TABLEAU_DE_BORD_LECTURE, CAISSE_VOIR, VENTE_LECTURE, ROLE_CASHIER, CLIENT_LECTURE, ROLE_CAISSIER, DEPENSE_LECTURE, COMMANDE_CREER]
+2026-01-09 19:28:46 - o.s.security.web.FilterChainProxy - Secured GET /api/notifications
+2026-01-09 19:28:46 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:28:46 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:28:46 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:28:46 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=karifa@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:28:46 - c.s.api.security.AuthTokenFilter - User karifa@gmail.com authorities: [DEPENSE_CREER, COMMANDE_MODIFIER, CAISSE_LECTURE, COMMANDE_LECTURE, PRODUIT_LECTURE, VENTE_CREER, TABLEAU_DE_BORD_LECTURE, CAISSE_VOIR, VENTE_LECTURE, ROLE_CASHIER, CLIENT_LECTURE, ROLE_CAISSIER, DEPENSE_LECTURE, COMMANDE_CREER]
+2026-01-09 19:28:46 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Opening JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:28:46 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:28:46 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:46 - org.hibernate.SQL - 
+    select
+        n1_0.id_notification,
+        n1_0.boutique_id,
+        n1_0.created_at,
+        n1_0.payload,
+        n1_0.is_read,
+        n1_0.type,
+        n1_0.user_id 
+    from
+        notification n1_0 
+    where
+        n1_0.user_id=? 
+        and not(n1_0.is_read) 
+    order by
+        n1_0.created_at desc
+2026-01-09 19:28:46 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Closing JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:28:55 - o.s.security.web.FilterChainProxy - Securing OPTIONS /api/notifications
+2026-01-09 19:28:55 - o.s.security.web.FilterChainProxy - Securing GET /api/notifications
+2026-01-09 19:28:55 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:28:55 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:28:55 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:55 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:28:55 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:28:55 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:28:55 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=bocoum@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:28:55 - c.s.api.security.AuthTokenFilter - User bocoum@gmail.com authorities: [TRANSFERT_LECTURE, UTILISA_PERTE_CREER, COMMANDE_MODIFIER, INVENTAIRE_REGULARISER, TABLEAU_DE_BORD_LECTURE, CONFIG_MARGE_ECRITURE, PAIEMENT_ANNULATION, INVENTAIRE_LECTURE, PRODUIT_MODIFIER, VENTE_HISTORIQUE, CLIENT_CREER, PAIEMENT_MODIFIER, DOCUMENTS_VOIR, FOURNISSEUR_MODIFIER, FOURNISSEUR_SUPPRIMER, VENTE_SUPPRIMER, ACHAT_VOIR, TRANSFERT_SUPPRIMER, DEPENSE_LECTURE, PRODUIT_MOUVEMENT, UTILISA_PERTE_MODIFIER, ROLE_ADMINISTRATEUR, VENTE_MODIFIER, INVENTAIRE_SUPPRIMER, INVENTAIRE_VOIR, COMMANDE_SUPPRIMER, CAISSE_LECTURE, PRODUIT_LECTURE, COMMANDE_LECTURE, UTILISATEUR_LECTURE, CAISSE_VOIR, UTILISA_PERTE_SUPPRIMER, TABLEAU_DE_BORD_VOIR, UTILISA_PERTE_VOIR, UTILISATEUR_CREER, RECEPTION_CREER, DOCUMENTS_TELECHARGER, MOUVEMENT_AUDIT, UTILISATEUR_ACTIVER_DESACTIVER, PRODUIT_SUPPRIMER, RAPPORT_LECTURE, RECEPTION_ANNULATION, DEPENSE_CREER, PAIEMENT_SUPPRESSION, VENTE_CREER, CONFIG_MARGE_SUPPRESSION, BOUTIQUE_LECTURE, VENTE_EMPLACEMENT_MODIFIER, PAIEMENT_CREER, DEPENSE_VALIDATION, INVENTAIRE_MOUVEMENT, RECEPTION_SUPPRESSION, VENTE_LECTURE, ACHAT_HISTORIQUE, TRANSFERT_CREER, UTILISATEUR_MODIFIER, CONFIG_MARGE_LECTURE, CLIENT_SUPPRIMER, PRODUIT_VOIR, CAISSE_GERER, VENTE_CREDIT_VOIR, RAPPORT_CREER, COMMANDE_CREER, CONFIGURATION_VOIR, FOURNISSEUR_VOIR, INVENTAIRE_CREER, UTILISATEUR_GERER, VENTE_ESPECE_VOIR, LIVRAISON_ECRITURE, FOURNISSEUR_CREER, CLIENT_MODIFIER, TRANSFERT_VOIR, CAISSE_MOUVEMENT_VIEW, TRANSFERT_MODIFIER, PRODUIT_CREER, CLIENT_LECTURE, FOURNISSEUR_LECTURE, ROLE_ADMIN, DEPENSE_ANNULATION, UTILISATEUR_SUPPRIMER, INVENTAIRE_MODIFIER, RECEPTION_MODIFIER]
+2026-01-09 19:28:55 - o.s.security.web.FilterChainProxy - Secured GET /api/notifications
+2026-01-09 19:28:55 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:28:55 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:28:55 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:55 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:28:55 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:28:55 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:28:55 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=bocoum@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:28:55 - c.s.api.security.AuthTokenFilter - User bocoum@gmail.com authorities: [TRANSFERT_LECTURE, UTILISA_PERTE_CREER, COMMANDE_MODIFIER, INVENTAIRE_REGULARISER, TABLEAU_DE_BORD_LECTURE, CONFIG_MARGE_ECRITURE, PAIEMENT_ANNULATION, INVENTAIRE_LECTURE, PRODUIT_MODIFIER, VENTE_HISTORIQUE, CLIENT_CREER, PAIEMENT_MODIFIER, DOCUMENTS_VOIR, FOURNISSEUR_MODIFIER, FOURNISSEUR_SUPPRIMER, VENTE_SUPPRIMER, ACHAT_VOIR, TRANSFERT_SUPPRIMER, DEPENSE_LECTURE, PRODUIT_MOUVEMENT, UTILISA_PERTE_MODIFIER, ROLE_ADMINISTRATEUR, VENTE_MODIFIER, INVENTAIRE_SUPPRIMER, INVENTAIRE_VOIR, COMMANDE_SUPPRIMER, CAISSE_LECTURE, PRODUIT_LECTURE, COMMANDE_LECTURE, UTILISATEUR_LECTURE, CAISSE_VOIR, UTILISA_PERTE_SUPPRIMER, TABLEAU_DE_BORD_VOIR, UTILISA_PERTE_VOIR, UTILISATEUR_CREER, RECEPTION_CREER, DOCUMENTS_TELECHARGER, MOUVEMENT_AUDIT, UTILISATEUR_ACTIVER_DESACTIVER, PRODUIT_SUPPRIMER, RAPPORT_LECTURE, RECEPTION_ANNULATION, DEPENSE_CREER, PAIEMENT_SUPPRESSION, VENTE_CREER, CONFIG_MARGE_SUPPRESSION, BOUTIQUE_LECTURE, VENTE_EMPLACEMENT_MODIFIER, PAIEMENT_CREER, DEPENSE_VALIDATION, INVENTAIRE_MOUVEMENT, RECEPTION_SUPPRESSION, VENTE_LECTURE, ACHAT_HISTORIQUE, TRANSFERT_CREER, UTILISATEUR_MODIFIER, CONFIG_MARGE_LECTURE, CLIENT_SUPPRIMER, PRODUIT_VOIR, CAISSE_GERER, VENTE_CREDIT_VOIR, RAPPORT_CREER, COMMANDE_CREER, CONFIGURATION_VOIR, FOURNISSEUR_VOIR, INVENTAIRE_CREER, UTILISATEUR_GERER, VENTE_ESPECE_VOIR, LIVRAISON_ECRITURE, FOURNISSEUR_CREER, CLIENT_MODIFIER, TRANSFERT_VOIR, CAISSE_MOUVEMENT_VIEW, TRANSFERT_MODIFIER, PRODUIT_CREER, CLIENT_LECTURE, FOURNISSEUR_LECTURE, ROLE_ADMIN, DEPENSE_ANNULATION, UTILISATEUR_SUPPRIMER, INVENTAIRE_MODIFIER, RECEPTION_MODIFIER]
+2026-01-09 19:28:55 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Opening JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:28:55 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:55 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:28:55 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:28:55 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:28:55 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:55 - org.hibernate.SQL - 
+    select
+        n1_0.id_notification,
+        n1_0.boutique_id,
+        n1_0.created_at,
+        n1_0.payload,
+        n1_0.is_read,
+        n1_0.type,
+        n1_0.user_id 
+    from
+        notification n1_0 
+    where
+        n1_0.user_id=? 
+        and not(n1_0.is_read) 
+    order by
+        n1_0.created_at desc
+2026-01-09 19:28:55 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Closing JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:28:58 - o.s.security.web.FilterChainProxy - Securing OPTIONS /api/notifications
+2026-01-09 19:28:58 - o.s.security.web.FilterChainProxy - Securing GET /api/notifications
+2026-01-09 19:28:58 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:28:58 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:28:58 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:58 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:28:58 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:28:58 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:28:58 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=barrymoustapha908@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:28:58 - c.s.api.security.AuthTokenFilter - User barrymoustapha908@gmail.com authorities: [UTILISA_PERTE_CREER, TRANSFERT_LECTURE, COMMANDE_MODIFIER, INVENTAIRE_REGULARISER, TABLEAU_DE_BORD_LECTURE, CONFIG_MARGE_ECRITURE, PAIEMENT_ANNULATION, VENTE_HISTORIQUE, INVENTAIRE_LECTURE, PRODUIT_MODIFIER, PAIEMENT_MODIFIER, CLIENT_CREER, DOCUMENTS_VOIR, FOURNISSEUR_MODIFIER, FOURNISSEUR_SUPPRIMER, VENTE_SUPPRIMER, ACHAT_VOIR, TRANSFERT_SUPPRIMER, DEPENSE_LECTURE, PRODUIT_MOUVEMENT, UTILISA_PERTE_MODIFIER, VENTE_MODIFIER, INVENTAIRE_SUPPRIMER, INVENTAIRE_VOIR, COMMANDE_SUPPRIMER, CAISSE_LECTURE, PRODUIT_LECTURE, COMMANDE_LECTURE, UTILISATEUR_LECTURE, CAISSE_VOIR, UTILISA_PERTE_SUPPRIMER, TABLEAU_DE_BORD_VOIR, UTILISA_PERTE_VOIR, UTILISATEUR_CREER, RECEPTION_CREER, DOCUMENTS_TELECHARGER, MOUVEMENT_AUDIT, UTILISATEUR_ACTIVER_DESACTIVER, PRODUIT_SUPPRIMER, RAPPORT_LECTURE, CONFIGURATION _VOIR, RECEPTION_ANNULATION, DEPENSE_CREER, BOUTIQUE_MODIFIER, PAIEMENT_SUPPRESSION, CONFIG_MARGE_SUPPRESSION, VENTE_CREER, BOUTIQUE_CREER, BOUTIQUE_LECTURE, VENTE_EMPLACEMENT_MODIFIER, PAIEMENT_CREER, INVENTAIRE_MOUVEMENT, DEPENSE_VALIDATION, RECEPTION_SUPPRESSION, VENTE_LECTURE, ACHAT_HISTORIQUE, UTILISATEUR_MODIFIER, TRANSFERT_CREER, CONFIG_MARGE_LECTURE, CLIENT_SUPPRIMER, PRODUIT_VOIR, CAISSE_GERER, VENTE_CREDIT_VOIR, CONFIGURATION_VOIR, RAPPORT_CREER, COMMANDE_CREER, FOURNISSEUR_VOIR, UTILISATEUR_GERER, INVENTAIRE_CREER, VENTE_ESPECE_VOIR, LIVRAISON_ECRITURE, ROLE_SUPERADMIN, FOURNISSEUR_CREER, CLIENT_MODIFIER, TRANSFERT_VOIR, CAISSE_MOUVEMENT_VIEW, TRANSFERT_MODIFIER, PRODUIT_CREER, CLIENT_LECTURE, FOURNISSEUR_LECTURE, DEPENSE_ANNULATION, UTILISATEUR_SUPPRIMER, INVENTAIRE_MODIFIER, BOUTIQUE_SUPPRIMER, RECEPTION_MODIFIER]
+2026-01-09 19:28:58 - o.s.security.web.FilterChainProxy - Secured GET /api/notifications
+2026-01-09 19:28:58 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:28:58 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:28:58 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:58 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:28:58 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:28:58 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:28:58 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=barrymoustapha908@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:28:58 - c.s.api.security.AuthTokenFilter - User barrymoustapha908@gmail.com authorities: [UTILISA_PERTE_CREER, TRANSFERT_LECTURE, COMMANDE_MODIFIER, INVENTAIRE_REGULARISER, TABLEAU_DE_BORD_LECTURE, CONFIG_MARGE_ECRITURE, PAIEMENT_ANNULATION, VENTE_HISTORIQUE, INVENTAIRE_LECTURE, PRODUIT_MODIFIER, PAIEMENT_MODIFIER, CLIENT_CREER, DOCUMENTS_VOIR, FOURNISSEUR_MODIFIER, FOURNISSEUR_SUPPRIMER, VENTE_SUPPRIMER, ACHAT_VOIR, TRANSFERT_SUPPRIMER, DEPENSE_LECTURE, PRODUIT_MOUVEMENT, UTILISA_PERTE_MODIFIER, VENTE_MODIFIER, INVENTAIRE_SUPPRIMER, INVENTAIRE_VOIR, COMMANDE_SUPPRIMER, CAISSE_LECTURE, PRODUIT_LECTURE, COMMANDE_LECTURE, UTILISATEUR_LECTURE, CAISSE_VOIR, UTILISA_PERTE_SUPPRIMER, TABLEAU_DE_BORD_VOIR, UTILISA_PERTE_VOIR, UTILISATEUR_CREER, RECEPTION_CREER, DOCUMENTS_TELECHARGER, MOUVEMENT_AUDIT, UTILISATEUR_ACTIVER_DESACTIVER, PRODUIT_SUPPRIMER, RAPPORT_LECTURE, CONFIGURATION _VOIR, RECEPTION_ANNULATION, DEPENSE_CREER, BOUTIQUE_MODIFIER, PAIEMENT_SUPPRESSION, CONFIG_MARGE_SUPPRESSION, VENTE_CREER, BOUTIQUE_CREER, BOUTIQUE_LECTURE, VENTE_EMPLACEMENT_MODIFIER, PAIEMENT_CREER, INVENTAIRE_MOUVEMENT, DEPENSE_VALIDATION, RECEPTION_SUPPRESSION, VENTE_LECTURE, ACHAT_HISTORIQUE, UTILISATEUR_MODIFIER, TRANSFERT_CREER, CONFIG_MARGE_LECTURE, CLIENT_SUPPRIMER, PRODUIT_VOIR, CAISSE_GERER, VENTE_CREDIT_VOIR, CONFIGURATION_VOIR, RAPPORT_CREER, COMMANDE_CREER, FOURNISSEUR_VOIR, UTILISATEUR_GERER, INVENTAIRE_CREER, VENTE_ESPECE_VOIR, LIVRAISON_ECRITURE, ROLE_SUPERADMIN, FOURNISSEUR_CREER, CLIENT_MODIFIER, TRANSFERT_VOIR, CAISSE_MOUVEMENT_VIEW, TRANSFERT_MODIFIER, PRODUIT_CREER, CLIENT_LECTURE, FOURNISSEUR_LECTURE, DEPENSE_ANNULATION, UTILISATEUR_SUPPRIMER, INVENTAIRE_MODIFIER, BOUTIQUE_SUPPRIMER, RECEPTION_MODIFIER]
+2026-01-09 19:28:58 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Opening JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:28:58 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:58 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:28:58 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:28:58 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:28:58 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:28:58 - org.hibernate.SQL - 
+    select
+        n1_0.id_notification,
+        n1_0.boutique_id,
+        n1_0.created_at,
+        n1_0.payload,
+        n1_0.is_read,
+        n1_0.type,
+        n1_0.user_id 
+    from
+        notification n1_0 
+    where
+        n1_0.user_id=? 
+        and not(n1_0.is_read) 
+    order by
+        n1_0.created_at desc
+2026-01-09 19:28:58 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Closing JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:29:11 - o.s.security.web.FilterChainProxy - Securing OPTIONS /api/notifications
+2026-01-09 19:29:11 - o.s.security.web.FilterChainProxy - Securing GET /api/notifications
+2026-01-09 19:29:11 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:29:11 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:29:11 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:29:11 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=alima@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:29:11 - c.s.api.security.AuthTokenFilter - User alima@gmail.com authorities: [VENTE_MODIFIER, UTILISATEUR_GERER, COMMANDE_MODIFIER, INVENTAIRE_REGULARISER, PRODUIT_LECTURE, COMMANDE_LECTURE, VENTE_CREER, TABLEAU_DE_BORD_LECTURE, ROLE_GERANT_BOUTIQUE, INVENTAIRE_LECTURE, PRODUIT_MODIFIER, CLIENT_MODIFIER, CLIENT_CREER, VENTE_LECTURE, DOCUMENTS_VOIR, TABLEAU_DE_BORD_VOIR, PRODUIT_CREER, UTILISATEUR_ACTIVER_DESACTIVER, CLIENT_LECTURE, ROLE_MANAGER, FOURNISSEUR_LECTURE, COMMANDE_CREER, INVENTAIRE_MODIFIER]
+2026-01-09 19:29:11 - o.s.security.web.FilterChainProxy - Secured GET /api/notifications
+2026-01-09 19:29:11 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:29:11 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:29:11 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:29:11 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=alima@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:29:11 - c.s.api.security.AuthTokenFilter - User alima@gmail.com authorities: [VENTE_MODIFIER, UTILISATEUR_GERER, COMMANDE_MODIFIER, INVENTAIRE_REGULARISER, PRODUIT_LECTURE, COMMANDE_LECTURE, VENTE_CREER, TABLEAU_DE_BORD_LECTURE, ROLE_GERANT_BOUTIQUE, INVENTAIRE_LECTURE, PRODUIT_MODIFIER, CLIENT_MODIFIER, CLIENT_CREER, VENTE_LECTURE, DOCUMENTS_VOIR, TABLEAU_DE_BORD_VOIR, PRODUIT_CREER, UTILISATEUR_ACTIVER_DESACTIVER, CLIENT_LECTURE, ROLE_MANAGER, FOURNISSEUR_LECTURE, COMMANDE_CREER, INVENTAIRE_MODIFIER]
+2026-01-09 19:29:11 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Opening JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:29:11 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:29:11 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        n1_0.id_notification,
+        n1_0.boutique_id,
+        n1_0.created_at,
+        n1_0.payload,
+        n1_0.is_read,
+        n1_0.type,
+        n1_0.user_id 
+    from
+        notification n1_0 
+    where
+        n1_0.user_id=? 
+        and not(n1_0.is_read) 
+    order by
+        n1_0.created_at desc
+2026-01-09 19:29:11 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Closing JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:29:11 - o.s.security.web.FilterChainProxy - Securing OPTIONS /api/notifications
+2026-01-09 19:29:11 - o.s.security.web.FilterChainProxy - Securing GET /api/notifications
+2026-01-09 19:29:11 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:29:11 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:29:11 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:29:11 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=karifa@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:29:11 - c.s.api.security.AuthTokenFilter - User karifa@gmail.com authorities: [DEPENSE_CREER, COMMANDE_MODIFIER, CAISSE_LECTURE, COMMANDE_LECTURE, PRODUIT_LECTURE, VENTE_CREER, TABLEAU_DE_BORD_LECTURE, CAISSE_VOIR, VENTE_LECTURE, ROLE_CASHIER, CLIENT_LECTURE, ROLE_CAISSIER, DEPENSE_LECTURE, COMMANDE_CREER]
+2026-01-09 19:29:11 - o.s.security.web.FilterChainProxy - Secured GET /api/notifications
+2026-01-09 19:29:11 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:29:11 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:29:11 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:29:11 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=karifa@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:29:11 - c.s.api.security.AuthTokenFilter - User karifa@gmail.com authorities: [DEPENSE_CREER, COMMANDE_MODIFIER, CAISSE_LECTURE, COMMANDE_LECTURE, PRODUIT_LECTURE, VENTE_CREER, TABLEAU_DE_BORD_LECTURE, CAISSE_VOIR, VENTE_LECTURE, ROLE_CASHIER, CLIENT_LECTURE, ROLE_CAISSIER, DEPENSE_LECTURE, COMMANDE_CREER]
+2026-01-09 19:29:11 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Opening JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:29:11 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:29:11 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:11 - org.hibernate.SQL - 
+    select
+        n1_0.id_notification,
+        n1_0.boutique_id,
+        n1_0.created_at,
+        n1_0.payload,
+        n1_0.is_read,
+        n1_0.type,
+        n1_0.user_id 
+    from
+        notification n1_0 
+    where
+        n1_0.user_id=? 
+        and not(n1_0.is_read) 
+    order by
+        n1_0.created_at desc
+2026-01-09 19:29:11 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Closing JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:29:20 - o.s.security.web.FilterChainProxy - Securing OPTIONS /api/notifications
+2026-01-09 19:29:20 - o.s.security.web.FilterChainProxy - Securing GET /api/notifications
+2026-01-09 19:29:20 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:29:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:29:20 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:20 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:29:20 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:29:20 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:29:20 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=bocoum@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:29:20 - c.s.api.security.AuthTokenFilter - User bocoum@gmail.com authorities: [TRANSFERT_LECTURE, UTILISA_PERTE_CREER, COMMANDE_MODIFIER, INVENTAIRE_REGULARISER, TABLEAU_DE_BORD_LECTURE, CONFIG_MARGE_ECRITURE, PAIEMENT_ANNULATION, INVENTAIRE_LECTURE, PRODUIT_MODIFIER, VENTE_HISTORIQUE, CLIENT_CREER, PAIEMENT_MODIFIER, DOCUMENTS_VOIR, FOURNISSEUR_MODIFIER, FOURNISSEUR_SUPPRIMER, VENTE_SUPPRIMER, ACHAT_VOIR, TRANSFERT_SUPPRIMER, DEPENSE_LECTURE, PRODUIT_MOUVEMENT, UTILISA_PERTE_MODIFIER, ROLE_ADMINISTRATEUR, VENTE_MODIFIER, INVENTAIRE_SUPPRIMER, INVENTAIRE_VOIR, COMMANDE_SUPPRIMER, CAISSE_LECTURE, PRODUIT_LECTURE, COMMANDE_LECTURE, UTILISATEUR_LECTURE, CAISSE_VOIR, UTILISA_PERTE_SUPPRIMER, TABLEAU_DE_BORD_VOIR, UTILISA_PERTE_VOIR, UTILISATEUR_CREER, RECEPTION_CREER, DOCUMENTS_TELECHARGER, MOUVEMENT_AUDIT, UTILISATEUR_ACTIVER_DESACTIVER, PRODUIT_SUPPRIMER, RAPPORT_LECTURE, RECEPTION_ANNULATION, DEPENSE_CREER, PAIEMENT_SUPPRESSION, VENTE_CREER, CONFIG_MARGE_SUPPRESSION, BOUTIQUE_LECTURE, VENTE_EMPLACEMENT_MODIFIER, PAIEMENT_CREER, DEPENSE_VALIDATION, INVENTAIRE_MOUVEMENT, RECEPTION_SUPPRESSION, VENTE_LECTURE, ACHAT_HISTORIQUE, TRANSFERT_CREER, UTILISATEUR_MODIFIER, CONFIG_MARGE_LECTURE, CLIENT_SUPPRIMER, PRODUIT_VOIR, CAISSE_GERER, VENTE_CREDIT_VOIR, RAPPORT_CREER, COMMANDE_CREER, CONFIGURATION_VOIR, FOURNISSEUR_VOIR, INVENTAIRE_CREER, UTILISATEUR_GERER, VENTE_ESPECE_VOIR, LIVRAISON_ECRITURE, FOURNISSEUR_CREER, CLIENT_MODIFIER, TRANSFERT_VOIR, CAISSE_MOUVEMENT_VIEW, TRANSFERT_MODIFIER, PRODUIT_CREER, CLIENT_LECTURE, FOURNISSEUR_LECTURE, ROLE_ADMIN, DEPENSE_ANNULATION, UTILISATEUR_SUPPRIMER, INVENTAIRE_MODIFIER, RECEPTION_MODIFIER]
+2026-01-09 19:29:20 - o.s.security.web.FilterChainProxy - Secured GET /api/notifications
+2026-01-09 19:29:20 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:29:20 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:29:20 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:20 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:29:20 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:29:20 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:29:20 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=bocoum@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:29:20 - c.s.api.security.AuthTokenFilter - User bocoum@gmail.com authorities: [TRANSFERT_LECTURE, UTILISA_PERTE_CREER, COMMANDE_MODIFIER, INVENTAIRE_REGULARISER, TABLEAU_DE_BORD_LECTURE, CONFIG_MARGE_ECRITURE, PAIEMENT_ANNULATION, INVENTAIRE_LECTURE, PRODUIT_MODIFIER, VENTE_HISTORIQUE, CLIENT_CREER, PAIEMENT_MODIFIER, DOCUMENTS_VOIR, FOURNISSEUR_MODIFIER, FOURNISSEUR_SUPPRIMER, VENTE_SUPPRIMER, ACHAT_VOIR, TRANSFERT_SUPPRIMER, DEPENSE_LECTURE, PRODUIT_MOUVEMENT, UTILISA_PERTE_MODIFIER, ROLE_ADMINISTRATEUR, VENTE_MODIFIER, INVENTAIRE_SUPPRIMER, INVENTAIRE_VOIR, COMMANDE_SUPPRIMER, CAISSE_LECTURE, PRODUIT_LECTURE, COMMANDE_LECTURE, UTILISATEUR_LECTURE, CAISSE_VOIR, UTILISA_PERTE_SUPPRIMER, TABLEAU_DE_BORD_VOIR, UTILISA_PERTE_VOIR, UTILISATEUR_CREER, RECEPTION_CREER, DOCUMENTS_TELECHARGER, MOUVEMENT_AUDIT, UTILISATEUR_ACTIVER_DESACTIVER, PRODUIT_SUPPRIMER, RAPPORT_LECTURE, RECEPTION_ANNULATION, DEPENSE_CREER, PAIEMENT_SUPPRESSION, VENTE_CREER, CONFIG_MARGE_SUPPRESSION, BOUTIQUE_LECTURE, VENTE_EMPLACEMENT_MODIFIER, PAIEMENT_CREER, DEPENSE_VALIDATION, INVENTAIRE_MOUVEMENT, RECEPTION_SUPPRESSION, VENTE_LECTURE, ACHAT_HISTORIQUE, TRANSFERT_CREER, UTILISATEUR_MODIFIER, CONFIG_MARGE_LECTURE, CLIENT_SUPPRIMER, PRODUIT_VOIR, CAISSE_GERER, VENTE_CREDIT_VOIR, RAPPORT_CREER, COMMANDE_CREER, CONFIGURATION_VOIR, FOURNISSEUR_VOIR, INVENTAIRE_CREER, UTILISATEUR_GERER, VENTE_ESPECE_VOIR, LIVRAISON_ECRITURE, FOURNISSEUR_CREER, CLIENT_MODIFIER, TRANSFERT_VOIR, CAISSE_MOUVEMENT_VIEW, TRANSFERT_MODIFIER, PRODUIT_CREER, CLIENT_LECTURE, FOURNISSEUR_LECTURE, ROLE_ADMIN, DEPENSE_ANNULATION, UTILISATEUR_SUPPRIMER, INVENTAIRE_MODIFIER, RECEPTION_MODIFIER]
+2026-01-09 19:29:20 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Opening JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:29:20 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:20 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:29:20 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:29:20 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:29:20 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:20 - org.hibernate.SQL - 
+    select
+        n1_0.id_notification,
+        n1_0.boutique_id,
+        n1_0.created_at,
+        n1_0.payload,
+        n1_0.is_read,
+        n1_0.type,
+        n1_0.user_id 
+    from
+        notification n1_0 
+    where
+        n1_0.user_id=? 
+        and not(n1_0.is_read) 
+    order by
+        n1_0.created_at desc
+2026-01-09 19:29:20 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Closing JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:29:23 - o.s.security.web.FilterChainProxy - Securing OPTIONS /api/notifications
+2026-01-09 19:29:23 - o.s.security.web.FilterChainProxy - Securing GET /api/notifications
+2026-01-09 19:29:23 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:29:23 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:29:23 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:23 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:29:23 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:29:23 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:29:23 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=barrymoustapha908@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:29:23 - c.s.api.security.AuthTokenFilter - User barrymoustapha908@gmail.com authorities: [UTILISA_PERTE_CREER, TRANSFERT_LECTURE, COMMANDE_MODIFIER, INVENTAIRE_REGULARISER, TABLEAU_DE_BORD_LECTURE, CONFIG_MARGE_ECRITURE, PAIEMENT_ANNULATION, VENTE_HISTORIQUE, INVENTAIRE_LECTURE, PRODUIT_MODIFIER, PAIEMENT_MODIFIER, CLIENT_CREER, DOCUMENTS_VOIR, FOURNISSEUR_MODIFIER, FOURNISSEUR_SUPPRIMER, VENTE_SUPPRIMER, ACHAT_VOIR, TRANSFERT_SUPPRIMER, DEPENSE_LECTURE, PRODUIT_MOUVEMENT, UTILISA_PERTE_MODIFIER, VENTE_MODIFIER, INVENTAIRE_SUPPRIMER, INVENTAIRE_VOIR, COMMANDE_SUPPRIMER, CAISSE_LECTURE, PRODUIT_LECTURE, COMMANDE_LECTURE, UTILISATEUR_LECTURE, CAISSE_VOIR, UTILISA_PERTE_SUPPRIMER, TABLEAU_DE_BORD_VOIR, UTILISA_PERTE_VOIR, UTILISATEUR_CREER, RECEPTION_CREER, DOCUMENTS_TELECHARGER, MOUVEMENT_AUDIT, UTILISATEUR_ACTIVER_DESACTIVER, PRODUIT_SUPPRIMER, RAPPORT_LECTURE, CONFIGURATION _VOIR, RECEPTION_ANNULATION, DEPENSE_CREER, BOUTIQUE_MODIFIER, PAIEMENT_SUPPRESSION, CONFIG_MARGE_SUPPRESSION, VENTE_CREER, BOUTIQUE_CREER, BOUTIQUE_LECTURE, VENTE_EMPLACEMENT_MODIFIER, PAIEMENT_CREER, INVENTAIRE_MOUVEMENT, DEPENSE_VALIDATION, RECEPTION_SUPPRESSION, VENTE_LECTURE, ACHAT_HISTORIQUE, UTILISATEUR_MODIFIER, TRANSFERT_CREER, CONFIG_MARGE_LECTURE, CLIENT_SUPPRIMER, PRODUIT_VOIR, CAISSE_GERER, VENTE_CREDIT_VOIR, CONFIGURATION_VOIR, RAPPORT_CREER, COMMANDE_CREER, FOURNISSEUR_VOIR, UTILISATEUR_GERER, INVENTAIRE_CREER, VENTE_ESPECE_VOIR, LIVRAISON_ECRITURE, ROLE_SUPERADMIN, FOURNISSEUR_CREER, CLIENT_MODIFIER, TRANSFERT_VOIR, CAISSE_MOUVEMENT_VIEW, TRANSFERT_MODIFIER, PRODUIT_CREER, CLIENT_LECTURE, FOURNISSEUR_LECTURE, DEPENSE_ANNULATION, UTILISATEUR_SUPPRIMER, INVENTAIRE_MODIFIER, BOUTIQUE_SUPPRIMER, RECEPTION_MODIFIER]
+2026-01-09 19:29:23 - o.s.security.web.FilterChainProxy - Secured GET /api/notifications
+2026-01-09 19:29:23 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:29:23 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:29:23 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:23 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:29:23 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:29:23 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:29:23 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=barrymoustapha908@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:29:23 - c.s.api.security.AuthTokenFilter - User barrymoustapha908@gmail.com authorities: [UTILISA_PERTE_CREER, TRANSFERT_LECTURE, COMMANDE_MODIFIER, INVENTAIRE_REGULARISER, TABLEAU_DE_BORD_LECTURE, CONFIG_MARGE_ECRITURE, PAIEMENT_ANNULATION, VENTE_HISTORIQUE, INVENTAIRE_LECTURE, PRODUIT_MODIFIER, PAIEMENT_MODIFIER, CLIENT_CREER, DOCUMENTS_VOIR, FOURNISSEUR_MODIFIER, FOURNISSEUR_SUPPRIMER, VENTE_SUPPRIMER, ACHAT_VOIR, TRANSFERT_SUPPRIMER, DEPENSE_LECTURE, PRODUIT_MOUVEMENT, UTILISA_PERTE_MODIFIER, VENTE_MODIFIER, INVENTAIRE_SUPPRIMER, INVENTAIRE_VOIR, COMMANDE_SUPPRIMER, CAISSE_LECTURE, PRODUIT_LECTURE, COMMANDE_LECTURE, UTILISATEUR_LECTURE, CAISSE_VOIR, UTILISA_PERTE_SUPPRIMER, TABLEAU_DE_BORD_VOIR, UTILISA_PERTE_VOIR, UTILISATEUR_CREER, RECEPTION_CREER, DOCUMENTS_TELECHARGER, MOUVEMENT_AUDIT, UTILISATEUR_ACTIVER_DESACTIVER, PRODUIT_SUPPRIMER, RAPPORT_LECTURE, CONFIGURATION _VOIR, RECEPTION_ANNULATION, DEPENSE_CREER, BOUTIQUE_MODIFIER, PAIEMENT_SUPPRESSION, CONFIG_MARGE_SUPPRESSION, VENTE_CREER, BOUTIQUE_CREER, BOUTIQUE_LECTURE, VENTE_EMPLACEMENT_MODIFIER, PAIEMENT_CREER, INVENTAIRE_MOUVEMENT, DEPENSE_VALIDATION, RECEPTION_SUPPRESSION, VENTE_LECTURE, ACHAT_HISTORIQUE, UTILISATEUR_MODIFIER, TRANSFERT_CREER, CONFIG_MARGE_LECTURE, CLIENT_SUPPRIMER, PRODUIT_VOIR, CAISSE_GERER, VENTE_CREDIT_VOIR, CONFIGURATION_VOIR, RAPPORT_CREER, COMMANDE_CREER, FOURNISSEUR_VOIR, UTILISATEUR_GERER, INVENTAIRE_CREER, VENTE_ESPECE_VOIR, LIVRAISON_ECRITURE, ROLE_SUPERADMIN, FOURNISSEUR_CREER, CLIENT_MODIFIER, TRANSFERT_VOIR, CAISSE_MOUVEMENT_VIEW, TRANSFERT_MODIFIER, PRODUIT_CREER, CLIENT_LECTURE, FOURNISSEUR_LECTURE, DEPENSE_ANNULATION, UTILISATEUR_SUPPRIMER, INVENTAIRE_MODIFIER, BOUTIQUE_SUPPRIMER, RECEPTION_MODIFIER]
+2026-01-09 19:29:23 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Opening JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:29:23 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:23 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:29:23 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:29:23 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:29:23 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:23 - org.hibernate.SQL - 
+    select
+        n1_0.id_notification,
+        n1_0.boutique_id,
+        n1_0.created_at,
+        n1_0.payload,
+        n1_0.is_read,
+        n1_0.type,
+        n1_0.user_id 
+    from
+        notification n1_0 
+    where
+        n1_0.user_id=? 
+        and not(n1_0.is_read) 
+    order by
+        n1_0.created_at desc
+2026-01-09 19:29:23 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Closing JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:29:36 - o.s.security.web.FilterChainProxy - Securing OPTIONS /api/notifications
+2026-01-09 19:29:36 - o.s.security.web.FilterChainProxy - Securing GET /api/notifications
+2026-01-09 19:29:36 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:29:36 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:29:36 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:29:36 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=alima@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:29:36 - c.s.api.security.AuthTokenFilter - User alima@gmail.com authorities: [VENTE_MODIFIER, UTILISATEUR_GERER, COMMANDE_MODIFIER, INVENTAIRE_REGULARISER, PRODUIT_LECTURE, COMMANDE_LECTURE, VENTE_CREER, TABLEAU_DE_BORD_LECTURE, ROLE_GERANT_BOUTIQUE, INVENTAIRE_LECTURE, PRODUIT_MODIFIER, CLIENT_MODIFIER, CLIENT_CREER, VENTE_LECTURE, DOCUMENTS_VOIR, TABLEAU_DE_BORD_VOIR, PRODUIT_CREER, UTILISATEUR_ACTIVER_DESACTIVER, CLIENT_LECTURE, ROLE_MANAGER, FOURNISSEUR_LECTURE, COMMANDE_CREER, INVENTAIRE_MODIFIER]
+2026-01-09 19:29:36 - o.s.security.web.FilterChainProxy - Secured GET /api/notifications
+2026-01-09 19:29:36 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:29:36 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:29:36 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:29:36 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=alima@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:29:36 - c.s.api.security.AuthTokenFilter - User alima@gmail.com authorities: [VENTE_MODIFIER, UTILISATEUR_GERER, COMMANDE_MODIFIER, INVENTAIRE_REGULARISER, PRODUIT_LECTURE, COMMANDE_LECTURE, VENTE_CREER, TABLEAU_DE_BORD_LECTURE, ROLE_GERANT_BOUTIQUE, INVENTAIRE_LECTURE, PRODUIT_MODIFIER, CLIENT_MODIFIER, CLIENT_CREER, VENTE_LECTURE, DOCUMENTS_VOIR, TABLEAU_DE_BORD_VOIR, PRODUIT_CREER, UTILISATEUR_ACTIVER_DESACTIVER, CLIENT_LECTURE, ROLE_MANAGER, FOURNISSEUR_LECTURE, COMMANDE_CREER, INVENTAIRE_MODIFIER]
+2026-01-09 19:29:36 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Opening JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:29:36 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:29:36 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        n1_0.id_notification,
+        n1_0.boutique_id,
+        n1_0.created_at,
+        n1_0.payload,
+        n1_0.is_read,
+        n1_0.type,
+        n1_0.user_id 
+    from
+        notification n1_0 
+    where
+        n1_0.user_id=? 
+        and not(n1_0.is_read) 
+    order by
+        n1_0.created_at desc
+2026-01-09 19:29:36 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Closing JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:29:36 - o.s.security.web.FilterChainProxy - Securing OPTIONS /api/notifications
+2026-01-09 19:29:36 - o.s.security.web.FilterChainProxy - Securing GET /api/notifications
+2026-01-09 19:29:36 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:29:36 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:29:36 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:29:36 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=karifa@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:29:36 - c.s.api.security.AuthTokenFilter - User karifa@gmail.com authorities: [DEPENSE_CREER, COMMANDE_MODIFIER, CAISSE_LECTURE, COMMANDE_LECTURE, PRODUIT_LECTURE, VENTE_CREER, TABLEAU_DE_BORD_LECTURE, CAISSE_VOIR, VENTE_LECTURE, ROLE_CASHIER, CLIENT_LECTURE, ROLE_CAISSIER, DEPENSE_LECTURE, COMMANDE_CREER]
+2026-01-09 19:29:36 - o.s.security.web.FilterChainProxy - Secured GET /api/notifications
+2026-01-09 19:29:36 - c.s.api.security.AuthTokenFilter - Incoming request: GET /api/notifications - Authorization present? true - startsWithBearer? true
+2026-01-09 19:29:36 - o.s.o.j.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler - Creating new EntityManager for shared EntityManager invocation
+2026-01-09 19:29:36 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:29:36 - c.s.api.security.AuthTokenFilter - Authenticated request GET /api/notifications - user=karifa@gmail.com - tokenStartsWith=eyJhbGciOi...
+2026-01-09 19:29:36 - c.s.api.security.AuthTokenFilter - User karifa@gmail.com authorities: [DEPENSE_CREER, COMMANDE_MODIFIER, CAISSE_LECTURE, COMMANDE_LECTURE, PRODUIT_LECTURE, VENTE_CREER, TABLEAU_DE_BORD_LECTURE, CAISSE_VOIR, VENTE_LECTURE, ROLE_CASHIER, CLIENT_LECTURE, ROLE_CAISSIER, DEPENSE_LECTURE, COMMANDE_CREER]
+2026-01-09 19:29:36 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Opening JPA EntityManager in OpenEntityManagerInViewInterceptor
+2026-01-09 19:29:36 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        u1_0.id_utilisateur,
+        u1_0.adresse,
+        u1_0.avatar,
+        u1_0.boutique_id,
+        u1_0.contact_utilisateur,
+        u1_0.email,
+        u1_0.mot_de_passe_utilisateur,
+        u1_0.nom_utilisateur,
+        u1_0.prenom_utilisateur,
+        u1_0.psedeau_utilisateur,
+        u1_0.reset_token,
+        u1_0.reset_token_expire,
+        u1_0.statut,
+        u1_0.type_utilisateur 
+    from
+        utilisateur u1_0 
+    where
+        upper(u1_0.email)=upper(?)
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        r1_0.utilisateur_id,
+        r1_1.id_role,
+        r1_1.description,
+        r1_1.name,
+        p1_0.role_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_roles r1_0 
+    join
+        role r1_1 
+            on r1_1.id_role=r1_0.role_id 
+    left join
+        role_permissions p1_0 
+            on r1_1.id_role=p1_0.role_id 
+    left join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        r1_0.utilisateur_id=?
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        p1_0.utilisateur_id,
+        p1_1.id_permission,
+        p1_1.description,
+        p1_1.name 
+    from
+        utilisateur_permissions p1_0 
+    join
+        permission p1_1 
+            on p1_1.id_permission=p1_0.permission_id 
+    where
+        p1_0.utilisateur_id=?
+2026-01-09 19:29:36 - org.hibernate.orm.deprecation - HHH90000021: Encountered deprecated setting [javax.persistence.query.timeout], use [jakarta.persistence.query.timeout] instead
+2026-01-09 19:29:36 - org.hibernate.SQL - 
+    select
+        n1_0.id_notification,
+        n1_0.boutique_id,
+        n1_0.created_at,
+        n1_0.payload,
+        n1_0.is_read,
+        n1_0.type,
+        n1_0.user_id 
+    from
+        notification n1_0 
+    where
+        n1_0.user_id=? 
+        and not(n1_0.is_read) 
+    order by
+        n1_0.created_at desc
+2026-01-09 19:29:36 - o.s.o.j.s.OpenEntityManagerInViewInterceptor - Closing JPA EntityManager in OpenEntityManagerInViewInterceptor

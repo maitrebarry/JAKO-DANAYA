@@ -37,7 +37,7 @@ const sanitizeDescription = (s?: string) => {
 
 const Mouvements: React.FC = () => {
   const isAuditor = useHasPermission('MOUVEMENT_AUDIT');
-  const { currentBoutique, user, roles = [] } = useUser();
+  const { currentBoutique, user } = useUser();
   // owners (type PROPRIETAIRE) and auditors (MOUVEMENT_AUDIT) may access the caisse summary
   const canViewCaisseSummary = isAuditor || (user && (user.typeUtilisateur === 'PROPRIETAIRE'));
 

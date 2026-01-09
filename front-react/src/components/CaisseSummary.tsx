@@ -26,7 +26,7 @@ const numberFmt = (n?: number) => (typeof n === 'number' ? n.toFixed(2) : '0.00'
 
 const CaisseSummary: React.FC = () => {
   const isAuditor = useHasPermission('MOUVEMENT_AUDIT');
-  const { currentBoutique, user, roles = [] } = useUser();
+  const { currentBoutique, user } = useUser();
   // owner OR auditor can access this summary
   const hasAccess = isAuditor || (user && user.typeUtilisateur === 'PROPRIETAIRE');
   const [users, setUsers] = useState<any[]>([]);
