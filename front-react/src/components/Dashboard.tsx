@@ -4,6 +4,8 @@ import RoleBased from './common/RoleBased';
 import SuperadminOverview from './dashboard/SuperadminOverview';
 import OwnerOverview from './dashboard/OwnerOverview';
 import ManagerOverview from './dashboard/ManagerOverview';
+import CashierOverview from './dashboard/CashierOverview';
+import WarehouseOverview from './dashboard/WarehouseOverview';
 import { useUser } from '../contexts/UserContext';
 import { fetchOverview, OverviewPayload } from '../api/dashboard';
 
@@ -54,8 +56,18 @@ const Dashboard = () => {
         <ManagerOverview />
       </RoleBased>
 
+      {/* Cashier overview */}
+      <RoleBased allowedRoles={["ROLE_CASHIER"]}>
+        <CashierOverview />
+      </RoleBased>
+
+      {/* Warehouse overview */}
+      <RoleBased allowedRoles={["ROLE_MAGASINIER"]}>
+        <WarehouseOverview />
+      </RoleBased>
+
       {/* Default generic overview for other roles */}
-      <RoleBased allowedRoles={["ROLE_CASHIER","ROLE_MAGASINIER","ROLE_USER"]}>
+      <RoleBased allowedRoles={["ROLE_USER"]}>
         <div className="row">
           <MetricCard
             title="Ventes"
