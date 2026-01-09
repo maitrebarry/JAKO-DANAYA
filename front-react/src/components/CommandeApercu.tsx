@@ -15,8 +15,7 @@ const CommandeApercu: React.FC = () => {
 
   // Detect ventes mode (legacy). If route is for vente, redirect to the dedicated vente apercu.
   const isVenteMode = window.location.pathname && window.location.pathname.includes('/ventes');
-  // Detect commandes-clients preview route so we can apply the client-specific quantity display rule
-  const isClientCommande = window.location.pathname && window.location.pathname.includes('/commandes-clients');
+  // Detect commandes-clients preview route (not needed here)
 
   useEffect(() => {
     (async () => {

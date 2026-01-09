@@ -18,9 +18,17 @@ const Documents: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [typeFilter, setTypeFilter] = useState('');
   const [refFilter, setRefFilter] = useState('');
+  const [boutiques, setBoutiques] = useState<any[]>([]);
+  const [boutiqueFilter, setBoutiqueFilter] = useState<string | null>(null);
+  const [magasins, setMagasins] = useState<any[]>([]);
+  const [magasinFilter, setMagasinFilter] = useState<string | null>(null);
+  const [location, setLocation] = useState<string | null>(null); // format: 'B:<id>' or 'M:<id>'
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [serverCanView, setServerCanView] = useState<boolean | null>(null);
 
   const fetchList = async (p = page) => {
-    if (!canView) return;
+    // Do not fetch if user lacks client-side or server-side view permission
+    if (!canView || serverCanView === false) return;
     setLoading(true); setError(null);
     try {
       const params = new URLSearchParams();
@@ -28,8 +36,19 @@ const Documents: React.FC = () => {
       params.append('size', String(size));
       if (typeFilter) params.append('type', typeFilter);
       if (refFilter) params.append('ref', refFilter);
+      if (boutiqueFilter) params.append('boutique', String(boutiqueFilter));
+      // include magasin as optional parameter
+      if (magasinFilter) params.append('magasin', String(magasinFilter));
       const res = await fetch(`${API_BASE}/api/documents?${params.toString()}`, { headers: AUTH_HEADER() });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        if (res.status === 403) {
+          // Server indicates user cannot view documents (scoped to another boutique)
+          setServerCanView(false);
+          setItems([]); setTotal(0);
+          return;
+        }
+        throw new Error(await res.text());
+      }
       const data = await res.json();
       setItems(data.content || []);
       setTotal(data.totalElements || 0);
@@ -40,11 +59,83 @@ const Documents: React.FC = () => {
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchList(0); }, [canView, typeFilter, refFilter]);
+  useEffect(() => { fetchList(0); }, [canView, typeFilter, refFilter, boutiqueFilter, magasinFilter]);
 
+  useEffect(() => {
+    const loadBoutiques = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/boutiques`, { headers: AUTH_HEADER() });
+        if (!res.ok) throw new Error('Erreur chargement boutiques');
+        const data = await res.json();
+        setBoutiques(data || []);
+      } catch (e) {
+        console.error('Erreur chargement boutiques', e);
+      }
+    };
+    loadBoutiques();
+
+    // load current user to preselect location and check server-side permissions
+    const loadCurrentUser = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/users/me`, { headers: AUTH_HEADER() });
+        if (!res.ok) { setServerCanView(false); return; }
+        const u = await res.json();
+        setCurrentUser(u);
+        if (u && u.boutique && u.boutique.id) {
+          // default to user's boutique
+          setLocation(`B:${u.boutique.id}`);
+          setBoutiqueFilter(String(u.boutique.id));
+          setMagasinFilter(null);
+        }
+        // server-side permission check for viewing documents
+        const perms = u.permissions || [];
+        const hasServerView = (u.roles && u.roles.some((r: any) => (r.name||'').toUpperCase() === 'SUPERADMIN')) || perms.some((p: any) => p.name === 'DOCUMENTS_VOIR');
+        setServerCanView(Boolean(hasServerView));
+      } catch (e) {
+        console.error('Erreur chargement utilisateur courant', e);
+        setServerCanView(false);
+      }
+    };
+    loadCurrentUser();
+
+    // load magasins globally (we will filter client-side for the selected boutique)
+    const loadMagasinsGlobal = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/magasins`, { headers: AUTH_HEADER() });
+        if (!res.ok) throw new Error('Erreur chargement magasins');
+        const data = await res.json();
+        setMagasins(data || []);
+      } catch (e) {
+        console.error('Erreur chargement magasins', e);
+        setMagasins([]);
+      }
+    };
+    loadMagasinsGlobal();
+  }, []);
+
+  // keep boutiqueFilter / magasinFilter in sync with single location state
+  useEffect(() => {
+    if (!location) {
+      setBoutiqueFilter(null); setMagasinFilter(null); return;
+    }
+    if (location.startsWith('B:')) {
+      const id = location.split(':')[1];
+      setBoutiqueFilter(String(id));
+      setMagasinFilter(null);
+    } else if (location.startsWith('M:')) {
+      const id = location.split(':')[1];
+      // find magasin to obtain its boutique id
+      const m = magasins.find((x: any) => String(x.id) === String(id));
+      if (m && m.boutique && m.boutique.id) {
+        setBoutiqueFilter(String(m.boutique.id));
+      }
+      setMagasinFilter(String(id));
+    }
+  }, [location, magasins]);
   const openPdf = async (url: string) => {
     try {
-      const full = url.startsWith('http') ? url : `${API_BASE}${url}`;
+      let full = url.startsWith('http') ? url : `${API_BASE}${url}`;
+      if (magasinFilter) full = `${full}&magasin=${magasinFilter}`;
       const res = await fetch(full, { headers: AUTH_HEADER() });
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const blob = await res.blob();
@@ -57,7 +148,8 @@ const Documents: React.FC = () => {
 
   const downloadFile = async (url: string, filename?: string) => {
     try {
-      const full = url.startsWith('http') ? url : `${API_BASE}${url}`;
+      let full = url.startsWith('http') ? url : `${API_BASE}${url}`;
+      if (magasinFilter) full = `${full}&magasin=${magasinFilter}`;
       const res = await fetch(full, { headers: AUTH_HEADER() });
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const blob = await res.blob();
@@ -92,7 +184,8 @@ const Documents: React.FC = () => {
   const nextPage = () => { if ((page + 1) * size < total) fetchList(page + 1); };
   const prevPage = () => { if (page > 0) fetchList(page - 1); };
 
-  if (!canView) return <div className="alert alert-warning">Accès non autorisé</div>;
+  if (serverCanView === null) return <div className="text-muted">Vérification des permissions...</div>;
+  if (!canView || serverCanView === false) return <div className="alert alert-warning">Accès non autorisé</div>;
 
   return (
     <div>
@@ -133,6 +226,30 @@ const Documents: React.FC = () => {
                             <option value="INVENTAIRE">Inventaire</option>
                             <option value="CAISSE">Caisse</option>
                           </select>
+                        </div>
+                        <div className="col-12">
+                          <select className="form-control" value={location ?? ''} onChange={(e) => setLocation(e.target.value || null)}>
+                            <option value="">Lieu (boutique ou magasin)</option>
+                            {/* If user is SUPERADMIN or no currentUser, list all boutiques first */}
+                            {(!currentUser || (currentUser && Array.isArray(currentUser.roles) && currentUser.roles.some((r: any) => (r.name||'').toUpperCase() === 'SUPERADMIN'))) && (
+                              <>
+                                {boutiques.map((b: any) => <option key={`B:${b.id}`} value={`B:${b.id}`}>Boutique: {b.nom}</option>)}
+                                {magasins.map((m: any) => <option key={`M:${m.id}`} value={`M:${m.id}`}>Magasin: {m.nom} ({m.boutique?.nom || ''})</option>)}
+                              </>
+                            )}
+                            {/* For non-super users: show only their boutique and magasins within it */}
+                            {(currentUser && !(Array.isArray(currentUser.roles) && currentUser.roles.some((r: any) => (r.name||'').toUpperCase() === 'SUPERADMIN'))) && currentUser.boutique && (
+                              <>
+                                <option key={`B:${currentUser.boutique.id}`} value={`B:${currentUser.boutique.id}`}>Boutique: {currentUser.boutique.nom}</option>
+                                {magasins.filter((m: any) => m.boutique && String(m.boutique.id) === String(currentUser.boutique.id)).map((m: any) => (
+                                  <option key={`M:${m.id}`} value={`M:${m.id}`}>Magasin: {m.nom} ({m.boutique?.nom || ''})</option>
+                                ))}
+                              </>
+                            )}
+                          </select>
+                        </div>
+                        <div className="col-12">
+                          <small className="form-text text-muted">Par défaut : boutique de l'utilisateur. Les produits "en boutique" sont ceux dont <code>id_magasin</code> est null dans la table stock.</small>
                         </div>
                         <div className="col-12">
                           <button className="btn btn-outline-success" onClick={(e) => { e.preventDefault(); fetchList(0); }}>Filtrer</button>
