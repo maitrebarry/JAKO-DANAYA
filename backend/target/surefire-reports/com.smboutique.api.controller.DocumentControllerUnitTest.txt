@@ -1,12 +1,12 @@
 -------------------------------------------------------------------------------
 Test set: com.smboutique.api.controller.DocumentControllerUnitTest
 -------------------------------------------------------------------------------
-Tests run: 2, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 0.276 s <<< FAILURE! -- in com.smboutique.api.controller.DocumentControllerUnitTest
-com.smboutique.api.controller.DocumentControllerUnitTest.testDownloadVentePdfLogsMouvement -- Time elapsed: 0.267 s <<< FAILURE!
+Tests run: 2, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 0.429 s <<< FAILURE! -- in com.smboutique.api.controller.DocumentControllerUnitTest
+com.smboutique.api.controller.DocumentControllerUnitTest.testDownloadVentePdfLogsMouvement -- Time elapsed: 0.416 s <<< FAILURE!
 Wanted but not invoked:
 pdfService.writeVentePdf(
     123L,
-    Mock for HttpServletResponse, hashCode: 2030492075
+    Mock for HttpServletResponse, hashCode: 2071539018
 );
 -> at com.smboutique.api.controller.DocumentControllerUnitTest.testDownloadVentePdfLogsMouvement(DocumentControllerUnitTest.java:60)
 Actually, there were zero interactions with this mock.
@@ -16,11 +16,11 @@ Actually, there were zero interactions with this mock.
 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
 
-com.smboutique.api.controller.DocumentControllerUnitTest.testDownloadCaisseTransactionWithoutPaiement -- Time elapsed: 0.004 s <<< FAILURE!
+com.smboutique.api.controller.DocumentControllerUnitTest.testDownloadCaisseTransactionWithoutPaiement -- Time elapsed: 0.006 s <<< FAILURE!
 Wanted but not invoked:
 pdfService.writeCaisseTransactionPdf(
     99L,
-    Mock for HttpServletResponse, hashCode: 1228015923
+    Mock for HttpServletResponse, hashCode: 1361196457
 );
 -> at com.smboutique.api.controller.DocumentControllerUnitTest.testDownloadCaisseTransactionWithoutPaiement(DocumentControllerUnitTest.java:78)
 Actually, there were zero interactions with this mock.

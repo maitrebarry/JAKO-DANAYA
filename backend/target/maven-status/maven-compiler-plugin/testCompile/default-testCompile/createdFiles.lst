@@ -15,6 +15,7 @@ com/smboutique/api/controller/CommandeClientControllerTest.class
 com/smboutique/api/controller/VenteCashControllerTest.class
 com/smboutique/api/controller/CommandeClientInstrumentationTest.class
 com/smboutique/api/controller/ReceptionControllerConditionnementTest.class
+com/smboutique/api/controller/DashboardControllerIntegrationTest.class
 com/smboutique/api/controller/DepenseControllerTest.class
 com/smboutique/api/controller/E2EStockFlowTest.class
 com/smboutique/api/controller/LivraisonControllerTest.class

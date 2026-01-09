@@ -106,6 +106,7 @@ public class DashboardControllerIntegrationTest {
         when(dashboardService.getOverview(anyLong())).thenReturn(dto);
         when(dashboardService.getOverview((Long) Mockito.isNull())).thenReturn(dto);
         when(boutiqueRepository.count()).thenReturn(5L);
+        when(boutiqueRepository.findAll()).thenReturn(List.of(ownerBoutique));
 
         // stockService and utilisateurService mocks
         when(utilisateurService.findByEmail("owner@example.com")).thenReturn(java.util.Optional.of(ownerUser));
@@ -126,7 +127,9 @@ public class DashboardControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role", is("SUPERADMIN")))
                 .andExpect(jsonPath("$.widgets.shopsCount").value(5))
-                .andExpect(jsonPath("$.widgets.servicesStatus.api").value("OK"));
+                .andExpect(jsonPath("$.widgets.servicesStatus.api").value("OK"))
+                .andExpect(jsonPath("$.sections[0].role").value("SUPERADMIN"))
+                .andExpect(jsonPath("$.sections[0].widgets[?(@.key=='shopsCount')]").exists());
     }
 
     @Test
@@ -136,7 +139,9 @@ public class DashboardControllerIntegrationTest {
         mockMvc.perform(get("/api/dashboard"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role", is("PROPRIETAIRE")))
-                .andExpect(jsonPath("$.widgets.chiffre_affaires_total").value(100000));
+                .andExpect(jsonPath("$.widgets.chiffre_affaires_total").value(100000))
+                .andExpect(jsonPath("$.sections[0].role").value("PROPRIETAIRE"))
+                .andExpect(jsonPath("$.sections[0].widgets[?(@.key=='chiffre_affaires_total')]").exists());
     }
 
     @Test
@@ -146,7 +151,9 @@ public class DashboardControllerIntegrationTest {
         mockMvc.perform(get("/api/dashboard"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role", is("GERANT")))
-                .andExpect(jsonPath("$.widgets.ventes_jour").value(5000));
+                .andExpect(jsonPath("$.widgets.ventes_jour").value(5000))
+                .andExpect(jsonPath("$.sections[0].role").value("GERANT"))
+                .andExpect(jsonPath("$.sections[0].widgets[?(@.key=='ventes_jour')]").exists());
     }
 
     @Test
@@ -156,6 +163,8 @@ public class DashboardControllerIntegrationTest {
         mockMvc.perform(get("/api/dashboard"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role", is("CAISSIER")))
-                .andExpect(jsonPath("$.widgets.ventes_jour_personnelles").exists());
+                .andExpect(jsonPath("$.widgets.ventes_jour_personnelles").exists())
+                .andExpect(jsonPath("$.sections[0].role").value("CAISSIER"))
+                .andExpect(jsonPath("$.sections[0].widgets[?(@.key=='ventes_jour_personnelles')]").exists());
     }
 }
