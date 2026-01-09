@@ -4,6 +4,7 @@ import SignIn from './components/SignIn';
 import Layout from './components/Layout';
 // Dashboard removed: frontend dashboard archived in src/archive/dashboard
 import Configuration from './components/Configuration';
+import Dashboard from './components/Dashboard';
 import Fournisseurs from './components/Fournisseurs';
 import Produits from './components/Produits';
 import CommandeFournisseur from './components/CommandeFournisseur';
@@ -48,7 +49,14 @@ function App() {
       <UserProvider>
         <Routes>
           <Route path="/" element={<SignIn />} />
-          {/* Dashboard route removed - frontend dashboard was archived */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <PrivateRoute>
+                <Layout><Dashboard /></Layout>
+              </PrivateRoute>
+            } 
+          />
           <Route 
             path="/configuration" 
             element={

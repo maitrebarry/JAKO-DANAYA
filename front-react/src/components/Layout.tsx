@@ -288,7 +288,14 @@ const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
       <div className="scrollbar" style={{ height: 'calc(100vh - 70px)' }}>
         <ul className="side-nav" id="sidebar-nav">
           <li className="side-nav-title">Navigation</li>
-          {/* Tableau de bord removed - frontend dashboard archived */}
+          {can.dashboard && (
+          <li className="side-nav-item">
+            <Link to="/dashboard" className="side-nav-link">
+              <span className="menu-icon"><i className="ti ti-dashboard"></i></span>
+              <span className="menu-text">Tableau de bord</span>
+            </Link>
+          </li>
+          )}
           {can.inventaire && (
           <li className="side-nav-item">
             <a className="side-nav-link" data-bs-target="#inventaire-nav" data-bs-toggle="collapse" href="#">

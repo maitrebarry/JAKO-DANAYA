@@ -46,7 +46,7 @@ const SignIn = () => {
         const profileData = await profileRes.json();
         setUserData(profileData);
         localStorage.setItem('smb_user_data', JSON.stringify(profileData));
-        navigate('/produits');
+        navigate('/dashboard');
       } else {
         throw new Error('Aucun jeton renvoyé');
       }
