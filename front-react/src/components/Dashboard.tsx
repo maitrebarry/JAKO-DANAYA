@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import MetricCard from './common/MetricCard';
 import RoleBased from './common/RoleBased';
 import SuperadminOverview from './dashboard/SuperadminOverview';
+import OwnerOverview from './dashboard/OwnerOverview';
 import { useUser } from '../contexts/UserContext';
 import { fetchOverview, OverviewPayload } from '../api/dashboard';
 
@@ -42,8 +43,13 @@ const Dashboard = () => {
         <SuperadminOverview />
       </RoleBased>
 
+      {/* Owner overview */}
+      <RoleBased allowedRoles={["ROLE_OWNER"]}>
+        <OwnerOverview />
+      </RoleBased>
+
       {/* Default generic overview for other roles */}
-      <RoleBased allowedRoles={["ROLE_OWNER","ROLE_MANAGER","ROLE_CASHIER","ROLE_MAGASINIER","ROLE_USER"]}>
+      <RoleBased allowedRoles={["ROLE_MANAGER","ROLE_CASHIER","ROLE_MAGASINIER","ROLE_USER"]}>
         <div className="row">
           <MetricCard
             title="Ventes"
