@@ -44,234 +44,37 @@ public class DashboardController {
     }
 
     @GetMapping("")
-    public Map<String, Object> dashboard(@RequestParam(value = "shopId", required = false) Long shopId) {
+    public com.smboutique.api.service.dto.DashboardPayload dashboard(@RequestParam(value = "shopId", required = false) Long shopId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        com.smboutique.api.service.dto.DashboardPayload p = new com.smboutique.api.service.dto.DashboardPayload();
         if (authentication == null || authentication.getName() == null) {
-            return Map.of("error", "Authentification requise");
+            p.role = "UNAUTHENTICATED";
+            p.widgets = Map.of("error", "Authentification requise");
+            return p;
         }
         String email = authentication.getName();
         Utilisateur utilisateur = utilisateurService.findByEmail(email).orElse(null);
         if (utilisateur == null) {
-            return Map.of("error", "Utilisateur non trouvé");
+            p.role = "UNAUTHENTICATED";
+            p.widgets = Map.of("error", "Utilisateur non trouvé");
+            return p;
         }
 
-        String typeUtilisateur = utilisateur.getTypeUtilisateur() != null ? utilisateur.getTypeUtilisateur().toUpperCase() : "";
-        java.util.Set<String> roleNames = new java.util.HashSet<>();
-        if (utilisateur.getRoles() != null) {
-            utilisateur.getRoles().forEach(r -> { if (r.getName() != null) roleNames.add(r.getName().toUpperCase()); });
-        }
+        // Delegate to service which implements role-based filtering
+        com.smboutique.api.service.dto.DashboardPayload payload = dashboardService.getDashboardFor(utilisateur, shopId);
 
-        boolean isSuperAdmin = "SUPERADMIN".equalsIgnoreCase(typeUtilisateur) || roleNames.contains("SUPERADMIN") || roleNames.contains("ROLE_SUPERADMIN");
-        boolean isOwner = "PROPRIETAIRE".equalsIgnoreCase(typeUtilisateur) || roleNames.contains("PROPRIETAIRE") || roleNames.contains("OWNER") || roleNames.contains("ROLE_PROPRIETAIRE") || roleNames.contains("ADMIN") || roleNames.contains("ADMINISTRATEUR");
-        boolean isManager = "GERANT_BOUTIQUE".equalsIgnoreCase(typeUtilisateur) || roleNames.contains("GERANT_BOUTIQUE") || roleNames.contains("MANAGER") || roleNames.contains("ROLE_MANAGER");
-        boolean isCashier = "CAISSIER".equalsIgnoreCase(typeUtilisateur) || roleNames.contains("CAISSIER") || roleNames.contains("CASHIER") || roleNames.contains("ROLE_CASHIER");
-        boolean isWarehouse = "MAGASINIER".equalsIgnoreCase(typeUtilisateur) || roleNames.contains("MAGASINIER") || roleNames.contains("ROLE_MAGASINIER") || roleNames.contains("STOREKEEPER");
-
-        Long targetBoutiqueId = null;
-        if (isSuperAdmin) {
-            targetBoutiqueId = shopId; // global if not provided
-        } else {
-            if (utilisateur.getBoutique() != null) {
-                targetBoutiqueId = utilisateur.getBoutique().getId();
-            } else if (shopId != null) {
-                return Map.of("error", "Accès à la boutique refusé");
+        // For superadmin, fill counts that require repositories (kept in controller for clarity)
+        if ("SUPERADMIN".equalsIgnoreCase(payload.role)) {
+            if (payload.widgets != null) {
+                payload.widgets.put("shopsCount", boutiqueRepository.count());
+                payload.widgets.put("usersCount", utilisateurService.findAll().size());
+                payload.widgets.put("transactionsCount", commandeClientService.findAll().size());
             }
         }
 
-        final Long finalTargetBoutiqueId = targetBoutiqueId;
+        return payload;
 
-        Map<String,Object> widgets = new HashMap<>();
-        String role = "USER";
 
-        // Use dashboardService for common metrics
-        com.smboutique.api.service.dto.DashboardOverviewDTO dto = dashboardService.getOverview(finalTargetBoutiqueId);
-
-        if (isSuperAdmin) {
-            role = "SUPERADMIN";
-            widgets.put("shopsCount", boutiqueRepository.count());
-            widgets.put("usersCount", utilisateurService.findAll().size());
-            widgets.put("systemErrors", 0); // use admin alerts endpoint for details
-            widgets.put("volumes", dto.getSalesTotal());
-            widgets.put("servicesStatus", Map.of("api","OK","db","OK"));
-        } else if (isOwner) {
-            role = "PROPRIETAIRE";
-            widgets.put("chiffre_affaires_total", dto.getSalesTotal());
-            widgets.put("salesByShop", List.of(Map.of("id", finalTargetBoutiqueId, "sales", dto.getSalesTotal())));
-            // compute simple stock value using stockService
-            double stockValue = stockService.getAllStocks().stream()
-                    .filter(s -> s.getBoutique() != null && s.getBoutique().getId().equals(finalTargetBoutiqueId))
-                    .map(s -> {
-                        java.math.BigDecimal price = s.getLastPurchasePrice() != null ? s.getLastPurchasePrice() : (s.getCostAverage() != null ? s.getCostAverage() : java.math.BigDecimal.ZERO);
-                        java.math.BigDecimal q = s.getQuantiteDisponible() != null ? java.math.BigDecimal.valueOf(s.getQuantiteDisponible()) : java.math.BigDecimal.ZERO;
-                        return price.multiply(q);
-                    }).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add).doubleValue();
-            widgets.put("valeur_stock", stockValue);
-            widgets.put("top_products", dto.getTopProducts());
-            widgets.put("summary_caisse", Map.of("salesToday", dto.getSalesToday() != null ? dto.getSalesToday() : 0L, "pendingOrders", dto.getPendingOrders() != null ? dto.getPendingOrders() : 0L));
-            widgets.put("evolution_ventes", Map.of("salesToday", dto.getSalesToday() != null ? dto.getSalesToday() : 0L, "sales7d", dto.getSales7d() != null ? dto.getSales7d() : List.of()));
-        } else if (isManager) {
-            role = "GERANT";
-            widgets.put("ventes_jour", dto.getSalesToday());
-            widgets.put("stock_critique", dto.getLowStockCount());
-            double stockValue = stockService.getAllStocks().stream()
-                    .filter(s -> s.getBoutique() != null && s.getBoutique().getId().equals(finalTargetBoutiqueId))
-                    .map(s -> {
-                        java.math.BigDecimal price = s.getLastPurchasePrice() != null ? s.getLastPurchasePrice() : (s.getCostAverage() != null ? s.getCostAverage() : java.math.BigDecimal.ZERO);
-                        java.math.BigDecimal q = s.getQuantiteDisponible() != null ? java.math.BigDecimal.valueOf(s.getQuantiteDisponible()) : java.math.BigDecimal.ZERO;
-                        return price.multiply(q);
-                    }).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add).doubleValue();
-            widgets.put("valeur_stock_boutique", stockValue);
-            widgets.put("inventaire_actif", false);
-            widgets.put("mouvements_recents", List.of());
-            widgets.put("resume_caisse_jour", Map.of("salesToday", dto.getSalesToday(), "pendingOrders", dto.getPendingOrders()));
-        } else if (isWarehouse) {
-            role = "MAGASINIER";
-            widgets.put("produits_en_rupture", dto.getLowStockCount());
-            widgets.put("produits_sous_seuil", dto.getLowStockCount());
-            double stockValue = stockService.getAllStocks().stream()
-                    .filter(s -> s.getBoutique() != null && s.getBoutique().getId().equals(finalTargetBoutiqueId))
-                    .map(s -> {
-                        java.math.BigDecimal price = s.getLastPurchasePrice() != null ? s.getLastPurchasePrice() : (s.getCostAverage() != null ? s.getCostAverage() : java.math.BigDecimal.ZERO);
-                        java.math.BigDecimal q = s.getQuantiteDisponible() != null ? java.math.BigDecimal.valueOf(s.getQuantiteDisponible()) : java.math.BigDecimal.ZERO;
-                        return price.multiply(q);
-                    }).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add).doubleValue();
-            widgets.put("valeur_stock_magasin", stockValue);
-            widgets.put("receptions_recentes", List.of());
-            widgets.put("ajustements_recents", List.of());
-        } else if (isCashier) {
-            role = "CAISSIER";
-            widgets.put("ventes_jour_personnelles", personalSalesForUser(utilisateur.getId(), finalTargetBoutiqueId));
-            widgets.put("etat_caisse", Map.of("open", true));
-            widgets.put("historique_ventes", List.of());
-            widgets.put("alertes_simples", List.of());
-        } else {
-            role = "USER";
-            widgets.put("salesToday", dto.getSalesToday());
-            widgets.put("pendingOrders", dto.getPendingOrders());
-        }
-
-        // Build ordered sections list according to the single-dashboard contract
-        List<Map<String,Object>> sections = new ArrayList<>();
-
-        // helper to convert a widgets map to a list of widget descriptors
-        java.util.function.Function<Map<String,Object>, List<Map<String,Object>>> widgetsToList = (wm) -> {
-            List<Map<String,Object>> list = new ArrayList<>();
-            if (wm == null) return list;
-            wm.forEach((k,v) -> {
-                String permission = ("DASHBOARD_" + k.toUpperCase() + "_VOIR");
-                Map<String,Object> w = new HashMap<>();
-                w.put("key", k);
-                w.put("permission", permission);
-                Map<String,Object> dataMap = new HashMap<>();
-                dataMap.put("value", v);
-                w.put("data", dataMap);
-                list.add(w);
-            });
-            return list;
-        };
-
-        // Prepare shops scope: superadmin sees all shops, others see their boutique if present
-        List<Map<String,Object>> shopsList = new ArrayList<>();
-        if (isSuperAdmin) {
-            boutiqueRepository.findAll().forEach(b -> shopsList.add(Map.of("id", b.getId(), "nom", b.getNom())));
-        } else if (utilisateur.getBoutique() != null) {
-            shopsList.add(Map.of("id", utilisateur.getBoutique().getId(), "nom", utilisateur.getBoutique().getNom()));
-        }
-
-        // Build widgets for each role separately (compute independently)
-        // SUPERADMIN
-        Map<String,Object> superWidgets = new HashMap<>();
-        superWidgets.put("shopsCount", boutiqueRepository.count());
-        superWidgets.put("usersCount", utilisateurService.findAll().size());
-        superWidgets.put("systemErrors", 0);
-        superWidgets.put("volumes", dto.getSalesTotal());
-        superWidgets.put("servicesStatus", Map.of("api","OK","db","OK"));
-        // PROPRIETAIRE
-        Map<String,Object> ownerWidgets = new HashMap<>();
-        ownerWidgets.put("chiffre_affaires_total", dto.getSalesTotal());
-        Map<String,Object> shopSales = new HashMap<>();
-        shopSales.put("id", finalTargetBoutiqueId);
-        shopSales.put("sales", dto.getSalesTotal());
-        ownerWidgets.put("salesByShop", List.of(shopSales));
-        double stockValueOwner = stockService.getAllStocks().stream()
-                .filter(s -> s.getBoutique() != null && s.getBoutique().getId().equals(finalTargetBoutiqueId))
-                .map(s -> {
-                    java.math.BigDecimal price = s.getLastPurchasePrice() != null ? s.getLastPurchasePrice() : (s.getCostAverage() != null ? s.getCostAverage() : java.math.BigDecimal.ZERO);
-                    java.math.BigDecimal q = s.getQuantiteDisponible() != null ? java.math.BigDecimal.valueOf(s.getQuantiteDisponible()) : java.math.BigDecimal.ZERO;
-                    return price.multiply(q);
-                }).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add).doubleValue();
-        ownerWidgets.put("valeur_stock", stockValueOwner);
-        ownerWidgets.put("top_products", dto.getTopProducts());
-        Map<String,Object> summaryCaisse = new HashMap<>();
-        summaryCaisse.put("salesToday", dto.getSalesToday() != null ? dto.getSalesToday() : 0L);
-        summaryCaisse.put("pendingOrders", dto.getPendingOrders() != null ? dto.getPendingOrders() : 0L);
-        ownerWidgets.put("summary_caisse", summaryCaisse);
-        Map<String,Object> evo = new HashMap<>();
-        evo.put("salesToday", dto.getSalesToday() != null ? dto.getSalesToday() : 0L);
-        evo.put("sales7d", dto.getSales7d() != null ? dto.getSales7d() : List.of());
-        ownerWidgets.put("evolution_ventes", evo);
-        // GERANT
-        Map<String,Object> managerWidgets = new HashMap<>();
-        managerWidgets.put("ventes_jour", dto.getSalesToday());
-        managerWidgets.put("stock_critique", dto.getLowStockCount());
-        double stockValueManager = stockService.getAllStocks().stream()
-                .filter(s -> s.getBoutique() != null && s.getBoutique().getId().equals(finalTargetBoutiqueId))
-                .map(s -> {
-                    java.math.BigDecimal price = s.getLastPurchasePrice() != null ? s.getLastPurchasePrice() : (s.getCostAverage() != null ? s.getCostAverage() : java.math.BigDecimal.ZERO);
-                    java.math.BigDecimal q = s.getQuantiteDisponible() != null ? java.math.BigDecimal.valueOf(s.getQuantiteDisponible()) : java.math.BigDecimal.ZERO;
-                    return price.multiply(q);
-                }).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add).doubleValue();
-        managerWidgets.put("valeur_stock_boutique", stockValueManager);
-        managerWidgets.put("inventaire_actif", false);
-        managerWidgets.put("mouvements_recents", List.of());
-        Map<String,Object> resume = new HashMap<>();
-        resume.put("salesToday", dto.getSalesToday());
-        resume.put("pendingOrders", dto.getPendingOrders());
-        managerWidgets.put("resume_caisse_jour", resume);
-        // MAGASINIER
-        Map<String,Object> warehouseWidgets = new HashMap<>();
-        warehouseWidgets.put("produits_en_rupture", dto.getLowStockCount());
-        warehouseWidgets.put("produits_sous_seuil", dto.getLowStockCount());
-        double stockValueWarehouse = stockService.getAllStocks().stream()
-                .filter(s -> s.getBoutique() != null && s.getBoutique().getId().equals(finalTargetBoutiqueId))
-                .map(s -> {
-                    java.math.BigDecimal price = s.getLastPurchasePrice() != null ? s.getLastPurchasePrice() : (s.getCostAverage() != null ? s.getCostAverage() : java.math.BigDecimal.ZERO);
-                    java.math.BigDecimal q = s.getQuantiteDisponible() != null ? java.math.BigDecimal.valueOf(s.getQuantiteDisponible()) : java.math.BigDecimal.ZERO;
-                    return price.multiply(q);
-                }).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add).doubleValue();
-        warehouseWidgets.put("valeur_stock_magasin", stockValueWarehouse);
-        warehouseWidgets.put("receptions_recentes", List.<Object>of());
-        warehouseWidgets.put("ajustements_recents", List.<Object>of());
-        // CAISSIER
-        Map<String,Object> cashierWidgets = new HashMap<>();
-        cashierWidgets.put("ventes_jour_personnelles", personalSalesForUser(utilisateur.getId(), finalTargetBoutiqueId));
-        cashierWidgets.put("etat_caisse", Map.of("open", true));
-        cashierWidgets.put("historique_ventes", List.of());
-        cashierWidgets.put("alertes_simples", List.of());
-
-        // Build sections in strict order
-        if (isSuperAdmin) {
-            sections.add(Map.of("role", "SUPERADMIN", "widgets", widgetsToList.apply(superWidgets), "shops", shopsList));
-        }
-        if (isOwner || isSuperAdmin) {
-            sections.add(Map.of("role", "PROPRIETAIRE", "widgets", widgetsToList.apply(ownerWidgets), "shops", shopsList));
-        }
-        if (isManager || isOwner || isSuperAdmin) {
-            sections.add(Map.of("role", "GERANT", "widgets", widgetsToList.apply(managerWidgets), "shops", shopsList));
-        }
-        if (isCashier || isManager || isOwner || isSuperAdmin) {
-            sections.add(Map.of("role", "CAISSIER", "widgets", widgetsToList.apply(cashierWidgets), "shops", shopsList));
-        }
-        if (isWarehouse || isManager || isOwner || isSuperAdmin) {
-            sections.add(Map.of("role", "MAGASINIER", "widgets", widgetsToList.apply(warehouseWidgets), "shops", shopsList));
-        }
-
-        Map<String,Object> resp = new HashMap<>();
-        resp.put("role", role);
-        resp.put("widgets", widgets);
-        resp.put("sections", sections);
-        if (utilisateur.getBoutique() != null) resp.put("currentBoutique", Map.of("id", utilisateur.getBoutique().getId(), "nom", utilisateur.getBoutique().getNom()));
-        return resp;
     }
 
     // helper: personal sales by user for a boutique
@@ -321,6 +124,47 @@ public class DashboardController {
         dto.topProducts = agg.values().stream().sorted((a,b)->Long.compare(b.sold,a.sold)).limit(10).map(p->new TopProduct(p.id,p.name,p.sold)).collect(Collectors.toList());
 
         return dto;
+    }
+
+    @GetMapping("/subordinates")
+    @PreAuthorize("hasAnyRole('SUPERADMIN','PROPRIETAIRE','ADMINISTRATEUR')")
+    public List<Map<String,Object>> subordinates() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null) return java.util.Collections.emptyList();
+        String email = authentication.getName();
+        Utilisateur current = utilisateurService.findByEmail(email).orElse(null);
+        if (current == null || current.getBoutique() == null) return java.util.Collections.emptyList();
+        Long boutiqueId = current.getBoutique().getId();
+
+        List<Utilisateur> users = utilisateurService.findAllByBoutiqueId(boutiqueId);
+        if (users == null || users.isEmpty()) return java.util.Collections.emptyList();
+
+        List<Map<String,Object>> out = new ArrayList<>();
+        for (Utilisateur u : users) {
+            if (u.getId().equals(current.getId())) continue; // skip self
+            String t = u.getTypeUtilisateur()!=null ? u.getTypeUtilisateur().toUpperCase() : null;
+            // only include subordinate roles
+            if (!("GERANT_BOUTIQUE".equalsIgnoreCase(t) || "CAISSIER".equalsIgnoreCase(t) || "MAGASINIER".equalsIgnoreCase(t))) continue;
+
+            com.smboutique.api.service.dto.DashboardPayload p = dashboardService.getDashboardFor(u, boutiqueId);
+            java.util.List<java.util.Map<String,Object>> widgetList = new java.util.ArrayList<>();
+            if (p != null && p.widgets != null) {
+                p.widgets.forEach((k,v) -> {
+                    java.util.Map<String,Object> wm = new java.util.HashMap<>();
+                    wm.put("key", k);
+                    wm.put("data", java.util.Map.of("value", v));
+                    widgetList.add(wm);
+                });
+            }
+
+            java.util.Map<String,Object> entry = new java.util.HashMap<>();
+            entry.put("role", p!=null? p.role : t);
+            entry.put("name", u.getNom());
+            entry.put("shopName", current.getBoutique()!=null? current.getBoutique().getNom():null);
+            entry.put("widgets", widgetList);
+            out.add(entry);
+        }
+        return out;
     }
 
     @GetMapping("/shop/{id}/sales-today")
