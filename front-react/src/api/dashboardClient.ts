@@ -11,9 +11,12 @@ export type DashboardPayload = {
   currentBoutique?: { id?: number; nom?: string };
 };
 
-export async function getDashboard(shopId?: number): Promise<DashboardPayload> {
+export async function getDashboard(shopId?: number, magasinId?: number): Promise<DashboardPayload> {
   let url = `${API_BASE}/dashboard`;
-  if (shopId) url += `?shopId=${shopId}`;
+  const params = [];
+  if (shopId) params.push(`shopId=${shopId}`);
+  if (magasinId) params.push(`magasinId=${magasinId}`);
+  if (params.length > 0) url += `?${params.join('&')}`;
   const res = await fetch(url, { headers: AUTH_HEADER() });
   if (!res.ok) {
     if (res.status === 401) throw new Error('Authentification requise');
@@ -43,4 +46,38 @@ export async function getSubordinatesDashboards(): Promise<SubordinateDashboard[
     // Endpoint not available or network error; return empty list gracefully
     return [];
   }
+}
+
+export type Boutique = {
+  id: number;
+  nom: string;
+};
+
+export type Magasin = {
+  id: number;
+  nom: string;
+  adresse?: string;
+  typeMagasin?: string;
+  boutique?: Boutique;
+};
+
+/**
+ * Fetch all boutiques accessible to the current user
+ */
+export async function getBoutiques(): Promise<Boutique[]> {
+  const url = `${API_BASE}/boutiques`;
+  const res = await fetch(url, { headers: AUTH_HEADER() });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch boutiques: ${res.status}`);
+  }
+  return await res.json() as Boutique[];
+}
+
+export async function getMagasins(): Promise<Magasin[]> {
+  const url = `${API_BASE}/magasins`;
+  const res = await fetch(url, { headers: AUTH_HEADER() });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch magasins: ${res.status}`);
+  }
+  return await res.json() as Magasin[];
 }

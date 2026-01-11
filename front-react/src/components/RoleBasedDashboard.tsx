@@ -1,463 +1,1174 @@
 import React, { useEffect, useState } from 'react';
-import MetricCard from './common/MetricCard';
-import ChartWidget from './common/ChartWidget';
-import { getDashboard, DashboardPayload, SectionDTO, WidgetDTO } from '../api/dashboardClient';
+import { useNavigate } from 'react-router-dom';
+import { Bar } from 'react-chartjs-2';
+import { 
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { 
+  getDashboard, 
+  getSubordinatesDashboards,
+  DashboardPayload, 
+  getBoutiques,
+  getMagasins,
+  Boutique,
+  Magasin
+} from '../api/dashboardClient';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const formatNumber = (n?: number) => n == null ? '—' : new Intl.NumberFormat('fr-FR').format(n);
 const formatCurrency = (n?: number) => n == null ? '—' : new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(n);
 
-const StatusBadge = ({ label, ok }: { label: string; ok: boolean }) => (
-  <span className={`badge ${ok ? 'bg-success' : 'bg-danger'} me-2`}>{label}: {ok ? 'OK' : 'KO'}</span>
-);
+// Composant pour afficher un widget joliment
+const WidgetCard = ({ title, value, icon, color, type = 'number', subtitle = '', action }: any) => {
+  const getIcon = () => {
+    switch(icon) {
+      case 'money': return 'bi bi-currency-dollar';
+      case 'shop': return 'bi bi-shop';
+      case 'box': return 'bi bi-box-seam';
+      case 'cart': return 'bi bi-cart-check';
+      case 'people': return 'bi bi-people';
+      case 'alert': return 'bi bi-exclamation-triangle';
+      case 'cash': return 'bi bi-cash-coin';
+      case 'graph': return 'bi bi-graph-up';
+      case 'inventory': return 'bi bi-clipboard-check';
+      default: return 'bi bi-info-circle';
+    }
+  };
+
+  const getColorClass = () => {
+    switch(color) {
+      case 'primary': return 'bg-primary text-white';
+      case 'success': return 'bg-success text-white';
+      case 'warning': return 'bg-warning text-white';
+      case 'danger': return 'bg-danger text-white';
+      case 'info': return 'bg-info text-white';
+      case 'secondary': return 'bg-secondary text-white';
+      default: return 'bg-primary text-white';
+    }
+  };
+
+  const displayValue = () => {
+    if (type === 'currency') return formatCurrency(value);
+    if (type === 'number') return formatNumber(value);
+    if (type === 'percent') return `${value}%`;
+    if (type === 'boolean') return value ? 'OUI' : 'NON';
+    if (type === 'text') return value;
+    return value;
+  };
+
+  return (
+    <div className="card h-100">
+      <div className="card-body">
+        {type === 'button' ? (
+          // Affichage spécial pour les boutons pleine largeur
+          <div className="h-100">
+            {action}
+          </div>
+        ) : (
+          // Affichage normal pour les autres types
+          <>
+            <div className="d-flex align-items-center justify-content-between mb-3">
+              <div className="d-flex align-items-center">
+                <div className={`${getColorClass()} rounded d-flex align-items-center justify-content-center me-3`} style={{ width: 48, height: 48 }}>
+                  <i className={`${getIcon()} fs-4`}></i>
+                </div>
+                <div>
+                  <h6 className="mb-0">{title}</h6>
+                  {subtitle && <small className="text-muted">{subtitle}</small>}
+                </div>
+              </div>
+              {action && (
+                <div className="ms-auto">
+                  {action}
+                </div>
+              )}
+            </div>
+            <div className="d-flex align-items-end justify-content-between">
+              <div>
+                <h3 className="mb-0">{displayValue()}</h3>
+              </div>
+              {type === 'trend' && (
+                <span className={`badge ${value > 0 ? 'bg-success' : 'bg-danger'}`}>
+                  <i className={`bi ${value > 0 ? 'bi-arrow-up' : 'bi-arrow-down'} me-1`}></i>
+                  {Math.abs(value)}%
+                </span>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Composant pour afficher le dashboard d'un subalterne
+const SubordinateDashboardCard = ({ role, name, widgets, shopName }: any) => {
+  const getRoleIcon = (role: string) => {
+    switch(role) {
+      case 'GERANT': return '👨‍💼';
+      case 'MAGASINIER': return '📦';
+      case 'CAISSIER': return '💰';
+      default: return '👤';
+    }
+  };
+
+  const getRoleColor = (role: string) => {
+    switch(role) {
+      case 'GERANT': return 'success';
+      case 'MAGASINIER': return 'warning';
+      case 'CAISSIER': return 'info';
+      default: return 'secondary';
+    }
+  };
+
+  const getKeyWidgets = () => {
+    const keyWidgets: any = {};
+    
+    widgets?.forEach((widget: any) => {
+      const key = widget.key.toLowerCase();
+      const value = widget.data?.value;
+      
+      if (key.includes('ventes_jour') || key.includes('sales_today')) {
+        keyWidgets.ventes = value;
+      } else if (key.includes('stock_critique') || key.includes('alert_stock')) {
+        keyWidgets.stockAlert = value;
+      } else if (key.includes('valeur_stock')) {
+        keyWidgets.stockValue = value;
+      } else if (key.includes('inventaire_actif')) {
+        keyWidgets.inventory = value;
+      } else if (key.includes('produits_rupture')) {
+        keyWidgets.rupture = value;
+      }
+    });
+    
+    return keyWidgets;
+  };
+
+  const keyWidgets = getKeyWidgets();
+
+  return (
+    <div className="card h-100">
+      <div className="card-header">
+        <div className="d-flex align-items-center justify-content-between">
+          <div>
+            <h6 className="mb-0">
+              <span className="me-2 fs-5">{getRoleIcon(role)}</span>
+              {name}
+            </h6>
+            <small className="text-muted">{shopName}</small>
+          </div>
+          <span className={`badge bg-${getRoleColor(role)}`}>{role}</span>
+        </div>
+      </div>
+      <div className="card-body">
+        <div className="row g-2">
+          {keyWidgets.ventes !== undefined && (
+            <div className="col-6">
+              <div className="bg-light rounded p-2 text-center">
+                <small className="text-muted d-block">Ventes</small>
+                <strong className="text-primary">{formatCurrency(keyWidgets.ventes)}</strong>
+              </div>
+            </div>
+          )}
+          
+          {keyWidgets.stockAlert !== undefined && (
+            <div className="col-6">
+              <div className="bg-light rounded p-2 text-center">
+                <small className="text-muted d-block">Alertes stock</small>
+                <strong className={`${keyWidgets.stockAlert > 0 ? 'text-danger' : 'text-success'}`}>
+                  {keyWidgets.stockAlert}
+                </strong>
+              </div>
+            </div>
+          )}
+          
+          {keyWidgets.rupture !== undefined && (
+            <div className="col-6">
+              <div className="bg-light rounded p-2 text-center">
+                <small className="text-muted d-block">Ruptures</small>
+                <strong className="text-danger">{keyWidgets.rupture}</strong>
+              </div>
+            </div>
+          )}
+          
+          {keyWidgets.stockValue !== undefined && (
+            <div className="col-6">
+              <div className="bg-light rounded p-2 text-center">
+                <small className="text-muted d-block">Valeur stock</small>
+                <strong className="text-success">{formatCurrency(keyWidgets.stockValue)}</strong>
+              </div>
+            </div>
+          )}
+          
+          {keyWidgets.inventory !== undefined && (
+            <div className="col-12">
+              <div className={`rounded p-2 text-center ${keyWidgets.inventory ? 'bg-warning' : 'bg-light'}`}>
+                <small className={keyWidgets.inventory ? 'text-dark' : 'text-muted'}>
+                  Inventaire {keyWidgets.inventory ? 'en cours' : 'à jour'}
+                </small>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const RoleBasedDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [payload, setPayload] = useState<DashboardPayload | null>(null);
+  const [subordinates, setSubordinates] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [selectedShopId, setSelectedShopId] = useState<number | undefined>(undefined);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-  const [dateFrom, setDateFrom] = useState<string | null>(null);
-  const [dateTo, setDateTo] = useState<string | null>(null);
-  const [search, setSearch] = useState<string>('');
-  const [showModal, setShowModal] = useState(false);
-  const [modalContent, setModalContent] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'own' | 'subordinates'>('own');
+  const [boutiques, setBoutiques] = useState<Boutique[]>([]);
+  const [magasins, setMagasins] = useState<Magasin[]>([]);
+  const [selectedBoutiqueId, setSelectedBoutiqueId] = useState<number | null>(null);
+  const [selectedMagasinId, setSelectedMagasinId] = useState<number | null>(null);
+  const navigate = useNavigate();
 
-  const load = async (shopId?: number) => {
+  const load = async (shopId?: number, magasinId?: number) => {
+    console.log('🔄 Starting dashboard load for shopId:', shopId, 'magasinId:', magasinId);
+
+    // Vérifier si l'utilisateur est connecté
+    const token = localStorage.getItem('smb_token');
+    if (!token) {
+      console.log('❌ No authentication token found');
+      setError('Utilisateur non connecté');
+      setLoading(false);
+      navigate('/login');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const p = await getDashboard(shopId);
+      console.log('📡 Calling getDashboard API...');
+      // Charger le dashboard de l'utilisateur connecté
+      const p = await getDashboard(shopId, magasinId);
+      console.log('✅ Dashboard data received:', p);
+      console.log('📊 Top products data:', p.widgets?.top_products);
       setPayload(p);
+
+      // Si c'est un ADMIN, charger les dashboards des subalternes
+      if (p.role === 'ADMIN' || p.role === 'PROPRIETAIRE') {
+        console.log('👥 Loading subordinates dashboards...');
+        const subs = await getSubordinatesDashboards();
+        console.log('✅ Subordinates data received:', subs);
+        setSubordinates(subs);
+      }
+
       setLastRefresh(new Date());
-    } catch (e: any) {
-      setError(e?.message || 'Erreur lors du chargement du dashboard');
+      console.log('🎉 Dashboard load completed successfully');
+    } catch (e) {
+      console.error('❌ Error in dashboard load:', e);
+      const error = e as Error;
+      console.error('Error details:', error.message, error.stack);
+      setError(error?.message || 'Erreur lors du chargement du dashboard');
     } finally {
+      console.log('🏁 Setting loading to false');
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(selectedShopId); }, [selectedShopId]);
+  const loadLocations = async () => {
+    console.log('🏪 Starting locations load...');
 
-  const handleShopChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const v = e.target.value;
-    setSelectedShopId(v ? Number(v) : undefined);
+    // Vérifier si l'utilisateur est connecté
+    const token = localStorage.getItem('smb_token');
+    if (!token) {
+      console.log('❌ No authentication token found for locations');
+      return;
+    }
+
+    try {
+      // Charger les boutiques
+      const boutiquesList = await getBoutiques();
+      console.log('✅ Boutiques data received:', boutiquesList);
+      setBoutiques(boutiquesList);
+
+      // Charger les magasins
+      const magasinsList = await getMagasins();
+      console.log('✅ Magasins data received:', magasinsList);
+      setMagasins(magasinsList);
+
+      // Sélectionner la première boutique par défaut (celle de l'utilisateur)
+      if (boutiquesList.length > 0 && selectedBoutiqueId === null) {
+        console.log('🎯 Setting default boutique:', boutiquesList[0].id);
+        setSelectedBoutiqueId(boutiquesList[0].id);
+      }
+    } catch (e) {
+      console.error('❌ Error loading locations:', e);
+      // Pour les rôles qui n'ont pas accès aux boutiques, c'est normal
+      // Le dashboard se chargera quand même avec la boutique de l'utilisateur
+      console.log('ℹ️ Locations loading failed, dashboard will use user\'s boutique');
+    }
   };
+
+  const handleLocationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    if (value.startsWith('boutique-')) {
+      const boutiqueId = parseInt(value.replace('boutique-', ''));
+      console.log('🏪 Changing to boutique:', boutiqueId);
+      setSelectedBoutiqueId(boutiqueId);
+      setSelectedMagasinId(null);
+    } else if (value.startsWith('magasin-')) {
+      const magasinId = parseInt(value.replace('magasin-', ''));
+      console.log('🏪 Changing to magasin:', magasinId);
+      setSelectedMagasinId(magasinId);
+      // Trouver la boutique associée à ce magasin
+      const magasin = magasins.find(m => m.id === magasinId);
+      if (magasin && magasin.boutique) {
+        setSelectedBoutiqueId(magasin.boutique.id);
+      }
+    }
+  };
+
+  const getSelectedLocationName = () => {
+    if (selectedMagasinId) {
+      const magasin = magasins.find(m => m.id === selectedMagasinId);
+      return magasin ? `${magasin.nom} (Magasin)` : 'Magasin inconnu';
+    } else if (selectedBoutiqueId) {
+      const boutique = boutiques.find(b => b.id === selectedBoutiqueId);
+      return boutique ? `${boutique.nom} (Boutique)` : 'Votre boutique';
+    }
+    return 'Chargement...';
+  };
+
+  useEffect(() => {
+    loadLocations();
+  }, []);
+
+  // Charger le dashboard initialement
+  useEffect(() => {
+    if (!payload) {
+      load(undefined, undefined);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Charger le dashboard quand la sélection change
+    load(selectedBoutiqueId ?? undefined, selectedMagasinId ?? undefined);
+  }, [selectedBoutiqueId, selectedMagasinId]);
 
   const exportJson = () => {
-    if (!payload) return;
-    const dataStr = JSON.stringify(payload, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `dashboard-${payload.role || 'unknown'}-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    // TODO: Implement JSON export functionality
   };
 
-  const renderSimpleMetric = (key: string, val: any) => {
-    const title = key.replace(/_/g, ' ');
-    const isCurrency = /chiffre|valeur|sales|salesTotal/i.test(key);
-    return (
-      <MetricCard key={key} title={title} subtitle={key} value={isCurrency ? formatCurrency(val) : formatNumber(val)} icon="ti ti-chart-bar" bg="bg-primary" />
-    );
+  // Récupérer les widgets pour le rôle actuel
+  const getWidgetsForCurrentRole = () => {
+    if (!payload) return [];
+    
+    console.log('🔍 getWidgetsForCurrentRole - payload:', payload);
+    console.log('🔍 payload.sections:', payload.sections);
+    console.log('🔍 payload.widgets:', payload.widgets);
+    
+    // Si des sections existent, utiliser la logique actuelle
+    if (payload.sections && payload.sections.length && payload.role !== 'SUPERADMIN') {
+      console.log('📋 Using sections logic');
+      // Trouver la section correspondant au rôle de l'utilisateur
+      const userSection = payload.sections.find(section => 
+        section.role === payload.role || 
+        section.role === 'ADMIN' && payload.role === 'PROPRIETAIRE' ||
+        section.role === 'GERANT' && payload.role === 'GÉRANT'
+      );
+      
+      console.log('👤 Found userSection:', userSection);
+      return userSection?.widgets || [];
+    }
+    
+    // Pour SUPERADMIN ou si pas de sections, convertir payload.widgets en format WidgetDTO[]
+    if (payload.widgets) {
+      console.log('🔄 Converting payload.widgets to WidgetDTO[]');
+      const convertedWidgets = Object.entries(payload.widgets).map(([key, value]) => ({
+        key,
+        data: { value }
+      }));
+      console.log('📊 Converted widgets:', convertedWidgets);
+      return convertedWidgets;
+    }
+    
+    console.log('❌ No widgets found');
+    return [];
   };
 
-  const renderStatus = (val: any) => {
-    if (!val || typeof val !== 'object') return <div className="text-muted">Aucun état</div>;
-    const entries = Object.entries(val);
+  // Fonction pour déterminer quels widgets afficher selon le rôle
+  const getWidgetsConfig = () => {
+    if (!payload) return [];
+    
+    const role = payload.role;
+    const widgets = getWidgetsForCurrentRole();
+    
+    console.log('🎯 getWidgetsConfig - role:', role);
+    console.log('📋 widgets:', widgets);
+    
+    // Configuration des widgets par rôle
+    const config: any[] = [];
+    
+    widgets.forEach(widget => {
+      const key = widget.key.toLowerCase();
+      const value = widget.data?.value;
+      
+      console.log('🔍 Processing widget:', { key, value, originalKey: widget.key });
+      
+      // SUPERADMIN/DÉVELOPPEUR - Widgets techniques uniquement
+      if (role === 'SUPERADMIN' || role === 'DEVELOPPEUR') {
+        if (key.includes('shopscount') || key.includes('boutiques_actives')) {
+          console.log('✅ Found shopsCount widget:', value);
+          config.push({
+            title: 'Boutiques actives',
+            value: value,
+            icon: 'shop',
+            color: 'primary',
+            type: 'number',
+            subtitle: 'Nombre total de boutiques'
+          });
+        } else if (key.includes('userscount') || key.includes('utilisateurs_inscrits')) {
+          console.log('✅ Found usersCount widget:', value);
+          config.push({
+            title: 'Utilisateurs inscrits',
+            value: value,
+            icon: 'people',
+            color: 'info',
+            type: 'number',
+            subtitle: 'Total des comptes utilisateur'
+          });
+        } else if (key.includes('transactionscount') || key.includes('transactions_totales')) {
+          console.log('✅ Found transactionsCount widget:', value);
+          config.push({
+            title: 'Transactions totales',
+            value: value,
+            icon: 'cash',
+            color: 'success',
+            type: 'number',
+            subtitle: 'Nombre de transactions'
+          });
+        } else if (key.includes('systemerrors') || key.includes('erreurs_systeme')) {
+          config.push({
+            title: 'Erreurs système',
+            value: value,
+            icon: 'alert',
+            color: value > 0 ? 'danger' : 'success',
+            type: 'number',
+            subtitle: value > 0 ? 'Erreurs détectées' : 'Système stable'
+          });
+        } else if (key.includes('servicesstatus') || key.includes('etat_services')) {
+          const services = value;
+          const apiStatus = services?.api || 'OK';
+          const dbStatus = services?.db || 'OK';
+          config.push({
+            title: 'État des services',
+            value: apiStatus === 'OK' && dbStatus === 'OK' ? 'Tous OK' : 'Problèmes détectés',
+            icon: 'graph',
+            color: apiStatus === 'OK' && dbStatus === 'OK' ? 'success' : 'warning',
+            type: 'text',
+            subtitle: `API: ${apiStatus} • DB: ${dbStatus}`
+          });
+        }
+      }
+      
+      // ADMIN/PROPRIETAIRE - Widgets stratégiques
+      if (role === 'ADMIN' || role === 'PROPRIETAIRE') {
+        if (key.includes('chiffre_affaires_total') || key.includes('ca_total')) {
+          config.push({
+            title: 'Chiffre d\'affaires total',
+            value: value,
+            icon: 'money',
+            color: 'primary',
+            type: 'currency'
+          });
+        } else if (key.includes('valeur_stock') && !key.includes('magasin') && !key.includes('boutique')) {
+          config.push({
+            title: 'Valeur totale du stock',
+            value: value,
+            icon: 'box',
+            color: 'success',
+            type: 'currency'
+          });
+        } else if (key.includes('produits_forte_valeur') || key.includes('top_products')) {
+          config.push({
+            title: 'Produits à forte valeur',
+            value: value?.length || 0,
+            icon: 'alert',
+            color: 'warning',
+            type: 'number',
+            subtitle: 'Produits stockés'
+          });
+        } else if (key.includes('resume_caisse') || key.includes('caisse_total')) {
+          const entrees = value?.entrees || 0;
+          const paiementsComplets = value?.paiements_complets || 0;
+          const ventesCredit = value?.ventes_credit || 0;
+          config.push({
+            title: 'Résumé caisse',
+            value: entrees,
+            icon: 'cash',
+            color: 'info',
+            type: 'currency',
+            subtitle: `Paiements: ${formatCurrency(paiementsComplets)} • Crédit: ${ventesCredit}`
+          });
+        } else if (key.includes('evolution_ventes')) {
+          config.push({
+            title: 'Évolution ventes',
+            value: value?.trend || 0,
+            icon: 'graph',
+            color: value?.trend > 0 ? 'success' : 'danger',
+            type: 'trend'
+          });
+        } else if (key.includes('total_articles') || key.includes('articles_total')) {
+          config.push({
+            title: 'Total articles',
+            value: value,
+            icon: 'bricks',
+            color: 'secondary',
+            type: 'number',
+            subtitle: 'Articles en stock'
+          });
+        } else if (key.includes('alerte_stock') || key.includes('stock_alerte')) {
+          config.push({
+            title: 'Alerte stock article',
+            value: value,
+            icon: 'alert',
+            color: 'danger',
+            type: 'number',
+            subtitle: 'Articles en rupture'
+          });
+        } else if (key.includes('commande_fournisseur') || key.includes('orders_supplier')) {
+          config.push({
+            title: 'Commande Fournisseur',
+            value: value,
+            icon: 'cart',
+            color: 'warning',
+            type: 'number',
+            subtitle: 'Commandes en cours'
+          });
+        } else if (key.includes('vente_credit') || key.includes('sales_credit')) {
+          config.push({
+            title: 'Vente en Credit',
+            value: value,
+            icon: 'cart-check',
+            color: 'info',
+            type: 'number',
+            subtitle: 'Ventes à crédit'
+          });
+        }
+      }
+      
+      // GÉRANT - Widgets opérationnels
+      if (role === 'GERANT' || role === 'GÉRANT') {
+        if (key.includes('ventes_jour') || key.includes('sales_today')) {
+          config.push({
+            title: 'Ventes du jour',
+            value: value,
+            icon: 'money',
+            color: 'primary',
+            type: 'currency'
+          });
+        } else if (key.includes('stock_critique') || key.includes('alertes_stock')) {
+          config.push({
+            title: 'Stock critique',
+            value: value,
+            icon: 'alert',
+            color: 'danger',
+            type: 'number'
+          });
+        } else if (key.includes('valeur_stock_boutique')) {
+          config.push({
+            title: 'Valeur stock boutique',
+            value: value,
+            icon: 'box',
+            color: 'success',
+            type: 'currency'
+          });
+        } else if (key.includes('inventaire_actif')) {
+          config.push({
+            title: 'Inventaire en cours',
+            value: value,
+            icon: 'inventory',
+            color: value ? 'warning' : 'success',
+            type: 'boolean'
+          });
+        } else if (key.includes('resume_caisse_jour')) {
+          config.push({
+            title: 'Résumé caisse du jour',
+            value: value?.total || 0,
+            icon: 'cash',
+            color: 'info',
+            type: 'currency'
+          });
+        }
+      }
+      
+      // MAGASINIER - Widgets stock
+      if (role === 'MAGASINIER') {
+        if (key.includes('produits_rupture')) {
+          config.push({
+            title: 'Produits en rupture',
+            value: value,
+            icon: 'alert',
+            color: 'danger',
+            type: 'number'
+          });
+        } else if (key.includes('produits_seuil') || key.includes('sous_seuil')) {
+          config.push({
+            title: 'Produits sous seuil',
+            value: value,
+            icon: 'alert',
+            color: 'warning',
+            type: 'number'
+          });
+        } else if (key.includes('valeur_stock_magasin')) {
+          config.push({
+            title: 'Valeur du stock magasin',
+            value: value,
+            icon: 'box',
+            color: 'success',
+            type: 'currency'
+          });
+        }
+      }
+      
+      // CAISSIER - Widgets vente
+      if (role === 'CAISSIER') {
+        if (key.includes('ventes_jour_personnelles') || key.includes('mes_ventes')) {
+          config.push({
+            title: 'Ventes du jour (perso)',
+            value: value,
+            icon: 'money',
+            color: 'primary',
+            type: 'currency'
+          });
+        } else if (key.includes('etat_caisse')) {
+          config.push({
+            title: 'État de la caisse',
+            value: value?.status === 'ouvert' ? 'Ouverte' : 'Fermée',
+            icon: 'cash',
+            color: value?.status === 'ouvert' ? 'success' : 'secondary',
+            type: 'text'
+          });
+        }
+      }
+    });
+    
+    // Ajouter une carte d'accès à la caisse pour ADMIN/PROPRIETAIRE
+    if (role === 'ADMIN' || role === 'PROPRIETAIRE') {
+      config.push({
+        title: 'Accès caisse',
+        value: 'Clickez pour accéder',
+        icon: 'cash',
+        color: 'primary',
+        type: 'button',
+        action: (
+          <div className="card-body text-center" style={{ cursor: 'pointer' }} onClick={() => navigate('/caisses')}>
+            <div className="d-flex align-items-center justify-content-between mb-3">
+              <div className="d-flex align-items-center">
+                <div className="bg-primary text-white rounded d-flex align-items-center justify-content-center me-3" style={{ width: 48, height: 48 }}>
+                  <i className="bi bi-cash-coin fs-4"></i>
+                </div>
+                <div>
+                  <h6 className="mb-0">Accès caisse</h6>
+                  <small className="text-muted">Gestion financière</small>
+                </div>
+              </div>
+            </div>
+            <div className="text-center">
+              <button className="btn btn-primary btn-sm">
+                <i className="bi bi-arrow-right-circle me-1"></i>
+                Accéder
+              </button>
+            </div>
+          </div>
+        )
+      });
+    }
+    
+    return config;
+  };
+
+  // Fonction pour calculer la classe de colonne optimale selon le nombre de widgets
+  const getOptimalColumnClass = (widgetCount: number) => {
+    if (widgetCount === 1) return 'col-12';
+    if (widgetCount === 2) return 'col-md-6';
+    if (widgetCount === 3) return 'col-md-4';
+    if (widgetCount === 4) return 'col-md-3';
+    if (widgetCount === 5) return 'col-md-4'; // 5 widgets: 3 en première ligne, 2 en deuxième
+    if (widgetCount === 6) return 'col-md-4';
+    if (widgetCount >= 7) return 'col-md-3'; // Pour 7+ widgets, utiliser col-3 pour un maximum de 4 par ligne
+    
+    return 'col-md-6'; // Par défaut
+  };
+
+  // Rendu du dashboard principal
+  const renderMainDashboard = () => {
+    if (!payload) return null;
+    
+    const role = payload.role;
+    const widgetsConfig = getWidgetsConfig();
+    
     return (
       <div>
-        {entries.map(([k,v]) => <StatusBadge key={k} label={k} ok={String(v).toLowerCase() === 'ok' || v === 'OK' || v === true} />)}
-      </div>
-    );
-  };
-
-  const renderTopProducts = (val: any, key: string) => {
-    if (!val || !Array.isArray(val) || val.length === 0) return (
-      <div className="card p-3 text-center text-muted">
-        <div>Aucun produit dans le Top.</div>
-        <button className="btn btn-sm btn-outline-secondary mt-2" onClick={() => load(selectedShopId)}>Rafraîchir</button>
-      </div>
-    );
-    const rows = val.slice(0, 10);
-    return (
-      <div className="card mb-3">
-        <div className="card-body">
-          <h6 className="mb-2">{key.replace(/_/g,' ')}</h6>
-          <div className="table-responsive">
-            <table className="table table-sm table-hover">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Produit</th>
-                  <th>Quantité</th>
-                  <th>Montant</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r: any, i: number) => (
-                  <tr key={i}>
-                    <td>{i + 1}</td>
-                    <td>{r.nom ?? r.name ?? r.product ?? ''}</td>
-                    <td>{r.qty ?? r.quantity ?? r.qte ?? ''}</td>
-                    <td>{formatCurrency(r.montant ?? r.total ?? r.price ?? 0)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* Header avec info boutique */}
+        <div className="card mb-4">
+          <div className="card-body">
+            <div className="row align-items-center">
+              <div className="col">
+                <div className="row align-items-center">
+                  <div className="col-auto">
+                    <h5 className="mb-1">
+                      {role === 'ADMIN' || role === 'PROPRIETAIRE' ? 'Votre boutique' :
+                       role === 'GERANT' ? 'Votre point de vente' :
+                       role === 'MAGASINIER' ? 'Votre magasin' :
+                       role === 'CAISSIER' ? 'Votre caisse' : 'Tableau de bord'}
+                    </h5>
+                  </div>
+                  <div className="col">
+                    <select
+                      className="form-select form-select-sm"
+                      value={selectedMagasinId ? `magasin-${selectedMagasinId}` : (selectedBoutiqueId ? `boutique-${selectedBoutiqueId}` : '')}
+                      onChange={handleLocationChange}
+                      style={{ maxWidth: '300px' }}
+                      disabled={boutiques.length === 0}
+                    >
+                      {boutiques.length === 0 ? (
+                        <option value="">
+                          {getSelectedLocationName()} • Dernière mise à jour: {lastRefresh ? lastRefresh.toLocaleTimeString('fr-FR') : '--:--'}
+                        </option>
+                      ) : (
+                        <>
+                          <option value="">
+                            {getSelectedLocationName()} • Dernière mise à jour: {lastRefresh ? lastRefresh.toLocaleTimeString('fr-FR') : '--:--'}
+                          </option>
+                          <optgroup label="🏪 Boutiques">
+                            {boutiques.map(boutique => (
+                              <option key={`boutique-${boutique.id}`} value={`boutique-${boutique.id}`}>
+                                {boutique.nom} (Boutique principale)
+                              </option>
+                            ))}
+                          </optgroup>
+                          {magasins.length > 0 && (
+                            <optgroup label="🏬 Magasins">
+                              {magasins.map(magasin => (
+                                <option key={`magasin-${magasin.id}`} value={`magasin-${magasin.id}`}>
+                                  {magasin.nom} ({magasin.typeMagasin || 'Magasin'})
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+                        </>
+                      )}
+                    </select>
+                  </div>
+                </div>
+                <p className="text-muted mb-0 mt-2">
+                  Sélectionnez une boutique pour afficher ses données
+                </p>
+              </div>
+              <div className="col-auto">
+                <button className="btn btn-outline-primary btn-sm" onClick={() => load()}>
+                  <i className="bi bi-arrow-clockwise me-1"></i> Rafraîchir
+                </button>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Widgets principaux */}
+        {widgetsConfig.length > 0 ? (
+          <div className="row g-4">
+            {widgetsConfig.map((widget, index) => (
+              <div key={index} className={getOptimalColumnClass(widgetsConfig.length)}>
+                <WidgetCard {...widget} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="alert alert-info">
+            <i className="bi bi-info-circle me-2"></i>
+            Aucun widget disponible pour votre rôle ({role}).
+          </div>
+        )}
+
+        {/* Graphique Top 5 produits pour ADMIN */}
+        {(role === 'ADMIN' || role === 'PROPRIETAIRE') && (
+          <div className="mt-4">
+            <div className="card">
+              <div className="card-body">
+                <h5 className="card-title">Top 5 des Produits les plus vendus</h5>
+                {payload.widgets?.top_products && Array.isArray(payload.widgets.top_products) && payload.widgets.top_products.length > 0 ? (
+                  <div style={{ height: '350px' }}>
+                    <Bar
+                      data={{
+                        labels: payload.widgets.top_products.map((p: any) => p.name || `Produit ${p.id}`),
+                        datasets: [
+                          {
+                            label: 'Quantité vendue',
+                            data: payload.widgets.top_products.map((p: any) => p.sold || 0),
+                            backgroundColor: '#4154f1',
+                          },
+                        ],
+                      }}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: {
+                            position: 'top' as const,
+                          },
+                          title: {
+                            display: false,
+                          },
+                        },
+                        scales: {
+                          y: {
+                            beginAtZero: true,
+                          },
+                        },
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="text-center py-5">
+                    <i className="bi bi-bar-chart-line fs-1 text-muted mb-3"></i>
+                    <p className="text-muted">Aucune donnée de vente disponible pour le moment</p>
+                    <small className="text-muted">
+                      Données reçues: {JSON.stringify(payload.widgets?.top_products)}
+                    </small>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bilan des ventes et trimestriel pour ADMIN */}
+        {(role === 'ADMIN' || role === 'PROPRIETAIRE') && (
+          <div className="row mt-4">
+            {payload.widgets?.bilan_ventes && (
+              <div className="col-xxl-6 col-md-6 col-sm-12">
+                <div className="card info-card revenue-card">
+                  <div className="card-header bg-primary text-white text-center">
+                    <h5>Bilan des ventes</h5>
+                  </div>
+                  <div className="card-body d-flex justify-content-around mt-3">
+                    <div className="text-center">
+                      <p>Ventes journalières</p>
+                      <i className="bi bi-camera"></i>
+                      <p><span className="text-primary">Vente totale</span></p>
+                      <p>{formatCurrency(payload.widgets.bilan_ventes.dailyTotal || 0)}</p>
+                      <p><span className="text-primary">Créance totale</span></p>
+                      <p>{formatCurrency(payload.widgets.bilan_ventes.dailyCredit || 0)}</p>
+                      <p><span className="text-primary">Montant en caisse</span></p>
+                      <p>{formatCurrency(payload.widgets.bilan_ventes.dailyCash || 0)}</p>
+                      <p className="text-primary">{new Date().toLocaleDateString('fr-FR')}</p>
+                    </div>
+                    <div className="text-center">
+                      <p>Ventes mensuelles</p>
+                      <i className="bi bi-camera"></i>
+                      <p><span className="text-primary">Vente totale</span></p>
+                      <p>{formatCurrency(payload.widgets.bilan_ventes.monthlyTotal || 0)}</p>
+                      <p><span className="text-primary">Créance totale</span></p>
+                      <p>{formatCurrency(payload.widgets.bilan_ventes.monthlyCredit || 0)}</p>
+                      <p><span className="text-primary">Montant en caisse</span></p>
+                      <p>{formatCurrency(payload.widgets.bilan_ventes.monthlyCash || 0)}</p>
+                      <p className="text-primary">{new Date().toLocaleDateString('fr-FR', { month: 'numeric', year: 'numeric' })}</p>
+                    </div>
+                    <div className="text-center">
+                      <p>Ventes annuelles</p>
+                      <i className="bi bi-camera"></i>
+                      <p><span className="text-primary">Vente totale</span></p>
+                      <p>{formatCurrency(payload.widgets.bilan_ventes.annualTotal || 0)}</p>
+                      <p><span className="text-primary">Créance totale</span></p>
+                      <p>{formatCurrency(payload.widgets.bilan_ventes.annualCredit || 0)}</p>
+                      <p><span className="text-primary">Montant en caisse</span></p>
+                      <p>{formatCurrency(payload.widgets.bilan_ventes.annualCash || 0)}</p>
+                      <p className="text-primary">{new Date().getFullYear()}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            {payload.widgets?.bilan_trimestriel && (
+              <div className="col-xxl-6 col-md-6 col-sm-12">
+                <div className="card info-card revenue-card">
+                  <div className="card-header bg-primary text-white text-center">
+                    <h5>Bilan Trimestriel</h5>
+                  </div>
+                  <div className="card-body">
+                    <div className="row">
+                      <div className="col-md-6 text-center">
+                        <p className="text-primary">Total des ventes du trimestre</p>
+                        <p><strong>{formatCurrency(payload.widgets.bilan_trimestriel.totalVentesTrimestre || 0)}</strong></p>
+                      </div>
+                      <div className="col-md-6 text-center">
+                        <p className="text-primary">Bénéfice du trimestre</p>
+                        <p><strong>{formatCurrency(payload.widgets.bilan_trimestriel.beneficeTrimestriel || 0)}</strong></p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
 
-  const generateDateLabels = (n: number) => {
-    const labels: string[] = [];
-    for (let i = n - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      labels.push(`${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}`);
+  // Rendu des dashboards des subalternes (pour ADMIN uniquement)
+  const renderSubordinatesDashboard = () => {
+    if (subordinates.length === 0) {
+      return (
+        <div className="alert alert-info">
+          <i className="bi bi-info-circle me-2"></i>
+          Aucun subalterne trouvé ou aucun dashboard disponible.
+        </div>
+      );
     }
-    return labels;
-  };
-
-  const renderRevenueWidget = (val: any, key: string, fallbackSeries?: number[]) => {
-    // val may be number (total), or object (by shop/date), or fallback series provided
-    let series: number[] | undefined;
-    let labels: string[] | undefined;
-
-    if (Array.isArray(val)) {
-      series = val.map((v:any) => Number(v ?? 0));
-      labels = generateDateLabels(series.length);
-    } else if (typeof val === 'object') {
-      labels = Object.keys(val);
-      series = labels.map(l => Number(val[l] ?? 0));
-    } else if (typeof val === 'number' && fallbackSeries && Array.isArray(fallbackSeries)) {
-      series = fallbackSeries.map(v => Number(v ?? 0));
-      labels = generateDateLabels(series.length);
-    }
-
-    const total = typeof val === 'number' ? val : (series ? series.reduce((s, x) => s + x, 0) : 0);
-
+    
     return (
-      <div className="card mb-3">
-        <div className="card-body">
-          <div className="d-flex align-items-center justify-content-between mb-3">
-            <div>
-              <h6 className="mb-1">{key.replace(/_/g,' ')}</h6>
-              <div className="text-muted small">Total: <strong>{formatCurrency(total)}</strong></div>
-            </div>
-            <div>
-              <span className="badge bg-primary">Chiffres</span>
-            </div>
-          </div>
-
-          {series && series.length ? (
-                <div style={{ height: 260 }}>
-              <ChartWidget
-                type="line"
-                labels={labels || generateDateLabels(series.length)}
-                data={series}
-                title={key.replace(/_/g,' ')}
-                height={260}
-                legend={false}
-                yFormat="currency"
+      <div>
+        <div className="row g-4">
+          {subordinates.map((sub, index) => (
+            <div key={index} className="col-xl-4 col-lg-6 col-md-6">
+              <SubordinateDashboardCard 
+                role={sub.role}
+                name={sub.name || `Subalterne ${index + 1}`}
+                widgets={sub.widgets}
+                shopName={sub.shopName || 'Boutique'}
               />
             </div>
-          ) : (
-            <div className="text-muted">Aucune série temporelle disponible</div>
-          )}
+          ))}
         </div>
-      </div>
-    );
-  };
-
-  const renderSalesChart = (val: any, key: string) => {
-    // Prefer revenue renderer for numeric arrays or objects
-    if (!val) return <div className="text-muted">Pas de données pour {key.replace(/_/g,' ')}</div>;
-    if (Array.isArray(val) || typeof val === 'object') {
-      return renderRevenueWidget(val, key);
-    }
-    return <div>{String(val)}</div>;
-  };
-
-  const renderPendingOrders = (val: any) => {
-    const cnt = Number(val) || 0;
-    return (
-      <div className={`alert ${cnt > 0 ? 'alert-warning' : 'alert-secondary'}`} role="alert">
-        Commandes en attente: <strong>{cnt}</strong>
-        {cnt > 0 && <a className="btn btn-sm btn-link ms-2" href="/liste-commandes">Voir</a>}
-      </div>
-    );
-  };
-
-  const renderWidget = (w: WidgetDTO) => {
-    const val = w?.data?.value;
-    const rawKey = w.key || 'widget';
-    const key = rawKey.toLowerCase();
-
-    if (val === null || val === undefined) {
-      return (
-        <div className="card p-3 text-center text-muted">
-          <div>Aucune donnée disponible</div>
-          <button className="btn btn-sm btn-link" onClick={() => load(selectedShopId)}>Rafraîchir</button>
-        </div>
-      );
-    }
-
-    // Specific renderers for known keys
-    if (key.includes('top_products') || key.includes('top-produits') || key === 'top_products') {
-      return renderTopProducts(val, rawKey);
-    }
-
-    if (key.includes('evolution') || key.includes('sales7d') || key.includes('evolution_ventes')) {
-      return renderSalesChart(val, rawKey);
-    }
-
-    if (key.includes('pending') || key.includes('pendingorders') || key.includes('pending_orders')) {
-      return renderPendingOrders(val);
-    }
-
-    if (key.includes('chiffre') || (key.includes('sales') && typeof val === 'number') || rawKey === 'chiffre_affaires_total') {
-      return renderSimpleMetric(rawKey, val);
-    }
-
-    if (key.includes('etat_caisse')) {
-      return (
-        <div className="card p-3">
-          <h6 className="mb-2">{rawKey.replace(/_/g, ' ')}</h6>
-          {renderStatus(val)}
-        </div>
-      );
-    }
-
-    // Fallbacks: numbers, arrays, objects
-    // Numeric or boolean or short string metrics
-    if (typeof val === 'number' || typeof val === 'boolean' || (typeof val === 'string' && val.length < 40)) {
-      return renderSimpleMetric(rawKey, val);
-    }
-
-    // status-like object
-    if (typeof val === 'object' && !Array.isArray(val) && Object.keys(val).every(k => typeof val[k] === 'string' || typeof val[k] === 'boolean')) {
-      return (
-        <div className="card p-3">
-          <h6 className="mb-2">{rawKey.replace(/_/g, ' ')}</h6>
-          {renderStatus(val)}
-        </div>
-      );
-    }
-
-    // Array
-    if (Array.isArray(val)) {
-      const numeric = val.length > 0 && val.every((v: any) => typeof v === 'number');
-      if (numeric) {
-        const labels = val.map((_: any, i: number) => `${i + 1}`);
-        return <div key={rawKey} className="card p-3"><ChartWidget type="bar" labels={labels} data={val} title={rawKey.replace(/_/g, ' ')} height={220} /></div>;
-      }
-      if (val.length > 0 && typeof val[0] === 'object') {
-        const fields = Array.from(new Set(val.flatMap((r: any) => Object.keys(r))));
-        return (
-          <div key={rawKey} className="card mb-3">
+        
+        <div className="mt-4">
+          <div className="card">
+            <div className="card-header">
+              <h6 className="mb-0">Résumé des performances</h6>
+            </div>
             <div className="card-body">
-              <h6>{rawKey.replace(/_/g, ' ')}</h6>
               <div className="table-responsive">
                 <table className="table table-sm">
-                  <thead><tr>{fields.map(f => <th key={f}>{f}</th>)}</tr></thead>
+                  <thead>
+                    <tr>
+                      <th>Rôle</th>
+                      <th>Nombre</th>
+                      <th>Ventes moyennes</th>
+                      <th>Alertes stock</th>
+                      <th>Statut</th>
+                    </tr>
+                  </thead>
                   <tbody>
-                    {val.map((row: any, idx: number) => (
-                      <tr key={idx}>{fields.map(f => <td key={f}>{row[f] ?? ''}</td>)}</tr>
-                    ))}
+                    {['GERANT', 'MAGASINIER', 'CAISSIER'].map(role => {
+                      const subsByRole = subordinates.filter(s => s.role === role);
+                      const avgSales = subsByRole.length > 0 
+                        ? subsByRole.reduce((sum, sub) => {
+                            const ventes = sub.widgets?.find((w: any) => 
+                              w.key.toLowerCase().includes('ventes'))?.data?.value || 0;
+                            return sum + ventes;
+                          }, 0) / subsByRole.length
+                        : 0;
+                      
+                      const totalAlerts = subsByRole.reduce((sum, sub) => {
+                        const alerts = sub.widgets?.find((w: any) => 
+                          w.key.toLowerCase().includes('alert'))?.data?.value || 0;
+                        return sum + alerts;
+                      }, 0);
+                      
+                      return (
+                        <tr key={role}>
+                          <td>
+                            <span className="me-2">
+                              {role === 'GERANT' ? '👨‍💼' : 
+                               role === 'MAGASINIER' ? '📦' : '💰'}
+                            </span>
+                            {role}
+                          </td>
+                          <td><strong>{subsByRole.length}</strong></td>
+                          <td className="text-primary">{formatCurrency(avgSales)}</td>
+                          <td className={totalAlerts > 0 ? 'text-danger' : 'text-success'}>
+                            <strong>{totalAlerts}</strong>
+                          </td>
+                          <td>
+                            <span className={`badge ${subsByRole.length > 0 ? 'bg-success' : 'bg-secondary'}`}>
+                              {subsByRole.length > 0 ? 'Actif' : 'Inactif'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
-        );
-      }
-      // fallback
-      return <pre key={rawKey}>{JSON.stringify(val, null, 2)}</pre>;
-    }
-
-    // object fallback
-    return <pre key={rawKey}>{JSON.stringify(val, null, 2)}</pre>;
+        </div>
+      </div>
+    );
   };
 
-  if (loading) return <div>Chargement du tableau de bord...</div>;
-  if (error) return <div className="alert alert-danger">{error}</div>;
-  if (!payload) return <div className="alert alert-info">Aucun contenu pour le tableau de bord.</div>;
+  if (loading) return (
+    <div className="d-flex justify-content-center align-items-center" style={{ height: '50vh' }}>
+      <div className="text-center">
+        <div className="spinner-border text-primary mb-3" role="status"></div>
+        <p>Chargement du tableau de bord...</p>
+      </div>
+    </div>
+  );
+  
+  if (error) return (
+    <div className="alert alert-danger">
+      <i className="bi bi-exclamation-triangle me-2"></i>
+      {error}
+      <button className="btn btn-sm btn-outline-danger ms-3" onClick={() => load()}>
+        Réessayer
+      </button>
+    </div>
+  );
+  
+  if (!payload) return (
+    <div className="alert alert-info">
+      <i className="bi bi-info-circle me-2"></i>
+      Aucune donnée disponible pour le tableau de bord.
+    </div>
+  );
 
-  const shops = payload.sections && payload.sections.length ? payload.sections[0].shops || [] : [];
-
-  // helper: pick widgets from the section that matches current role (fallback to first)
-  const currentSection = payload.sections?.find(s => s.role === payload.role) || payload.sections?.[0];
-  const widgetVal = (key: string) => currentSection?.widgets?.find(w => w.key === key)?.data?.value ?? null;
+  const role = payload.role;
+  const shopInfo = payload.sections?.[0]?.shops?.[0] || {};
 
   return (
-    <div>
-      {/* Breadcrumb / header */}
-      <div className="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
-        <div className="breadcrumb-title pe-3">Dashboards</div>
-        <div className="ps-3">
-          <nav aria-label="breadcrumb">
-            <ol className="breadcrumb mb-0 p-0">
-              <li className="breadcrumb-item"><a href="#"><i className="bx bx-home-alt"></i></a></li>
-              <li className="breadcrumb-item active" aria-current="page">SMBOUTIQUE</li>
-            </ol>
-          </nav>
-        </div>
-      </div>
-
-      {/* Card : Indicateurs */}
-      <div className="card mb-3">
-        <div className="card-header bg-transparent">
-          <div className="row g-3 align-items-center">
-            <div className="col">
-              <h5 className="mb-0">Indicateurs</h5>
+    <div className="container-fluid">
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .bi.bi-cart, .ri-caravan-line, .bi-cart-check, .bi-cart-x-fill, .bi-exclamation-triangle, .bi-person-fill {
+            font-size: 50px;
+          }
+        `
+      }} />
+      {/* Header principal */}
+      <div className="page-breadcrumb mb-4">
+        <nav aria-label="breadcrumb">
+          <ol className="breadcrumb">
+            <li className="breadcrumb-item"><a href="/"><i className="bi bi-house-door"></i></a></li>
+            <li className="breadcrumb-item active">
+              {role === 'ADMIN' || role === 'PROPRIETAIRE' ? 'Tableau de bord propriétaire' : 
+               role === 'SUPERADMIN' || role === 'DEVELOPPEUR' ? 'Tableau de bord développeur' :
+               role === 'GERANT' ? 'Tableau de bord gérant' : 
+               role === 'MAGASINIER' ? 'Tableau de bord magasinier' : 
+               role === 'CAISSIER' ? 'Tableau de bord caissier' : 
+               'Tableau de bord'}
+            </li>
+          </ol>
+        </nav>
+        
+        <div className="d-flex justify-content-between align-items-center">
+          {/* Sélecteur de boutique */}
+          {boutiques.length > 1 && (
+            <div className="d-flex align-items-center me-3">
+              <label htmlFor="boutiqueSelect" className="form-label me-2 mb-0 fw-bold">
+                Boutique:
+              </label>
+              <select
+                id="boutiqueSelect"
+                className="form-select form-select-sm"
+                value={selectedBoutiqueId || ''}
+                onChange={(e) => setSelectedBoutiqueId(Number(e.target.value))}
+                style={{ minWidth: '200px' }}
+              >
+                {boutiques.map(boutique => (
+                  <option key={boutique.id} value={boutique.id}>
+                    {boutique.nom}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="col">
-              {shops && shops.length > 0 && (
-                <select className="form-select" value={selectedShopId || ''} onChange={handleShopChange}>
-                  <option value="">Toutes les boutiques</option>
-                  {shops.map(s => <option key={s.id} value={s.id}>{s.nom}</option>)}
-                </select>
-              )}
-            </div>
-            <div className="col d-flex">
-              <input type="date" className="form-control form-control-sm me-2" value={dateFrom ?? ''} onChange={e => setDateFrom((e.target as HTMLInputElement).value)} style={{ maxWidth: 160 }} />
-              <input type="date" className="form-control form-control-sm me-2" value={dateTo ?? ''} onChange={e => setDateTo((e.target as HTMLInputElement).value)} style={{ maxWidth: 160 }} />
-            </div>
-            <div className="col d-flex justify-content-end">
-              <button className="btn btn-outline-secondary btn-sm me-2" onClick={() => load(selectedShopId)}>Appliquer</button>
-              <button className="btn btn-outline-secondary btn-sm me-2" onClick={() => load(selectedShopId)}>Rafraîchir</button>
-              <button className="btn btn-sm btn-primary" onClick={exportJson}>Exporter JSON</button>
-            </div>
-          </div>
-        </div>
-        <div className="card-body" id="indicateurs">
-          <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-            {/* Chiffre d'affaires total */}
-            <div className="col d-flex flex-column align-items-center">
-              <div className="card radius-10 border-0 border-start border-primary border-4 w-100">
-                <div className="card-body d-flex align-items-center justify-content-between">
-                  <div>
-                    <p className="mb-1">Chiffre d'affaires total</p>
-                    <h4 className="mb-0 text-primary">{formatCurrency(Number(widgetVal('chiffre_affaires_total') ?? 0))}</h4>
-                  </div>
-                  <div className="widget-icon bg-primary text-white d-flex align-items-center justify-content-center" style={{ width: 60, height: 60, borderRadius: 10 }}>
-                    <i className="bi bi-currency-dollar" style={{ fontSize: 24 }}></i>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3 w-100">
-                {/* sales7d chart */}
-                {widgetVal('sales7d') && Array.isArray(widgetVal('sales7d')) ? (
-                  <ChartWidget type="line" labels={generateDateLabels((widgetVal('sales7d') as any[]).length)} data={(widgetVal('sales7d') as number[])} height={200} title="Ventes (7j)" />
-                ) : <div className="text-muted small">Pas de données temporelles</div>}
-              </div>
-            </div>
-
-            {/* Valeur stock */}
-            <div className="col d-flex flex-column align-items-center">
-              <div className="card radius-10 border-0 border-start border-success border-4 w-100">
-                <div className="card-body d-flex align-items-center justify-content-between">
-                  <div>
-                    <p className="mb-1">Valeur du stock</p>
-                    <h4 className="mb-0 text-success">{formatCurrency(Number(widgetVal('valeur_stock') ?? 0))}</h4>
-                  </div>
-                  <div className="widget-icon bg-success text-white d-flex align-items-center justify-content-center" style={{ width: 60, height: 60, borderRadius: 10 }}>
-                    <i className="bi bi-box-seam" style={{ fontSize: 24 }}></i>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3 w-100">
-                {widgetVal('top_products') && Array.isArray(widgetVal('top_products')) ? (
-                  <div className="table-responsive">
-                    <table className="table table-sm table-hover">
-                      <thead><tr><th>#</th><th>Produit</th><th>Qty</th><th>Montant</th></tr></thead>
-                      <tbody>
-                        {(widgetVal('top_products') as any[]).slice(0,5).map((r:any,i:number)=> (
-                          <tr key={i}><td>{i+1}</td><td>{r.nom ?? r.name}</td><td>{r.qty ?? r.quantity}</td><td>{formatCurrency(r.montant ?? r.total ?? 0)}</td></tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : <div className="text-muted small">Aucun produit en tête</div>}
-              </div>
-            </div>
-
-            {/* Pending orders / summary caisse */}
-            <div className="col d-flex flex-column align-items-center">
-              <div className="card radius-10 border-0 border-start border-warning border-4 w-100">
-                <div className="card-body d-flex align-items-center justify-content-between">
-                  <div>
-                    <p className="mb-1">Commandes en attente</p>
-                    <h4 className="mb-0 text-warning">{widgetVal('pendingOrders') ?? widgetVal('pending_orders') ?? 0}</h4>
-                  </div>
-                  <div className="widget-icon bg-warning text-white d-flex align-items-center justify-content-center" style={{ width: 60, height: 60, borderRadius: 10 }}>
-                    <i className="bi bi-cart-dash" style={{ fontSize: 24 }}></i>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3 w-100">
-                <div className="card radius-10 w-100">
-                  <div className="card-body">
-                    <h6 className="mb-2">État caisse</h6>
-                    {widgetVal('summary_caisse') ? <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(widgetVal('summary_caisse'), null, 2)}</pre> : <div className="text-muted small">Aucune information</div>}
-                  </div>
-                </div>
-              </div>
-            </div>
-
+          )}
+          
+          <div className="d-flex align-items-center">
+            {(role === 'ADMIN' || role === 'PROPRIETAIRE' || role === 'SUPERADMIN') && (
+              <button className="btn btn-outline-primary me-2" onClick={exportJson}>
+                <i className="bi bi-download me-1"></i> Exporter
+              </button>
+            )}
+            <button className="btn btn-primary" onClick={() => load()}>
+              <i className="bi bi-arrow-clockwise me-1"></i> Actualiser
+            </button>
           </div>
         </div>
       </div>
 
-      {payload.sections && payload.sections.length === 0 && <div className="alert alert-info">Aucune section disponible.</div>}
-
-      {payload.sections && payload.sections.map((section: SectionDTO, idx: number) => (
-        <div key={idx} className="mt-4">
-          <div className="d-flex align-items-center justify-content-between mb-2">
-            <h5 className="mb-0">{section.role}</h5>
-            <div className="text-muted">{section.widgets?.length ?? 0} widgets</div>
-          </div>
-
-          <div className="row">
-            {section.widgets && section.widgets.length ? section.widgets.map(w => {
-              // choose col size heuristically
-              const val = w?.data?.value;
-              let col = 'col-md-4';
-              if (Array.isArray(val) && val.length && typeof val[0] === 'number') col = 'col-md-6';
-              if (Array.isArray(val) && val.length && typeof val[0] === 'object') col = 'col-md-12';
-              if (typeof val === 'object' && !Array.isArray(val)) col = 'col-md-12';
-              return (
-                <div className={`${col} mb-3`} key={w.key}>
-                  {renderWidget(w)}
-                </div>
-              );
-            }) : <div className="text-muted">Aucun widget</div>}
-          </div>
-        </div>
-      ))}
-
-      {showModal && (
-        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.4)' }}>
-          <div className="modal-dialog modal-lg modal-dialog-scrollable">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Détails</h5>
-                <button type="button" className="btn-close" onClick={() => setShowModal(false)}></button>
-              </div>
-              <div className="modal-body">
-                <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{JSON.stringify(modalContent, null, 2)}</pre>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Fermer</button>
-              </div>
-            </div>
+      {/* Navigation par onglets pour ADMIN */}
+      {(role === 'ADMIN' || role === 'PROPRIETAIRE') && (
+        <div className="card mb-4">
+          <div className="card-body">
+            <ul className="nav nav-tabs nav-tabs-bordered">
+              <li className="nav-item">
+                <button 
+                  className={`nav-link ${activeTab === 'own' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('own')}
+                >
+                  <i className="bi bi-speedometer2 me-2"></i>
+                  Mon tableau de bord
+                </button>
+              </li>
+              <li className="nav-item">
+                <button 
+                  className={`nav-link ${activeTab === 'subordinates' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('subordinates')}
+                >
+                  <i className="bi bi-people me-2"></i>
+                  Vision globale ({subordinates.length})
+                </button>
+              </li>
+            </ul>
           </div>
         </div>
-      )} 
+      )}
+
+      {/* Contenu principal */}
+      <div className="row">
+        <div className="col-12">
+          {(role === 'ADMIN' || role === 'PROPRIETAIRE') ? (
+            <>
+              {activeTab === 'own' && renderMainDashboard()}
+              {activeTab === 'subordinates' && renderSubordinatesDashboard()}
+            </>
+          ) : (
+            renderMainDashboard()
+          )}
+        </div>
+      </div>
+
+      {/* Footer avec informations */}
+      <div className="mt-5 pt-4 border-top">
+        <div className="row">
+          <div className="col-md-6">
+            <small className="text-muted">
+              <i className="bi bi-shield-check me-1"></i>
+              Système sécurisé • Dernière mise à jour: {lastRefresh ? lastRefresh.toLocaleString('fr-FR') : '--'}
+            </small>
+          </div>
+          <div className="col-md-6 text-end">
+            <small className="text-muted">
+              Rôle: <strong>{role}</strong> • 
+              {shopInfo.nom && ` Boutique: ${shopInfo.nom}`}
+            </small>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

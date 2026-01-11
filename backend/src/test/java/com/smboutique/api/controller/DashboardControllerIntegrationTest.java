@@ -25,6 +25,7 @@ import java.util.Set;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -103,8 +104,8 @@ public class DashboardControllerIntegrationTest {
         when(commandeClientService.findAll()).thenReturn(List.of());
         when(commandeClientService.findAllByBoutiqueId(anyLong())).thenReturn(List.of());
 
-        when(dashboardService.getOverview(anyLong())).thenReturn(dto);
-        when(dashboardService.getOverview((Long) Mockito.isNull())).thenReturn(dto);
+        when(dashboardService.getOverview(anyLong(), any())).thenReturn(dto);
+        when(dashboardService.getOverview(Mockito.isNull(), any())).thenReturn(dto);
         when(boutiqueRepository.count()).thenReturn(5L);
         when(boutiqueRepository.findAll()).thenReturn(List.of(ownerBoutique));
 
@@ -127,8 +128,7 @@ public class DashboardControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role", is("SUPERADMIN")))
                 .andExpect(jsonPath("$.widgets.shopsCount").value(5))
-                .andExpect(jsonPath("$.widgets.servicesStatus.api").value("OK"))
-                .andExpect(jsonPath("$.sections[0].role").value("SUPERADMIN"))
+                .andExpect(jsonPath("$.widgets.servicesStatus.api").value("OK"))                .andExpect(jsonPath("$.widgets.transactionsCount").exists())                .andExpect(jsonPath("$.sections[0].role").value("SUPERADMIN"))
                 .andExpect(jsonPath("$.sections[0].widgets[?(@.key=='shopsCount')]").exists());
     }
 
@@ -141,7 +141,7 @@ public class DashboardControllerIntegrationTest {
                 .andExpect(jsonPath("$.role", is("PROPRIETAIRE")))
                 .andExpect(jsonPath("$.widgets.chiffre_affaires_total").value(100000))
                 .andExpect(jsonPath("$.sections[0].role").value("PROPRIETAIRE"))
-                .andExpect(jsonPath("$.sections[0].widgets[?(@.key=='chiffre_affaires_total')]").exists());
+                .andExpect(jsonPath("$.sections[0].widgets[?(@.key=='chiffre_affaires_total')]" ).exists());
     }
 
     @Test
@@ -165,6 +165,57 @@ public class DashboardControllerIntegrationTest {
                 .andExpect(jsonPath("$.role", is("CAISSIER")))
                 .andExpect(jsonPath("$.widgets.ventes_jour_personnelles").exists())
                 .andExpect(jsonPath("$.sections[0].role").value("CAISSIER"))
-                .andExpect(jsonPath("$.sections[0].widgets[?(@.key=='ventes_jour_personnelles')]").exists());
+                .andExpect(jsonPath("$.sections[0].widgets[?(@.key=='ventes_jour_personnelles')]" ).exists());
+    }
+
+    // Contract tests
+    @Test
+    public void sectionsAreOrderedForSuperAdmin() throws Exception {
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken("sa@example.com", "N/A", java.util.List.of(new SimpleGrantedAuthority("ROLE_SUPERADMIN"))));
+        mockMvc.perform(get("/api/dashboard"))
+                .andExpect(status().isOk())
+                // strict order: SUPERADMIN, PROPRIETAIRE, GERANT, CAISSIER, MAGASINIER
+                .andExpect(jsonPath("$.sections[0].role").value("SUPERADMIN"))
+                .andExpect(jsonPath("$.sections[1].role").value("PROPRIETAIRE"))
+                .andExpect(jsonPath("$.sections[2].role").value("GERANT"))
+                .andExpect(jsonPath("$.sections[3].role").value("CAISSIER"))
+                .andExpect(jsonPath("$.sections[4].role").value("MAGASINIER"));
+    }
+
+    @Test
+    public void ownerDoesNotSeeSuperAdminSection() throws Exception {
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken("owner@example.com", "N/A", java.util.List.of(new SimpleGrantedAuthority("ROLE_PROPRIETAIRE"))));
+        mockMvc.perform(get("/api/dashboard"))
+                .andExpect(status().isOk())
+                // ensure SUPERADMIN section is not present
+                .andExpect(jsonPath("$.sections[?(@.role=='SUPERADMIN')]").doesNotExist());
+    }
+
+    @Test
+    public void widgetsProvidePermissionAndData() throws Exception {
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken("sa@example.com", "N/A", java.util.List.of(new SimpleGrantedAuthority("ROLE_SUPERADMIN"))));
+        mockMvc.perform(get("/api/dashboard"))
+                .andExpect(status().isOk())
+                // every widget should have a permission and data
+                .andExpect(jsonPath("$.sections[*].widgets[*].permission").exists())
+                .andExpect(jsonPath("$.sections[*].widgets[*].data").exists())
+                // additionally ensure no widget with null permission/data is included
+                .andExpect(jsonPath("$.sections[*].widgets[?(@.permission==null)]").doesNotExist())
+                .andExpect(jsonPath("$.sections[*].widgets[?(@.data==null)]").doesNotExist());
+    }
+
+    @Test
+    public void superadminDoesNotSeeBusinessFigures() throws Exception {
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken("sa@example.com", "N/A", java.util.List.of(new SimpleGrantedAuthority("ROLE_SUPERADMIN"))));
+        mockMvc.perform(get("/api/dashboard"))
+                .andExpect(status().isOk())
+                // superadmin should not receive business financial metrics
+                .andExpect(jsonPath("$.widgets.chiffre_affaires_total").doesNotExist())
+                .andExpect(jsonPath("$.widgets.valeur_stock").doesNotExist())
+                .andExpect(jsonPath("$.widgets.summary_caisse").doesNotExist());
     }
 }

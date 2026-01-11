@@ -170,6 +170,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/dto/CaisseSummaryItem.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/dto/CaisseSummaryResult.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/dto/DashboardOverviewDTO.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/dto/DashboardPayload.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/BoutiqueServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/CaisseMovementServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/CaisseServiceImpl.java

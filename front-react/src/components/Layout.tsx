@@ -53,7 +53,7 @@ const Footer = () => {
 
 const Topbar = ({ toggleSidebar }: { toggleSidebar?: () => void }) => {
   const navigate = useNavigate();
-  const { user, logout } = useUser();
+  const { user, logout, roles = [] } = useUser();
 
   const [notifications, setNotifications] = React.useState<any[]>([]);
 
@@ -87,6 +87,21 @@ const Topbar = ({ toggleSidebar }: { toggleSidebar?: () => void }) => {
       navigate('/');
     }
   };
+
+  const translateRole = (role: string) => {
+    const roleMap: { [key: string]: string } = {
+      'SUPERADMIN': 'Administrateur Principal',
+      'ADMIN': 'Administrateur',
+      'MANAGER': 'Manager',
+      'STOREKEEPER': 'Magasinier',
+      'CASHIER': 'Caissier'
+    };
+    return roleMap[role.toUpperCase()] || role;
+  };
+
+  const uniqueRoles = [...new Set(roles.map(r => r.toUpperCase().trim()).filter(r => r))];
+  const translatedRoles = uniqueRoles.map(r => translateRole(r));
+  const displayRoles = [...new Set(translatedRoles)].join(', ');
 
   const initials = () => {
     const n = `${user?.prenom || ''} ${user?.nom || ''}`.trim();
@@ -161,6 +176,11 @@ const Topbar = ({ toggleSidebar }: { toggleSidebar?: () => void }) => {
           <button className="sidenav-toggle-button btn btn-primary btn-icon d-md-none d-flex" onClick={toggleSidebar} aria-label="Toggle navigation" type="button">
             <i className="ti ti-menu-2 fs-22"></i>
           </button>
+          {displayRoles && (
+            <span className="text-primary fw-semibold ms-5 d-none d-lg-inline" style={{ fontSize: '0.7rem' }}>
+              {displayRoles}
+            </span>
+          )}
         </div>
         <div className="d-flex align-items-center gap-2">
           <div className="dropdown me-2">
@@ -209,6 +229,9 @@ const Topbar = ({ toggleSidebar }: { toggleSidebar?: () => void }) => {
             <span className="fw-semibold d-none d-sm-inline">{displayName}</span>
             <ul className="dropdown-menu dropdown-menu-end">
               <li><span className="dropdown-item-text fw-semibold">{displayName}</span></li>
+              {displayRoles && (
+                <li><span className="dropdown-item-text text-muted small">{displayRoles}</span></li>
+              )}
               <li><a className="dropdown-item" href="/profile">Profil</a></li>
               <li><hr className="dropdown-divider" /></li>
               <li><a className="dropdown-item" href="#" onClick={handleLogout}>Déconnexion</a></li>
@@ -231,6 +254,7 @@ const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
   };
 
   const isOwner = user && user.typeUtilisateur === 'PROPRIETAIRE';
+  const isSuperAdmin = roles.some(r => r.toUpperCase() === 'SUPERADMIN');
 
   const can = {
     dashboard: hasAnyPermission(['TABLEAU_DE_BORD_VOIR', 'TABLEAU_DE_BORD_LECTURE']),
@@ -246,9 +270,9 @@ const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
     // documents: generated on demand
     documents: hasAnyPermission(['DOCUMENTS_VOIR']),
     rapports: hasAnyPermission(['RAPPORT_LECTURE']),
-    // configuration: visible only if explicit CONFIGURATION_VOIR permission OR owner
-    configuration: (hasAnyPermission(['CONFIGURATION_VOIR']) || isOwner),
-  };
+    // configuration: visible only if explicit CONFIGURATION_VOIR permission OR owner OR superadmin
+    configuration: (hasAnyPermission(['CONFIGURATION_VOIR']) || isOwner || isSuperAdmin),
+  }; 
 
   // Diagnostic: log the reason the Configuration menu is shown or hidden to ease debugging
   useEffect(() => {
@@ -256,6 +280,7 @@ const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
       const reasonParts: string[] = [];
       if (hasAnyPermission(['CONFIGURATION_VOIR'])) reasonParts.push('permission:CONFIGURATION_VOIR');
       if (isOwner) reasonParts.push('owner');
+      if (isSuperAdmin) reasonParts.push('superadmin');
       console.debug('Configuration menu visibility:', reasonParts.length > 0 ? 'VISIBLE (' + reasonParts.join(',') + ')' : 'HIDDEN');
     } catch (e) {
       // ignore
@@ -288,6 +313,7 @@ const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
       <div className="scrollbar" style={{ height: 'calc(100vh - 70px)' }}>
         <ul className="side-nav" id="sidebar-nav">
           <li className="side-nav-title">Navigation</li>
+
           {can.dashboard && (
           <li className="side-nav-item">
             <Link to="/dashboard" className="side-nav-link">
@@ -296,6 +322,7 @@ const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
             </Link>
           </li>
           )}
+
           {can.inventaire && (
           <li className="side-nav-item">
             <a className="side-nav-link" data-bs-target="#inventaire-nav" data-bs-toggle="collapse" href="#">

@@ -337,10 +337,6 @@ public class ProduitServiceImpl implements ProduitService {
 
                     Produit saved = produitRepository.save(produit);
 
-                    // Create stock for user's boutique/store(s) if magazin id(s) provided
-                    // For now: if header magasinId present, create stock
-                    String magasinIdsStr = getStringCell(row, colIndex.getOrDefault("magasinIds", -1));
-
                     // Calculer la quantité réelle initiale
                     int quantiteReel = 0;
                     if (quantiteInitiale != null && quantiteInitiale > 0) {
@@ -351,46 +347,15 @@ public class ProduitServiceImpl implements ProduitService {
                         }
                     }
 
-                    if (magasinIdsStr != null && !magasinIdsStr.isEmpty()) {
-                        String[] parts = magasinIdsStr.split(",");
-                        for (String p : parts) {
-                            try {
-                                // Try parsing as integer (excel numeric) or long string
-                                Long mgid;
-                                try {
-                                    mgid = Long.valueOf(p.trim());
-                                } catch (NumberFormatException nfe) {
-                                    // maybe it was a numeric cell formatted like 1.0
-                                    try { mgid = Long.valueOf((long)Double.parseDouble(p.trim())); } catch (Exception ex) { throw nfe; }
-                                }
-                                Optional<Magasin> magasinOpt = magasinRepository.findById(mgid);
-                                if (magasinOpt.isPresent()) {
-                                    Stock stock = new Stock();
-                                    stock.setProduit(saved);
-                                    stock.setMagasin(magasinOpt.get());
-                                    stock.setBoutique(magasinOpt.get().getBoutique());
-                                    stock.setQuantiteDisponible(quantiteReel);
-                                    stockService.saveStock(stock);
-                                } else {
-                                    errors.add("Ligne " + (r+1) + ": magasinId introuvable: " + mgid);
-                                    throw new com.smboutique.api.exception.ImportValidationException(errors);
-                                }
-                            } catch (NumberFormatException nfe) {
-                                errors.add("Ligne " + (r+1) + ": magasinId invalide: " + p);
-                                throw new com.smboutique.api.exception.ImportValidationException(errors);
-                            }
-                        }
-                    } else {
-                        // No magasin specified: create a single boutique-level stock (magasin = NULL)
-                        Stock boutiqueStock = new Stock();
-                        boutiqueStock.setProduit(saved);
-                        boutiqueStock.setMagasin(null);
-                        boutiqueStock.setBoutique(currentUser.getBoutique());
-                        boutiqueStock.setQuantiteDisponible(quantiteReel);
-                        boutiqueStock.setCostAverage(null);
-                        boutiqueStock.setLastPurchasePrice(null);
-                        stockService.saveStock(boutiqueStock);
-                    }
+                    // Create stock at boutique level (no specific magasin)
+                    Stock boutiqueStock = new Stock();
+                    boutiqueStock.setProduit(saved);
+                    boutiqueStock.setMagasin(null);
+                    boutiqueStock.setBoutique(currentUser.getBoutique());
+                    boutiqueStock.setQuantiteDisponible(quantiteReel);
+                    boutiqueStock.setCostAverage(null);
+                    boutiqueStock.setLastPurchasePrice(null);
+                    stockService.saveStock(boutiqueStock);
 
                     processed++;
                 } catch (com.smboutique.api.exception.ImportValidationException e) {

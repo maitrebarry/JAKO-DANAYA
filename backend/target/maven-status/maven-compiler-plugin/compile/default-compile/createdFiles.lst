@@ -37,7 +37,6 @@ com/smboutique/api/controller/CommandeClientLivraisonController.class
 com/smboutique/api/service/impl/RecomputeJobService$Job.class
 com/smboutique/api/repository/LigneLivraisonRepository.class
 com/smboutique/api/repository/InventaireRepository.class
-com/smboutique/api/service/impl/DashboardServiceImpl.class
 com/smboutique/api/controller/CommandeClientLivraisonController$LivraisonLineRequest.class
 com/smboutique/api/controller/CommandeFournisseurController$ReceptionRequest.class
 com/smboutique/api/service/impl/MargeCalculator.class
@@ -70,6 +69,7 @@ com/smboutique/api/model/Inventaire.class
 com/smboutique/api/service/impl/RecomputeJobService$Status.class
 com/smboutique/api/dto/ReceptionDTO.class
 com/smboutique/api/service/impl/PdfServiceImpl.class
+com/smboutique/api/service/dto/DashboardPayload$Shop.class
 com/smboutique/api/controller/VenteController.class
 com/smboutique/api/controller/RoleController.class
 com/smboutique/api/repository/MouvementRepository.class
@@ -150,6 +150,7 @@ com/smboutique/api/controller/BoutiqueController.class
 com/smboutique/api/repository/ProduitRepository.class
 com/smboutique/api/config/JacksonConfig.class
 com/smboutique/api/service/impl/DocumentServiceImpl.class
+com/smboutique/api/service/dto/DashboardPayload$Section.class
 com/smboutique/api/service/impl/ReceptionServiceImpl.class
 com/smboutique/api/controller/CaisseMovementController.class
 com/smboutique/api/controller/AdminController.class
@@ -162,6 +163,7 @@ com/smboutique/api/controller/CommandeFournisseurRequest$ProduitSelectionne.clas
 com/smboutique/api/service/CaisseMovementService.class
 com/smboutique/api/service/impl/LigneCommandeClientServiceImpl.class
 com/smboutique/api/model/ConfigurationMarge$TypeMarge.class
+com/smboutique/api/service/dto/DashboardPayload$Widget.class
 com/smboutique/api/controller/CaisseController.class
 com/smboutique/api/service/MouvementSearchResult.class
 com/smboutique/api/controller/PaiementController.class
@@ -169,6 +171,7 @@ com/smboutique/api/repository/CaisseTransactionRepository.class
 com/smboutique/api/service/impl/StockServiceImpl.class
 com/smboutique/api/controller/NotificationController.class
 com/smboutique/api/controller/VenteController$VenteCashRequest.class
+com/smboutique/api/service/dto/DashboardPayload.class
 com/smboutique/api/repository/FournisseurRepository.class
 com/smboutique/api/controller/VenteController$VenteFullRequest.class
 com/smboutique/api/service/impl/PaiementClientServiceImpl.class

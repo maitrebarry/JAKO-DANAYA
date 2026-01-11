@@ -2,9 +2,9 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import SignIn from './components/SignIn';
 import Layout from './components/Layout';
-// Dashboard removed: frontend dashboard archived in src/archive/dashboard
+// Dashboard component: role-based implementation
 import Configuration from './components/Configuration';
-import Dashboard from './components/Dashboard';
+import RoleBasedDashboard from './components/RoleBasedDashboard';
 import Fournisseurs from './components/Fournisseurs';
 import Produits from './components/Produits';
 import CommandeFournisseur from './components/CommandeFournisseur';
@@ -50,18 +50,18 @@ function App() {
         <Routes>
           <Route path="/" element={<SignIn />} />
           <Route 
-            path="/dashboard" 
-            element={
-              <PrivateRoute>
-                <Layout><Dashboard /></Layout>
-              </PrivateRoute>
-            } 
-          />
-          <Route 
             path="/configuration" 
             element={
               <PrivateRoute>
                 <Layout><Configuration /></Layout>
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/dashboard" 
+            element={
+              <PrivateRoute>
+                <Layout><RoleBasedDashboard /></Layout>
               </PrivateRoute>
             } 
           />

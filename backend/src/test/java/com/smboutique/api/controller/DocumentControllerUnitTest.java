@@ -11,9 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.Optional;
-
 import static org.mockito.Mockito.*;
-
 public class DocumentControllerUnitTest {
 
     private DocumentController controller;

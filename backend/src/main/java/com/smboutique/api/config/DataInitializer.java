@@ -206,7 +206,7 @@ public class DataInitializer implements CommandLineRunner {
             {"CONFIG_MARGE_LECTURE", "Permission pour lire la configuration des marges"},
             {"CONFIG_MARGE_ECRITURE", "Permission pour créer/modifier la configuration des marges"},
             {"CONFIG_MARGE_SUPPRESSION", "Permission pour supprimer la configuration des marges"},
-                {"CONFIGURATION _VOIR", "permission pour voir le menu configuration"},
+            {"CONFIGURATION_VOIR", "permission pour voir le menu configuration"},
             // Paiements / Réceptions / Livraisons
             {"PAIEMENT_CREER", "Permission pour créer paiements"},
             {"PAIEMENT_MODIFIER", "Permission pour modifier paiements"},
@@ -266,7 +266,7 @@ public class DataInitializer implements CommandLineRunner {
                 "INVENTAIRE_LECTURE", "INVENTAIRE_CREER", "INVENTAIRE_MODIFIER", "INVENTAIRE_SUPPRIMER",
                 "FOURNISSEUR_LECTURE", "FOURNISSEUR_CREER", "FOURNISSEUR_MODIFIER", "FOURNISSEUR_SUPPRIMER",
                 "BOUTIQUE_LECTURE", "BOUTIQUE_CREER", "BOUTIQUE_MODIFIER", "BOUTIQUE_SUPPRIMER",
-                "RAPPORT_LECTURE", "RAPPORT_CREER", "PARAMETRES_LECTURE", "PARAMETRES_MODIFIER"
+                "RAPPORT_LECTURE", "RAPPORT_CREER", "PARAMETRES_LECTURE", "PARAMETRES_MODIFIER","CONFIG_MARGE_SUPPRESSION",
             });
 
             createRole("ADMIN", "Administrateur de boutique", new String[]{
@@ -404,10 +404,10 @@ public class DataInitializer implements CommandLineRunner {
         logger.info("Initializing boutique...");
         if (boutiqueRepository.count() == 0) {
             Boutique boutique = new Boutique();
-            boutique.setNom("Boutique Principale");
+            boutique.setNom("COMPUTER-SERVICE-BARRY");
             boutique.setQuartier("Centre-ville");
-            boutique.setAdresse("123 Rue de la Boutique");
-            boutique.setTelephone("+225 01 02 03 04 05");
+            boutique.setAdresse("Segou");
+            boutique.setTelephone("74745669");
             boutiqueRepository.save(boutique);
             logger.info("Default boutique created");
         } else {

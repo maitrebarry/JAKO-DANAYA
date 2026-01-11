@@ -616,16 +616,22 @@ const Produits: React.FC = () => {
                 <div className="mb-3">
                   <a className="btn btn-sm btn-secondary" href="/produits_template.xlsx" download> Télécharger le modèle </a>
                 </div>
-                {/* <div className="alert alert-info small" role="note">
-                  <p className="mb-1 fw-bold">Colonnes attendues (respecter l'entête) :</p>
-                  <ul className="mb-0 ps-3">
-                    <li><code>nomProduit</code> (obligatoire)</li>
-                    <li><code>productImage</code> (URL ou nom de fichier existant)</li>
-                    <li><code>prixAchat</code>, <code>prixEnGros</code>, <code>prixDetail</code></li>
-                    <li><code>alerteStock</code>, <code>id_unite</code> (identifiant de l'unité), <code>nombreUnitesParConditionnement</code></li>
-                    <li><code>quantiteInitiale</code> (conditionnements) et <code>magasinIds</code> séparés par des virgules</li>
-                  </ul>
-                </div> */}
+                <div className="alert alert-info small" role="note">
+                  <p className="mb-1 fw-bold">Colonnes attendues (respecter l'ordre et les noms) :</p>
+                  <ol className="mb-0 ps-3">
+                    <li><code>nomProduit</code> (obligatoire) - Nom du produit</li>
+                    <li><code>prixAchat</code> - Prix d'achat (nombre entier)</li>
+                    <li><code>id_unite</code> - ID de l'unité de conditionnement (optionnel)</li>
+                    <li><code>nombreUnitesParConditionnement</code> - Nombre d'unités par conditionnement (requis si id_unite fourni)</li>
+                    <li><code>quantiteInitiale</code> - Quantité initiale en conditionnements</li>
+                    <li><code>productImage</code> - URL de l'image ou nom du fichier (optionnel)</li>
+                    <li><code>caracteristique</code> - Caractéristiques du produit (optionnel)</li>
+                    <li><code>prixDetail</code> - Prix de détail (nombre entier)</li>
+                    <li><code>prixEnGros</code> - Prix en gros (nombre entier)</li>
+                    <li><code>alerteStock</code> - Seuil d'alerte stock (nombre entier)</li>
+                  </ol>
+                  <p className="mt-2 mb-0"><strong>Note:</strong> Les colonnes doivent être dans cet ordre exact. Les champs marqués comme optionnels peuvent être laissés vides.</p>
+                </div>
                 <div className="mb-3">
                   <input type="file" accept=".xlsx,.xls" onChange={(e) => setImportFile(e.target.files ? e.target.files[0] : null)} />
                 </div>

@@ -127,7 +127,6 @@ const CaisseSummary: React.FC = () => {
               ))}
             </select>
           </div>
-
           <div className="col-auto">
             <label className="form-label">Période</label>
             <select className="form-select" value={period} onChange={e => setPeriod(e.target.value as Period)}>

@@ -39,12 +39,12 @@ public class DashboardController {
     }
 
     @GetMapping("/overview")
-    public DashboardOverviewDTO overview(@RequestParam(value = "shopId", required = false) Long shopId) {
-        return dashboardService.getOverview(shopId);
+    public DashboardOverviewDTO overview(@RequestParam(value = "shopId", required = false) Long shopId, @RequestParam(value = "magasinId", required = false) Long magasinId) {
+        return dashboardService.getOverview(shopId, magasinId);
     }
 
     @GetMapping("")
-    public com.smboutique.api.service.dto.DashboardPayload dashboard(@RequestParam(value = "shopId", required = false) Long shopId) {
+    public com.smboutique.api.service.dto.DashboardPayload dashboard(@RequestParam(value = "shopId", required = false) Long shopId, @RequestParam(value = "magasinId", required = false) Long magasinId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         com.smboutique.api.service.dto.DashboardPayload p = new com.smboutique.api.service.dto.DashboardPayload();
         if (authentication == null || authentication.getName() == null) {
@@ -61,14 +61,24 @@ public class DashboardController {
         }
 
         // Delegate to service which implements role-based filtering
-        com.smboutique.api.service.dto.DashboardPayload payload = dashboardService.getDashboardFor(utilisateur, shopId);
+        com.smboutique.api.service.dto.DashboardPayload payload = dashboardService.getDashboardFor(utilisateur, shopId, magasinId);
 
         // For superadmin, fill counts that require repositories (kept in controller for clarity)
         if ("SUPERADMIN".equalsIgnoreCase(payload.role)) {
             if (payload.widgets != null) {
-                payload.widgets.put("shopsCount", boutiqueRepository.count());
-                payload.widgets.put("usersCount", utilisateurService.findAll().size());
-                payload.widgets.put("transactionsCount", commandeClientService.findAll().size());
+                long shopsCount = boutiqueRepository.count();
+                int usersCount = utilisateurService.findAll().size();
+                int transactionsCount = commandeClientService.findAll().size();
+                
+                System.out.println("🔢 SUPERADMIN counts - shops: " + shopsCount + ", users: " + usersCount + ", transactions: " + transactionsCount);
+                
+                payload.widgets.put("shopsCount", shopsCount);
+                payload.widgets.put("usersCount", usersCount);
+                payload.widgets.put("transactionsCount", transactionsCount);
+                
+                System.out.println("📊 SUPERADMIN payload.widgets after adding counts: " + payload.widgets);
+            } else {
+                System.out.println("❌ SUPERADMIN payload.widgets is null!");
             }
         }
 
@@ -144,9 +154,9 @@ public class DashboardController {
             if (u.getId().equals(current.getId())) continue; // skip self
             String t = u.getTypeUtilisateur()!=null ? u.getTypeUtilisateur().toUpperCase() : null;
             // only include subordinate roles
-            if (!("GERANT_BOUTIQUE".equalsIgnoreCase(t) || "CAISSIER".equalsIgnoreCase(t) || "MAGASINIER".equalsIgnoreCase(t))) continue;
+            if (t == null || !("GERANT_BOUTIQUE".equalsIgnoreCase(t) || "GERANT".equalsIgnoreCase(t) || "GÉRANT".equalsIgnoreCase(t) || "CAISSIER".equalsIgnoreCase(t) || "MAGASINIER".equalsIgnoreCase(t))) continue;
 
-            com.smboutique.api.service.dto.DashboardPayload p = dashboardService.getDashboardFor(u, boutiqueId);
+            com.smboutique.api.service.dto.DashboardPayload p = dashboardService.getDashboardFor(u, boutiqueId, null);
             java.util.List<java.util.Map<String,Object>> widgetList = new java.util.ArrayList<>();
             if (p != null && p.widgets != null) {
                 p.widgets.forEach((k,v) -> {

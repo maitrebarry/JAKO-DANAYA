@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.smboutique.api.controller.DashboardControllerIntegrationTest
--------------------------------------------------------------------------------
-Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.826 s -- in com.smboutique.api.controller.DashboardControllerIntegrationTest
