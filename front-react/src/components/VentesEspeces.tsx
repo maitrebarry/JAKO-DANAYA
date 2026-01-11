@@ -196,15 +196,6 @@ const VentesEspeces: React.FC = () => {
                     {canAnnulerPaiement && <button className="btn btn-sm btn-outline-danger" title="Supprimer" onClick={() => handleDeleteItem(it)}><i className="ri-delete-bin-line"></i></button>}
                   </td>
                 </tr>
-                {Array.isArray((it as any).lignes) && (it as any).lignes.length > 0 && (
-                  <tr>
-                    <td colSpan={5}>
-                      <small className="text-muted">
-                        {((it as any).lignes as string[]).map((l, idx) => <div key={idx}>{l}</div>)}
-                      </small>
-                    </td>
-                  </tr>
-                )}
               </React.Fragment>
             ))}
           </tbody>

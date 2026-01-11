@@ -450,7 +450,9 @@ public class DashboardServiceImpl implements DashboardService {
             .filter(c -> c.getPaie() != null && c.getTotal() != null && c.getPaie().compareTo(c.getTotal()) < 0)
             .mapToLong(c -> c.getTotal().longValue() - c.getPaie().longValue()).sum();
 
-        long dailyCash = dailyTotal - dailyCredit;
+        long dailyCash = commandes.stream()
+            .filter(c -> c.getDateCommande() != null && !c.getDateCommande().isBefore(startOfDay) && !c.getDateCommande().isAfter(endOfDay))
+            .mapToLong(c -> c.getPaie() != null ? c.getPaie().longValue() : 0L).sum();
 
         // Monthly calculations
         LocalDateTime startOfMonth = today.withDayOfMonth(1).atStartOfDay();
@@ -464,7 +466,9 @@ public class DashboardServiceImpl implements DashboardService {
             .filter(c -> c.getPaie() != null && c.getTotal() != null && c.getPaie().compareTo(c.getTotal()) < 0)
             .mapToLong(c -> c.getTotal().longValue() - c.getPaie().longValue()).sum();
 
-        long monthlyCash = monthlyTotal - monthlyCredit;
+        long monthlyCash = commandes.stream()
+            .filter(c -> c.getDateCommande() != null && !c.getDateCommande().isBefore(startOfMonth))
+            .mapToLong(c -> c.getPaie() != null ? c.getPaie().longValue() : 0L).sum();
 
         // Annual calculations
         LocalDateTime startOfYear = today.withDayOfYear(1).atStartOfDay();
@@ -478,7 +482,9 @@ public class DashboardServiceImpl implements DashboardService {
             .filter(c -> c.getPaie() != null && c.getTotal() != null && c.getPaie().compareTo(c.getTotal()) < 0)
             .mapToLong(c -> c.getTotal().longValue() - c.getPaie().longValue()).sum();
 
-        long annualCash = annualTotal - annualCredit;
+        long annualCash = commandes.stream()
+            .filter(c -> c.getDateCommande() != null && !c.getDateCommande().isBefore(startOfYear))
+            .mapToLong(c -> c.getPaie() != null ? c.getPaie().longValue() : 0L).sum();
 
         bilan.put("dailyTotal", dailyTotal);
         bilan.put("dailyCredit", dailyCredit);
