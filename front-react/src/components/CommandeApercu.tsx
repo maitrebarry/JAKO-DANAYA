@@ -261,7 +261,7 @@ const CommandeApercu: React.FC = () => {
       </div>
 
       <footer className="footer" style={{position: 'fixed', bottom: 0, width: '100%', height: '50px', backgroundColor: '#f5f5f5'}}>
-        <div className="container-fluid py-2 text-center small">© SMBOUTIQUE</div>
+        <div className="container-fluid py-2 text-center small">© JÀGO DÁNAYA</div>
       </footer>
     </main>
   );

@@ -16,6 +16,23 @@ const Layout = ({ children }: LayoutProps) => {
   }, []);
   const toggleSidebar = () => setSidebarOpen(s => !s);
 
+  const { user, roles = [] } = useUser();
+
+  const translateRole = (role: string) => {
+    const roleMap: { [key: string]: string } = {
+      'SUPERADMIN': 'Administrateur Principal',
+      'ADMIN': 'Administrateur',
+      'MANAGER': 'Manager',
+      'STOREKEEPER': 'Magasinier',
+      'CASHIER': 'Caissier'
+    };
+    return roleMap[role.toUpperCase()] || role;
+  };
+
+  const uniqueRoles = [...new Set(roles.map(r => r.toUpperCase().trim()).filter(r => r))];
+  const translatedRoles = uniqueRoles.map(r => translateRole(r));
+  const displayRoles = [...new Set(translatedRoles)].join(', ');
+
   return (
     <div className="wrapper">
       <Sidebar isOpen={sidebarOpen} />
@@ -155,29 +172,12 @@ const Topbar = ({ toggleSidebar }: { toggleSidebar?: () => void }) => {
     <header className="app-topbar">
       <div className="container-fluid topbar-menu d-flex justify-content-between align-items-center">
         <div className="d-flex align-items-center gap-2">
-          <div className="logo-topbar">
-            <a href="/" className="logo-light">
-              <span className="logo-lg">
-                <img src="assets/images/logo.png" alt="logo" />
-              </span>
-              <span className="logo-sm">
-                <img src="assets/images/logo-sm.png" alt="small logo" />
-              </span>
-            </a>
-            <a href="/" className="logo-dark">
-              <span className="logo-lg">
-                <img src="assets/images/logo-black.png" alt="dark logo" />
-              </span>
-              <span className="logo-sm">
-                <img src="assets/images/logo-sm.png" alt="small logo" />
-              </span>
-            </a>
-          </div>
+
           <button className="sidenav-toggle-button btn btn-primary btn-icon d-md-none d-flex" onClick={toggleSidebar} aria-label="Toggle navigation" type="button">
             <i className="ti ti-menu-2 fs-22"></i>
           </button>
           {displayRoles && (
-            <span className="text-primary fw-semibold ms-5 d-none d-lg-inline" style={{ fontSize: '0.7rem' }}>
+            <span className="text-primary fw-semibold d-none d-lg-inline" style={{ fontSize: '0.7rem', marginLeft: '20em' }}>
               {displayRoles}
             </span>
           )}
@@ -209,7 +209,7 @@ const Topbar = ({ toggleSidebar }: { toggleSidebar?: () => void }) => {
               className="rounded-circle dropdown-toggle"
               data-bs-toggle="dropdown"
               aria-expanded="false"
-              style={{ cursor: 'pointer', width: '40px', height: '40px', objectFit: 'cover' }}
+              style={{ cursor: 'pointer', width: '30px', height: '30px', objectFit: 'cover' }}
               onError={(e) => {
                 try {
                   console.warn('Avatar failed to load, falling back to default:', (e.currentTarget as HTMLImageElement).src);
@@ -299,20 +299,23 @@ const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
   }, [permissions]);
   return (
     <div className={`sidenav-menu ${!isOpen ? 'd-none d-md-block' : ''}`}>
-      <div className="navbar-brand-box">
-        <a href="/" className="logo logo-dark">
-          <span className="logo-sm">
-            <img src="/images/logo-sm.png" alt="logo" height="22" />
-          </span>
-          <span className="logo-lg">
-            <img src="/images/logo.png" alt="logo" height="24" />
-            <span className="logo-txt">SMBOUTIQUE</span>
-          </span>
-        </a>
+      <div className="text-center py-2" style={{ borderBottom: '1px solid #e9ecef' }}>
+        <span className="fw-bold fs-1 text-primary d-block" style={{ 
+          background: 'linear-gradient(45deg, #007bff, #6610f2)', 
+          WebkitBackgroundClip: 'text', 
+          WebkitTextFillColor: 'transparent', 
+          backgroundClip: 'text', 
+          textShadow: '1px 1px 0px #ccc, 2px 2px 0px #bbb, 3px 3px 0px #aaa', 
+          fontFamily: 'Arial Narrow, Arial, sans-serif',
+         
+          lineHeight: '1',
+          whiteSpace: 'nowrap'
+        }}>
+          JÀGO DÁNAYA
+        </span>
       </div>
-      <div className="scrollbar" style={{ height: 'calc(100vh - 70px)' }}>
+      <div className="scrollbar" style={{ height: 'calc(100vh - 130px)' }}>
         <ul className="side-nav" id="sidebar-nav">
-          <li className="side-nav-title">Navigation</li>
 
           {can.dashboard && (
           <li className="side-nav-item">

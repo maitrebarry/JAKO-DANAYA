@@ -10,9 +10,14 @@ const SignIn = () => {
   const navigate = useNavigate();
   const { setUserData } = useUser();
 
+  // Background image rotation for login page (switch every 60s)
+  const [bgImage, setBgImage] = useState('/assets/images/jako_danaya.png');
   useEffect(() => {
-    // Removed redirect if token, to always show sign-in
-  }, [navigate]);
+    const interval = setInterval(() => {
+      setBgImage(prev => prev === '/assets/images/jako_danaya.png' ? '/assets/images/jako_danaya2.png' : '/assets/images/jako_danaya.png');
+    }, 60000); // switch every 60s
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,17 +64,31 @@ const SignIn = () => {
   };
 
   return (
-    <div className="account-pages pt-2 pt-sm-5 pb-4 pb-sm-5">
+    <div className="account-pages pt-2 pt-sm-5 pb-4 pb-sm-5" style={{
+      backgroundImage: `url(${bgImage})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      minHeight: '100vh'
+    }}>
       <div className="container">
         <div className="row justify-content-center">
           <div className="col-xxl-4 col-lg-5">
             <div className="card">
               <div className="card-header pt-4 pb-4 text-center bg-primary">
-                <a href="/">
-                  <span>
-                    <img src="/images/logo.png" alt="logo" height="18" />
-                  </span>
-                </a>
+                <span className="fw-bold text-white" style={{
+                  background: 'linear-gradient(45deg, #007bff, #6610f2)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  textShadow: '1px 1px 0px #ccc, 2px 2px 0px #bbb, 3px 3px 0px #aaa',
+                  fontFamily: 'Arial, sans-serif',
+                  fontSize: '3.3rem',
+                  lineHeight: '1',
+                  whiteSpace: 'nowrap'
+                }}>
+                  JÀGO DÁNAYA
+                </span>
               </div>
               <div className="card-body p-4">
                 <div className="text-center w-75 m-auto">
@@ -80,39 +99,19 @@ const SignIn = () => {
                 <form onSubmit={handleSubmit}>
                   <div className="mb-3">
                     <label htmlFor="emailaddress" className="form-label">Adresse email</label>
-                    <input
-                      className="form-control"
-                      type="email"
-                      id="emailaddress"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      placeholder="Entrez votre email"
-                      required
-                    />
+                    <input className="form-control" type="email" id="emailaddress" value={email} onChange={e => setEmail(e.target.value)} placeholder="Entrez votre email" required />
                   </div>
                   <div className="mb-3">
                     <label htmlFor="password" className="form-label">Mot de passe</label>
-                    <input
-                      className="form-control"
-                      type="password"
-                      id="password"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      placeholder="Entrez votre mot de passe"
-                      required
-                    />
+                    <input className="form-control" type="password" id="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Entrez votre mot de passe" required />
                   </div>
                   <div className="mb-3 mb-0 text-center">
-                    <button className="btn btn-primary" type="submit" disabled={loading}>
-                      {loading ? 'Connexion...' : 'Se connecter'}
-                    </button>
+                    <button className="btn btn-primary" type="submit" disabled={loading}>{loading ? 'Connexion...' : 'Se connecter'}</button>
+                  </div>
+                  <div className="mt-3 text-center">
+                    <p className="text-muted mb-0">Vous n'avez pas de compte ? <a href="#" className="text-muted ms-1"><b>Mot de passe oublié ?</b></a></p>
                   </div>
                 </form>
-              </div>
-            </div>
-            <div className="row mt-3">
-              <div className="col-12 text-center">
-                <p className="text-muted">Vous n'avez pas de compte ? <a href="#" className="text-muted ms-1"><b>Mot de passe oublié ?</b></a></p>
               </div>
             </div>
           </div>
