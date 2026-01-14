@@ -51,6 +51,9 @@ public class DataInitializer implements CommandLineRunner {
     private UniteRepository uniteRepository;
 
     @Autowired
+    private com.smboutique.api.repository.PaysRepository paysRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -67,9 +70,11 @@ public class DataInitializer implements CommandLineRunner {
         }
         initializePermissions();
         initializeRoles();
+        initializePays();
         initializeBoutique();
         initializeSuperAdmin();
         backfillVenteBoutique();
+        logger.info("Seeding pays assignments done.");
 //        initializeTestData();
         logger.info("Data initialization completed.");
     }
@@ -99,11 +104,12 @@ public class DataInitializer implements CommandLineRunner {
     private void resetDatabase() {
         logger.warn("app.reset-db=true -> Resetting database content (deleting all rows)...");
         try {
-            // Delete in FK-safe order: users -> roles -> permissions -> boutiques
+            // Delete in FK-safe order: users -> roles -> permissions -> boutiques -> pays
             utilisateurRepository.deleteAll();
             roleRepository.deleteAll();
             permissionRepository.deleteAll();
             boutiqueRepository.deleteAll();
+            paysRepository.deleteAll();
             logger.warn("Database reset done. Tables will be re-seeded.");
         } catch (Exception ex) {
             logger.error("Error while resetting database: {}", ex.getMessage(), ex);
@@ -251,6 +257,18 @@ public class DataInitializer implements CommandLineRunner {
             }
         }
         logger.info("Permissions ensured, created {} new permissions", created);
+    }
+
+    private void initializePays() {
+        logger.info("Initializing pays...");
+        if (paysRepository.count() == 0) {
+            Pays mali = new Pays(); mali.setCodeIso("ML"); mali.setNom("Mali"); mali.setIndicatif("+223"); mali.setDeviseCode("XOF"); mali.setDeviseSymbole("FCFA"); mali.setDrapeau("🇲🇱"); paysRepository.save(mali);
+            Pays guinee = new Pays(); guinee.setCodeIso("GN"); guinee.setNom("Guinée"); guinee.setIndicatif("+224"); guinee.setDeviseCode("GNF"); guinee.setDeviseSymbole("GNF"); guinee.setDrapeau("🇬🇳"); paysRepository.save(guinee);
+            Pays senegal = new Pays(); senegal.setCodeIso("SN"); senegal.setNom("Sénégal"); senegal.setIndicatif("+221"); senegal.setDeviseCode("XOF"); senegal.setDeviseSymbole("FCFA"); senegal.setDrapeau("🇸🇳"); paysRepository.save(senegal);
+            logger.info("Seeded pays: ML, GN, SN");
+        } else {
+            logger.info("Pays already seeded, skipping");
+        }
     }
 
     private void initializeRoles() {
@@ -407,10 +425,23 @@ public class DataInitializer implements CommandLineRunner {
             boutique.setNom("COMPUTER-SERVICE-BARRY");
             boutique.setQuartier("Centre-ville");
             boutique.setAdresse("Segou");
-            boutique.setTelephone("74745669");
+            // set default country to ML (Mali)
+            com.smboutique.api.model.Pays p = paysRepository.findByCodeIso("ML").orElse(null);
+            boutique.setPays(p);
             boutiqueRepository.save(boutique);
             logger.info("Default boutique created");
         } else {
+            // ensure existing boutiques have a pays (default to ML)
+            if (paysRepository.findByCodeIso("ML").isPresent()) {
+                com.smboutique.api.model.Pays defaultPays = paysRepository.findByCodeIso("ML").orElse(null);
+                boutiqueRepository.findAll().forEach(b -> {
+                    if (b.getPays() == null) {
+                        b.setPays(defaultPays);
+                        boutiqueRepository.save(b);
+                        logger.info("Assigned default pays ML to boutique id={} name={}", b.getId(), b.getNom());
+                    }
+                });
+            }
             logger.info("Boutique already exists, skipping initialization");
         }
     }

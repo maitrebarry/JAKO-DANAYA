@@ -5,6 +5,7 @@ import { useUser } from '../contexts/UserContext';
 import SearchableSelect from './SearchableSelect';
 import { formatServerDate, formatLocalDate } from '../utils/date';
 import useHasPermission from '../contexts/useHasPermission';
+import { useFormatMoney } from '../utils/currency';
 import RequirePermission from './RequirePermission';
 
 interface CommandeData {
@@ -189,6 +190,7 @@ const PaiementCommande: React.FC = () => {
   const { montantTotal, montantRestant, montantAPayer } = calculateTotals();
 
   const canCreatePaiement = useHasPermission('PAIEMENT_CREER');
+  const fmt = useFormatMoney();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,7 +208,7 @@ const PaiementCommande: React.FC = () => {
       // Ask for confirmation before sending
       const confirm = await Swal.fire({
         title: 'Confirmer le paiement',
-        text: `Voulez-vous réellement payer ${(montantToSend).toLocaleString('fr-FR')} FCFA pour cette commande ?`,
+        text: `Voulez-vous réellement payer ${fmt(montantToSend)} pour cette commande ?`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonText: 'Oui, payer',
@@ -254,7 +256,7 @@ const PaiementCommande: React.FC = () => {
       // Notify user
       let successMsg = 'Paiement enregistré avec succès';
       if (caisseUpdated) {
-        successMsg += `. La caisse a été mise à jour (Montant total: ${caisseTotal} FCFA)`;
+        successMsg += `. La caisse a été mise à jour (Montant total: ${fmt(caisseTotal ? Number(caisseTotal) : undefined)})`; 
       }
       Swal.fire('Succès', successMsg, 'success');
 
@@ -355,7 +357,7 @@ const PaiementCommande: React.FC = () => {
                 <div className="form-group mb-4">
                   <label htmlFor="commande_select">Sélectionnez une commande :</label>
                   <SearchableSelect
-                    options={(commandes || []).map(cmd => ({ value: cmd.id, label: `${cmd.reference} - Reste: ${Math.max(Number(cmd.total || 0) - Number(cmd.paie || 0), 0)} FCFA` }))}
+                    options={(commandes || []).map(cmd => ({ value: cmd.id, label: `${cmd.reference} - Reste: ${fmt(Math.max(Number(cmd.total || 0) - Number(cmd.paie || 0), 0))}` }))}
                     value={selectedCommande?.id ?? null}
                     onChange={(val) => handleCommandeChange(String(val || ''))}
                     placeholder="Rechercher par référence..."

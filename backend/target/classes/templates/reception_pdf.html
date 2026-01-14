@@ -36,16 +36,16 @@
 </div>
 <div th:if="${logoBase64 == null}" class="header">
     <div class="no-logo-info">
-        <div><strong th:text="${reception.commandeFournisseur != null && reception.commandeFournisseur.boutique != null ? reception.commandeFournisseur.boutique.nom : ''}"></strong></div>
-        <div><span th:text="${reception.commandeFournisseur != null && reception.commandeFournisseur.boutique != null ? reception.commandeFournisseur.boutique.telephone : ''}"></span></div>
-        <div><span th:text="${reception.commandeFournisseur != null && reception.commandeFournisseur.boutique != null ? reception.commandeFournisseur.boutique.adresse : ''}"></span></div>
+        <div><strong th:text="${boutiqueNom}"></strong></div>
+        <div><span th:text="${boutiqueTelephone}"></span></div>
+        <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
 </div>
 <div class="footer-info">
     <div th:if="${logoBase64 == null}" class="boutique-info">
-        <div><strong th:text="${reception.commandeFournisseur != null && reception.commandeFournisseur.boutique != null ? reception.commandeFournisseur.boutique.nom : ''}"></strong></div>
-        <div><span th:text="${reception.commandeFournisseur != null && reception.commandeFournisseur.boutique != null ? reception.commandeFournisseur.boutique.telephone : ''}"></span></div>
-        <div><span th:text="${reception.commandeFournisseur != null && reception.commandeFournisseur.boutique != null ? reception.commandeFournisseur.boutique.adresse : ''}"></span></div>
+        <div><strong th:text="${boutiqueNom}"></strong></div>
+        <div><span th:text="${boutiqueTelephone}"></span></div>
+        <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
     <div class="meta-info">
         <div class="meta">Réf: <span th:text="${reception.reference}"></span></div>
@@ -78,7 +78,7 @@
     </tr>
     </thead>
     <tbody>
-    <tr th:each="lc : ${reception.commandeFournisseur.lignes}">
+    <tr th:each="lc : ${receptionLignes}">
         <td>
             <span th:with="designation=${lc.stock != null && lc.stock.produit != null ? lc.stock.produit.nomProduit : (lc.designation != null ? lc.designation : 'Produit')}, 
                             nombreUnites=${lc.stock != null && lc.stock.produit != null ? lc.stock.produit.nombreUnitesParConditionnement : null},
@@ -140,6 +140,6 @@
 
 <div class="signature">Signature: __________________________</div>
 
-<footer>SMBOUTIQUE</footer>
+<footer th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
 </body>
 </html>

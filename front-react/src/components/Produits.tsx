@@ -4,11 +4,13 @@ import Swal from 'sweetalert2';
 import { useUser } from '../contexts/UserContext';
 import useHasPermission from '../contexts/useHasPermission';
 import RequirePermission from './RequirePermission';
+import { useFormatMoney } from '../utils/currency';
 import '../assets/css/style_produit.css';
 
 const Produits: React.FC = () => {
   const navigate = useNavigate();
   const { currentBoutique } = useUser();
+  const fmt = useFormatMoney();
   const [margeConfig, setMargeConfig] = useState<any | null>(null);
 
   const [produits, setProduits] = useState<any[]>([]);
@@ -493,13 +495,15 @@ const Produits: React.FC = () => {
     return matchesSearch && matchesUnite;
   });
 
+  const isSuccessMessage = assignSuccess || /succès/i.test(message) || /réussi/i.test(message) || /reussi/i.test(message);
+
   if (loading) return <div>Chargement...</div>;
   if (error) return <div className="alert alert-danger">{error}</div>;
 
   return (
     <>
       {message && (
-        <div className={`alert ${assignSuccess ? 'alert-success' : (message.includes('succès') ? 'alert-success' : 'alert-danger')} mb-3`}>
+        <div className={`alert ${isSuccessMessage ? 'alert-success' : 'alert-danger'} mb-3`}>
           {message}
         </div>
       )}
@@ -847,9 +851,9 @@ const Produits: React.FC = () => {
                     <span key={i} className="text-warning">&#9733;</span>
                   ))}
                 </div>
-                <p className="fw-bold">Achat : {produit.prixAchat || 0} F CFA</p>
-                <p className="fw-bold">En gros : {produit.prixEnGros || 0} F CFA</p>
-                <p className="fw-bold">Détail : {produit.prixDetail || 0} F CFA</p>
+                <p className="fw-bold">Achat : {fmt(produit.prixAchat ?? 0)}</p>
+                <p className="fw-bold">En gros : {fmt(produit.prixEnGros ?? 0)}</p>
+                <p className="fw-bold">Détail : {fmt(produit.prixDetail ?? 0)}</p>
               </div>
             </div>
           </div>
@@ -1058,9 +1062,9 @@ const Produits: React.FC = () => {
                   </div>
                   <div className="col-md-6">
                     <h4>{detailProduit.nomProduit}</h4>
-                    <p><strong>Prix d'achat :</strong> {detailProduit.prixAchat ?? 0} F CFA</p>
-                    <p><strong>Prix en gros :</strong> {detailProduit.prixEnGros ?? 0} F CFA</p>
-                    <p><strong>Prix détail :</strong> {detailProduit.prixDetail ?? 0} F CFA</p>
+                    <p><strong>Prix d'achat :</strong> {fmt(detailProduit.prixAchat ?? 0)}</p>
+                    <p><strong>Prix en gros :</strong> {fmt(detailProduit.prixEnGros ?? 0)}</p>
+                    <p><strong>Prix détail :</strong> {fmt(detailProduit.prixDetail ?? 0)}</p>
                     <p><strong>Alerte stock :</strong> {detailProduit.alerteStock ?? 0}</p>
                     <p><strong>Unité de conditionnement :</strong> {detailProduit.unite?.libelle ? `${detailProduit.unite.libelle} (${detailProduit.nombreUnitesParConditionnement ?? 1} unités)` : 'Unité de base'}</p>
                     <p><strong>Quantité initiale :</strong> {detailProduit.quantiteInitialeConditionnements !== undefined && detailProduit.quantiteInitialeConditionnements !== null ? detailProduit.quantiteInitialeConditionnements : 'N/A'} {detailProduit.unite?.libelle ? detailProduit.unite.libelle.toLowerCase() + 's' : 'unités'}</p>

@@ -17,6 +17,12 @@ public class Boutique {
     private String nom;
     private String quartier;
     private String adresse;
-    private String telephone;
+    private String indicatif;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private String telephoneLocal;
     private String logo;
+
+    @ManyToOne
+    @JoinColumn(name = "id_pays")
+    private Pays pays;
 }

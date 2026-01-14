@@ -31,6 +31,9 @@ public class UtilisateurController {
     @Autowired
     private BoutiqueService boutiqueService;
 
+    @Autowired
+    private com.smboutique.api.service.PhoneService phoneService;
+
     private Utilisateur getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -113,21 +116,24 @@ public class UtilisateurController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
-    public ResponseEntity<Utilisateur> getUserById(@PathVariable Long id) {
+    public ResponseEntity<?> getUserById(@PathVariable Long id) {
         Utilisateur current = getCurrentUser();
-        return utilisateurService.findById(id)
-                .map(target -> {
-                    if (!isSuperAdmin(current) && !sameBoutique(current, target.getBoutique())) {
-                        return ResponseEntity.status(403).<Utilisateur>build();
-                    }
-                    return ResponseEntity.ok(target);
-                })
-                .orElse(ResponseEntity.notFound().build());
+        Optional<Utilisateur> opt = utilisateurService.findById(id);
+        if (opt.isEmpty()) {
+            return ResponseEntity.status(404)
+                    .body(java.util.Collections.singletonMap("message", "Utilisateur introuvable"));
+        }
+        Utilisateur target = opt.get();
+        if (!isSuperAdmin(current) && !sameBoutique(current, target.getBoutique())) {
+            return ResponseEntity.status(403)
+                    .body(java.util.Collections.singletonMap("message", "Accès refusé à cet utilisateur"));
+        }
+        return ResponseEntity.ok(target);
     }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
-    public ResponseEntity<Utilisateur> createUser(@RequestBody Utilisateur utilisateur) {
+    public ResponseEntity<?> createUser(@RequestBody Utilisateur utilisateur) {
         Utilisateur current = getCurrentUser();
         if (!isSuperAdmin(current)) {
             utilisateur.setBoutique(current.getBoutique());
@@ -135,6 +141,7 @@ public class UtilisateurController {
             Optional<Boutique> boutique = boutiqueService.findById(utilisateur.getBoutique().getId());
             utilisateur.setBoutique(boutique.orElse(null));
         }
+
         // Only SUPERADMIN or users with UTILISATEUR_GERER may set permissions on new users; otherwise start with empty permissions
         if (!isSuperAdmin(current) && !utilisateurService.hasPermission(current, "UTILISATEUR_GERER")) {
             utilisateur.setPermissions(new java.util.HashSet<>());
@@ -146,17 +153,43 @@ public class UtilisateurController {
             boolean forbiddenRoleAssigned = utilisateur.getRoles().stream()
                     .anyMatch(r -> r.getName() != null && forbidden.contains(r.getName().toUpperCase()));
             if (forbiddenRoleAssigned) {
-                return ResponseEntity.status(403).build();
+                return ResponseEntity.status(403)
+                        .body(java.util.Collections.singletonMap("message", "Rôle non autorisé"));
             }
         }
-        // Also validate requested user type (typeUtilisateur) against the same hierarchy
+        // Validate requested user type (typeUtilisateur)
         if (utilisateur.getTypeUtilisateur() != null) {
-            java.util.Set<String> forbiddenTypes = new java.util.HashSet<>();
-            if (forbidden.contains("SUPERADMIN")) forbiddenTypes.add("SUPERADMIN");
-            if (forbidden.contains("ADMIN")) forbiddenTypes.add("ADMINISTRATEUR");
-            if (forbidden.contains("MANAGER")) forbiddenTypes.add("GERANT_BOUTIQUE");
-            if (forbiddenTypes.contains(utilisateur.getTypeUtilisateur().toUpperCase())) {
-                return ResponseEntity.status(403).build();
+            // If current user can manage users, allow any type except SUPERADMIN unless current is SUPERADMIN
+            if (isSuperAdmin(current)) {
+                // superadmin can assign any type
+            } else if (utilisateurService.hasPermission(current, "UTILISATEUR_GERER")) {
+                if ("SUPERADMIN".equalsIgnoreCase(utilisateur.getTypeUtilisateur())) {
+                    return ResponseEntity.status(403)
+                            .body(java.util.Collections.singletonMap("message", "Type d'utilisateur non autorisé"));
+                }
+            } else {
+                // fallback to role hierarchy-based restrictions
+                java.util.Set<String> forbiddenTypes = new java.util.HashSet<>();
+                if (forbidden.contains("SUPERADMIN")) forbiddenTypes.add("SUPERADMIN");
+                if (forbidden.contains("ADMIN")) forbiddenTypes.add("ADMINISTRATEUR");
+                if (forbidden.contains("MANAGER")) forbiddenTypes.add("GERANT_BOUTIQUE");
+                if (forbiddenTypes.contains(utilisateur.getTypeUtilisateur().toUpperCase())) {
+                    return ResponseEntity.status(403)
+                            .body(java.util.Collections.singletonMap("message", "Type d'utilisateur non autorisé"));
+                }
+            }
+        }
+
+        // Validate phone if provided
+        if (utilisateur.getContact() != null && !utilisateur.getContact().isEmpty()) {
+            if (utilisateur.getCodePays() == null || utilisateur.getCodePays().isEmpty()) {
+                return ResponseEntity.status(400).body(java.util.Collections.singletonMap("message", "Code pays manquant pour la validation du téléphone"));
+            }
+            try {
+                String normalized = phoneService.validateAndNormalize(utilisateur.getContact(), utilisateur.getCodePays());
+                utilisateur.setContact(normalized);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.status(400).body(java.util.Collections.singletonMap("message", e.getMessage()));
             }
         }
 
@@ -169,59 +202,93 @@ public class UtilisateurController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
-    public ResponseEntity<Utilisateur> updateUser(@PathVariable Long id, @RequestBody Utilisateur utilisateurDetails) {
+    public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody Utilisateur utilisateurDetails) {
         Utilisateur current = getCurrentUser();
-        return utilisateurService.findById(id)
-                .map(existing -> {
-                    if (!isSuperAdmin(current) && !sameBoutique(current, existing.getBoutique())) {
-                        return ResponseEntity.status(403).<Utilisateur>build();
-                    }
-                    existing.setNom(utilisateurDetails.getNom());
-                    existing.setPrenom(utilisateurDetails.getPrenom());
-                    existing.setPseudo(utilisateurDetails.getPseudo());
-                    // Validate requested typeUtilisateur against hierarchy
-                    java.util.Set<String> forbiddenTypes = new java.util.HashSet<>();
-                    java.util.Set<String> forbiddenRoles = computeForbiddenRolesForCurrentUser(current);
-                    if (forbiddenRoles.contains("SUPERADMIN")) forbiddenTypes.add("SUPERADMIN");
-                    if (forbiddenRoles.contains("ADMIN")) forbiddenTypes.add("ADMINISTRATEUR");
-                    if (forbiddenRoles.contains("MANAGER")) forbiddenTypes.add("GERANT_BOUTIQUE");
-                    if (utilisateurDetails.getTypeUtilisateur() != null && forbiddenTypes.contains(utilisateurDetails.getTypeUtilisateur().toUpperCase())) {
-                        return ResponseEntity.status(403).<Utilisateur>build();
-                    }
-                    existing.setTypeUtilisateur(utilisateurDetails.getTypeUtilisateur());
-                    existing.setContact(utilisateurDetails.getContact());
-                    existing.setAdresse(utilisateurDetails.getAdresse());
-                    existing.setStatut(utilisateurDetails.getStatut());
+        Optional<Utilisateur> opt = utilisateurService.findById(id);
+        if (opt.isEmpty()) {
+            return ResponseEntity.status(404)
+                    .body(java.util.Collections.singletonMap("message", "Utilisateur introuvable"));
+        }
+        Utilisateur existing = opt.get();
+        if (!isSuperAdmin(current) && !sameBoutique(current, existing.getBoutique())) {
+            return ResponseEntity.status(403)
+                    .body(java.util.Collections.singletonMap("message", "Accès refusé à cet utilisateur"));
+        }
 
-                    if (isSuperAdmin(current)) {
-                        existing.setBoutique(utilisateurDetails.getBoutique());
-                    } else {
-                        existing.setBoutique(current.getBoutique());
-                    }
+        existing.setNom(utilisateurDetails.getNom());
+        existing.setPrenom(utilisateurDetails.getPrenom());
+        existing.setPseudo(utilisateurDetails.getPseudo());
+        existing.setEmail(utilisateurDetails.getEmail());
 
-                    // Validate roles assignment: disallow assigning equal or higher roles
-                    java.util.Set<String> forbidden = computeForbiddenRolesForCurrentUser(current);
-                    if (utilisateurDetails.getRoles() != null) {
-                        boolean forbiddenRoleAssigned = utilisateurDetails.getRoles().stream()
-                                .anyMatch(r -> r.getName() != null && forbidden.contains(r.getName().toUpperCase()));
-                        if (forbiddenRoleAssigned) {
-                            return ResponseEntity.status(403).<Utilisateur>build();
-                        }
-                    }
-                    existing.setRoles(utilisateurDetails.getRoles());
-                    // Only SUPERADMIN or users with UTILISATEUR_GERER may set permissions
-                    if (isSuperAdmin(current) || utilisateurService.hasPermission(current, "UTILISATEUR_GERER")) {
-                        existing.setPermissions(utilisateurDetails.getPermissions());
-                    } else {
-                        // ignore incoming permission changes for non-authorized updaters
-                        logger.info("User {} attempted to modify permissions of user {} but lacks UTILISATEUR_GERER", current.getEmail(), existing.getEmail());
-                    }
-                    if (utilisateurDetails.getMotDePasse() != null && !utilisateurDetails.getMotDePasse().isEmpty()) {
-                        existing.setMotDePasse(passwordEncoder.encode(utilisateurDetails.getMotDePasse()));
-                    }
-                    return ResponseEntity.ok(utilisateurService.save(existing));
-                })
-                .orElse(ResponseEntity.notFound().build());
+        // Validate phone if provided
+        if (utilisateurDetails.getContact() != null && !utilisateurDetails.getContact().isEmpty()) {
+            if (utilisateurDetails.getCodePays() == null || utilisateurDetails.getCodePays().isEmpty()) {
+                return ResponseEntity.status(400).body(java.util.Collections.singletonMap("message", "Code pays manquant pour la validation du téléphone"));
+            }
+            try {
+                String normalized = phoneService.validateAndNormalize(utilisateurDetails.getContact(), utilisateurDetails.getCodePays());
+                existing.setContact(normalized);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.status(400).body(java.util.Collections.singletonMap("message", e.getMessage()));
+            }
+        } else {
+            existing.setContact(utilisateurDetails.getContact());
+        }
+        existing.setCodePays(utilisateurDetails.getCodePays());
+
+        // Validate requested user type (typeUtilisateur)
+        if (utilisateurDetails.getTypeUtilisateur() != null) {
+            if (isSuperAdmin(current)) {
+                // superadmin can assign any type
+            } else if (utilisateurService.hasPermission(current, "UTILISATEUR_GERER")) {
+                if ("SUPERADMIN".equalsIgnoreCase(utilisateurDetails.getTypeUtilisateur())) {
+                    return ResponseEntity.status(403)
+                            .body(java.util.Collections.singletonMap("message", "Type d'utilisateur non autorisé"));
+                }
+            } else {
+                java.util.Set<String> forbiddenTypes = new java.util.HashSet<>();
+                java.util.Set<String> forbiddenRoles = computeForbiddenRolesForCurrentUser(current);
+                if (forbiddenRoles.contains("SUPERADMIN")) forbiddenTypes.add("SUPERADMIN");
+                if (forbiddenRoles.contains("ADMIN")) forbiddenTypes.add("ADMINISTRATEUR");
+                if (forbiddenRoles.contains("MANAGER")) forbiddenTypes.add("GERANT_BOUTIQUE");
+                if (forbiddenTypes.contains(utilisateurDetails.getTypeUtilisateur().toUpperCase())) {
+                    return ResponseEntity.status(403)
+                            .body(java.util.Collections.singletonMap("message", "Type d'utilisateur non autorisé"));
+                }
+            }
+        }
+        existing.setTypeUtilisateur(utilisateurDetails.getTypeUtilisateur());
+        existing.setAdresse(utilisateurDetails.getAdresse());
+        existing.setStatut(utilisateurDetails.getStatut());
+
+        if (isSuperAdmin(current)) {
+            existing.setBoutique(utilisateurDetails.getBoutique());
+        } else {
+            existing.setBoutique(current.getBoutique());
+        }
+
+        // Validate roles assignment: disallow assigning equal or higher roles
+        java.util.Set<String> forbidden = computeForbiddenRolesForCurrentUser(current);
+        if (utilisateurDetails.getRoles() != null) {
+            boolean forbiddenRoleAssigned = utilisateurDetails.getRoles().stream()
+                    .anyMatch(r -> r.getName() != null && forbidden.contains(r.getName().toUpperCase()));
+            if (forbiddenRoleAssigned) {
+                return ResponseEntity.status(403)
+                        .body(java.util.Collections.singletonMap("message", "Rôle non autorisé"));
+            }
+        }
+        existing.setRoles(utilisateurDetails.getRoles());
+        // Only SUPERADMIN or users with UTILISATEUR_GERER may set permissions
+        if (isSuperAdmin(current) || utilisateurService.hasPermission(current, "UTILISATEUR_GERER")) {
+            existing.setPermissions(utilisateurDetails.getPermissions());
+        } else {
+            // ignore incoming permission changes for non-authorized updaters
+            logger.info("User {} attempted to modify permissions of user {} but lacks UTILISATEUR_GERER", current.getEmail(), existing.getEmail());
+        }
+        if (utilisateurDetails.getMotDePasse() != null && !utilisateurDetails.getMotDePasse().isEmpty()) {
+            existing.setMotDePasse(passwordEncoder.encode(utilisateurDetails.getMotDePasse()));
+        }
+        return ResponseEntity.ok(utilisateurService.save(existing));
     }
 
     @DeleteMapping("/{id}")
@@ -241,24 +308,31 @@ public class UtilisateurController {
 
     @PatchMapping("/{id}/statut")
     @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
-    public ResponseEntity<Utilisateur> updateStatut(@PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
+    public ResponseEntity<?> updateStatut(@PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
         Utilisateur current = getCurrentUser();
         String statut = body.get("statut");
         if (statut == null) {
             return ResponseEntity.badRequest().build();
         }
-        return utilisateurService.findById(id)
-                .map(existing -> {
-                    // Ensure the current user is allowed to change status: must be superadmin or have UTILISATEUR_MODIFIER permission
-                    if (!isSuperAdmin(current) && !sameBoutique(current, existing.getBoutique())) {
-                        return ResponseEntity.status(403).<Utilisateur>build();
-                    }
-                    if (!isSuperAdmin(current) && !utilisateurService.hasPermission(current, "UTILISATEUR_ACTIVER_DESACTIVER")) {
-                        return ResponseEntity.status(403).<Utilisateur>build();
-                    }
-                    existing.setStatut(statut);
-                    return ResponseEntity.ok(utilisateurService.save(existing));
-                })
-                .orElse(ResponseEntity.notFound().build());
+
+        Optional<Utilisateur> opt = utilisateurService.findById(id);
+        if (opt.isEmpty()) {
+            return ResponseEntity.status(404)
+                    .body(java.util.Collections.singletonMap("message", "Utilisateur introuvable"));
+        }
+        Utilisateur existing = opt.get();
+
+        // Ensure the current user is allowed to change status: must be superadmin or have UTILISATEUR_ACTIVER_DESACTIVER permission
+        if (!isSuperAdmin(current) && !sameBoutique(current, existing.getBoutique())) {
+            return ResponseEntity.status(403)
+                    .body(java.util.Collections.singletonMap("message", "Accès refusé à cet utilisateur"));
+        }
+        if (!isSuperAdmin(current) && !utilisateurService.hasPermission(current, "UTILISATEUR_ACTIVER_DESACTIVER")) {
+            return ResponseEntity.status(403)
+                    .body(java.util.Collections.singletonMap("message", "Permission manquante"));
+        }
+
+        existing.setStatut(statut);
+        return ResponseEntity.ok(utilisateurService.save(existing));
     }
 }

@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { formatServerDate } from '../utils/date';
+import { useFormatMoney } from '../utils/currency';
 // import SearchableSelect from './SearchableSelect';
 
 interface Ligne { id: number; stockId: number; nom: string; quantite: number; prix: number; montant: number; quantiteConditionnement?: number | null; multiplicateur?: number | null; quantiteDisplay?: number | null; unitLabel?: string | null; qLabel?: string | null; }
 const CommandeApercu: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const fmt = useFormatMoney();
   const [loading, setLoading] = useState(true);
   const [commande, setCommande] = useState<any>(null);
   // Note: stock data is used within fetch for resolving names, not kept in state to avoid unused warning
@@ -94,31 +96,31 @@ const CommandeApercu: React.FC = () => {
         Swal.fire('Erreur', 'Authentification nécessaire. Connectez-vous.', 'error');
         return;
       }
-      if (isVenteMode) {
-        // try ventes endpoint first, then commandes-clients
-        const tryPaths = [`http://localhost:8085/api/ventes/${commandeId}/pdf`, `http://localhost:8085/api/commandes-clients/${commandeId}/pdf`];
-        let lastErr: any = null;
-        for (const p of tryPaths) {
-          try {
-            const r = await fetch(p, { headers: { Authorization: `Bearer ${token}` } });
-            if (r.ok) { const blob = await r.blob(); const url = URL.createObjectURL(blob); window.open(url, '_blank'); return; }
-            const txt = await r.text().catch(() => '');
-            lastErr = `${p} -> ${r.status} ${r.statusText}: ${txt}`;
-            console.debug('openPdfPrint (apercu):', lastErr);
-          } catch (e: any) {
-            lastErr = e.message || e;
-            console.debug('openPdfPrint (apercu) fetch error:', lastErr);
+      // Séparation stricte : vente → ventes ; commande fournisseur → commandes-fournisseurs
+      const tryPaths = isVenteMode
+        ? [`http://localhost:8085/api/ventes/${commandeId}/pdf`]
+        : [`http://localhost:8085/api/commandes-fournisseurs/${commandeId}/pdf`];
+
+      let lastErr: any = null;
+      for (const p of tryPaths) {
+        try {
+          const r = await fetch(p, { headers: { Authorization: `Bearer ${token}` } });
+          if (r.status === 401) {
+            const body = await r.text().catch(() => '');
+            Swal.fire('Session expirée', 'Authentification requise. Veuillez vous reconnecter.', 'warning');
+            navigate('/login');
+            return;
           }
+          if (r.ok) { const blob = await r.blob(); const url = URL.createObjectURL(blob); window.open(url, '_blank'); return; }
+          const txt = await r.text().catch(() => '');
+          lastErr = `${p} -> ${r.status} ${r.statusText}: ${txt}`;
+          console.debug('openPdfPrint (apercu):', lastErr);
+        } catch (e: any) {
+          lastErr = e.message || e;
+          console.debug('openPdfPrint (apercu) fetch error:', lastErr);
         }
-        Swal.fire('Erreur', `Impossible de charger le PDF (vente). Détails: ${lastErr}`, 'error');
-        return;
       }
-      const path = 'commandes-fournisseurs';
-      const res = await fetch(`http://localhost:8085/api/${path}/${commandeId}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error('Erreur lors de la récupération du PDF');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      Swal.fire('Erreur', `Impossible de charger le PDF. Détails: ${lastErr}`, 'error');
     } catch (err: any) {
       Swal.fire('Erreur', err.message || 'Erreur lors de l\'ouverture du PDF', 'error');
     }
@@ -177,13 +179,13 @@ const CommandeApercu: React.FC = () => {
                             ) : null}
                           </td>
                           <td>{l.qLabel}</td> 
-                          <td>{l.prix}</td>
-                          <td>{(l.montant).toFixed(2)}</td>
+                          <td>{fmt(l.prix)}</td>
+                          <td>{fmt(l.montant)}</td>
                         </tr>
                       ))}
                       <tr>
                         <td colSpan={3} className="text-end"><strong>Total</strong></td>
-                        <td className="text-end">{(isVenteMode ? (commande?.montantTotal ?? commande?.total ?? 0) : (commande?.total ?? 0))} FCFA</td>
+                        <td className="text-end">{fmt(isVenteMode ? (commande?.montantTotal ?? commande?.total ?? 0) : (commande?.total ?? 0))}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -198,25 +200,25 @@ const CommandeApercu: React.FC = () => {
                       <div className="col-xl-3 col-md-6">
                         <div className="form-group">
                           <label>Rémise</label>
-                          <input className="form-control" value={commande?.remise ?? 0} readOnly />
+                          <input className="form-control" value={fmt(commande?.remise ?? 0)} readOnly />
                         </div>
                       </div>
                       <div className="col-xl-3 col-md-6">
                         <div className="form-group">
                           <label>Net à payer</label>
-                          <input className="form-control" value={commande?.netAPayer ?? 0} readOnly />
+                          <input className="form-control" value={fmt(commande?.netAPayer ?? 0)} readOnly />
                         </div>
                       </div>
                       <div className="col-xl-3 col-md-6">
                         <div className="form-group">
                           <label>Montant reçu</label>
-                          <input type="number" className="form-control" defaultValue={commande?.montantRecu ?? 0} />
+                          <input type="text" className="form-control" value={fmt(commande?.montantRecu ?? 0)} readOnly />
                         </div>
                       </div>
                       <div className="col-xl-3 col-md-6">
                         <div className="form-group">
                           <label>Monnaie à rembourser</label>
-                          <input className="form-control" value={commande?.monnaieRembourse ?? 0} readOnly />
+                          <input className="form-control" value={fmt(commande?.monnaieRembourse ?? 0)} readOnly />
                         </div>
                       </div>
                     </div>

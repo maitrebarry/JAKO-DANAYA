@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
+import { useFormatMoney } from '../utils/currency';
 import { useUser } from '../contexts/UserContext';
 
 interface Magasin { id: number; nom: string; adresse?: string }
@@ -35,6 +36,7 @@ const Transfert: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const fmt = useFormatMoney();
 
   useEffect(() => {
     if (!currentBoutique) return;
@@ -162,7 +164,6 @@ const Transfert: React.FC = () => {
     return transferQuantities[pid] || 0;
   };
 
-  const formatMoney = (v?: number) => (v == null ? '0' : Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
 
   const totals = useMemo(() => {
     let tA = 0, tD = 0, tG = 0;
@@ -301,9 +302,9 @@ const Transfert: React.FC = () => {
                           const g = qty * (s.prixGros || 0);
                           return (
                             <div className="small text-muted">
-                              <div>Achat&nbsp;: <strong>{formatMoney(a)} FCFA</strong></div>
-                              <div>Détail: <strong>{formatMoney(d)} FCFA</strong></div>
-                              <div>Gros&nbsp;: <strong>{formatMoney(g)} FCFA</strong></div>
+                              <div>Achat&nbsp;: <strong>{fmt(a)}</strong></div>
+                              <div>Détail: <strong>{fmt(d)}</strong></div>
+                              <div>Gros&nbsp;: <strong>{fmt(g)}</strong></div>
                             </div>
                           );
                         })()}
@@ -382,9 +383,9 @@ const Transfert: React.FC = () => {
               <div className="mb-3">
                 <div><strong>Valeur estimée du transfert (sélection)</strong></div>
                 <div className="mt-2 small">
-                  <div>Achat total : <strong>{formatMoney(totals.totalAchat)} FCFA</strong></div>
-                  <div>Prix détail total : <strong>{formatMoney(totals.totalDetail)} FCFA</strong></div>
-                  <div>Prix gros total : <strong>{formatMoney(totals.totalGros)} FCFA</strong></div>
+                  <div>Achat total : <strong>{fmt(totals.totalAchat)}</strong></div>
+                  <div>Prix détail total : <strong>{fmt(totals.totalDetail)}</strong></div>
+                  <div>Prix gros total : <strong>{fmt(totals.totalGros)}</strong></div>
                   <div className="text-muted">(Basé sur les produits sélectionnés et quantités renseignées)</div>
                 </div>
               </div>

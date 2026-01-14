@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useUser } from '../contexts/UserContext';
 import { formatServerDate } from '../utils/date';
 import { useNavigate } from 'react-router-dom';
+import { useFormatMoney } from '../utils/currency';
 import Swal from 'sweetalert2';
 
 interface PaiementData {
@@ -23,6 +24,7 @@ interface PaiementData {
 const ListePaiements: React.FC = () => {
   const { currentBoutique } = useUser();
   const navigate = useNavigate();
+  const fmt = useFormatMoney();
   const [paiements, setPaiements] = useState<PaiementData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -116,7 +118,7 @@ const ListePaiements: React.FC = () => {
                             <td>{paiement.reference}</td>
                             <td>{paiement.commandeFournisseur.reference}</td>
                             <td>{paiement.commandeFournisseur.fournisseur.nom} {paiement.commandeFournisseur.fournisseur.prenom}</td>
-                            <td>{paiement.montantPaye} FCFA</td>
+                            <td>{fmt(paiement.montantPaye)}</td>
                             <td>
                               <button
                                 className="btn btn-primary btn-sm me-2"

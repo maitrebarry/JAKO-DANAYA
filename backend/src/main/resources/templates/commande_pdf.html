@@ -40,16 +40,16 @@
 </div>
 <div th:if="${logoBase64 == null}" class="header">
     <div class="no-logo-info">
-        <div><strong th:text="${commande.boutique != null ? commande.boutique.nom : ''}"></strong></div>
-        <div><span th:text="${commande.boutique != null ? commande.boutique.telephone : ''}"></span></div>
-        <div><span th:text="${commande.boutique != null ? commande.boutique.adresse : ''}"></span></div>
+        <div><strong th:text="${boutiqueNom}"></strong></div>
+        <div><span th:text="${boutiqueTelephone}"></span></div>
+        <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
 </div>
 <div class="footer-info">
     <div th:if="${logoBase64 == null}" class="boutique-info">
-        <div><strong th:text="${commande.boutique != null ? commande.boutique.nom : ''}"></strong></div>
-        <div><span th:text="${commande.boutique != null ? commande.boutique.telephone : ''}"></span></div>
-        <div><span th:text="${commande.boutique != null ? commande.boutique.adresse : ''}"></span></div>
+        <div><strong th:text="${boutiqueNom}"></strong></div>
+        <div><span th:text="${boutiqueTelephone}"></span></div>
+        <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
     <div class="meta-info">
         <div class="meta">Réf: <span th:text="${commande.reference}"></span></div>
@@ -82,19 +82,19 @@
         <td class="right">
             <span th:text="${ligne.qteCommandeLabel}">0</span>
         </td>
-        <td class="right" th:text="${(ligne.price != null ? ligne.price : (ligne.newPrice != null ? ligne.newPrice : (ligne.stock != null && ligne.stock.produit != null ? ligne.stock.produit.prixAchat : 0))) + ' FCFA'}"></td>
-        <td class="right" th:text="${ligne.montant != null ? #numbers.formatInteger(ligne.montant, 0) : #numbers.formatInteger(((ligne.price != null ? ligne.price : (ligne.newPrice != null ? ligne.newPrice : (ligne.stock != null && ligne.stock.produit != null ? ligne.stock.produit.prixAchat : 0))) * (ligne.quantite != null ? ligne.quantite : (ligne.quantiteConditionnement != null and ligne.stock != null and ligne.stock.produit != null and ligne.stock.produit.nombreUnitesParConditionnement != null ? ligne.quantiteConditionnement * ligne.stock.produit.nombreUnitesParConditionnement : 0))), 0)} + ' FCFA'"></td>
+        <td class="right" th:text="${(ligne.price != null ? ligne.price : (ligne.newPrice != null ? ligne.newPrice : (ligne.stock != null && ligne.stock.produit != null ? ligne.stock.produit.prixAchat : 0))) + ' ' + (deviseSymbole)}"></td>
+        <td class="right" th:text="${ligne.montant != null ? #numbers.formatInteger(ligne.montant, 0) + ' ' + (deviseSymbole) : #numbers.formatInteger(((ligne.price != null ? ligne.price : (ligne.newPrice != null ? ligne.newPrice : (ligne.stock != null && ligne.stock.produit != null ? ligne.stock.produit.prixAchat : 0))) * (ligne.quantite != null ? ligne.quantite : (ligne.quantiteConditionnement != null and ligne.stock != null and ligne.stock.produit != null and ligne.stock.produit.nombreUnitesParConditionnement != null ? ligne.quantiteConditionnement * ligne.stock.produit.nombreUnitesParConditionnement : 0))), 0) + ' ' + (deviseSymbole)}"></td>
     </tr>
     </tbody>
     <tfoot>
     <tr>
         <td colspan="3" class="right total-row">TOTAL</td>
-        <td class="right total-row" th:text="${#numbers.formatInteger(commande.total != null ? commande.total : 0, 0)} + ' FCFA'">0</td>
+        <td class="right total-row" th:text="${commandeTotalLabel}">0</td>
     </tr>
     </tfoot>
 </table>
 
 <div class="signature">Signature: __________________________</div>
-<footer>Merci d'avoir choisi notre boutique. Pour toute réclamation, contactez-nous au <span th:text="${commande.boutique != null ? commande.boutique.telephone : ''}"></span>.</footer>
+    <footer>Merci d'avoir choisi notre boutique. Pour toute réclamation, contactez-nous au <span th:text="${boutiqueTelephone}"></span>.</footer>
 </body>
 </html>

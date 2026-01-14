@@ -72,8 +72,8 @@ const SignIn = () => {
       minHeight: '100vh'
     }}>
       <div className="container">
-        <div className="row justify-content-center">
-          <div className="col-xxl-4 col-lg-5">
+        <div className="row justify-content-end">
+          <div className="col-xxl-4 col-lg-5 ms-md-4 ms-lg-5">
             <div className="card">
               <div className="card-header pt-4 pb-4 text-center bg-primary">
                 <span className="fw-bold text-white" style={{

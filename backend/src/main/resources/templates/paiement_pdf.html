@@ -32,16 +32,16 @@
 </div>
 <div th:if="${logoBase64 == null}" class="header">
     <div class="no-logo-info">
-        <div><strong th:text="${paiement.commandeFournisseur != null && paiement.commandeFournisseur.boutique != null ? paiement.commandeFournisseur.boutique.nom : ''}"></strong></div>
-        <div><span th:text="${paiement.commandeFournisseur != null && paiement.commandeFournisseur.boutique != null ? paiement.commandeFournisseur.boutique.telephone : ''}"></span></div>
-        <div><span th:text="${paiement.commandeFournisseur != null && paiement.commandeFournisseur.boutique != null ? paiement.commandeFournisseur.boutique.adresse : ''}"></span></div>
+        <div><strong th:text="${boutiqueNom}"></strong></div>
+        <div><span th:text="${boutiqueTelephone}"></span></div>
+        <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
 </div>
 <div class="footer-info">
     <div th:if="${logoBase64 == null}" class="boutique-info">
-        <div><strong th:text="${paiement.commandeFournisseur != null && paiement.commandeFournisseur.boutique != null ? paiement.commandeFournisseur.boutique.nom : ''}"></strong></div>
-        <div><span th:text="${paiement.commandeFournisseur != null && paiement.commandeFournisseur.boutique != null ? paiement.commandeFournisseur.boutique.telephone : ''}"></span></div>
-        <div><span th:text="${paiement.commandeFournisseur != null && paiement.commandeFournisseur.boutique != null ? paiement.commandeFournisseur.boutique.adresse : ''}"></span></div>
+        <div><strong th:text="${boutiqueNom}"></strong></div>
+        <div><span th:text="${boutiqueTelephone}"></span></div>
+        <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
     <div class="meta-info">
         <div class="meta">Réf: <span th:text="${paiement.reference}"></span></div>
@@ -66,18 +66,18 @@
     </thead>
     <tbody>
     <tr>
-        <td class="right" th:text="${#numbers.formatInteger(montantTotal != null ? montantTotal : (paiement.commandeFournisseur != null ? paiement.commandeFournisseur.total : 0), 0)} + ' FCFA'"></td>
-        <td class="right" th:text="${#numbers.formatInteger(montantPayeCommande != null ? montantPayeCommande : (paiement.commandeFournisseur != null && paiement.commandeFournisseur.paie != null ? paiement.commandeFournisseur.paie : 0), 0)} + ' FCFA'"></td>
-        <td class="right" th:text="${#numbers.formatInteger(montantRestant != null ? montantRestant : ((paiement.commandeFournisseur != null ? paiement.commandeFournisseur.total : 0) - (paiement.commandeFournisseur != null && paiement.commandeFournisseur.paie != null ? paiement.commandeFournisseur.paie : 0)), 0)} + ' FCFA'"></td>
+        <td class="right" th:text="${montantTotalLabel}"></td>
+        <td class="right" th:text="${montantPayeCommandeLabel}"></td>
+        <td class="right" th:text="${montantRestantLabel}"></td>
     </tr>
     </tbody>
 </table>
 
-<div class="meta">Montant payé sur ce reçu : <strong th:text="${#numbers.formatInteger(montantPayeThis != null ? montantPayeThis : (paiement.montantPaye != null ? paiement.montantPaye : 0), 0)}"></strong> FCFA</div>
+<div class="meta">Montant payé sur ce reçu : <strong th:text="${montantPayeThisLabel}"></strong></div>
 <div class="meta">Établit le: <strong th:text="${datePaiementFormatted}"></strong></div>
-<div class="meta">Par: <strong th:text="${paiement.commandeFournisseur != null && paiement.commandeFournisseur.utilisateur != null ? paiement.commandeFournisseur.utilisateur.nom + ' ' + paiement.commandeFournisseur.utilisateur.prenom : ''}"></strong></div>
+<div class="meta">Par: <strong th:text="${paiementPar}"></strong></div>
 
 <div class="signature">Signature: __________________________</div>
-<footer>SMBOUTIQUE</footer>
+<footer th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
 </body>
 </html>

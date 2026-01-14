@@ -34,16 +34,16 @@
 </div>
 <div th:if="${logoBase64 == null}" class="header">
     <div class="no-logo-info">
-        <div><strong th:text="${livraison.commandeClient != null && livraison.commandeClient.boutique != null ? livraison.commandeClient.boutique.nom : ''}"></strong></div>
-        <div><span th:text="${livraison.commandeClient != null && livraison.commandeClient.boutique != null ? livraison.commandeClient.boutique.telephone : ''}"></span></div>
-        <div><span th:text="${livraison.commandeClient != null && livraison.commandeClient.boutique != null ? livraison.commandeClient.boutique.adresse : ''}"></span></div>
+        <div><strong th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : ''}"></strong></div>
+        <div><span th:text="${boutiqueTelephone}"></span></div>
+        <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
 </div>
 <div class="footer-info">
     <div th:if="${logoBase64 == null}" class="boutique-info">
-        <div><strong th:text="${livraison.commandeClient != null && livraison.commandeClient.boutique != null ? livraison.commandeClient.boutique.nom : ''}"></strong></div>
-        <div><span th:text="${livraison.commandeClient != null && livraison.commandeClient.boutique != null ? livraison.commandeClient.boutique.telephone : ''}"></span></div>
-        <div><span th:text="${livraison.commandeClient != null && livraison.commandeClient.boutique != null ? livraison.commandeClient.boutique.adresse : ''}"></span></div>
+        <div><strong th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : ''}"></strong></div>
+        <div><span th:text="${boutiqueTelephone}"></span></div>
+        <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
     <div class="meta-info">
         <div class="meta">Réf: <span th:text="${livraison.reference}"></span></div>
@@ -113,6 +113,6 @@
 </table> 
 
 <div class="signature">Signature: __________________________</div>
-<footer>SMBOUTIQUE</footer>
+<footer th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
 </body>
 </html>

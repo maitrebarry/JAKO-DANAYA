@@ -22,6 +22,9 @@ public class Fournisseur {
     @Column(name = "contact_fournisseur")
     private String contact;
 
+    @Transient
+    private String codePays;
+
     @Column(name = "ville_fournisseur")
     private String ville;
 

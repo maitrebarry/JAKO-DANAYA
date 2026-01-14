@@ -50,7 +50,7 @@ public class UtilisateurControllerTest {
         toCreate.setNom("New");
         toCreate.setTypeUtilisateur("ADMINISTRATEUR");
 
-        ResponseEntity<Utilisateur> resp = utilisateurController.createUser(toCreate);
+        ResponseEntity<?> resp = utilisateurController.createUser(toCreate);
         assertEquals(403, resp.getStatusCode().value());
     }
 
@@ -71,7 +71,7 @@ public class UtilisateurControllerTest {
         // Save should be called and return same object -- we stub save
         when(utilisateurService.save(toCreate)).thenReturn(toCreate);
 
-        ResponseEntity<Utilisateur> resp = utilisateurController.createUser(toCreate);
+        ResponseEntity<?> resp = utilisateurController.createUser(toCreate);
         assertEquals(200, resp.getStatusCode().value());
     }
 

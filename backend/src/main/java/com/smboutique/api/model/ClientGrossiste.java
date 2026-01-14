@@ -23,4 +23,7 @@ public class ClientGrossiste {
 
     @Column(name = "contact_client_grossiste")
     private String contact;
+
+    @Transient
+    private String codePays;
 }

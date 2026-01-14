@@ -17,7 +17,7 @@ interface UserContextType {
   user: User | null;
   permissions: string[];
   roles: string[];
-  currentBoutique: { id: number; nom: string } | null;
+  currentBoutique: any | null;
   setUserData: (data: any) => void;
   logout: () => void;
 }
@@ -40,7 +40,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [roles, setRoles] = useState<string[]>([]);
-  const [currentBoutique, setCurrentBoutique] = useState<{ id: number; nom: string } | null>(null);
+  const [currentBoutique, setCurrentBoutique] = useState<any | null>(null);
   const navigate = useNavigate();
   const tokenTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -131,6 +131,36 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       }
     }
   }, [setUserData]);
+
+  // If currentBoutique is present but missing detailed data (eg. pays), fetch it from API
+  useEffect(() => {
+    const ensureFullBoutique = async () => {
+      try {
+        if (currentBoutique && (currentBoutique as any).id && !(currentBoutique as any).pays) {
+          const token = localStorage.getItem('smb_token');
+          const res = await fetch(`http://localhost:8085/api/boutiques/${(currentBoutique as any).id}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setCurrentBoutique(data);
+            // Optionally update stored user data so next refresh has full object
+            try {
+              const userDataStr = localStorage.getItem('smb_user_data');
+              if (userDataStr) {
+                const ud = JSON.parse(userDataStr);
+                ud.currentBoutique = data;
+                localStorage.setItem('smb_user_data', JSON.stringify(ud));
+              }
+            } catch (e) { /* ignore */ }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch full boutique details', err);
+      }
+    };
+    ensureFullBoutique();
+  }, [currentBoutique]);
 
   return (
     <UserContext.Provider value={{ user, permissions, roles, currentBoutique, setUserData, logout }}>

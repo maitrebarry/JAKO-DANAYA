@@ -30,7 +30,10 @@ ChartJS.register(
 );
 
 const formatNumber = (n?: number) => n == null ? '—' : new Intl.NumberFormat('fr-FR').format(n);
-const formatCurrency = (n?: number) => n == null ? '—' : new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(n);
+import { useFormatMoney } from '../utils/currency';
+
+// Note: formatting hook will be used inside components (hook rules)
+
 
 // Composant pour afficher un widget joliment
 const WidgetCard = ({ title, value, icon, color, type = 'number', subtitle = '', action }: any) => {
@@ -61,8 +64,9 @@ const WidgetCard = ({ title, value, icon, color, type = 'number', subtitle = '',
     }
   };
 
+  const fmt = useFormatMoney();
   const displayValue = () => {
-    if (type === 'currency') return formatCurrency(value);
+    if (type === 'currency') return fmt(value);
     if (type === 'number') return formatNumber(value);
     if (type === 'percent') return `${value}%`;
     if (type === 'boolean') return value ? 'OUI' : 'NON';
@@ -134,6 +138,7 @@ const SubordinateDashboardCard = ({ role, name, widgets, shopName }: any) => {
       default: return 'secondary';
     }
   };
+  const fmt = useFormatMoney();
 
   const getKeyWidgets = () => {
     const keyWidgets: any = {};
@@ -180,7 +185,7 @@ const SubordinateDashboardCard = ({ role, name, widgets, shopName }: any) => {
             <div className="col-6">
               <div className="bg-light rounded p-2 text-center">
                 <small className="text-muted d-block">Ventes</small>
-                <strong className="text-primary">{formatCurrency(keyWidgets.ventes)}</strong>
+                <strong className="text-primary">{fmt(keyWidgets.ventes)}</strong>
               </div>
             </div>
           )}
@@ -209,7 +214,7 @@ const SubordinateDashboardCard = ({ role, name, widgets, shopName }: any) => {
             <div className="col-6">
               <div className="bg-light rounded p-2 text-center">
                 <small className="text-muted d-block">Valeur stock</small>
-                <strong className="text-success">{formatCurrency(keyWidgets.stockValue)}</strong>
+                <strong className="text-success">{fmt(keyWidgets.stockValue)}</strong>
               </div>
             </div>
           )}
@@ -241,6 +246,7 @@ const RoleBasedDashboard: React.FC = () => {
   const [selectedBoutiqueId, setSelectedBoutiqueId] = useState<number | null>(null);
   const [selectedMagasinId, setSelectedMagasinId] = useState<number | null>(null);
   const navigate = useNavigate();
+  const fmt = useFormatMoney();
 
   const load = async (shopId?: number, magasinId?: number) => {
     console.log('🔄 Starting dashboard load for shopId:', shopId, 'magasinId:', magasinId);
@@ -519,7 +525,7 @@ const RoleBasedDashboard: React.FC = () => {
             icon: 'cash',
             color: 'info',
             type: 'currency',
-            subtitle: `Paiements: ${formatCurrency(paiementsComplets)} • Crédit: ${ventesCredit}`
+            subtitle: `Paiements: ${fmt(paiementsComplets)} • Crédit: ${ventesCredit}`
           });
         } else if (key.includes('evolution_ventes')) {
           config.push({
@@ -868,33 +874,33 @@ const RoleBasedDashboard: React.FC = () => {
                       <p>Ventes journalières</p>
                       <i className="bi bi-camera"></i>
                       <p><span className="text-primary">Vente totale</span></p>
-                      <p>{formatCurrency(payload.widgets.bilan_ventes.dailyTotal || 0)}</p>
+                      <p>{fmt(payload.widgets.bilan_ventes.dailyTotal || 0)}</p>
                       <p><span className="text-primary">Créance totale</span></p>
-                      <p>{formatCurrency(payload.widgets.bilan_ventes.dailyCredit || 0)}</p>
+                      <p>{fmt(payload.widgets.bilan_ventes.dailyCredit || 0)}</p>
                       <p><span className="text-primary">Montant en caisse</span></p>
-                      <p>{formatCurrency(payload.widgets.bilan_ventes.dailyCash || 0)}</p>
+                      <p>{fmt(payload.widgets.bilan_ventes.dailyCash || 0)}</p>
                       <p className="text-primary">{new Date().toLocaleDateString('fr-FR')}</p>
                     </div>
                     <div className="text-center">
                       <p>Ventes mensuelles</p>
                       <i className="bi bi-camera"></i>
                       <p><span className="text-primary">Vente totale</span></p>
-                      <p>{formatCurrency(payload.widgets.bilan_ventes.monthlyTotal || 0)}</p>
+                      <p>{fmt(payload.widgets.bilan_ventes.monthlyTotal || 0)}</p>
                       <p><span className="text-primary">Créance totale</span></p>
-                      <p>{formatCurrency(payload.widgets.bilan_ventes.monthlyCredit || 0)}</p>
+                      <p>{fmt(payload.widgets.bilan_ventes.monthlyCredit || 0)}</p>
                       <p><span className="text-primary">Montant en caisse</span></p>
-                      <p>{formatCurrency(payload.widgets.bilan_ventes.monthlyCash || 0)}</p>
+                      <p>{fmt(payload.widgets.bilan_ventes.monthlyCash || 0)}</p>
                       <p className="text-primary">{new Date().toLocaleDateString('fr-FR', { month: 'numeric', year: 'numeric' })}</p>
                     </div>
                     <div className="text-center">
                       <p>Ventes annuelles</p>
                       <i className="bi bi-camera"></i>
                       <p><span className="text-primary">Vente totale</span></p>
-                      <p>{formatCurrency(payload.widgets.bilan_ventes.annualTotal || 0)}</p>
+                      <p>{fmt(payload.widgets.bilan_ventes.annualTotal || 0)}</p>
                       <p><span className="text-primary">Créance totale</span></p>
-                      <p>{formatCurrency(payload.widgets.bilan_ventes.annualCredit || 0)}</p>
+                      <p>{fmt(payload.widgets.bilan_ventes.annualCredit || 0)}</p>
                       <p><span className="text-primary">Montant en caisse</span></p>
-                      <p>{formatCurrency(payload.widgets.bilan_ventes.annualCash || 0)}</p>
+                      <p>{fmt(payload.widgets.bilan_ventes.annualCash || 0)}</p>
                       <p className="text-primary">{new Date().getFullYear()}</p>
                     </div>
                   </div>
@@ -911,11 +917,11 @@ const RoleBasedDashboard: React.FC = () => {
                     <div className="row">
                       <div className="col-md-6 text-center">
                         <p className="text-primary">Total des ventes du trimestre</p>
-                        <p><strong>{formatCurrency(payload.widgets.bilan_trimestriel.totalVentesTrimestre || 0)}</strong></p>
+                        <p><strong>{fmt(payload.widgets.bilan_trimestriel.totalVentesTrimestre || 0)}</strong></p>
                       </div>
                       <div className="col-md-6 text-center">
                         <p className="text-primary">Bénéfice du trimestre</p>
-                        <p><strong>{formatCurrency(payload.widgets.bilan_trimestriel.beneficeTrimestriel || 0)}</strong></p>
+                        <p><strong>{fmt(payload.widgets.bilan_trimestriel.beneficeTrimestriel || 0)}</strong></p>
                       </div>
                     </div>
                   </div>
@@ -998,7 +1004,7 @@ const RoleBasedDashboard: React.FC = () => {
                             {role}
                           </td>
                           <td><strong>{subsByRole.length}</strong></td>
-                          <td className="text-primary">{formatCurrency(avgSales)}</td>
+                          <td className="text-primary">{fmt(avgSales)}</td>
                           <td className={totalAlerts > 0 ? 'text-danger' : 'text-success'}>
                             <strong>{totalAlerts}</strong>
                           </td>

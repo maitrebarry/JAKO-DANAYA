@@ -401,9 +401,10 @@ const Historique: React.FC = () => {
       const total = paie.commandeFournisseur?.total || 0;
       const paid = paie.commandeFournisseur?.paie != null ? paie.commandeFournisseur.paie : 0;
       const remaining = Math.max(total - paid, 0);
-      pdf.text(`MONTANT TOTAL/CMD: ${total.toLocaleString('fr-FR')} FCFA`, 40, headerY + 86);
-      pdf.text(`MONTANT PAYÉ: ${paid.toLocaleString('fr-FR')} FCFA`, 220, headerY + 86);
-      pdf.text(`MONTANT RESTANT: ${remaining.toLocaleString('fr-FR')} FCFA`, 380, headerY + 86);
+      const sym = (currentBoutique && (currentBoutique as any).pays && (currentBoutique as any).pays.deviseSymbole) ? (currentBoutique as any).pays.deviseSymbole : 'FCFA';
+      pdf.text(`MONTANT TOTAL/CMD: ${total.toLocaleString('fr-FR')} ${sym}`, 40, headerY + 86);
+      pdf.text(`MONTANT PAYÉ: ${paid.toLocaleString('fr-FR')} ${sym}`, 220, headerY + 86);
+      pdf.text(`MONTANT RESTANT: ${remaining.toLocaleString('fr-FR')} ${sym}`, 380, headerY + 86);
 
       // Lines table
       if (paie.commandeFournisseur && paie.commandeFournisseur.lignes) {

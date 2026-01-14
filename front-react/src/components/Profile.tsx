@@ -2,10 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '../contexts/UserContext';
 import * as authApi from '../api/auth';
 import Swal from 'sweetalert2';
+import PhoneWithDial from './PhoneWithDial';
 
 const Profile: React.FC = () => {
   const { user, setUserData } = useUser();
   const [form, setForm] = useState<any>({});
+  const [profileCodePays, setProfileCodePays] = useState<string | null>(null);
+  const [profileTelephoneValid, setProfileTelephoneValid] = useState<boolean | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -79,7 +82,10 @@ const Profile: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      const res = await authApi.updateProfile(form);
+      // validate phone if present — must be explicitly valid
+      if (form.contact && form.contact.trim() && profileTelephoneValid !== true) { Swal.fire('Erreur', 'Le numéro de téléphone est invalide ou incomplet pour le pays sélectionné', 'error'); return; }
+      const payload = { ...form, codePays: profileCodePays || form.codePays };
+      const res = await authApi.updateProfile(payload);
       setUserData(res);
       localStorage.setItem('smb_user_data', JSON.stringify(res));
       Swal.fire('Succès', 'Profil mis à jour', 'success');
@@ -306,7 +312,7 @@ const Profile: React.FC = () => {
                 </div>
                 <div className="col-md-6">
                   <label className="form-label">Contact</label>
-                  <input className="form-control" value={form.contact || ''} onChange={e => setForm({ ...form, contact: e.target.value })} />
+                  <PhoneWithDial value={form.contact || ''} defaultCountry={(user && (user as any).boutique && (user as any).boutique.pays && (user as any).boutique.pays.codeIso) ? (user as any).boutique.pays.codeIso : 'ML'} onChange={(tel, code, valid) => { setForm({ ...form, contact: tel || '' }); setProfileCodePays(code || null); setProfileTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
                 </div>
               </div>
               <div className="mb-3">

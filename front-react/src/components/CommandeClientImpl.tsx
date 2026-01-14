@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useFormatMoney } from '../utils/currency';
 import { createPortal } from 'react-dom';
 import { useParams } from 'react-router-dom';
 import SearchableSelect from './SearchableSelect';
@@ -8,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import useHasPermission from '../contexts/useHasPermission';
 import RequirePermission from './RequirePermission';
 import { useUser } from '../contexts/UserContext';
+import PhoneWithDial from './PhoneWithDial';
 
 interface Stock {
   id: number;
@@ -46,6 +48,8 @@ interface CartItem {
 const CommandeClient: React.FC = () => {
   const isVente = true;
   const navigate = useNavigate();
+  const { currentBoutique } = useUser();
+  const fmt = useFormatMoney();
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
 
@@ -56,6 +60,8 @@ const CommandeClient: React.FC = () => {
   const [clients, setClients] = useState<any[]>([]);
   const [showClientModal, setShowClientModal] = useState(false);
   const [newClient, setNewClient] = useState<{ prenom?: string; nom?: string; contact?: string; ville?: string }>({});
+  const [newClientCodePays, setNewClientCodePays] = useState<string | null>(null);
+  const [newClientTelephoneValid, setNewClientTelephoneValid] = useState<boolean | null>(null);
   const [clientSearch, setClientSearch] = useState('');
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
 
@@ -142,6 +148,15 @@ const CommandeClient: React.FC = () => {
       if (it.venteParConditionnement) return sum + ((it.quantiteConditionnement || 0) * (it.multiplicateur || 1));
       return sum + (it.quantite || 0);
     }, 0);
+  };
+
+  // Helper to resolve price for a given product and mode (accounts for various field names)
+  const getModePriceFromProduct = (product: any, mode: 'DETAIL'|'GROS') => {
+    if (!product) return undefined;
+    if (mode === 'DETAIL') {
+      return product.prixDetail ?? product.prix_detail ?? product.prix_detaille ?? product.prixDetaille ?? product.prix ?? undefined;
+    }
+    return product.prixEnGros ?? product.prix_en_gros ?? product.prixGros ?? product.prix_gros ?? product.prix ?? undefined;
   };
 
   // End helpers ------------------------------------------------------------
@@ -444,7 +459,7 @@ const CommandeClient: React.FC = () => {
       // For Vente: prefer the configured price mode (DÉTAIL / GROS) and ignore stored lastPrice when selecting a product
       let defaultPrice = Number(stock.produit?.prixAchat ?? 0);
       if (stock.produit) {
-        const modePrice = priceModeDefault === 'DETAIL' ? stock.produit?.prixDetail : stock.produit?.prixEnGros;
+        const modePrice = getModePriceFromProduct(stock.produit, priceModeDefault);
         defaultPrice = Number(modePrice ?? stock.produit?.prixAchat ?? 0);
       }
 
@@ -581,7 +596,7 @@ const CommandeClient: React.FC = () => {
         // prefer the stock's product if available, otherwise try to find a product by produitId across stocks
         const productSource = (stock && stock.produit) ? stock.produit : (item.produitId ? (stocks.find(s => s.produit?.id === item.produitId)?.produit) : undefined);
         if (productSource) {
-          const modePrice = priceModeDefault === 'DETAIL' ? productSource.prixDetail : productSource.prixEnGros;
+          const modePrice = getModePriceFromProduct(productSource, priceModeDefault);
           if (modePrice !== undefined && modePrice !== null) newPrix = Number(modePrice);
         }
       }
@@ -852,48 +867,55 @@ const CommandeClient: React.FC = () => {
         return;
       }
 
-      // If it's a vente (commande client), try vente PDF endpoint first, then commandes-clients as fallback
-      if (isVente) {
-        const tryEndpoints = [
-          { path: `http://localhost:8085/api/ventes/${idToOpen}/pdf`, label: 'ventes' },
-          { path: `http://localhost:8085/api/commandes-clients/${idToOpen}/pdf`, label: 'commandes-clients' }
-        ];
-        let lastError: any = null;
-        for (const ep of tryEndpoints) {
-          try {
-            const res = await fetch(ep.path, { method: 'GET', headers: { Authorization: `Bearer ${token}` } });
-            if (res.status === 401) {
-              // collect server response body for diagnostics (do not expose token)
-              const body = await res.json().catch(() => null);
-              console.debug('openPdfPrint 401 body:', body);
+      // Séparation stricte : ce composant sert la vente au comptoir -> endpoint ventes uniquement
+      const tryEndpoints = [
+        { path: `http://localhost:8085/api/ventes/${idToOpen}/pdf`, label: 'ventes' }
+      ];
 
-              // Optionally hit a lightweight auth-check endpoint to confirm token acceptance
-              try {
-                const check = await fetch('http://localhost:8085/api/users', { headers: { Authorization: `Bearer ${token}` } });
-                console.debug('auth check /api/users status:', check.status);
-                if (check.status === 401) {
-                  Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la page de connexion.', 'warning');
-                  try { logout(); } catch (e) {}
-                  navigate('/login');
-                  return;
-                }
-              } catch (e) { console.debug('auth check failed', e); }
+      let lastError: any = null;
+      for (const ep of tryEndpoints) {
+        try {
+          const res = await fetch(ep.path, { method: 'GET', headers: { Authorization: `Bearer ${token}` } });
+          if (res.status === 401) {
+            // collect server response body for diagnostics (do not expose token)
+            const body = await res.json().catch(() => null);
+            console.debug('openPdfPrint 401 body:', body);
 
-              lastError = `Endpoint ${ep.label} returned 401: ${body && body.message ? body.message : 'Unauthorized'}`;
-              console.debug('openPdfPrint:', lastError);
-              continue; // try next endpoint
-            }
-            const text = await res.text().catch(() => '');
-            lastError = `Endpoint ${ep.label} returned ${res.status} ${res.statusText}: ${text}`;
+            // Optionally hit a lightweight auth-check endpoint to confirm token acceptance
+            try {
+              const check = await fetch('http://localhost:8085/api/users', { headers: { Authorization: `Bearer ${token}` } });
+              console.debug('auth check /api/users status:', check.status);
+              if (check.status === 401) {
+                Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la page de connexion.', 'warning');
+                try { logout(); } catch (e) {}
+                navigate('/login');
+                return;
+              }
+            } catch (e) { console.debug('auth check failed', e); }
+
+            lastError = `Endpoint ${ep.label} returned 401: ${body && body.message ? body.message : 'Unauthorized'}`;
             console.debug('openPdfPrint:', lastError);
-          } catch (e: any) {
-            lastError = `Fetch to ${ep.label} failed: ${e.message}`;
-            console.debug('openPdfPrint:', lastError);
+            continue; // try next endpoint
           }
+          const text = await res.text().catch(() => '');
+          if (res.ok) {
+            // convert text to blob only when successful? we consumed text; need blob separately. Re-fetch as blob.
+            const blobRes = await fetch(ep.path, { method: 'GET', headers: { Authorization: `Bearer ${token}` } });
+            if (!blobRes.ok) { lastError = `Endpoint ${ep.label} second fetch failed: ${blobRes.status} ${blobRes.statusText}`; console.debug('openPdfPrint blob fetch error:', lastError); continue; }
+            const blob = await blobRes.blob();
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            return;
+          }
+          lastError = `Endpoint ${ep.label} returned ${res.status} ${res.statusText}: ${text}`;
+          console.debug('openPdfPrint:', lastError);
+        } catch (e: any) {
+          lastError = `Fetch to ${ep.label} failed: ${e.message}`;
+          console.debug('openPdfPrint:', lastError);
         }
-        Swal.fire('Erreur', `Impossible de charger le PDF (vente). Détails: ${lastError}`, 'error');
-        return;
       }
+      Swal.fire('Erreur', `Impossible de charger le PDF. Détails: ${lastError}`, 'error');
+      return;
 
       // Default: commande fournisseur
       try {
@@ -1069,7 +1091,7 @@ const CommandeClient: React.FC = () => {
                                   const mult = getProduitMultiplicateur(stock);
                                   const unitLabel = (stock?.produit as any)?.unite?.libelle ?? 'conditionnement';
                                   const multPart = mult && mult > 1 ? ` — 1 ${unitLabel} = ${mult} unités` : '';
-                                  return `${prodName}${multLabel} - ${price} FCFA - ${stock.magasin?.nom || 'Dépôt boutique'}${multPart} — Stock : ${formatPackaging(stock.quantiteDisponible || 0, mult)}`;
+                                  return `${prodName}${multLabel} - ${fmt(Number(price))} - ${stock.magasin?.nom || 'Dépôt boutique'}${multPart} — Stock : ${formatPackaging(stock.quantiteDisponible || 0, mult)}`;
                                 })()
                                 };
                               })}
@@ -1111,7 +1133,7 @@ const CommandeClient: React.FC = () => {
                                   <div>
                                     <strong>{getProductDisplayName(stock)}</strong>
                                     <br />
-                                    <small className="text-muted">{Number(stock.produit?.prixAchat ?? 0)} FCFA</small>
+                                    <small className="text-muted">{fmt(Number(stock.produit?.prixAchat ?? 0))}</small>
                                   </div>
                                   <div>
                                     <span className="badge bg-primary me-1">{stock.magasin?.nom || 'Dépôt boutique'}</span>
@@ -1229,7 +1251,7 @@ const CommandeClient: React.FC = () => {
                                     })()}
                                   </div>
                                 </td>
-                                <td>{montant.toFixed(2)} FCFA</td>
+                                <td>{fmt(montant)}</td>
                                 <td>
                                   <div className="d-flex">
                                     <RequirePermission permission={[ 'COMMANDE_MODIFIER', 'COMMANDE_CREER' ]}>
@@ -1246,7 +1268,7 @@ const CommandeClient: React.FC = () => {
                         <tfoot>
                           <tr>
                             <td colSpan={3} className="text-end fw-bold">Total :</td>
-                            <td className="fw-bold">{total.toFixed(2)} FCFA</td>
+                            <td className="fw-bold">{fmt(total)}</td>
                             <td></td>
                           </tr>
                         </tfoot>
@@ -1316,7 +1338,7 @@ const CommandeClient: React.FC = () => {
                       <input className="form-control" placeholder="Nom" value={newClient.nom || ''} onChange={(e) => setNewClient({ ...newClient, nom: e.target.value })} />
                     </div>
                     <div className="mb-2">
-                      <input className="form-control" placeholder="Contact" value={newClient.contact || ''} onChange={(e) => setNewClient({ ...newClient, contact: e.target.value })} />
+                      <PhoneWithDial value={newClient.contact || ''} defaultCountry={(currentBoutique && (currentBoutique as any).pays && (currentBoutique as any).pays.codeIso) ? (currentBoutique as any).pays.codeIso : 'ML'} onChange={(tel, code, valid) => { setNewClient({ ...newClient, contact: tel }); setNewClientCodePays(code || null); setNewClientTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
                     </div>
                     <div className="mb-2">
                       <input className="form-control" placeholder="Ville" value={newClient.ville || ''} onChange={(e) => setNewClient({ ...newClient, ville: e.target.value })} />
@@ -1326,6 +1348,8 @@ const CommandeClient: React.FC = () => {
                       <button className="btn btn-secondary me-2" onClick={() => { setNewClient({}); setClientSearch(''); setShowClientModal(false); }}>Annuler</button>
                       <button className="btn btn-success" onClick={async () => {
                         if (!canCreateClient) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de créer un client', 'error'); return; }
+                        // validate phone
+                        if (newClient.contact && newClient.contact.trim() && newClientTelephoneValid !== true) { Swal.fire('Erreur', 'Le numéro de téléphone du client est invalide ou incomplet pour le pays associé', 'error'); return; }
                         try {
                           const token = localStorage.getItem('smb_token');
                           if (!token) {
@@ -1343,7 +1367,7 @@ const CommandeClient: React.FC = () => {
                             try { logout(); } catch (e) {}
                             return;
                           }
-                          const payload: any = { prenom: newClient.prenom, nom: newClient.nom, contact: newClient.contact, ville: newClient.ville };
+                          const payload: any = { prenom: newClient.prenom, nom: newClient.nom, contact: newClient.contact, ville: newClient.ville, codePays: newClientCodePays || undefined };
                           // debug: log token existence (do NOT leave this log in production)
                           console.debug('create-client token-present', !!token);
                           const res = await fetch('http://localhost:8085/api/clients-grossistes', {

@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { formatServerDate } from '../utils/date';
+import { useFormatMoney } from '../utils/currency';
 
 interface Ligne { id: number; stockId: number; nom: string; quantite: number; prix: number; montant: number; quantiteConditionnement?: number | null; multiplicateur?: number | null; quantiteDisplay?: number | null; unitLabel?: string | null; qLabel?: string | null; }
 
 const ApercuCommandeClient: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const fmt = useFormatMoney();
   const [loading, setLoading] = useState(true);
   const [commande, setCommande] = useState<any>(null);
   const [lignes, setLignes] = useState<Ligne[]>([]);
@@ -78,12 +80,20 @@ const ApercuCommandeClient: React.FC = () => {
       const token = localStorage.getItem('smb_token');
       if (!token) { Swal.fire('Erreur', 'Authentification nécessaire. Connectez-vous.', 'error'); return; }
 
-      // Prefer commandes-clients for this view but fallback to commandes-fournisseurs if missing
-      const tryPaths = [`http://localhost:8085/api/commandes-clients/${commandeId}/pdf`, `http://localhost:8085/api/commandes-fournisseurs/${commandeId}/pdf`];
+      // Séparation stricte : commande client uniquement
+      const tryPaths = [
+        `http://localhost:8085/api/commandes-clients/${commandeId}/pdf`
+      ];
       let lastErr: any = null;
       for (const p of tryPaths) {
         try {
           const r = await fetch(p, { headers: { Authorization: `Bearer ${token}` } });
+          if (r.status === 401) {
+            const body = await r.text().catch(() => '');
+            Swal.fire('Session expirée', 'Authentification requise. Veuillez vous reconnecter.', 'warning');
+            navigate('/login');
+            return;
+          }
           if (r.ok) { const blob = await r.blob(); const url = URL.createObjectURL(blob); window.open(url, '_blank'); return; }
           const txt = await r.text().catch(() => '');
           lastErr = `${p} -> ${r.status} ${r.statusText}: ${txt}`;
@@ -153,13 +163,13 @@ const ApercuCommandeClient: React.FC = () => {
                             ) : null}
                           </td>
                           <td>{l.qLabel}</td>
-                          <td>{l.prix}</td>
-                          <td>{(l.montant).toFixed(2)}</td>
+                          <td>{fmt(l.prix)}</td>
+                          <td>{fmt(l.montant)}</td>
                         </tr>
                       ))}
                       <tr>
                         <td colSpan={3} className="text-end"><strong>Total</strong></td>
-                        <td className="text-end">{(commande?.total ?? 0)} FCFA</td>
+                        <td className="text-end">{fmt(commande?.total ?? 0)}</td>
                       </tr>
                     </tbody>
                   </table>

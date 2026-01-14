@@ -6,7 +6,10 @@ import { toDatetimeLocalInput } from '../utils/date';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 import useHasPermission from '../contexts/useHasPermission';
+import { useFormatMoney } from '../utils/currency';
 import RequirePermission from './RequirePermission';
+import PhoneWithDial from './PhoneWithDial';
+import { useUser } from '../contexts/UserContext';
 
 interface Stock {
   id: number;
@@ -50,6 +53,7 @@ interface CartItem {
 
 const CommandeFournisseur: React.FC = () => {
   const navigate = useNavigate();
+  const fmt = useFormatMoney();
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -126,6 +130,9 @@ const CommandeFournisseur: React.FC = () => {
   const [showFournisseurModal, setShowFournisseurModal] = useState(false);
   const [newFournisseur, setNewFournisseur] = useState<{ prenom?: string; nom?: string; contact?: string; ville?: string }>({});
   const [fournisseurSearch, setFournisseurSearch] = useState('');
+  // Phone handling for new fournisseur (same behaviour as client modal)
+  const [newFournisseurCodePays, setNewFournisseurCodePays] = useState<string | null>(null);
+  const [newFournisseurTelephoneValid, setNewFournisseurTelephoneValid] = useState<boolean | null>(null);
 
 
 
@@ -133,6 +140,21 @@ const CommandeFournisseur: React.FC = () => {
   const canCreateCommande = useHasPermission('COMMANDE_CREER');
   const canModifyCommande = useHasPermission('COMMANDE_MODIFIER');
   const canCreateFournisseur = useHasPermission('FOURNISSEUR_CREER');
+  // user context (for logout and boutique defaults)
+  const { logout, currentBoutique } = useUser();
+
+  // Helper: check if stored JWT token is expired (simple client-side check)
+  const isTokenExpired = (token?: string | null) => {
+    if (!token) return true;
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return false; // not a JWT, assume fine
+      const payload = JSON.parse(atob(parts[1]));
+      if (!payload.exp) return false;
+      const now = Math.floor(Date.now() / 1000);
+      return payload.exp < now;
+    } catch (e) { return false; }
+  };
 
   // Location (boutique / magasin) state and helpers
   const [magasins, setMagasins] = useState<any[]>([]);
@@ -366,11 +388,16 @@ const CommandeFournisseur: React.FC = () => {
         return;
       }
 
+      // Prix par défaut = prix d'achat catalogue; on ne reprend le dernier prix saisi que si le catalogue n'a pas de valeur
       let defaultPrice = Number(stock.produit?.prixAchat ?? 0);
       if (stock.produit) {
         const lastPriceKey = `lastPrice_${stock.produit.id}`;
-        const lastPrice = localStorage.getItem(lastPriceKey);
-        defaultPrice = lastPrice ? parseFloat(lastPrice) : Number(stock.produit?.prixAchat ?? 0);
+        const lastPriceRaw = localStorage.getItem(lastPriceKey);
+        const lastPrice = lastPriceRaw ? parseFloat(lastPriceRaw) : NaN;
+        // Ne pas écraser un prix catalogue valide par un ancien prix saisi; ne prendre l'historique qu'en absence de prix catalogue
+        if ((!defaultPrice || defaultPrice <= 0) && !isNaN(lastPrice) && lastPrice > 0) {
+          defaultPrice = lastPrice;
+        }
       }
 
       if (defaultPrice <= 0) {
@@ -824,7 +851,7 @@ const CommandeFournisseur: React.FC = () => {
                                   const mult = getProduitMultiplicateur(stock);
                                   const unitLabel = (stock?.produit as any)?.unite?.libelle ?? 'conditionnement';
                                   const multPart = mult && mult > 1 ? ` — 1 ${unitLabel} = ${mult} unités` : '';
-                                  return `${prodName}${multLabel} - ${price} FCFA - ${stock.magasin?.nom || 'Dépôt boutique'}${multPart} — Stock : ${stock.quantiteDisponible || 0} unités`;
+                                  return `${prodName}${multLabel} - ${fmt(Number(price))} - ${stock.magasin?.nom || 'Dépôt boutique'}${multPart} — Stock : ${stock.quantiteDisponible || 0} unités`;
                                 })()
                                 };
                               })}
@@ -866,7 +893,7 @@ const CommandeFournisseur: React.FC = () => {
                                   <div>
                                     <strong>{getProductDisplayName(stock)}</strong>
                                     <br />
-                                    <small className="text-muted">{Number(stock.produit?.prixAchat ?? 0)} FCFA</small>
+                                    <small className="text-muted">{fmt(Number(stock.produit?.prixAchat ?? 0))}</small>
                                   </div>
                                   <div>
                                     <span className="badge bg-primary me-1">{stock.magasin?.nom || 'Dépôt boutique'}</span>
@@ -966,7 +993,7 @@ const CommandeFournisseur: React.FC = () => {
                                     })()}
                                   </div>
                                 </td>
-                                <td>{montant.toFixed(2)} FCFA</td>
+                                <td>{fmt(montant)}</td>
                                 <td>
                                   <div className="d-flex">
                                     <RequirePermission permission={[ 'COMMANDE_MODIFIER', 'COMMANDE_CREER' ]}>
@@ -983,7 +1010,7 @@ const CommandeFournisseur: React.FC = () => {
                         <tfoot>
                           <tr>
                             <td colSpan={3} className="text-end fw-bold">Total :</td>
-                            <td className="fw-bold">{total.toFixed(2)} FCFA</td>
+                            <td className="fw-bold">{fmt(total)}</td>
                             <td></td>
                           </tr>
                         </tfoot>
@@ -1052,7 +1079,7 @@ const CommandeFournisseur: React.FC = () => {
                       <input className="form-control" placeholder="Nom" value={newFournisseur.nom || ''} onChange={(e) => setNewFournisseur({ ...newFournisseur, nom: e.target.value })} />
                     </div>
                     <div className="mb-2">
-                      <input className="form-control" placeholder="Contact" value={newFournisseur.contact || ''} onChange={(e) => setNewFournisseur({ ...newFournisseur, contact: e.target.value })} />
+                      <PhoneWithDial value={newFournisseur.contact || ''} defaultCountry={(currentBoutique && (currentBoutique as any).pays && (currentBoutique as any).pays.codeIso) ? (currentBoutique as any).pays.codeIso : 'ML'} onChange={(tel, code, valid) => { setNewFournisseur({ ...newFournisseur, contact: tel }); setNewFournisseurCodePays(code || null); setNewFournisseurTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
                     </div>
                     <div className="mb-2">
                       <input className="form-control" placeholder="Ville" value={newFournisseur.ville || ''} onChange={(e) => setNewFournisseur({ ...newFournisseur, ville: e.target.value })} />
@@ -1062,19 +1089,49 @@ const CommandeFournisseur: React.FC = () => {
                       <button className="btn btn-secondary me-2" onClick={() => { setNewFournisseur({}); setFournisseurSearch(''); setShowFournisseurModal(false); }}>Annuler</button>
                       <button className="btn btn-success" onClick={async () => {
                         if (!canCreateFournisseur) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de créer un fournisseur', 'error'); return; }
-                        // Create new fournisseur via API
+                        // validate phone
+                        if (newFournisseur.contact && newFournisseur.contact.trim() && newFournisseurTelephoneValid !== true) { Swal.fire('Erreur', 'Le numéro de téléphone du fournisseur est invalide ou incomplet pour le pays associé', 'error'); return; }
+                        // Create new fournisseur via API (with session checks similar to client modal)
                         try {
                           const token = localStorage.getItem('smb_token');
-                          const payload: any = { prenom: newFournisseur.prenom, nom: newFournisseur.nom, contact: newFournisseur.contact, ville: newFournisseur.ville };
+                          if (!token) {
+                            setShowFournisseurModal(false);
+                            await Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la connexion.', 'error');
+                            try { logout(); } catch (e) {}
+                            return;
+                          }
+
+                          if (isTokenExpired(token)) {
+                            setShowFournisseurModal(false);
+                            await Swal.fire('Session expirée', 'Votre session a expiré. Connectez-vous à nouveau.', 'warning');
+                            try { logout(); } catch (e) {}
+                            return;
+                          }
+
+                          const payload: any = { prenom: newFournisseur.prenom, nom: newFournisseur.nom, contact: newFournisseur.contact, ville: newFournisseur.ville, codePays: newFournisseurCodePays || undefined };
                           const res = await fetch('http://localhost:8085/api/fournisseurs', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                             body: JSON.stringify(payload)
                           });
+
+                          if (res.status === 401) {
+                            setShowFournisseurModal(false);
+                            await Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la connexion.', 'error');
+                            try { logout(); } catch (e) {}
+                            return;
+                          }
+                          if (res.status === 403) {
+                            const errBody = await res.json().catch(() => null);
+                            await Swal.fire('Accès refusé', errBody && errBody.message ? errBody.message : 'Vous n\'avez pas la permission de créer un fournisseur', 'error');
+                            return;
+                          }
+
                           if (!res.ok) {
                             const err = await res.json().catch(() => ({}));
                             throw new Error(err && err.message ? err.message : `Erreur création fournisseur (${res.status})`);
                           }
+
                           const created = await res.json();
                           // Add to list and select
                           setFournisseurs(prev => [created, ...(prev || [])]);

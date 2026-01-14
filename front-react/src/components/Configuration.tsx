@@ -4,6 +4,7 @@ import ConfigurationMarges from './ConfigurationMarges';
 import Swal from 'sweetalert2';
 import useHasPermission from '../contexts/useHasPermission';
 import RequirePermission from './RequirePermission';
+import PhoneWithDial from './PhoneWithDial';
 
 const Configuration = () => {
   const { roles } = useUser();
@@ -119,6 +120,7 @@ const ListeUtilisateurs = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [boutiques, setBoutiques] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
+  const [paysList, setPaysList] = useState<any[]>([]);
   const [assignableRoleIds, setAssignableRoleIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -126,13 +128,15 @@ const ListeUtilisateurs = () => {
   const [message, setMessage] = useState('');
   const [search, setSearch] = useState('');
   const [creating, setCreating] = useState(false);
+  const [phoneCodePays, setPhoneCodePays] = useState<string | null>(null);
+  const [userTelephoneValid, setUserTelephoneValid] = useState<boolean | null>(null);
   
   const canCreateUser = useHasPermission('UTILISATEUR_CREER');
   const canModifyUser = useHasPermission('UTILISATEUR_MODIFIER');
   const canToggleUser = useHasPermission('UTILISATEUR_ACTIVER_DESACTIVER');
   const [togglingUserId, setTogglingUserId] = useState<number | null>(null);
 
-  const { roles: sessionRoles } = useUser();
+  const { roles: sessionRoles, currentBoutique } = useUser();
   const normalizedRoles = sessionRoles.map(r => (r || '').replace(/^ROLE_/i, '').toUpperCase());
   const isAdminOrProprio = normalizedRoles.some(r => ['ADMINISTRATEUR', 'PROPRIETAIRE', 'SUPERADMIN'].includes(r));
 
@@ -198,6 +202,8 @@ const ListeUtilisateurs = () => {
       boutiqueId: '',
       roleIds: []
     });
+    setPhoneCodePays(null);
+    setUserTelephoneValid(null);
   };
 
   const isMountedRef = useRef(true);
@@ -214,7 +220,7 @@ const ListeUtilisateurs = () => {
 
     try {
       // Chargement en parallèle pour plus de rapidité
-      const [usersRes, boutiquesRes, rolesRes, assignableRes] = await Promise.all([
+      const [usersRes, boutiquesRes, rolesRes, assignableRes, paysRes] = await Promise.all([
         fetch('http://localhost:8085/api/users', {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
@@ -225,6 +231,9 @@ const ListeUtilisateurs = () => {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
         fetch('http://localhost:8085/api/admin/assignable-roles', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('http://localhost:8085/api/pays', {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -242,12 +251,14 @@ const ListeUtilisateurs = () => {
       const boutiquesData = await boutiquesRes.json().catch(() => []);
       const rolesData = rolesRes.ok ? await rolesRes.json().catch(() => []) : [];
       const assignableData = assignableRes.ok ? await assignableRes.json().catch(() => []) : [];
+      const paysData = paysRes.ok ? await paysRes.json().catch(() => []) : [];
 
       if (isMountedRef.current) {
         setUsers(usersData || []);
         setBoutiques(boutiquesData || []);
         setRoles(rolesData || []);
         setAssignableRoleIds((assignableData || []).map((r: any) => r.id));
+        setPaysList(paysData || []);
       }
     } catch (err: any) {
       if (isMountedRef.current) {
@@ -287,15 +298,15 @@ const ListeUtilisateurs = () => {
     
     const isEdit = !!formData.id;
     if (isEdit && !canModifyUser) { 
-      setMessage("Vous n'avez pas la permission de modifier des utilisateurs"); 
+      Swal.fire('Erreur', "Vous n'avez pas la permission de modifier des utilisateurs", 'error');
       return; 
     }
     if (!isEdit && !canCreateUser) { 
-      setMessage("Vous n'avez pas la permission de créer des utilisateurs"); 
+      Swal.fire('Erreur', "Vous n'avez pas la permission de créer des utilisateurs", 'error');
       return; 
     }
     if (!isEdit && !formData.motDePasse.trim()) {
-      setMessage('Le mot de passe est requis pour créer un utilisateur.');
+      Swal.fire('Erreur', 'Le mot de passe est requis pour créer un utilisateur.', 'error');
       return;
     }
     
@@ -314,6 +325,7 @@ const ListeUtilisateurs = () => {
         email: formData.email,
         pseudo: formData.pseudo,
         contact: formData.contact,
+        codePays: phoneCodePays || (currentBoutique?.pays?.codeIso || 'ML'),
         adresse: formData.adresse,
         typeUtilisateur: formData.typeUtilisateur,
         statut: formData.statut,
@@ -337,7 +349,8 @@ const ListeUtilisateurs = () => {
       
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || `Erreur lors de la ${isEdit ? 'modification' : 'création'}`);
+        Swal.fire('Erreur', errData.message || `Erreur lors de la ${isEdit ? 'modification' : 'création'}`, 'error');
+        return;
       }
       
       setShowModal(false);
@@ -346,7 +359,7 @@ const ListeUtilisateurs = () => {
       loadUsers();
       setTimeout(() => setMessage(''), 3000);
     } catch (err: any) {
-      setMessage(err.message);
+      Swal.fire('Erreur', err.message, 'error');
     } finally {
       setCreating(false);
     }
@@ -418,6 +431,19 @@ const ListeUtilisateurs = () => {
     }
   };
 
+  const cleanIndicatif = (indic?: string) => {
+    if (!indic) return '';
+    return String(indic).replace(/[^0-9]/g, '');
+  };
+
+  const extractDialFromContact = (contact?: string) => {
+    if (!contact) return '';
+    const cleaned = String(contact).replace(/[^0-9+]/g, '');
+    // Prefer leading + then digits
+    const m = cleaned.match(/^\+?(\d{1,4})/);
+    return m ? m[1] : '';
+  };
+
   const handleEdit = (user: any) => {
     setFormData({
       id: user.id,
@@ -433,7 +459,17 @@ const ListeUtilisateurs = () => {
       boutiqueId: user.boutique?.id ? String(user.boutique.id) : '',
       roleIds: user.roles ? user.roles.map((role: any) => String(role.id)) : []
     });
-    
+    // Infer country from existing contact if possible to avoid mismatch
+    const dial = extractDialFromContact(user.contact);
+    let inferredCode: string | null = null;
+    if (dial && paysList && paysList.length > 0) {
+      const found = paysList.find((p: any) => cleanIndicatif(p.indicatif) === dial);
+      if (found && found.codeIso) {
+        inferredCode = String(found.codeIso).toUpperCase();
+      }
+    }
+    setPhoneCodePays(inferredCode || user.codePays || (user.boutique && user.boutique.pays ? user.boutique.pays.codeIso : (currentBoutique?.pays?.codeIso || 'ML')));
+    setUserTelephoneValid(null);
     setShowModal(true);
   };
 
@@ -718,12 +754,7 @@ const ListeUtilisateurs = () => {
               <div className="row">
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Contact</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={formData.contact}
-                    onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                  />
+                  <PhoneWithDial value={formData.contact} defaultCountry={phoneCodePays || currentBoutique?.pays?.codeIso || 'ML'} onChange={(tel, code, valid) => { setFormData({ ...formData, contact: tel || '' }); setPhoneCodePays(code || null); setUserTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
                 </div>
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Adresse</label>
@@ -821,24 +852,94 @@ const ListeUtilisateurs = () => {
 };
 
 const Boutique = () => {
-  const { roles } = useUser();
+  const { roles, currentBoutique, setUserData } = useUser();
   const normalizedRoles = roles.map((r: string) => (r || '').replace(/^ROLE_/i, '').toUpperCase());
   const isSuperAdmin = normalizedRoles.includes('SUPERADMIN');
   const [boutiques, setBoutiques] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [newBoutique, setNewBoutique] = useState({ 
+  const [newBoutique, setNewBoutique] = useState({
     id: null as number | null,
     nom: '', 
     quartier: '', 
     adresse: '', 
-    telephone: '', 
     logo: null as File | null 
   });
+  const [boutiqueCodePays, setBoutiqueCodePays] = useState<string | null>(null);
+  const [paysList, setPaysList] = useState<any[]>([]);
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState('');
   const [search, setSearch] = useState('');
+
+  // Load countries for boutique creation (flags + symbole monnaie). If backend has few seeds, enrich from restcountries.com
+  const fetchPays = async () => {
+    try {
+      const token = localStorage.getItem('smb_token');
+      const res = await fetch('http://localhost:8085/api/pays', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const backendPays = res.ok ? await res.json() : [];
+
+      let merged = backendPays || [];
+      // If backend has only a small seed set, fetch global list from restcountries and merge
+      if (!backendPays || backendPays.length < 10) {
+        let enriched = null;
+        // Try restcountries first
+        try {
+          const rc = await fetch('https://restcountries.com/v3.1/all');
+          if (rc.ok) {
+            const rcData: any[] = await rc.json();
+            const rcMapped = rcData.map((c: any) => {
+              const code = (c.cca2 || c.cca3 || '').toUpperCase();
+              const name = c?.name?.common || code;
+              const iddRoot = c?.idd?.root || '';
+              const suffix = (c?.idd?.suffixes && c.idd.suffixes.length > 0) ? c.idd.suffixes[0] : '';
+              const indicatif = iddRoot ? `${iddRoot}${suffix}` : '';
+              const curKeys = c?.currencies ? Object.keys(c.currencies) : [];
+              const deviseSymbole = curKeys.length ? (c.currencies[curKeys[0]].symbol || curKeys[0]) : '';
+              const deviseCode = curKeys.length ? curKeys[0] : '';
+              const drapeau = c?.flags?.png || '';
+              return { codeIso: code, nom: name, indicatif, deviseSymbole, deviseCode, drapeau };
+            });
+            enriched = rcMapped;
+          }
+        } catch (err) {
+          console.warn('Restcountries inacessible, essayer fallback intl-tel-input');
+        }
+
+        // If restcountries failed, try extracting country data from intl-tel-input (bundled in the lib)
+        if (!enriched) {
+          try {
+            await import('intl-tel-input');
+            // global helper exposed by the library
+            const globals: any = (window as any).intlTelInputGlobals || (window as any).intlTelInput ? (window as any).intlTelInputGlobals : null;
+            const raw = globals && typeof globals.getCountryData === 'function' ? globals.getCountryData() : (globals && globals?.countries ? globals.countries : null);
+            if (raw && raw.length) {
+              const mapped = (raw as any[]).map(c => ({ codeIso: (c.iso2 || '').toUpperCase(), nom: c.name, indicatif: c.dialCode ? `+${c.dialCode}` : '', deviseSymbole: '', deviseCode: '', drapeau: '' }));
+              enriched = mapped;
+            }
+          } catch (err) {
+            console.warn('Impossible d\'extraire la liste depuis intl-tel-input');
+          }
+        }
+
+        if (enriched) {
+          // Merge & prefer backend entries when present
+          const map = new Map<string, any>();
+          enriched.forEach(p => map.set(p.codeIso, p));
+          (backendPays || []).forEach((p: any) => map.set((p.codeIso || '').toUpperCase(), p));
+          merged = Array.from(map.values()).sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
+        }
+      }
+
+      setPaysList(merged);
+    } catch (err: any) {
+      console.error('Erreur chargement pays :', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchPays();
+  }, []);
 
   const fetchBoutiques = async () => {
     try {
@@ -869,7 +970,6 @@ const Boutique = () => {
       setMessage('Veuillez remplir au moins le nom et l\'adresse.');
       return;
     }
-    
     const isEdit = !!newBoutique.id;
     setCreating(true);
     setMessage('');
@@ -885,7 +985,9 @@ const Boutique = () => {
       formData.append('nom', newBoutique.nom);
       formData.append('quartier', newBoutique.quartier);
       formData.append('adresse', newBoutique.adresse);
-      formData.append('telephone', newBoutique.telephone);
+      if (boutiqueCodePays) {
+        formData.append('codePays', boutiqueCodePays);
+      }
       if (newBoutique.logo) {
         formData.append('logo', newBoutique.logo);
       }
@@ -898,16 +1000,47 @@ const Boutique = () => {
       
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || `Erreur lors de la ${isEdit ? 'modification' : 'création'}`);
+        const msg = errData && errData.message ? errData.message : `Erreur lors de la ${isEdit ? 'modification' : 'création'}`;
+        await Swal.fire('Erreur', msg, 'error');
+        throw new Error(msg);
       }
-      
+
+      // parse created/updated boutique
+      const savedBoutique = await res.json().catch(() => null);
       setShowModal(false);
-      setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', telephone: '', logo: null });
-      setMessage(`Boutique ${isEdit ? 'modifiée' : 'créée'} avec succès !`);
+      setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null });
+      await Swal.fire('Succès', `Boutique ${isEdit ? 'modifiée' : 'créée'} avec succès !`, 'success');
+
+      // If this boutique is the current boutique in the user context, refresh it so currentBoutique has full pays info
+      try {
+        if (savedBoutique && currentBoutique && savedBoutique.id === (currentBoutique as any).id) {
+          // fetch full boutique and update user context
+          const bRes = await fetch(`http://localhost:8085/api/boutiques/${savedBoutique.id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+          if (bRes.ok) {
+            const full = await bRes.json();
+            // Update stored user data in localStorage and via setUserData so components react
+            try {
+              const userDataStr = localStorage.getItem('smb_user_data');
+              if (userDataStr) {
+                const ud = JSON.parse(userDataStr);
+                ud.currentBoutique = full;
+                localStorage.setItem('smb_user_data', JSON.stringify(ud));
+                setUserData(ud);
+              } else {
+                setUserData({ user: null, permissions: [], roles: [], currentBoutique: full });
+              }
+            } catch (e) {
+              // fallback: set only currentBoutique
+              setUserData({ user: null, permissions: [], roles: [], currentBoutique: full });
+            }
+          }
+        }
+      } catch (e) { /* ignore */ }
+
       fetchBoutiques();
       setTimeout(() => setMessage(''), 3000);
     } catch (err: any) {
-      setMessage(err.message);
+      await Swal.fire('Erreur', err.message || 'Une erreur est survenue', 'error');
     } finally {
       setCreating(false);
     }
@@ -955,9 +1088,9 @@ const Boutique = () => {
       nom: boutique.nom || '',
       quartier: boutique.quartier || '',
       adresse: boutique.adresse || '',
-      telephone: boutique.telephone || '',
       logo: null
     });
+    setBoutiqueCodePays(boutique?.pays?.codeIso || 'ML');
     setShowModal(true);
   };
 
@@ -997,7 +1130,8 @@ const Boutique = () => {
             <button 
               className="btn btn-light" 
               onClick={() => { 
-                setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', telephone: '', logo: null }); 
+                setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null }); 
+                setBoutiqueCodePays('ML'); // default country
                 setShowModal(true); 
               }}
             >
@@ -1025,7 +1159,7 @@ const Boutique = () => {
                   <th>Nom</th>
                   <th>Quartier</th>
                   <th>Adresse</th>
-                  <th>Téléphone</th>
+                  {/* <th>Téléphone</th> */}
                   {isSuperAdmin && <th>Actions</th>}
                 </tr>
               </thead>
@@ -1043,7 +1177,7 @@ const Boutique = () => {
                       <td>{boutique.nom}</td>
                       <td>{boutique.quartier || '-'}</td>
                       <td>{boutique.adresse}</td>
-                      <td>{boutique.telephone || '-'}</td>
+                      {/* <td>{boutique.telephone || '-'}</td> */}
                       {isSuperAdmin && (
                         <td>
                           <div className="btn-group" role="group">
@@ -1088,7 +1222,7 @@ const Boutique = () => {
                     className="btn-close" 
                     onClick={() => { 
                       setShowModal(false); 
-                      setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', telephone: '', logo: null }); 
+                      setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null }); 
                     }}
                   ></button>
                 </div>
@@ -1130,16 +1264,26 @@ const Boutique = () => {
                   </div>
                   
                   <div className="mb-3">
-                    <label className="form-label">Téléphone</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={newBoutique.telephone}
-                      onChange={(e) => setNewBoutique({ ...newBoutique, telephone: e.target.value })}
-                      placeholder="Numéro de téléphone"
-                    />
+                    <label className="form-label">Pays</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className={`iti__flag iti__${(boutiqueCodePays || 'ML').toLowerCase()}`} style={{ width: 28, height: 20, display: 'inline-block' }} />
+                      <select className="form-select" value={boutiqueCodePays || ''} onChange={(e) => {
+                        const code = e.target.value;
+                        setBoutiqueCodePays(code);
+                        // When a country is selected, clear the telephone field so the user enters the full number
+                        // and mark it as invalid until a real number is entered/validated. Keep the indicatif separately.
+                      }} style={{ maxWidth: 360 }}>
+                        <option value="">Sélectionnez un pays</option>
+                        {paysList.map(p => (
+                          <option key={p.codeIso} value={p.codeIso}>{`${p.nom} (${p.deviseSymbole || ''})`}</option>
+                        ))}
+                      </select>
+                      <div style={{ marginLeft: 8 }}>
+                        <small className="text-muted">Devise: {(paysList.find(p => p.codeIso === (boutiqueCodePays || 'ML')) || { deviseSymbole: 'FCFA' }).deviseSymbole}</small>
+                      </div>
+                    </div>
                   </div>
-                  
+
                   <div className="mb-3">
                     <label className="form-label">Logo</label>
                     <input
@@ -1160,7 +1304,7 @@ const Boutique = () => {
                     className="btn btn-secondary" 
                     onClick={() => { 
                       setShowModal(false); 
-                      setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', telephone: '', logo: null }); 
+                      setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null }); 
                     }}
                   >
                     Annuler

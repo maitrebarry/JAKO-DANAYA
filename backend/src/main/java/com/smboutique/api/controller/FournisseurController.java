@@ -80,6 +80,9 @@ public class FournisseurController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @Autowired
+    private com.smboutique.api.service.PhoneService phoneService;
+
     @PostMapping
     public Fournisseur createFournisseur(@RequestBody Fournisseur fournisseur) {
         Utilisateur current = getCurrentUser();
@@ -93,6 +96,21 @@ public class FournisseurController {
                     .orElseThrow(() -> new IllegalArgumentException("Boutique non trouvée"));
             fournisseur.setBoutique(boutique);
         }
+
+        // Validate phone
+        try {
+            String codePays = fournisseur.getCodePays();
+            if (codePays == null && fournisseur.getBoutique() != null && fournisseur.getBoutique().getPays() != null) {
+                codePays = fournisseur.getBoutique().getPays().getCodeIso();
+            }
+            if (fournisseur.getContact() != null && !fournisseur.getContact().isEmpty()) {
+                String normalized = phoneService.validateAndNormalize(fournisseur.getContact(), codePays);
+                fournisseur.setContact(normalized);
+            }
+        } catch (IllegalArgumentException ex) {
+            throw new RuntimeException("Téléphone invalide: " + ex.getMessage());
+        }
+
         return fournisseurService.save(fournisseur);
     }
 
@@ -120,8 +138,22 @@ public class FournisseurController {
 
                     fournisseur.setNom(fournisseurDetails.getNom());
                     fournisseur.setPrenom(fournisseurDetails.getPrenom());
-                    fournisseur.setContact(fournisseurDetails.getContact());
                     fournisseur.setVille(fournisseurDetails.getVille());
+
+                    // Validate phone
+                    try {
+                        String codePays = fournisseurDetails.getCodePays();
+                        if (codePays == null && fournisseur.getBoutique() != null && fournisseur.getBoutique().getPays() != null) {
+                            codePays = fournisseur.getBoutique().getPays().getCodeIso();
+                        }
+                        if (fournisseurDetails.getContact() != null && !fournisseurDetails.getContact().isEmpty()) {
+                            String normalized = phoneService.validateAndNormalize(fournisseurDetails.getContact(), codePays);
+                            fournisseur.setContact(normalized);
+                        }
+                    } catch (IllegalArgumentException ex) {
+                        return ResponseEntity.status(400).<Fournisseur>build();
+                    }
+
                     return ResponseEntity.ok(fournisseurService.save(fournisseur));
                 })
                 .orElse(ResponseEntity.notFound().build());

@@ -31,20 +31,20 @@
 </div>
 <div th:if="${logoBase64 == null}" class="header">
     <div class="no-logo-info">
-        <div><strong th:text="${inventaire.boutique != null ? inventaire.boutique.nom : ''}"></strong></div>
-        <div><span th:text="${inventaire.boutique != null ? inventaire.boutique.telephone : ''}"></span></div>
-        <div><span th:text="${inventaire.boutique != null ? inventaire.boutique.adresse : ''}"></span></div>
+        <div><strong th:text="${boutiqueNom}"></strong></div>
+        <div><span th:text="${boutiqueTelephone}"></span></div>
+        <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
 </div>
 <div class="footer-info">
     <div th:if="${logoBase64 == null}" class="boutique-info">
-        <div><strong th:text="${inventaire.boutique != null ? inventaire.boutique.nom : ''}"></strong></div>
-        <div><span th:text="${inventaire.boutique != null ? inventaire.boutique.telephone : ''}"></span></div>
-        <div><span th:text="${inventaire.boutique != null ? inventaire.boutique.adresse : ''}"></span></div>
+        <div><strong th:text="${boutiqueNom}"></strong></div>
+        <div><span th:text="${boutiqueTelephone}"></span></div>
+        <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
     <div class="meta-info">
         <div class="meta">Réf: <span th:text="${reference}"></span></div>
-        <div class="meta">Date: <span th:text="${dateInventaireFormatted != null ? dateInventaireFormatted : (inventaire.dateInventaire != null ? inventaire.dateInventaire : '')}"></span></div>
+    <div class="meta">Date: <span th:text="${dateInventaireFormatted != null ? dateInventaireFormatted : (inventaire != null && inventaire.dateInventaire != null ? inventaire.dateInventaire : '')}"></span></div>
         <div class="meta">Par: <span th:text="${par}"></span></div>
     </div>
 </div>
@@ -73,19 +73,19 @@
             </small>
         </td>
         <td th:text="${li.ecartStock != null ? li.ecartStock : '-'}"></td>
-        <td class="right" th:text="${li.montant != null ? #numbers.formatInteger(li.montant, 0) + ' FCFA' : '-'}"></td>
+        <td class="right" th:text="${li.montant != null ? #numbers.formatInteger(li.montant, 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA') : '-'}"></td>
       </tr>
     </tbody>
     <tfoot>
       <tr>
         <td colspan="3" class="right total-row">TOTAL</td>
-        <td class="right total-row" th:text="${#numbers.formatInteger(montantTotal != null ? montantTotal : 0, 0)} + ' FCFA'">0</td>
+        <td class="right total-row" th:text="${#numbers.formatInteger(montantTotal != null ? montantTotal : 0, 0)} + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA')">0</td>
       </tr>
     </tfoot>
   </table>
   
   <div class="signature">Signature: __________________________</div>
-  <footer>Merci d'avoir choisi notre boutique. Pour toute réclamation, contactez-nous au <span th:text="${inventaire.boutique != null ? inventaire.boutique.telephone : ''}"></span>.</footer>
+  <footer>Merci d'avoir choisi notre boutique. Pour toute réclamation, contactez-nous au <span th:text="${boutiqueTelephone}"></span>.</footer>
 
 </body>
 </html>

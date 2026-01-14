@@ -30,7 +30,7 @@
     <div><strong>Note:</strong> <span th:text="${depense.note}"></span></div>
   </div>
   <div style="float:right; width:38%; text-align:right;">
-    <div><strong>Montant:</strong> <span th:text="${depense.montant} + ' FCFA'"></span></div>
+    <div><strong>Montant:</strong> <span th:text="${#numbers.formatInteger(depense.montant != null ? depense.montant : 0, 0)} + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA')"></span></div>
     <div><strong>Date:</strong> <span th:text="${dateCreatedFormatted}"></span></div>
     <div><strong>Référence caisse:</strong> <span th:text="${depense.referenceCaisse}"></span></div>
   </div>
@@ -44,6 +44,6 @@
   <div th:if="${annuleParNom != null && annuleParNom != ''}"><strong>Annulée par:</strong> <span th:text="${annuleParNom}"></span> — <span th:text="${annuleAtFormatted}"></span> — <span th:text="${annuleReason}"></span></div>
 </div>
 
-<footer>SMBOUTIQUE</footer>
+<footer th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
 </body>
 </html>

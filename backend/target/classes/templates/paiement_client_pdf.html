@@ -32,16 +32,16 @@
 </div>
 <div th:if="${logoBase64 == null}" class="header">
     <div class="no-logo-info">
-        <div><strong th:text="${paiement.commandeClient != null && paiement.commandeClient.boutique != null ? paiement.commandeClient.boutique.nom : ''}"></strong></div>
-        <div><span th:text="${paiement.commandeClient != null && paiement.commandeClient.boutique != null ? paiement.commandeClient.boutique.telephone : ''}"></span></div>
-        <div><span th:text="${paiement.commandeClient != null && paiement.commandeClient.boutique != null ? paiement.commandeClient.boutique.adresse : ''}"></span></div>
+        <div><strong th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : ''}"></strong></div>
+        <div><span th:text="${boutiqueTelephone}"></span></div>
+        <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
 </div>
 <div class="footer-info">
     <div th:if="${logoBase64 == null}" class="boutique-info">
-        <div><strong th:text="${paiement.commandeClient != null && paiement.commandeClient.boutique != null ? paiement.commandeClient.boutique.nom : ''}"></strong></div>
-        <div><span th:text="${paiement.commandeClient != null && paiement.commandeClient.boutique != null ? paiement.commandeClient.boutique.telephone : ''}"></span></div>
-        <div><span th:text="${paiement.commandeClient != null && paiement.commandeClient.boutique != null ? paiement.commandeClient.boutique.adresse : ''}"></span></div>
+        <div><strong th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : ''}"></strong></div>
+        <div><span th:text="${boutiqueTelephone}"></span></div>
+        <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
     <div class="meta-info">
         <div class="meta">Réf: <span th:text="${paiement.reference}"></span></div>
@@ -66,18 +66,18 @@
     </thead>
     <tbody>
     <tr>
-        <td class="right" th:text="${#numbers.formatInteger(montantTotal != null ? montantTotal : (paiement.commandeClient != null ? paiement.commandeClient.total : 0), 0)} + ' FCFA'"></td>
-        <td class="right" th:text="${#numbers.formatInteger(montantPayeCommande != null ? montantPayeCommande : (paiement.commandeClient != null && paiement.commandeClient.paie != null ? paiement.commandeClient.paie : 0), 0)} + ' FCFA'"></td>
-        <td class="right" th:text="${#numbers.formatInteger(montantRestant != null ? montantRestant : ((paiement.commandeClient != null ? paiement.commandeClient.total : 0) - (paiement.commandeClient != null && paiement.commandeClient.paie != null ? paiement.commandeClient.paie : 0)), 0)} + ' FCFA'"></td>
+        <td class="right" th:text="${#numbers.formatInteger(montantTotal != null ? montantTotal : (paiement.commandeClient != null ? paiement.commandeClient.total : 0), 0)} + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA')"></td>
+        <td class="right" th:text="${#numbers.formatInteger(montantPayeCommande != null ? montantPayeCommande : (paiement.commandeClient != null && paiement.commandeClient.paie != null ? paiement.commandeClient.paie : 0), 0)} + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA')"></td>
+        <td class="right" th:text="${#numbers.formatInteger(montantRestant != null ? montantRestant : ((paiement.commandeClient != null ? paiement.commandeClient.total : 0) - (paiement.commandeClient != null && paiement.commandeClient.paie != null ? paiement.commandeClient.paie : 0)), 0)} + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA')"></td>
     </tr>
     </tbody>
 </table>
 
-<div class="meta">Montant payé sur ce reçu : <strong th:text="${#numbers.formatInteger(montantPayeThis != null ? montantPayeThis : (paiement.montantPaye != null ? paiement.montantPaye : 0), 0)}"></strong> FCFA</div>
+<div class="meta">Montant payé sur ce reçu : <strong th:text="${#numbers.formatInteger(montantPayeThis != null ? montantPayeThis : (paiement.montantPaye != null ? paiement.montantPaye : 0), 0)}"></strong> <span th:text="${deviseSymbole != null ? deviseSymbole : 'FCFA'}"></span></div>
 <div class="meta">Établit le: <strong th:text="${datePaiementFormatted}"></strong></div>
 <div class="meta">Par: <strong th:text="${paiement.commandeClient != null && paiement.commandeClient.utilisateur != null ? paiement.commandeClient.utilisateur.nom + ' ' + paiement.commandeClient.utilisateur.prenom : ''}"></strong></div>
 
 <div class="signature">Signature: __________________________</div>
-<footer>SMBOUTIQUE</footer>
+<footer th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
 </body>
 </html>

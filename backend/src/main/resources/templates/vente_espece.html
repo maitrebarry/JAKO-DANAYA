@@ -22,23 +22,22 @@
     </style>
 </head>
 <body>
-<div th:if="${vente.boutique != null && vente.boutique.logo != null}" class="header bg-logo" th:style="'background-image: url(' + ${vente.boutique.logo} + ');'"></div>
-<div th:if="${vente.boutique == null || vente.boutique.logo == null}" class="header">
+<div th:if="${logoBase64 != null}" class="header bg-logo" th:style="'background-image: url(' + ${logoBase64} + ');'"></div>
+<div th:if="${logoBase64 == null}" class="header">
     <div class="no-logo-info">
-        <div><strong th:text="${vente.boutique != null ? vente.boutique.nom : 'SMBOUTIQUE'}"></strong></div>
-        <div><span th:text="${vente.boutique != null ? vente.boutique.telephone : ''}"></span></div>
-        <div><span th:text="${vente.boutique != null ? vente.boutique.adresse : ''}"></span></div>
+        <div><strong th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></strong></div>
+        <div><span th:text="${boutiqueTelephone}"></span></div>
+        <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
 </div>
 
 <div class="footer-info">
-    <div th:if="${vente.boutique != null && vente.boutique.logo == null}" class="boutique-info">
-        <div><strong th:text="${vente.boutique != null ? vente.boutique.nom : ''}"></strong></div>
-        <div><span th:text="${vente.boutique != null ? vente.boutique.telephone : ''}"></span></div>
-        <div><span th:text="${vente.boutique != null ? vente.boutique.adresse : ''}"></span></div>
+    <div th:if="${logoBase64 == null}" class="boutique-info">
+        <div><strong th:text="${boutiqueNom}"></strong></div>
+        <div><span th:text="${boutiqueTelephone}"></span></div>
+        <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
     <div class="meta-info">
-        <div class="meta">Réf: <span th:text="${vente.referenceCaisse}"></span></div>
         <div class="meta">Date: <span th:text="${dateVenteFormatted}"></span></div>
         <div class="meta">Client: <span th:text="${vente.nomClient != null ? vente.nomClient : 'Clients divers'}"></span></div>
     </div>
@@ -69,15 +68,15 @@
             <td>
                 <span th:text="${lv.quantite}"></span>
             </td>
-            <td><span th:text="${lv.newPrice != null ? lv.newPrice : (lv.prix != null ? lv.prix : 0)}"></span> FCFA</td>
-            <td class="right"><span th:text="${(lv.newPrice != null ? lv.newPrice : (lv.prix != null ? lv.prix : 0)) * (lv.quantite != null ? lv.quantite : 0)}"></span> FCFA</td>
+            <td th:text="${lv.prixLabel != null ? lv.prixLabel : (#numbers.formatInteger(lv.newPrice != null ? lv.newPrice : (lv.prix != null ? lv.prix : 0),0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></td>
+            <td class="right" th:text="${lv.montantLabel != null ? lv.montantLabel : (#numbers.formatInteger((lv.newPrice != null ? lv.newPrice : (lv.prix != null ? lv.prix : 0)) * (lv.quantite != null ? lv.quantite : 0), 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></td>
         </tr>
     </th:block>
     </tbody>
     <tfoot>
     <tr>
         <td colspan="3" class="right"><strong>TOTAL</strong></td>
-        <td class="right"><strong th:text="${vente.montantTotal}"></strong> FCFA</td>
+        <td class="right"><strong th:text="${venteMontantTotalLabel != null ? venteMontantTotalLabel : (#numbers.formatInteger(vente.montantTotal != null ? vente.montantTotal : 0, 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></strong></td>
     </tr>
     </tfoot>
 </table>
@@ -93,10 +92,10 @@
   </thead>
   <tbody>
     <tr>
-      <td><strong th:text="${#numbers.formatInteger(vente.remise != null ? vente.remise : 0, 0)} + ' FCFA'"></strong></td>
-      <td><strong th:text="${#numbers.formatInteger(vente.netAPayer != null ? vente.netAPayer : (vente.montantTotal != null ? vente.montantTotal : 0), 0)} + ' FCFA'"></strong></td>
-      <td><strong th:text="${#numbers.formatInteger(vente.montantRecu != null ? vente.montantRecu : 0, 0)} + ' FCFA'"></strong></td>
-      <td><strong th:text="${#numbers.formatInteger(vente.monnaieRembourse != null ? vente.monnaieRembourse : 0, 0)} + ' FCFA'"></strong></td>
+      <td><strong th:text="${venteRemiseLabel != null ? venteRemiseLabel : (#numbers.formatInteger(vente.remise != null ? vente.remise : 0, 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></strong></td>
+      <td><strong th:text="${venteNetAPayerLabel != null ? venteNetAPayerLabel : (#numbers.formatInteger(vente.netAPayer != null ? vente.netAPayer : (vente.montantTotal != null ? vente.montantTotal : 0), 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></strong></td>
+      <td><strong th:text="${venteMontantRecuLabel != null ? venteMontantRecuLabel : (#numbers.formatInteger(vente.montantRecu != null ? vente.montantRecu : 0, 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></strong></td>
+      <td><strong th:text="${venteMonnaieRembourseLabel != null ? venteMonnaieRembourseLabel : (#numbers.formatInteger(vente.monnaieRembourse != null ? vente.monnaieRembourse : 0, 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></strong></td>
     </tr>
   </tbody>
 </table>
@@ -105,6 +104,6 @@
 
 <div style="margin-top:6px; font-size:11px; color:#555;">Établi par: <span th:text="${vente.utilisateur != null ? (vente.utilisateur.nom + ' ' + vente.utilisateur.prenom) : '-'}"></span></div>
 
-<footer>SMBOUTIQUE</footer>
+<footer th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
 </body>
 </html>

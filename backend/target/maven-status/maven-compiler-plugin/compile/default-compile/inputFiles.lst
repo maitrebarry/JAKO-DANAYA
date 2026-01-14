@@ -5,6 +5,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/config/WebConfig.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/AdminController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/AdminPermissionController.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/AuditController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/AuthController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/BoutiqueController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/CaisseController.java
@@ -29,8 +30,10 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/NotificationController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/PaiementClientController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/PaiementController.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/PaysController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/PermissionController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/ProduitController.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/RapportsController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/ReceptionController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/RoleController.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/controller/StockController.java
@@ -50,7 +53,11 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/ReceptionListDTO.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/ReceptionStatusDTO.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/StockDTO.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/StockReportItemDTO.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/TopProductDTO.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/UtilisationRequest.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/ValeurStockDTO.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/dto/VenteJournalierDTO.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/exception/ImportValidationException.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Boutique.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Caisse.java
@@ -78,6 +85,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Notification.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Paiement.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/PaiementClient.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Pays.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Permission.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/PriceMode.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/model/Produit.java
@@ -113,6 +121,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/repository/NotificationRepository.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/repository/PaiementClientRepository.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/repository/PaiementRepository.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/repository/PaysRepository.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/repository/PermissionRepository.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/repository/ProduitRepository.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/repository/ReceptionRepository.java
@@ -126,9 +135,12 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/security/AuthEntryPointJwt.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/security/AuthTokenFilter.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/security/JwtUtils.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/security/PermissionConstants.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/security/RoleConstants.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/security/UserDetailsImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/security/UserDetailsServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/security/WebSecurityConfig.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/AuditService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/BoutiqueService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/CaisseMovementService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/CaisseService.java
@@ -155,9 +167,12 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/NotificationService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/PaiementClientService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/PaiementService.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/PaysSyncService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/PdfService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/PermissionService.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/PhoneService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/ProduitService.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/RapportService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/ReceptionService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/RoleService.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/StockService.java
@@ -171,6 +186,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/dto/CaisseSummaryResult.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/dto/DashboardOverviewDTO.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/dto/DashboardPayload.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/AuditServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/BoutiqueServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/CaisseMovementServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/CaisseServiceImpl.java
@@ -198,6 +214,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/PaiementClientServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/PaiementServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/PdfServiceImpl.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/PhoneServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/ProduitServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/ReceptionServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/RecomputeJobService.java
@@ -209,3 +226,7 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/UtilisationPertesServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/service/impl/VenteServiceImpl.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/util/DateUtils.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/util/PaiementSmokeRunner.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/util/RapportSmokeRunner.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/util/ReceptionSmokeRunner.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/main/java/com/smboutique/api/util/TemplateSmokeRunner.java

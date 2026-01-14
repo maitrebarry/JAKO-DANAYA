@@ -16,23 +16,6 @@ const Layout = ({ children }: LayoutProps) => {
   }, []);
   const toggleSidebar = () => setSidebarOpen(s => !s);
 
-  const { user, roles = [] } = useUser();
-
-  const translateRole = (role: string) => {
-    const roleMap: { [key: string]: string } = {
-      'SUPERADMIN': 'Administrateur Principal',
-      'ADMIN': 'Administrateur',
-      'MANAGER': 'Manager',
-      'STOREKEEPER': 'Magasinier',
-      'CASHIER': 'Caissier'
-    };
-    return roleMap[role.toUpperCase()] || role;
-  };
-
-  const uniqueRoles = [...new Set(roles.map(r => r.toUpperCase().trim()).filter(r => r))];
-  const translatedRoles = uniqueRoles.map(r => translateRole(r));
-  const displayRoles = [...new Set(translatedRoles)].join(', ');
-
   return (
     <div className="wrapper">
       <Sidebar isOpen={sidebarOpen} />
@@ -299,8 +282,9 @@ const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
   }, [permissions]);
   return (
     <div className={`sidenav-menu ${!isOpen ? 'd-none d-md-block' : ''}`}>
-      <div className="text-center py-2" style={{ borderBottom: '1px solid #e9ecef' }}>
-        <span className="fw-bold fs-1 text-primary d-block" style={{ 
+      <div className="text-center py-1" style={{ borderBottom: '1px solid #e9ecef' }}>
+        <span className="fw-bold text-primary d-block" style={{ 
+          fontSize: '1.5rem',
           background: 'linear-gradient(45deg, #007bff, #6610f2)', 
           WebkitBackgroundClip: 'text', 
           WebkitTextFillColor: 'transparent', 

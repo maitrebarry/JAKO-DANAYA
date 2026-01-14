@@ -4,6 +4,7 @@ import com.smboutique.api.model.Boutique;
 import com.smboutique.api.model.Utilisateur;
 import com.smboutique.api.service.BoutiqueService;
 import com.smboutique.api.service.UtilisateurService;
+import com.smboutique.api.model.Pays;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,6 +30,9 @@ public class BoutiqueController {
 
     @Autowired
     private UtilisateurService utilisateurService;
+
+    @Autowired
+    private com.smboutique.api.repository.PaysRepository paysRepository;
 
     private static final String UPLOAD_DIR = "uploads/logos/";
 
@@ -76,18 +80,38 @@ public class BoutiqueController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @Autowired
+    private com.smboutique.api.service.PhoneService phoneService;
+
+    @Autowired
+    private com.smboutique.api.service.PaysSyncService paysSyncService;
+
     @PostMapping
     @PreAuthorize("hasRole('SUPERADMIN')")
-    public Boutique createBoutique(@RequestParam("nom") String nom,
-                                   @RequestParam("quartier") String quartier,
-                                   @RequestParam("adresse") String adresse,
-                                   @RequestParam("telephone") String telephone,
+    public ResponseEntity<?> createBoutique(@RequestParam(value = "nom", required = false) String nom,
+                                   @RequestParam(value = "quartier", required = false) String quartier,
+                                   @RequestParam(value = "adresse", required = false) String adresse,
+                                   @RequestParam(value = "indicatif", required = false) String indicatif,
+                                   @RequestParam(value = "codePays", required = false) String codePays,
                                    @RequestParam(value = "logo", required = false) MultipartFile logo) throws IOException {
+        // Ensure minimal required fields are present
+        if (nom == null || nom.trim().isEmpty() || adresse == null || adresse.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("Veuillez remplir au moins le nom et l'adresse.");
+        }
+
         Boutique boutique = new Boutique();
         boutique.setNom(nom);
         boutique.setQuartier(quartier);
         boutique.setAdresse(adresse);
-        boutique.setTelephone(telephone);
+
+        // Normalize phone using provided codePays or default ML
+        String cp = (codePays != null && !codePays.isEmpty()) ? codePays.toUpperCase() : (paysRepository.findByCodeIso("ML").map(p -> p.getCodeIso()).orElse("ML"));
+
+        // Set indicatif if provided
+        if (indicatif != null && !indicatif.trim().isEmpty()) {
+            String indClean = indicatif.replaceAll("\\s", "");
+            boutique.setIndicatif(indClean.startsWith("+") ? indClean : "+" + indClean);
+        }
 
         if (logo != null && !logo.isEmpty()) {
             String fileName = UUID.randomUUID().toString() + "_" + logo.getOriginalFilename();
@@ -99,23 +123,38 @@ public class BoutiqueController {
             boutique.setLogo("/" + UPLOAD_DIR + fileName);
         }
 
-        return boutiqueService.save(boutique);
+        // if codePays provided, associate it (create if unknown)
+        if (codePays != null && !codePays.isEmpty()) {
+            var p = paysRepository.findByCodeIso(codePays.toUpperCase())
+                    .orElseGet(() -> paysSyncService.ensurePays(codePays.toUpperCase()));
+            boutique.setPays(p);
+        }
+
+        return ResponseEntity.ok(boutiqueService.save(boutique));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('SUPERADMIN')")
-    public ResponseEntity<Boutique> updateBoutique(@PathVariable Long id,
+    public ResponseEntity<?> updateBoutique(@PathVariable Long id,
                                                    @RequestParam("nom") String nom,
                                                    @RequestParam("quartier") String quartier,
                                                    @RequestParam("adresse") String adresse,
-                                                   @RequestParam("telephone") String telephone,
+                                                   @RequestParam(value = "indicatif", required = false) String indicatif,
+                                                   @RequestParam(value = "codePays", required = false) String codePays,
                                                    @RequestParam(value = "logo", required = false) MultipartFile logo) throws IOException {
         return boutiqueService.findById(id)
                 .map(boutique -> {
                     boutique.setNom(nom);
                     boutique.setQuartier(quartier);
                     boutique.setAdresse(adresse);
-                    boutique.setTelephone(telephone);
+
+                    // Set indicatif if provided
+                    if (indicatif != null && !indicatif.trim().isEmpty()) {
+                        String indClean = indicatif.replaceAll("\\s", "");
+                        boutique.setIndicatif(indClean.startsWith("+") ? indClean : "+" + indClean);
+                    } else {
+                        boutique.setIndicatif(null);
+                    }
 
                     if (logo != null && !logo.isEmpty()) {
                         try {
@@ -129,6 +168,21 @@ public class BoutiqueController {
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
+                    }
+
+                    if (codePays != null && !codePays.isEmpty()) {
+                        var p = paysRepository.findByCodeIso(codePays.toUpperCase())
+                                .orElseGet(() -> paysSyncService.ensurePays(codePays.toUpperCase()));
+                        boutique.setPays(p);
+                        // also save the indicatif if available
+                        if (p != null && p.getIndicatif() != null) {
+                            boutique.setIndicatif(p.getIndicatif().startsWith("+") ? p.getIndicatif() : "+" + p.getIndicatif());
+                        }
+                    }
+                    // if indicatif was supplied explicitly, store it
+                    if (indicatif != null && !indicatif.trim().isEmpty()) {
+                        String indClean = indicatif.replaceAll("\\s", "");
+                        boutique.setIndicatif(indClean.startsWith("+") ? indClean : "+" + indClean);
                     }
 
                     return ResponseEntity.ok(boutiqueService.save(boutique));

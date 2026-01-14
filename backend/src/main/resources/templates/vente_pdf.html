@@ -15,7 +15,7 @@
 </head>
 <body>
   <div class="header">
-    <h2>SMBOUTIQUE</h2>
+    <h2 th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}">SMBOUTIQUE</h2>
     <div>Vente #: [[${vente.id}]]</div>
     <div class="small">Date: [[${dateVenteFormatted}]]</div>
     <div class="small">Client: [[${vente.nomClient}]]</div>
@@ -39,15 +39,15 @@
             <span th:if="${lv.quantiteConditionnement != null and lv.produit != null and lv.produit.nombreUnitesParConditionnement != null}" class="small"> — Vente issue de <span th:text="${lv.quantiteConditionnement}"></span> <span th:text="${lv.produit.uniteConditionnement != null ? lv.produit.uniteConditionnement : 'emballage'}"></span> (=<span th:text="${lv.produit.nombreUnitesParConditionnement}"></span> unités)</span>
             <span th:if="${lv.resteUnitesDansCartonApresVente != null}" class="small"> — Reste dans carton: <span th:text="${lv.resteUnitesDansCartonApresVente}"></span> unité<span th:if="${lv.resteUnitesDansCartonApresVente > 1}">s</span></span>
           </td>
-          <td th:text="${lv.newPrice}"></td>
-          <td th:text="${(lv.newPrice != null ? lv.newPrice : 0) * (lv.quantite != null ? lv.quantite : 0)}"></td>
+          <td th:text="${lv.prixLabel != null ? lv.prixLabel : (#numbers.formatInteger(lv.newPrice != null ? lv.newPrice : (lv.prix != null ? lv.prix : 0), 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></td>
+          <td th:text="${lv.montantLabel != null ? lv.montantLabel : (#numbers.formatInteger((lv.newPrice != null ? lv.newPrice : 0) * (lv.quantite != null ? lv.quantite : 0), 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></td>
         </tr>
       </th:block>
     </tbody>
     <tfoot>
       <tr>
         <td colspan="3" style="text-align:right">TOTAL</td>
-        <td th:text="${vente.montantTotal}"></td>
+        <td th:text="${venteMontantTotalLabel != null ? venteMontantTotalLabel : (#numbers.formatInteger(vente.montantTotal != null ? vente.montantTotal : 0, 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></td>
       </tr>
     </tfoot>
   </table>

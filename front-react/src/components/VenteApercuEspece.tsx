@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { formatServerDate } from '../utils/date';
+import { useFormatMoney } from '../utils/currency';
 
 interface Ligne { id: number; nom: string; quantite: number; quantiteConditionnement?: number | null; multiplicateur?: number | null; prix: number; montant: number; unitLabel?: string | null; reste?: number | null }
 
 const VenteApercuEspece: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const fmt = useFormatMoney();
   const [loading, setLoading] = useState(true);
   const [vente, setVente] = useState<any>(null);
   const [lignes, setLignes] = useState<Ligne[]>([]);
@@ -115,13 +117,13 @@ const VenteApercuEspece: React.FC = () => {
                         <tr key={l.id}>
                           <td>{l.nom}</td>
                           <td>{l.quantite}{l.quantiteConditionnement ? <small className="text-muted"> ({l.quantiteConditionnement} x {l.multiplicateur})</small> : null} {l.reste != null ? <div className="small text-muted">Reste dans carton: {l.reste} unité{l.reste > 1 ? 's' : ''}</div> : null}</td>
-                          <td>{l.prix}</td>
-                          <td>{l.montant}</td>
+                          <td>{fmt(l.prix)}</td>
+                          <td>{fmt(l.montant)}</td>
                         </tr>
                       ))}
                       <tr>
                         <td colSpan={3} className="text-end"><strong>Montant total</strong></td>
-                        <td className="text-end">{vente.montantTotal ?? vente.total ?? 0} FCFA</td>
+                        <td className="text-end">{fmt(vente.montantTotal ?? vente.total ?? 0)}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -133,19 +135,19 @@ const VenteApercuEspece: React.FC = () => {
                   <div className="row">
                     <div className="col-xl-3 col-md-6">
                       <label>Rémise</label>
-                      <input className="form-control" value={vente.remise ?? 0} readOnly />
+                      <input className="form-control" value={fmt(vente.remise ?? 0)} readOnly />
                     </div>
                     <div className="col-xl-3 col-md-6">
                       <label>Net à payer</label>
-                      <input className="form-control" value={vente.netAPayer ?? 0} readOnly />
+                      <input className="form-control" value={fmt(vente.netAPayer ?? 0)} readOnly />
                     </div>
                     <div className="col-xl-3 col-md-6">
                       <label>Montant reçu</label>
-                      <input className="form-control" defaultValue={vente.montantRecu ?? 0} />
+                      <input className="form-control" value={fmt(vente.montantRecu ?? 0)} readOnly />
                     </div>
                     <div className="col-xl-3 col-md-6">
                       <label>Monnaie à rembourser</label>
-                      <input className="form-control" value={vente.monnaieRembourse ?? 0} readOnly />
+                      <input className="form-control" value={fmt(vente.monnaieRembourse ?? 0)} readOnly />
                     </div>
                   </div>
                 </div>

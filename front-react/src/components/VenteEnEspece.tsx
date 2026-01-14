@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import SearchableSelect from './SearchableSelect';
 import RequirePermission from './RequirePermission';
+import { useFormatMoney } from '../utils/currency';
 
 interface Line {
   id_stock?: number;
@@ -24,6 +25,7 @@ const VenteEnEspece: React.FC = () => {
   const [montantRecu, setMontantRecu] = useState<number | null>(null);
   const [remise, setRemise] = useState<number>(0);
   const [loading, setLoading] = useState(false);
+  const fmt = useFormatMoney();
 
   // Location (boutique / magasin)
   const [magasins, setMagasins] = useState<any[]>([]);
@@ -165,7 +167,7 @@ const VenteEnEspece: React.FC = () => {
     setLines(prev => [...prev, newLine]);
   };
 
-  const formatFCFA = (n: number) => `${Number(n || 0).toFixed(2)} FCFA`; 
+  const formatFCFA = (n: number) => fmt(n); 
   const computeLineQuantiteReelle = (l: Line) => {
     if (l.venteParConditionnement) {
       const stock = stocks.find(s => s.id === l.id_stock);

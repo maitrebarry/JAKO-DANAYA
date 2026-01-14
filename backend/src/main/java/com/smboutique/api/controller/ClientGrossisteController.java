@@ -44,12 +44,27 @@ public class ClientGrossisteController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @Autowired
+    private com.smboutique.api.service.PhoneService phoneService;
+
     @PostMapping
     public ResponseEntity<ClientGrossiste> createClientGrossiste(@RequestBody ClientGrossiste clientGrossiste) {
         com.smboutique.api.model.Utilisateur user = getCurrentUser();
         if (!isSuperAdmin(user) && !utilisateurService.hasPermission(user, "CLIENT_CREER")) {
             return ResponseEntity.status(403).build();
         }
+
+        try {
+            String codePays = clientGrossiste.getCodePays();
+            if (codePays == null && user.getBoutique() != null && user.getBoutique().getPays() != null) codePays = user.getBoutique().getPays().getCodeIso();
+            if (clientGrossiste.getContact() != null && !clientGrossiste.getContact().isEmpty()) {
+                String normalized = phoneService.validateAndNormalize(clientGrossiste.getContact(), codePays);
+                clientGrossiste.setContact(normalized);
+            }
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(400).<ClientGrossiste>build();
+        }
+
         return ResponseEntity.ok(clientGrossisteService.save(clientGrossiste));
     }
 
@@ -63,8 +78,17 @@ public class ClientGrossisteController {
                 .map(clientGrossiste -> {
                     clientGrossiste.setNom(clientGrossisteDetails.getNom());
                     clientGrossiste.setPrenom(clientGrossisteDetails.getPrenom());
-                    clientGrossiste.setContact(clientGrossisteDetails.getContact());
                     clientGrossiste.setVille(clientGrossisteDetails.getVille());
+                    try {
+                        String codePays = clientGrossisteDetails.getCodePays();
+                        if (codePays == null && user.getBoutique() != null && user.getBoutique().getPays() != null) codePays = user.getBoutique().getPays().getCodeIso();
+                        if (clientGrossisteDetails.getContact() != null && !clientGrossisteDetails.getContact().isEmpty()) {
+                            String normalized = phoneService.validateAndNormalize(clientGrossisteDetails.getContact(), codePays);
+                            clientGrossiste.setContact(normalized);
+                        }
+                    } catch (IllegalArgumentException ex) {
+                        return ResponseEntity.status(400).<ClientGrossiste>build();
+                    }
                     return ResponseEntity.ok(clientGrossisteService.save(clientGrossiste));
                 })
                 .orElse(ResponseEntity.notFound().build());

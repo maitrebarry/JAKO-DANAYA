@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useUser } from '../contexts/UserContext';
+import { useFormatMoney } from '../utils/currency';
 import { formatServerDate } from '../utils/date';
 import useHasPermission from '../contexts/useHasPermission';
 
@@ -32,6 +33,7 @@ interface CommandeData {
 const ListeCommandes: React.FC = () => {
   const navigate = useNavigate();
   const { currentBoutique, logout } = useUser();
+  const fmt = useFormatMoney();
   const [commandes, setCommandes] = useState<CommandeData[]>([]);
   const [filteredCommandes, setFilteredCommandes] = useState<CommandeData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -270,11 +272,13 @@ const ListeCommandes: React.FC = () => {
         return;
       }
 
-      // decide which endpoint to try based on the explicit item type if provided
+      // Séparation stricte :
+      // - Mode liste vente/commande client -> commandes-clients uniquement
+      // - Mode liste commande fournisseur -> commandes-fournisseurs uniquement
       const ventePreferred = (typeof isVenteItem === 'boolean') ? isVenteItem : isVenteMode;
       const tryPaths = ventePreferred
-        ? [`http://localhost:8085/api/ventes/${commandeId}/pdf`, `http://localhost:8085/api/commandes-clients/${commandeId}/pdf`]
-        : [`http://localhost:8085/api/commandes-fournisseurs/${commandeId}/pdf`, `http://localhost:8085/api/commandes-clients/${commandeId}/pdf`];
+        ? [`http://localhost:8085/api/commandes-clients/${commandeId}/pdf`]
+        : [`http://localhost:8085/api/commandes-fournisseurs/${commandeId}/pdf`];
 
       let lastErr: any = null;
       for (const p of tryPaths) {
@@ -456,8 +460,8 @@ const ListeCommandes: React.FC = () => {
                                 </div>
                               </div>
                             </td>
-                            <td>{commande.total.toFixed(2)} FCFA</td>
-                            <td>{commande.paie.toFixed(2)} FCFA</td>
+                            <td>{fmt(Number(commande.total))}</td>
+                            <td>{fmt(Number(commande.paie))}</td>
                           </tr>
                         ))}
                         <tr>
@@ -465,10 +469,10 @@ const ListeCommandes: React.FC = () => {
                             <span className="text-primary">Total Général :</span>
                           </td>
                           <td>
-                            <span className="text-primary">{totalGeneral.toFixed(2)} FCFA</span>
+                            <span className="text-primary">{fmt(totalGeneral)}</span>
                           </td>
                           <td>
-                            <span className="text-primary">{totalMontantPaye.toFixed(2)} FCFA</span>
+                            <span className="text-primary">{fmt(totalMontantPaye)}</span>
                           </td>
                         </tr>
                       </>

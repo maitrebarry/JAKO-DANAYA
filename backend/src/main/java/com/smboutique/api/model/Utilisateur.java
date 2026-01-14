@@ -25,6 +25,10 @@ public class Utilisateur {
     @Column(name = "Contact_utilisateur")
     private String contact;
 
+    // Transient field to receive country code from frontend when creating/updating phone
+    @Transient
+    private String codePays;
+
     private String email;
 
     @Column(name = "psedeau_utilisateur")

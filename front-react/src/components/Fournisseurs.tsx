@@ -3,6 +3,7 @@ import Swal from 'sweetalert2';
 import { useUser } from '../contexts/UserContext';
 import useHasPermission from '../contexts/useHasPermission';
 import RequirePermission from './RequirePermission';
+import PhoneWithDial from './PhoneWithDial';
 
 const Fournisseurs: React.FC = () => {
   const { roles, currentBoutique } = useUser();
@@ -12,6 +13,8 @@ const Fournisseurs: React.FC = () => {
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [newFournisseur, setNewFournisseur] = useState({ prenom: '', nom: '', contact: '', ville: '', boutiqueId: '' });
+  const [phoneCodePays, setPhoneCodePays] = useState<string | null>(null);
+  const [newFournisseurTelephoneValid, setNewFournisseurTelephoneValid] = useState<boolean | null>(null);
   const [editing, setEditing] = useState<any>(null);
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState('');
@@ -104,7 +107,8 @@ const Fournisseurs: React.FC = () => {
         prenom: newFournisseur.prenom,
         nom: newFournisseur.nom,
         contact: newFournisseur.contact,
-        ville: newFournisseur.ville
+        ville: newFournisseur.ville,
+        codePays: phoneCodePays || undefined
       };
       if (newFournisseur.boutiqueId) payload.boutique = { id: newFournisseur.boutiqueId };
 
@@ -215,7 +219,7 @@ const Fournisseurs: React.FC = () => {
                   <td>{f.boutique?.nom || 'N/A'}</td>
                   <td>
                     <RequirePermission permission="FOURNISSEUR_MODIFIER">
-                      <button className="btn btn-sm btn-warning me-2" title="Modifier" onClick={() => { setEditing(f); setNewFournisseur({ prenom: f.prenom || '', nom: f.nom || '', contact: f.contact || '', ville: f.ville || '', boutiqueId: f.boutique?.id ? f.boutique.id.toString() : (currentBoutique?.id?.toString() || '') }); setShowModal(true); }}><i className="ti ti-pencil"></i></button>
+                      <button className="btn btn-sm btn-warning me-2" title="Modifier" onClick={() => { setEditing(f); setNewFournisseur({ prenom: f.prenom || '', nom: f.nom || '', contact: f.contact || '', ville: f.ville || '', boutiqueId: f.boutique?.id ? f.boutique.id.toString() : (currentBoutique?.id?.toString() || '') }); setPhoneCodePays(f.codePays || (f.boutique && f.boutique.pays ? f.boutique.pays.codeIso : 'ML')); setShowModal(true); }}><i className="ti ti-pencil"></i></button>
                     </RequirePermission>
                     <RequirePermission permission="FOURNISSEUR_SUPPRIMER">
                       <button className="btn btn-sm btn-danger" title="Supprimer" onClick={() => handleDelete(f.id)}><i className="ti ti-trash"></i></button>
@@ -258,13 +262,7 @@ const Fournisseurs: React.FC = () => {
               </div>
               <div className="mb-3">
                 <label className="form-label">Contact</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={newFournisseur.contact}
-                  onChange={(e) => setNewFournisseur({ ...newFournisseur, contact: e.target.value })}
-                  placeholder="Contact"
-                />
+                <PhoneWithDial value={newFournisseur.contact} defaultCountry={((currentBoutique as any) && (currentBoutique as any).pays && (currentBoutique as any).pays.codeIso) ? (currentBoutique as any).pays.codeIso : 'ML'} onChange={(tel, code, valid) => { setNewFournisseur({ ...newFournisseur, contact: tel || '' }); setPhoneCodePays(code || null); setNewFournisseurTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
               </div>
               <div className="mb-3">
                 <label className="form-label">Ville</label>
@@ -296,7 +294,11 @@ const Fournisseurs: React.FC = () => {
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={() => { setShowModal(false); setEditing(null); resetForm(); }}>Annuler</button>
-              <button type="button" className="btn btn-primary" onClick={handleCreateOrUpdate} disabled={creating || (!editing && !canCreate) || (editing && !canModify)}>
+              <button type="button" className="btn btn-primary" onClick={() => {
+                // validate phone
+                if (newFournisseur.contact && newFournisseur.contact.trim() && newFournisseurTelephoneValid !== true) { Swal.fire('Erreur', 'Le numéro de téléphone est invalide ou incomplet pour le pays sélectionné', 'error'); return; }
+                handleCreateOrUpdate();
+              }} disabled={creating || (!editing && !canCreate) || (editing && !canModify)}>
                 {creating ? (editing ? 'Modification...' : 'Création...') : (editing ? 'Modifier' : 'Créer')}
               </button>
             </div>

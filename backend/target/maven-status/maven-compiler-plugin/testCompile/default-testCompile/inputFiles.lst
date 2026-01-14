@@ -24,3 +24,6 @@
 /home/maitre/SMBOUTIQUE_V2/backend/src/test/java/com/smboutique/api/service/ProduitServiceImplTest.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/test/java/com/smboutique/api/service/TransferServiceTest.java
 /home/maitre/SMBOUTIQUE_V2/backend/src/test/java/com/smboutique/api/service/impl/DashboardServiceImplTest.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/test/java/com/smboutique/api/service/impl/PaiementPdfTest.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/test/java/com/smboutique/api/service/impl/PdfTemplateTest.java
+/home/maitre/SMBOUTIQUE_V2/backend/src/test/java/com/smboutique/api/service/impl/ReceptionPdfTest.java
