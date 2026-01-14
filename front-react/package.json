@@ -11,13 +11,14 @@
   },
   "dependencies": {
     "chart.js": "^4.5.1",
+    "flag-icons": "^7.5.0",
+    "intl-tel-input": "^17.0.13",
     "jspdf": "^2.5.1",
     "react": "^19.2.0",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.10.0",
-    "sweetalert2": "^11.26.3",
-    "intl-tel-input": "^17.0.13"
+    "sweetalert2": "^11.26.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

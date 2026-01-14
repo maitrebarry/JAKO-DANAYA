@@ -1,6 +1,7 @@
 import React, { ReactNode, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
+import 'flag-icons/css/flag-icons.min.css';
 
 
 interface LayoutProps {
@@ -177,8 +178,20 @@ const Topbar = ({ toggleSidebar }: { toggleSidebar?: () => void }) => {
               ) : (
                 notifications.map(n => (
                   <li key={n.id} className="notification-item p-2" onClick={() => openNotification(n)} style={{ cursor: 'pointer' }}>
-                    <div className="fw-semibold">{n.type}</div>
-                    <div className="text-muted small">{n.payload}</div>
+                    <div className="d-flex align-items-center gap-2">
+                      {n.boutique?.pays?.codeIso && (
+                        <span className={`fi fi-${n.boutique.pays.codeIso.toLowerCase()}`} style={{ fontSize: '16px' }}></span>
+                      )}
+                      <div className="flex-grow-1">
+                        <div className="fw-semibold">{n.type}</div>
+                        <div className="text-muted small">{n.payload}</div>
+                        {n.boutique && (
+                          <div className="text-muted small">
+                            Boutique: {n.boutique.nom}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </li>
                 ))
               )}
