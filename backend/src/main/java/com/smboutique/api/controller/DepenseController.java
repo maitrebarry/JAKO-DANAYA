@@ -40,6 +40,9 @@ public class DepenseController {
     @Autowired
     private com.smboutique.api.service.MouvementService mouvementService;
 
+    @Autowired
+    private com.smboutique.api.repository.BoutiqueRepository boutiqueRepository;
+
     private boolean isSuperAdmin(com.smboutique.api.model.Utilisateur user) {
         if (user == null) return false;
         return user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
@@ -69,7 +72,48 @@ public class DepenseController {
         } else {
             list = depenseService.findByBoutiqueId(bId);
         }
-        return ResponseEntity.ok(list);
+
+        // Enrich with currency symbol
+        java.util.List<java.util.Map<String, Object>> enrichedList = new java.util.ArrayList<>();
+        for (Depense d : list) {
+            java.util.Map<String, Object> map = new java.util.HashMap<>();
+            map.put("id", d.getId());
+            map.put("reference", d.getReference());
+            map.put("montant", d.getMontant());
+            map.put("libelle", d.getLibelle());
+            map.put("note", d.getNote());
+            map.put("boutiqueId", d.getBoutiqueId());
+            map.put("createurId", d.getCreateurId());
+            map.put("status", d.getStatus());
+            map.put("referenceCaisse", d.getReferenceCaisse());
+            map.put("validatorId", d.getValidatorId());
+            map.put("validatedAt", d.getValidatedAt());
+            map.put("annulePar", d.getAnnulePar());
+            map.put("annuleAt", d.getAnnuleAt());
+            map.put("annuleReason", d.getAnnuleReason());
+            map.put("createdAt", d.getCreatedAt());
+
+            // Add currency symbol
+            String deviseSymbole = "FCFA";
+            try {
+                if (d.getBoutiqueId() != null) {
+                    java.util.Optional<com.smboutique.api.model.Boutique> optB = boutiqueRepository.findById(d.getBoutiqueId());
+                    if (optB.isPresent()) {
+                        com.smboutique.api.model.Boutique b = optB.get();
+                        if (b.getPays() != null && b.getPays().getDeviseSymbole() != null) {
+                            deviseSymbole = b.getPays().getDeviseSymbole();
+                        }
+                    }
+                }
+                map.put("deviseSymbole", deviseSymbole);
+            } catch (Exception e) {
+                map.put("deviseSymbole", "FCFA");
+            }
+
+            enrichedList.add(map);
+        }
+
+        return ResponseEntity.ok(enrichedList);
     }
 
     @GetMapping("/{id}")

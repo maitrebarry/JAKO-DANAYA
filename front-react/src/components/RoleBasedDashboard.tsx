@@ -36,7 +36,7 @@ import { useFormatMoney } from '../utils/currency';
 
 
 // Composant pour afficher un widget joliment
-const WidgetCard = ({ title, value, icon, color, type = 'number', subtitle = '', action }: any) => {
+const WidgetCard = ({ title, value, icon, color, type = 'number', subtitle = '', action, onClick }: any) => {
   const getIcon = () => {
     switch(icon) {
       case 'money': return 'bi bi-currency-dollar';
@@ -75,7 +75,7 @@ const WidgetCard = ({ title, value, icon, color, type = 'number', subtitle = '',
   };
 
   return (
-    <div className="card h-100">
+    <div className={`card h-100 ${onClick ? 'cursor-pointer' : ''}`} onClick={onClick} style={onClick ? { cursor: 'pointer' } : {}}>
       <div className="card-body">
         {type === 'button' ? (
           // Affichage spécial pour les boutons pleine largeur
@@ -560,7 +560,18 @@ const RoleBasedDashboard: React.FC = () => {
             icon: 'cart',
             color: 'warning',
             type: 'number',
-            subtitle: 'Commandes en cours'
+            subtitle: 'Commandes en cours',
+            onClick: () => navigate('/liste-commandes')
+          });
+        } else if (key.includes('commande_client') || key.includes('orders_client')) {
+          config.push({
+            title: 'Commandes Client',
+            value: value,
+            icon: 'clipboard-check',
+            color: 'primary',
+            type: 'number',
+            subtitle: 'Commandes clients',
+            onClick: () => navigate('/liste-commandes?mode=vente')
           });
         } else if (key.includes('vente_credit') || key.includes('sales_credit')) {
           config.push({
@@ -569,7 +580,8 @@ const RoleBasedDashboard: React.FC = () => {
             icon: 'cart-check',
             color: 'info',
             type: 'number',
-            subtitle: 'Ventes à crédit'
+            subtitle: 'Ventes à crédit',
+            onClick: () => navigate('/liste-paiements')
           });
         }
       }

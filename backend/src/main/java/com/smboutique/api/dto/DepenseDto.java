@@ -21,6 +21,7 @@ public class DepenseDto {
     public LocalDateTime annuleAt;
     public String annuleReason;
     public LocalDateTime createdAt;
+    public String deviseSymbole;
 
     public DepenseDto() {}
 

@@ -4,6 +4,7 @@ import Swal from 'sweetalert2';
 import RequirePermission from './RequirePermission';
 import useHasPermission from '../contexts/useHasPermission';
 import * as inventaireApi from '../api/inventaire';
+import { useFormatMoney } from '../utils/currency';
 
 const InventaireDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -18,6 +19,7 @@ const InventaireDetail: React.FC = () => {
   const [unitCount, setUnitCount] = useState<number>(0);
   const [adding, setAdding] = useState<boolean>(false);
   const canDelete = useHasPermission('INVENTAIRE_SUPPRIMER');
+  const formatMoney = useFormatMoney();
 
   useEffect(() => {
     if (!id) return;
@@ -290,7 +292,7 @@ const InventaireDetail: React.FC = () => {
                       return `${fullPart}${rem} unité${rem > 1 ? 's' : ''} (${q} unités)`;
                     })()}</td>
                     <td>{li.ecartStock ?? '-'}</td>
-                    <td>{li.montant != null ? (li.montant).toLocaleString() + ' F CFA' : '-'}</td>
+                    <td>{li.montant != null ? formatMoney(li.montant) : '-'}</td>
                     {canDelete && (
                       <td className="text-end">
                         {!inventaire.regulariser && (
@@ -316,7 +318,7 @@ const InventaireDetail: React.FC = () => {
             </table>
           </div>
           <div className="mt-2 text-end">
-            <strong>Total montant: </strong>{lignes.reduce((s, l) => s + (l.montant || 0), 0).toLocaleString()} F CFA
+            <strong>Total montant: </strong>{formatMoney(lignes.reduce((s, l) => s + (l.montant || 0), 0))}
           </div>
 
           <div className="mt-3">

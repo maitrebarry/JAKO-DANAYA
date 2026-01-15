@@ -117,7 +117,7 @@ const DepenseList: React.FC = () => {
                     <tr key={d.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/depenses/${d.id}`)}>
                       <td>{d.reference}</td>
                       <td>{d.libelle}</td>
-                      <td>{d.montant}</td>
+                      <td>{d.montant ? `${d.montant} ${d.deviseSymbole || ''}` : ''}</td>
                       <td>{d.date || (d.createdAt ? d.createdAt.substring(0,10) : '')}</td>
                       <td>{d.referenceCaisse || '-'}</td>
                       <td><span className={`badge ${d.status === 'EN_ATTENTE' ? 'bg-warning' : d.status === 'VALIDEE' ? 'bg-success' : 'bg-secondary'}`}>{d.status}</span></td>

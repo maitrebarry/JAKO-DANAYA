@@ -14,6 +14,7 @@ interface Mouvement {
   referenceId?: number;
   quantite?: number;
   montant?: number;
+  deviseSymbole?: string;
   produit?: { id?: number; nomProduit?: string } | null;
   boutique?: { id?: number; nom?: string } | null;
   magasin?: { id?: number; nom?: string } | null;
@@ -183,7 +184,7 @@ const Mouvements: React.FC = () => {
       <div className="row mb-3">
         <div className="col-12">
           <h4>Journal global des mouvements</h4>
-          <p className="text-muted">Filtrez et exportez les mouvements. Les utilisateurs non-auditeurs ne verront que leurs propres mouvements.</p>
+          <p className="text-muted">Filtrez et exportez les mouvements. </p>
         </div>
       </div>
 
@@ -194,12 +195,12 @@ const Mouvements: React.FC = () => {
           <div className="row g-2 align-items-end">
             <div className="col-auto">
               <label className="form-label">De</label>
-              <input type="datetime-local" className="form-control" value={from ? new Date(from).toISOString().slice(0,16) : ''}
+              <input type="date-local" className="form-control" value={from ? new Date(from).toISOString().slice(0,16) : ''}
                 onChange={e => setFrom(e.target.value ? new Date(e.target.value).toISOString() : '')} />
             </div>
             <div className="col-auto">
               <label className="form-label">À</label>
-              <input type="datetime-local" className="form-control" value={to ? new Date(to).toISOString().slice(0,16) : ''}
+              <input type="date-local" className="form-control" value={to ? new Date(to).toISOString().slice(0,16) : ''}
                 onChange={e => setTo(e.target.value ? new Date(e.target.value).toISOString() : '')} />
             </div>
             <div className="col-auto">
@@ -287,7 +288,7 @@ const Mouvements: React.FC = () => {
                     <td><span className={`badge bg-light text-white`}>{r.magasin ? r.magasin.nom : ''}</span></td>
                     <td>{r.produit && r.produit.nomProduit ? r.produit.nomProduit : ''}</td>
                     <td>{typeof r.quantite === 'number' ? r.quantite : ''}</td>
-                    <td>{r.montant ?? ''}</td>
+                    <td>{r.montant ? `${r.montant} ${r.deviseSymbole || ''}` : ''}</td>
                     <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sanitizeDescription(r.description)}</td>
                   </tr>
                 ))}

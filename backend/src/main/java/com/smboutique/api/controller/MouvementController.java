@@ -22,6 +22,9 @@ public class MouvementController {
     @Autowired
     private UtilisationPertesService utilisationPertesService;
 
+    @Autowired
+    private com.smboutique.api.repository.BoutiqueRepository boutiqueRepository;
+
     private com.smboutique.api.model.Utilisateur getCurrentUser() {
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -52,11 +55,12 @@ public class MouvementController {
         }
         boolean isAuditor = isSuperAdmin(currentUser) || utilisateurService.hasPermission(currentUser, "MOUVEMENT_AUDIT");
         if (isAuditor) {
-            return ResponseEntity.ok(mouvementService.findAll());
+            java.util.List<Mouvement> mouvements = mouvementService.findAll();
+            return ResponseEntity.ok(enrichMouvementsWithCurrency(mouvements));
         } else {
             Long boutiqueId = currentUser.getBoutique() != null ? currentUser.getBoutique().getId() : null;
             java.util.List<Mouvement> res = mouvementService.search(null, null, null, boutiqueId, null, null, null, null);
-            return ResponseEntity.ok(res);
+            return ResponseEntity.ok(enrichMouvementsWithCurrency(res));
         }
     }
 
@@ -138,6 +142,18 @@ public class MouvementController {
                 String descVal = m.getDescription() != null ? m.getDescription().replaceAll("(?i)\\bids?\\s*[:=]?\\s*\\d+\\b", "").replaceAll("#\\d+\\b", "").replaceAll("\\b\\d{4,}\\b", "").trim() : null;
                 map.put("description", descVal);
                 map.put("referenceId", m.getReferenceId());
+
+                // Add currency symbol
+                String deviseSymbole = "FCFA";
+                try {
+                    if (m.getBoutique() != null && m.getBoutique().getPays() != null && m.getBoutique().getPays().getDeviseSymbole() != null) {
+                        deviseSymbole = m.getBoutique().getPays().getDeviseSymbole();
+                    }
+                } catch (Exception e) {
+                    // keep default
+                }
+                map.put("deviseSymbole", deviseSymbole);
+
                 items.add(map);
             }
             return ResponseEntity.ok(java.util.Map.of("total", res.getTotal(), "items", items));
@@ -162,6 +178,18 @@ public class MouvementController {
             String descVal = m.getDescription() != null ? m.getDescription().replaceAll("(?i)\\bids?\\s*[:=]?\\s*\\d+\\b", "").replaceAll("#\\d+\\b", "").replaceAll("\\b\\d{4,}\\b", "").trim() : null;
             map.put("description", descVal);
             map.put("referenceId", m.getReferenceId());
+
+            // Add currency symbol
+            String deviseSymbole = "FCFA";
+            try {
+                if (m.getBoutique() != null && m.getBoutique().getPays() != null && m.getBoutique().getPays().getDeviseSymbole() != null) {
+                    deviseSymbole = m.getBoutique().getPays().getDeviseSymbole();
+                }
+            } catch (Exception e) {
+                // keep default
+            }
+            map.put("deviseSymbole", deviseSymbole);
+
             out.add(map);
         }
         return ResponseEntity.ok(out);
@@ -425,25 +453,35 @@ public class MouvementController {
         boolean isOwner = "PROPRIETAIRE".equalsIgnoreCase(currentUser.getTypeUtilisateur());
 
         // if userId filter is provided, enforce permission checks
-        if (userId != null && !userId.equals(currentUser.getId()) && !isAuditor) {
-            // owner can access only employees of own boutique
-            if (!isOwner) {
-                return ResponseEntity.status(403).body(java.util.Map.of("error", "Permission requise pour accéder aux données d'autres utilisateurs"));
-            }
+        if (userId != null && !userId.equals(currentUser.getId())) {
+            // Check if the target user exists and is in the same boutique
             com.smboutique.api.model.Utilisateur worker = utilisateurService.findById(userId).orElse(null);
             if (worker == null) return ResponseEntity.status(404).body(java.util.Map.of("error", "Utilisateur introuvable"));
             if (worker.getBoutique() == null || currentUser.getBoutique() == null || !worker.getBoutique().getId().equals(currentUser.getBoutique().getId())) {
                 return ResponseEntity.status(403).body(java.util.Map.of("error", "Utilisateur hors de votre boutique"));
             }
+            // For caisse summary, allow all users in the same boutique to view summaries of other users
+            // No additional permission check needed for basic caisse summary access
         }
 
         // parse dates
         java.time.LocalDateTime from = null, to = null;
         try {
-            if (fromStr != null && !fromStr.isEmpty()) from = java.time.LocalDateTime.parse(fromStr);
-            if (toStr != null && !toStr.isEmpty()) to = java.time.LocalDateTime.parse(toStr);
+            if (fromStr != null && !fromStr.isEmpty()) {
+                java.time.LocalDate fromDate = java.time.LocalDate.parse(fromStr);
+                from = fromDate.atStartOfDay();
+            }
+            if (toStr != null && !toStr.isEmpty()) {
+                java.time.LocalDate toDate = java.time.LocalDate.parse(toStr);
+                to = toDate.atStartOfDay();
+            }
         } catch (Exception ex) {
-            return ResponseEntity.badRequest().body(java.util.Map.of("error", "Invalid date format. Use ISO date-time."));
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", "Invalid date format. Use ISO date (YYYY-MM-DD)."));
+        }
+
+        // If no boutiqueId provided and user is owner, set to their boutique
+        if (boutiqueId == null && "PROPRIETAIRE".equalsIgnoreCase(currentUser.getTypeUtilisateur()) && currentUser.getBoutique() != null) {
+            boutiqueId = currentUser.getBoutique().getId();
         }
 
         com.smboutique.api.service.dto.CaisseSummaryResult res = mouvementService.summarizeCaisse(period, userId, boutiqueId, magasinId, from, to);
@@ -544,5 +582,45 @@ public class MouvementController {
         } catch (Exception ex) {
             return ResponseEntity.status(500).build();
         }
+    }
+
+    private java.util.List<java.util.Map<String, Object>> enrichMouvementsWithCurrency(java.util.List<Mouvement> mouvements) {
+        java.util.List<java.util.Map<String, Object>> enriched = new java.util.ArrayList<>();
+        for (Mouvement m : mouvements) {
+            java.util.Map<String, Object> map = new java.util.HashMap<>();
+            map.put("id", m.getId());
+            map.put("ligneReception", m.getLigneReception());
+            map.put("ligneLivraison", m.getLigneLivraison());
+            map.put("ligneVente", m.getLigneVente());
+            map.put("produit", m.getProduit());
+            map.put("stock", m.getStock());
+            map.put("boutique", m.getBoutique());
+            map.put("transfer", m.getTransfer());
+            map.put("utilisateur", m.getUtilisateur());
+            map.put("sousType", m.getSousType());
+            map.put("description", m.getDescription());
+            map.put("referenceId", m.getReferenceId());
+            map.put("inventaire", m.getInventaire());
+            map.put("referenceInventaire", m.getReferenceInventaire());
+            map.put("magasin", m.getMagasin());
+            map.put("quantite", m.getQuantite());
+            map.put("typeMouvement", m.getTypeMouvement());
+            map.put("montant", m.getMontant());
+            map.put("dateMouvement", m.getDateMouvement());
+
+            // Add currency symbol
+            String deviseSymbole = "FCFA";
+            try {
+                if (m.getBoutique() != null && m.getBoutique().getPays() != null && m.getBoutique().getPays().getDeviseSymbole() != null) {
+                    deviseSymbole = m.getBoutique().getPays().getDeviseSymbole();
+                }
+            } catch (Exception e) {
+                // keep default
+            }
+            map.put("deviseSymbole", deviseSymbole);
+
+            enriched.add(map);
+        }
+        return enriched;
     }
 }

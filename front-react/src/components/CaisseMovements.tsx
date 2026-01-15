@@ -12,6 +12,7 @@ interface Movement {
   montant: number;
   balanceBefore: number;
   balanceAfter: number;
+  deviseSymbole?: string;
   paiementId?: number | null;
   paiementReference?: string | null;
   commandeId?: number | null;
@@ -134,9 +135,9 @@ const CaisseMovements: React.FC = () => {
                           return <span className={`badge ${cls}`} title={label}>{label}</span>;
                         })()}
                       </td>
-                      <td>{m.montant ?? 0}</td>
-                      <td>{m.balanceBefore ?? 0}</td>
-                      <td>{m.balanceAfter ?? 0}</td>
+                      <td>{m.montant ? `${m.montant} ${m.deviseSymbole || ''}` : 0}</td>
+                      <td>{m.balanceBefore ? `${m.balanceBefore} ${m.deviseSymbole || ''}` : 0}</td>
+                      <td>{m.balanceAfter ? `${m.balanceAfter} ${m.deviseSymbole || ''}` : 0}</td>
                       <td>{m.referenceCaisse ?? ''}</td>
                       <td>{m.commandeReference ?? (m.commandeId ?? '')}</td>
                       <td>{m.paiementReference ?? (m.paiementId ?? '')}</td>

@@ -28,6 +28,8 @@ public class CaisseMovementDto {
     // computed human friendly label for the type (e.g. "Entree CMC", "ENTREE-VTE-DIRECT", "SORTIE-DEPENSE")
     private String typeLabel;
 
+    private String deviseSymbole;
+
     public CaisseMovementDto() {}
 
     public CaisseMovementDto(CaisseMovement cm) {
@@ -84,4 +86,7 @@ public class CaisseMovementDto {
 
     public String getTypeLabel() { return typeLabel; }
     public void setTypeLabel(String typeLabel) { this.typeLabel = typeLabel; }
+
+    public String getDeviseSymbole() { return deviseSymbole; }
+    public void setDeviseSymbole(String deviseSymbole) { this.deviseSymbole = deviseSymbole; }
 }

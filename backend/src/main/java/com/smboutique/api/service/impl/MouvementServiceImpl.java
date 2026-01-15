@@ -9,6 +9,8 @@ import com.smboutique.api.service.MouvementService;
 import com.smboutique.api.service.ProduitService;
 import com.smboutique.api.service.StockService;
 import com.smboutique.api.service.MagasinService;
+import com.smboutique.api.service.BoutiqueService;
+import com.smboutique.api.service.UtilisateurService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import jakarta.persistence.EntityManager;
@@ -42,6 +44,12 @@ public class MouvementServiceImpl implements MouvementService {
 
     @Autowired
     private MagasinService magasinService;
+
+    @Autowired
+    private BoutiqueService boutiqueService;
+
+    @Autowired
+    private UtilisateurService utilisateurService;
 
     @Autowired
     private com.smboutique.api.service.UtilisationPertesService utilisationPertesService;
@@ -214,6 +222,20 @@ public class MouvementServiceImpl implements MouvementService {
 
     @Override
     public com.smboutique.api.service.dto.CaisseSummaryResult summarizeCaisse(String period, Long userId, Long boutiqueId, Long magasinId, java.time.LocalDateTime from, java.time.LocalDateTime to) {
+        // Determine deviseSymbole
+        String deviseSymbole = null;
+        if (boutiqueId != null) {
+            com.smboutique.api.model.Boutique boutique = boutiqueService.findById(boutiqueId).orElse(null);
+            if (boutique != null && boutique.getPays() != null) {
+                deviseSymbole = boutique.getPays().getDeviseSymbole();
+            }
+        } else if (userId != null) {
+            com.smboutique.api.model.Utilisateur user = utilisateurService.findById(userId).orElse(null);
+            if (user != null && user.getBoutique() != null && user.getBoutique().getPays() != null) {
+                deviseSymbole = user.getBoutique().getPays().getDeviseSymbole();
+            }
+        }
+
         // Build DB-friendly label expression based on the requested period (day|month|year)
         String periodParam = period == null ? "day" : period.toLowerCase();
         String labelExpr;
@@ -265,7 +287,7 @@ public class MouvementServiceImpl implements MouvementService {
             totalEnt += lent;
             totalSort += lsort;
         }
-        return new com.smboutique.api.service.dto.CaisseSummaryResult(items, totalEnt, totalSort);
+        return new com.smboutique.api.service.dto.CaisseSummaryResult(items, totalEnt, totalSort, deviseSymbole);
     }
 
     @Override

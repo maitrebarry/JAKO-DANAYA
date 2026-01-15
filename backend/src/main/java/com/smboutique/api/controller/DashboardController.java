@@ -43,6 +43,11 @@ public class DashboardController {
         return dashboardService.getOverview(shopId, magasinId);
     }
 
+    @GetMapping("/notifications/stock-alerts")
+    public List<Map<String, Object>> getStockAlerts(@RequestParam(value = "shopId", required = false) Long shopId, @RequestParam(value = "magasinId", required = false) Long magasinId) {
+        return ((com.smboutique.api.service.impl.DashboardServiceImpl) dashboardService).getLowStockProducts(shopId, magasinId);
+    }
+
     @GetMapping("")
     public com.smboutique.api.service.dto.DashboardPayload dashboard(@RequestParam(value = "shopId", required = false) Long shopId, @RequestParam(value = "magasinId", required = false) Long magasinId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

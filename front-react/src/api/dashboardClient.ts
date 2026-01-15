@@ -1,5 +1,5 @@
-const API_BASE = 'http://localhost:8085/api';
-const AUTH_HEADER = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_token')}` });
+export const API_BASE = 'http://localhost:8085/api';
+export const AUTH_HEADER = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_token')}` });
 
 export type WidgetDTO = { key: string; permission?: string; data?: any };
 export type SectionDTO = { role: string; widgets: WidgetDTO[]; shops?: { id?: number; nom?: string }[] };

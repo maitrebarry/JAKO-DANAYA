@@ -20,6 +20,7 @@ interface CaisseSummaryResult {
   totalEntrees: number;
   totalSorties: number;
   net: number;
+  deviseSymbole?: string;
 }
 
 const numberFmt = (n?: number) => (typeof n === 'number' ? n.toFixed(2) : '0.00');
@@ -138,14 +139,14 @@ const CaisseSummary: React.FC = () => {
 
           <div className="col-auto">
             <label className="form-label">De</label>
-            <input type="datetime-local" className="form-control" value={from ? new Date(from).toISOString().slice(0,16) : ''}
-                   onChange={e => setFrom(e.target.value ? new Date(e.target.value).toISOString() : '')} />
+            <input type="date" className="form-control" value={from ? new Date(from).toISOString().split('T')[0] : ''}
+                   onChange={e => setFrom(e.target.value || '')} />
           </div>
 
           <div className="col-auto">
             <label className="form-label">À</label>
-            <input type="datetime-local" className="form-control" value={to ? new Date(to).toISOString().slice(0,16) : ''}
-                   onChange={e => setTo(e.target.value ? new Date(e.target.value).toISOString() : '')} />
+            <input type="date" className="form-control" value={to ? new Date(to).toISOString().split('T')[0] : ''}
+                   onChange={e => setTo(e.target.value || '')} />
           </div>
 
           <div className="col-auto ms-auto d-flex gap-2">
@@ -178,16 +179,16 @@ const CaisseSummary: React.FC = () => {
                   {result.items.map((it, idx) => (
                     <tr key={idx}>
                       <td>{it.period}</td>
-                      <td className="text-end">{numberFmt(it.totalEntrees)}</td>
-                      <td className="text-end">{numberFmt(it.totalSorties)}</td>
-                      <td className="text-end">{numberFmt((it.totalEntrees || 0) - (it.totalSorties || 0))}</td>
+                      <td className="text-end">{numberFmt(it.totalEntrees)} {result.deviseSymbole || ''}</td>
+                      <td className="text-end">{numberFmt(it.totalSorties)} {result.deviseSymbole || ''}</td>
+                      <td className="text-end">{numberFmt((it.totalEntrees || 0) - (it.totalSorties || 0))} {result.deviseSymbole || ''}</td>
                     </tr>
                   ))}
                   <tr className="fw-bold">
                     <td>TOTAL</td>
-                    <td className="text-end">{numberFmt(result.totalEntrees)}</td>
-                    <td className="text-end">{numberFmt(result.totalSorties)}</td>
-                    <td className="text-end">{numberFmt(result.net)}</td>
+                    <td className="text-end">{numberFmt(result.totalEntrees)} {result.deviseSymbole || ''}</td>
+                    <td className="text-end">{numberFmt(result.totalSorties)} {result.deviseSymbole || ''}</td>
+                    <td className="text-end">{numberFmt(result.net)} {result.deviseSymbole || ''}</td>
                   </tr>
                 </tbody>
               </table>

@@ -42,8 +42,30 @@ public class InventaireController {
     }
 
     @GetMapping
-    public List<Inventaire> getAllInventaires() {
-        return inventaireService.findAll();
+    public ResponseEntity<?> getAllInventaires(@RequestParam(required = false) Long boutiqueId) {
+        com.smboutique.api.model.Utilisateur user = getCurrentUser();
+        boolean superadmin = isSuperAdmin(user);
+
+        try {
+            if (superadmin) {
+                // SUPERADMIN can view all or filter by boutiqueId
+                if (boutiqueId != null) return ResponseEntity.ok(inventaireService.findByBoutiqueId(boutiqueId));
+                return ResponseEntity.ok(inventaireService.findAll());
+            }
+
+            // Non-superadmin: ensure user has a boutique and restrict to it
+            Long userBoutiqueId = user != null && user.getBoutique() != null ? user.getBoutique().getId() : null;
+            if (userBoutiqueId == null) {
+                // user not tied to a boutique -- deny access
+                return ResponseEntity.status(403).body(java.util.Map.of("error", "Accès refusé: boutique non définie pour l'utilisateur"));
+            }
+            if (boutiqueId != null && !boutiqueId.equals(userBoutiqueId)) {
+                return ResponseEntity.status(403).body(java.util.Map.of("error", "Accès refusé: non autorisé pour cette boutique"));
+            }
+            return ResponseEntity.ok(inventaireService.findByBoutiqueId(userBoutiqueId));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(java.util.Map.of("error", "Erreur serveur"));
+        }
     }
 
     @GetMapping("/{id}")

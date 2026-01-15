@@ -7,6 +7,7 @@ import com.smboutique.api.service.FournisseurService;
 import com.smboutique.api.service.CommandeClientService;
 import com.smboutique.api.service.CommandeFournisseurService;
 import com.smboutique.api.service.StockService;
+import com.smboutique.api.service.InventaireService;
 import com.smboutique.api.service.dto.DashboardOverviewDTO;
 import com.smboutique.api.model.CommandeClient;
 import com.smboutique.api.model.CommandeFournisseur;
@@ -29,19 +30,22 @@ public class DashboardServiceImpl implements DashboardService {
     private final CommandeClientService commandeClientService;
     private final CommandeFournisseurService commandeFournisseurService;
     private final StockService stockService;
+    private final InventaireService inventaireService;
 
     public DashboardServiceImpl(ProduitService produitService,
                                 ClientGrossisteService clientGrossisteService,
                                 FournisseurService fournisseurService,
                                 CommandeClientService commandeClientService,
                                 CommandeFournisseurService commandeFournisseurService,
-                                StockService stockService) {
+                                StockService stockService,
+                                InventaireService inventaireService) {
         this.produitService = produitService;
         this.clientGrossisteService = clientGrossisteService;
         this.fournisseurService = fournisseurService;
         this.commandeClientService = commandeClientService;
         this.commandeFournisseurService = commandeFournisseurService;
         this.stockService = stockService;
+        this.inventaireService = inventaireService;
     }
 
     @Override
@@ -99,12 +103,13 @@ public class DashboardServiceImpl implements DashboardService {
         long pending = commandes.stream().filter(c -> c.getTotal() != null && (c.getPaie() == null || c.getPaie().intValue() < c.getTotal().intValue())).count();
         dto.setPendingOrders(pending);
 
-        // low stock count (threshold 5) - already filtered by magasinId
+        // low stock count - use product's alerte_stock threshold
         List<Stock> stocks = stockService.getAllStocks();
         long lowStock = stocks.stream()
                 .filter(s -> (boutiqueId == null || (s.getBoutique() != null && s.getBoutique().getId().equals(boutiqueId))) )
                 .filter(s -> magasinId == null || (s.getMagasin() != null && s.getMagasin().getId().equals(magasinId)))
-                .filter(s -> s.getQuantiteDisponible() == null || s.getQuantiteDisponible() <= 5)
+                .filter(s -> s.getProduit() != null && s.getProduit().getAlerteStock() != null)
+                .filter(s -> s.getQuantiteDisponible() == null || s.getQuantiteDisponible() <= s.getProduit().getAlerteStock())
                 .count();
         dto.setLowStockCount(lowStock);
 
@@ -267,6 +272,7 @@ public class DashboardServiceImpl implements DashboardService {
             widgets.put("etat_services", java.util.Map.of("api","OK","db","OK"));
         } else if (isOwner) {
             role = "PROPRIETAIRE";
+            System.out.println("DEBUG: User is PROPRIETAIRE, adding commande_client widget");
             widgets.put("chiffre_affaires_total", dto.getSalesTotal());
             widgets.put("valeur_stock", stockService.getAllStocks().stream()
                     .filter(s -> s.getBoutique() != null && s.getBoutique().getId().equals(finalTargetBoutiqueId))
@@ -294,6 +300,7 @@ public class DashboardServiceImpl implements DashboardService {
             }
             widgets.put("alerte_stock", dto.getLowStockCount());
             widgets.put("commande_fournisseur", commandeFournisseurService.findAllByBoutiqueId(finalTargetBoutiqueId).size());
+            widgets.put("commande_client", commandeClientService.findAllByBoutiqueId(finalTargetBoutiqueId).size());
             widgets.put("vente_credit", commandeClientService.findAllByBoutiqueId(finalTargetBoutiqueId).stream()
                     .filter(c -> c.getPaie() == null || (c.getTotal() != null && c.getPaie().compareTo(c.getTotal()) < 0))
                     .count());
@@ -304,8 +311,10 @@ public class DashboardServiceImpl implements DashboardService {
             widgets.put("bilan_trimestriel", calculateBilanTrimestriel(commandes));
         } else if (isManager) {
             role = "GERANT";
+            System.out.println("DEBUG: User is GERANT, adding commande_client widget");
             widgets.put("ventes_jour", dto.getSalesToday());
             widgets.put("stock_critique", dto.getLowStockCount());
+            widgets.put("commande_client", commandeClientService.findAllByBoutiqueId(finalTargetBoutiqueId).size());
             widgets.put("valeur_stock_boutique", stockService.getAllStocks().stream()
                     .filter(s -> s.getBoutique() != null && s.getBoutique().getId().equals(finalTargetBoutiqueId))
                     .filter(s -> finalTargetMagasinId == null || (s.getMagasin() != null && s.getMagasin().getId().equals(finalTargetMagasinId)))
@@ -315,7 +324,9 @@ public class DashboardServiceImpl implements DashboardService {
                         java.math.BigDecimal q = s.getQuantiteDisponible() != null ? java.math.BigDecimal.valueOf(s.getQuantiteDisponible()) : java.math.BigDecimal.ZERO;
                         return price.multiply(q);
                     }).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add).doubleValue());
-            widgets.put("inventaire_actif", false);
+            // Indicater whether an active inventory exists for this boutique
+            boolean actif = finalTargetBoutiqueId != null && inventaireService.existsActiveInventoryForBoutique(finalTargetBoutiqueId);
+            widgets.put("inventaire_actif", actif);
             widgets.put("resume_caisse_jour", java.util.Map.of("total", dto.getSalesToday()));
         } else if (isWarehouse) {
             role = "MAGASINIER";
@@ -332,7 +343,9 @@ public class DashboardServiceImpl implements DashboardService {
                     }).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add).doubleValue());
         } else if (isCashier) {
             role = "CAISSIER";
+            System.out.println("DEBUG: User is CAISSIER, adding commande_client widget");
             widgets.put("ventes_jour_personnelles", personalSalesForUser(utilisateur.getId(), finalTargetBoutiqueId));
+            widgets.put("commande_client", commandeClientService.findAllByBoutiqueId(finalTargetBoutiqueId).size());
             widgets.put("etat_caisse", java.util.Map.of("status", "ouvert"));
         } else {
             role = "USER";
@@ -530,6 +543,25 @@ public class DashboardServiceImpl implements DashboardService {
         if (firstDay == 0) return lastDay > 0 ? 100.0 : 0.0;
 
         return ((double)(lastDay - firstDay) / firstDay) * 100.0;
+    }
+
+    public java.util.List<java.util.Map<String, Object>> getLowStockProducts(Long boutiqueId, Long magasinId) {
+        List<Stock> stocks = stockService.getAllStocks();
+        return stocks.stream()
+                .filter(s -> (boutiqueId == null || (s.getBoutique() != null && s.getBoutique().getId().equals(boutiqueId))) )
+                .filter(s -> magasinId == null || (s.getMagasin() != null && s.getMagasin().getId().equals(magasinId)))
+                .filter(s -> s.getProduit() != null && s.getProduit().getAlerteStock() != null)
+                .filter(s -> s.getQuantiteDisponible() == null || s.getQuantiteDisponible() <= s.getProduit().getAlerteStock())
+                .map(s -> {
+                    java.util.Map<String, Object> product = new java.util.HashMap<>();
+                    product.put("id", s.getProduit().getId());
+                    product.put("nom", s.getProduit().getNomProduit());
+                    product.put("stockActuel", s.getQuantiteDisponible() != null ? s.getQuantiteDisponible() : 0);
+                    product.put("seuilAlerte", s.getProduit().getAlerteStock());
+                    product.put("magasin", s.getMagasin() != null ? s.getMagasin().getNom() : "Boutique");
+                    return product;
+                })
+                .collect(java.util.stream.Collectors.toList());
     }
 
     private com.smboutique.api.service.dto.DashboardPayload.Section makeSection(String role, java.util.List<com.smboutique.api.service.dto.DashboardPayload.Widget> widgets, java.util.List<com.smboutique.api.service.dto.DashboardPayload.Shop> shops) {

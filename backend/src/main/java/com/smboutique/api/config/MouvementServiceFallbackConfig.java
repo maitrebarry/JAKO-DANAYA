@@ -63,7 +63,7 @@ public class MouvementServiceFallbackConfig {
 
             @Override
             public com.smboutique.api.service.dto.CaisseSummaryResult summarizeCaisse(String period, Long userId, Long boutiqueId, Long magasinId, LocalDateTime from, LocalDateTime to) {
-                return new com.smboutique.api.service.dto.CaisseSummaryResult(Collections.emptyList(), 0L, 0L);
+                return new com.smboutique.api.service.dto.CaisseSummaryResult(Collections.emptyList(), 0L, 0L, null);
             }
 
             @Override

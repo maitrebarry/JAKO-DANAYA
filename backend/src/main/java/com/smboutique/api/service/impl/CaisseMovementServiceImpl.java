@@ -4,6 +4,7 @@ import com.smboutique.api.model.CaisseMovement;
 import com.smboutique.api.dto.CaisseMovementDto;
 import com.smboutique.api.model.CaisseMovement;
 import com.smboutique.api.repository.CaisseMovementRepository;
+import com.smboutique.api.repository.BoutiqueRepository;
 import com.smboutique.api.service.CaisseMovementService;
 import com.smboutique.api.service.CommandeClientService;
 import com.smboutique.api.service.PaiementClientService;
@@ -22,6 +23,9 @@ public class CaisseMovementServiceImpl implements CaisseMovementService {
 
     @Autowired
     private CaisseMovementRepository repository;
+
+    @Autowired
+    private BoutiqueRepository boutiqueRepository;
 
     @Autowired
     private CommandeClientService commandeClientService;
@@ -100,6 +104,21 @@ public class CaisseMovementServiceImpl implements CaisseMovementService {
                 dto.setTypeLabel("SORTIE-DEPENSE");
             }
 
+            // Enrich with currency symbol
+            try {
+                if (cm.getBoutiqueId() != null) {
+                    boutiqueRepository.findById(cm.getBoutiqueId()).ifPresent(b -> {
+                        String deviseSymbole = "FCFA";
+                        if (b.getPays() != null && b.getPays().getDeviseSymbole() != null) {
+                            deviseSymbole = b.getPays().getDeviseSymbole();
+                        }
+                        dto.setDeviseSymbole(deviseSymbole);
+                    });
+                }
+            } catch (Exception e) {
+                dto.setDeviseSymbole("FCFA");
+            }
+
             out.add(dto);
         }
         return out;
@@ -151,6 +170,21 @@ public class CaisseMovementServiceImpl implements CaisseMovementService {
                 }
             } else if (cm.getType() == com.smboutique.api.model.CaisseMovement.MovementType.DEPENSE) {
                 dto.setTypeLabel("SORTIE-DEPENSE");
+            }
+
+            // Enrich with currency symbol
+            try {
+                if (cm.getBoutiqueId() != null) {
+                    boutiqueRepository.findById(cm.getBoutiqueId()).ifPresent(b -> {
+                        String deviseSymbole = "FCFA";
+                        if (b.getPays() != null && b.getPays().getDeviseSymbole() != null) {
+                            deviseSymbole = b.getPays().getDeviseSymbole();
+                        }
+                        dto.setDeviseSymbole(deviseSymbole);
+                    });
+                }
+            } catch (Exception e) {
+                dto.setDeviseSymbole("FCFA");
             }
 
             out.add(dto);

@@ -38,12 +38,14 @@ public class DashboardServiceImplTest {
     CommandeFournisseurService commandeFournisseurService;
     @Mock
     StockService stockService;
+    @Mock
+    com.smboutique.api.service.InventaireService inventaireService;
 
     DashboardServiceImpl service;
 
     @BeforeEach
     void setup() {
-        service = new DashboardServiceImpl(produitService, clientGrossisteService, fournisseurService, commandeClientService, commandeFournisseurService, stockService);
+        service = new DashboardServiceImpl(produitService, clientGrossisteService, fournisseurService, commandeClientService, commandeFournisseurService, stockService, inventaireService);
     }
 
     @Test

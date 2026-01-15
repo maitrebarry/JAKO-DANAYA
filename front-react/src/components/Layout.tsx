@@ -2,6 +2,7 @@ import React, { ReactNode, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import 'flag-icons/css/flag-icons.min.css';
+import StockNotifications from './StockNotifications';
 
 
 interface LayoutProps {
@@ -17,10 +18,13 @@ const Layout = ({ children }: LayoutProps) => {
   }, []);
   const toggleSidebar = () => setSidebarOpen(s => !s);
 
+  const { user } = useUser();
+
   return (
     <div className="wrapper">
       <Sidebar isOpen={sidebarOpen} />
       <Topbar toggleSidebar={toggleSidebar} />
+      {user && user.typeUtilisateur === 'PROPRIETAIRE' && <StockNotifications />}
       <div className="content-page">
         <div className="content">
           <div className="container-fluid" style={{ paddingBottom: '80px' }}>
@@ -93,6 +97,7 @@ const Topbar = ({ toggleSidebar }: { toggleSidebar?: () => void }) => {
     const roleMap: { [key: string]: string } = {
       'SUPERADMIN': 'Administrateur Principal',
       'ADMIN': 'Administrateur',
+      'ADMINISTRATEUR': 'Administrateur',
       'MANAGER': 'Manager',
       'STOREKEEPER': 'Magasinier',
       'CASHIER': 'Caissier'
