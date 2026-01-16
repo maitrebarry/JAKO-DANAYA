@@ -83,4 +83,42 @@ public class PdfTemplateTest {
         assertTrue(out.contains("MYSHOP"));
         assertTrue(out.contains("9 999"));
     }
+
+    @Test
+    public void processTemplate_inventaire_total_label_rendered() {
+        TemplateEngine te = templateEngine();
+        Context ctx = new Context();
+        ctx.setVariable("inventaire", new com.smboutique.api.model.Inventaire());
+        ctx.setVariable("lignes", java.util.Collections.emptyList());
+        // Set the safe variables that PdfServiceImpl sets
+        ctx.setVariable("boutiqueNom", "MYSHOP");
+        ctx.setVariable("boutiqueTelephone", "76543218");
+        ctx.setVariable("boutiqueAdresse", "Kayes");
+        ctx.setVariable("deviseSymbole", "FCFA");
+        ctx.setVariable("montantTotalLabel", "71 660 000 FCFA");
+
+        String out = assertDoesNotThrow(() -> te.process("inventaire_pdf", ctx));
+        assertTrue(out.contains("71 660 000 FCFA"));
+        assertFalse(out.contains("deviseSymbole"));
+    }
+
+    @Test
+    public void processTemplate_caisse_montant_rendered() {
+        TemplateEngine te = templateEngine();
+        Context ctx = new Context();
+        ctx.setVariable("transaction", new com.smboutique.api.model.CaisseTransaction());
+        ctx.setVariable("boutiqueNom", "MYSHOP");
+        ctx.setVariable("boutiqueTelephone", "76543218");
+        ctx.setVariable("boutiqueAdresse", "Kayes");
+        ctx.setVariable("deviseSymbole", "FCFA");
+        ctx.setVariable("montantLabel", "71 660 000 FCFA");
+        ctx.setVariable("reference", "REF-123");
+        ctx.setVariable("utilisateurLabel", "Jean Dupont");
+
+        String out = assertDoesNotThrow(() -> te.process("caisse_pdf", ctx));
+        assertTrue(out.contains("71 660 000 FCFA"));
+        assertTrue(out.contains("REF-123"));
+        assertTrue(out.contains("Jean Dupont"));
+        assertFalse(out.contains("deviseSymbole"));
+    }
 }

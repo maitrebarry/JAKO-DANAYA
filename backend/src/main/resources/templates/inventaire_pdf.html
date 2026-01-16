@@ -79,7 +79,7 @@
     <tfoot>
       <tr>
         <td colspan="3" class="right total-row">TOTAL</td>
-        <td class="right total-row" th:text="${#numbers.formatInteger(montantTotal != null ? montantTotal : 0, 0)} + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA')">0</td>
+        <td class="right total-row" th:text="${montantTotalLabel}">0</td>
       </tr>
     </tfoot>
   </table>

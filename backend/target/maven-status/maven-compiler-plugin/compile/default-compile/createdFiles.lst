@@ -80,7 +80,6 @@ com/smboutique/api/repository/LigneVenteRepository.class
 com/smboutique/api/model/Inventaire.class
 com/smboutique/api/service/impl/RecomputeJobService$Status.class
 com/smboutique/api/dto/ReceptionDTO.class
-com/smboutique/api/service/impl/PdfServiceImpl.class
 com/smboutique/api/service/dto/DashboardPayload$Shop.class
 com/smboutique/api/controller/VenteController.class
 com/smboutique/api/controller/RoleController.class

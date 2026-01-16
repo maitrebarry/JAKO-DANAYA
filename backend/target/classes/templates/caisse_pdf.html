@@ -42,9 +42,9 @@
         <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
     <div class="meta-info">
-        <div class="meta">Réf: <span th:text="${reference}"></span></div>
+        <div class="meta">Réf: <span th:text="${reference != null ? reference : (tx != null && tx.referenceCaisse != null ? tx.referenceCaisse : '')}"></span></div>
         <div class="meta">Date: <span th:text="${dateTransactionFormatted}"></span></div>
-        <div class="meta">Utilisateur: <span th:text="${tx != null && tx.userId != null ? tx.userId : ''}"></span></div>
+        <div class="meta">Utilisateur: <span th:text="${utilisateurLabel != null ? utilisateurLabel : (tx != null && tx.userId != null ? tx.userId : '')}"></span></div>
     </div>
 </div>
 <div class="title">REÇU DE CAISSE</div>
@@ -63,13 +63,13 @@
     <tbody>
     <tr>
         <td th:text="${raison != null ? raison : (tx != null && tx.referenceCaisse != null ? tx.referenceCaisse : 'Transaction caisse')}"></td>
-        <td class="right" th:text="${#numbers.formatInteger(montant != null ? montant : (tx != null && tx.montant != null ? tx.montant : 0), 0)} + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA')"></td>
+        <td class="right" th:text="${montantLabel}"></td>
     </tr>
     </tbody>
 </table>
 
 <div class="meta">Reference caisse: <strong th:text="${reference}"></strong></div>
-<div class="meta">Montant: <strong th:text="${#numbers.formatInteger(montant != null ? montant : (tx != null && tx.montant != null ? tx.montant : 0), 0)}"></strong> <span th:text="${deviseSymbole != null ? deviseSymbole : 'FCFA'}"></span></div>
+<div class="meta">Montant: <strong th:text="${montantLabel}"></strong></div>
 <div class="meta">Date: <strong th:text="${dateTransactionFormatted}"></strong></div>
 <div class="signature">Signature: __________________________</div>
 <footer th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>

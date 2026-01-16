@@ -51,6 +51,7 @@ export async function getSubordinatesDashboards(): Promise<SubordinateDashboard[
 export type Boutique = {
   id: number;
   nom: string;
+  pays?: { codeIso?: string; nom?: string };
 };
 
 export type Magasin = {

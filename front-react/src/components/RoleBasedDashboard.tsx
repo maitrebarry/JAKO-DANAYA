@@ -820,6 +820,39 @@ const RoleBasedDashboard: React.FC = () => {
           </div>
         )}
 
+        {/* Card: nationalité des boutiques (SUPERADMIN seulement) */}
+        {role === 'SUPERADMIN' && boutiques && boutiques.length > 0 && (
+          <div className="row g-4 mt-3">
+            <div className="col-12">
+              <div className="card">
+                <div className="card-header d-flex align-items-center justify-content-between">
+                  <h6 className="mb-0">Nationalité des boutiques</h6>
+                  <small className="text-muted">{boutiques.length} boutiques</small>
+                </div>
+                <div className="card-body">
+                  <div className="row g-2">
+                    {boutiques.map((b) => (
+                      <div key={b.id} className="col-sm-6 col-md-4">
+                        <div className="d-flex align-items-center gap-3">
+                          {b.pays?.codeIso ? (
+                            <span className={`fi fi-${b.pays.codeIso.toLowerCase()}`} style={{ fontSize: 22 }} aria-hidden></span>
+                          ) : (
+                            <i className="bi bi-geo-alt fs-4 text-muted"></i>
+                          )}
+                          <div>
+                            <div className="fw-semibold">{b.nom}</div>
+                            <div className="text-muted small">{b.pays?.nom || b.pays?.codeIso || 'Inconnue'}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Graphique Top 5 produits pour ADMIN */}
         {(role === 'ADMIN' || role === 'PROPRIETAIRE') && (
           <div className="mt-4">

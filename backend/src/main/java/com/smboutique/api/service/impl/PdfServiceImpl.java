@@ -557,7 +557,7 @@ public class PdfServiceImpl implements PdfService {
             ctx.setVariable("inventaire", inv);
             ctx.setVariable("lignes", lignes);
 
-            // safe boutique display fields
+            // safe boutique display fields and resolved currency symbol
             try {
                 com.smboutique.api.model.Boutique b = null;
                 try { if (inv != null) b = inv.getBoutique(); } catch (Exception _e) { b = null; }
@@ -571,11 +571,38 @@ public class PdfServiceImpl implements PdfService {
                     if (b.getAdresse() != null) boutiqueAdresse = b.getAdresse();
                     try { if (b.getPays() != null && b.getPays().getDeviseSymbole() != null) deviseSymbole = b.getPays().getDeviseSymbole(); } catch (Exception ignore) {}
                 }
+                // sanitize common placeholder or empty values that may leak into the template
+                try { if (deviseSymbole == null || deviseSymbole.trim().isEmpty() || "deviseSymbole".equalsIgnoreCase(deviseSymbole.trim())) deviseSymbole = "FCFA"; } catch (Exception ignore) {}
                 ctx.setVariable("boutiqueNom", boutiqueNom);
                 ctx.setVariable("boutiqueTelephone", boutiqueTelephone);
                 ctx.setVariable("boutiqueAdresse", boutiqueAdresse);
                 ctx.setVariable("deviseSymbole", deviseSymbole);
             } catch (Exception ignore) {}
+
+            // Compute the total montant across all inventory lines and expose to the template (and a preformatted label like in commande_pdf)
+            try {
+                int montantTotal = 0;
+                if (lignes != null) {
+                    for (com.smboutique.api.model.LigneInventaire li : lignes) {
+                        if (li != null && li.getMontant() != null) montantTotal += li.getMontant();
+                    }
+                }
+                ctx.setVariable("montantTotal", montantTotal);
+                try {
+                    java.text.NumberFormat nf = java.text.NumberFormat.getIntegerInstance(java.util.Locale.FRENCH);
+                    Object dsObj = ctx.getVariable("deviseSymbole");
+                    String dsStr = dsObj != null ? dsObj.toString() : "FCFA";
+                    String montantTotalLabel = nf.format(montantTotal) + " " + dsStr;
+                    ctx.setVariable("montantTotalLabel", montantTotalLabel);
+                } catch (Exception e) {
+                    Object dsObj = ctx.getVariable("deviseSymbole");
+                    String dsStr = dsObj != null ? dsObj.toString() : "FCFA";
+                    ctx.setVariable("montantTotalLabel", String.valueOf(montantTotal) + " " + dsStr);
+                }
+            } catch (Exception __e) {
+                ctx.setVariable("montantTotal", 0);
+                ctx.setVariable("montantTotalLabel", "0 FCFA");
+            }
 
             String html = templateEngine.process("inventaire_pdf", ctx);
 
@@ -1073,12 +1100,54 @@ public class PdfServiceImpl implements PdfService {
                 ctx.setVariable("boutiqueAdresse", b.getAdresse() != null ? b.getAdresse() : "");
                 String deviseSymbole = "FCFA";
                 try { if (b.getPays() != null && b.getPays().getDeviseSymbole() != null) deviseSymbole = b.getPays().getDeviseSymbole(); } catch (Exception ignore) {}
+                // sanitize common placeholder or empty values that may leak into the template
+                try { if (deviseSymbole == null || deviseSymbole.trim().isEmpty() || "deviseSymbole".equalsIgnoreCase(deviseSymbole.trim())) deviseSymbole = "FCFA"; } catch (Exception ignore) {}
                 ctx.setVariable("deviseSymbole", deviseSymbole);
             } else {
                 ctx.setVariable("boutiqueNom", "");
                 ctx.setVariable("boutiqueTelephone", "");
                 ctx.setVariable("boutiqueAdresse", "");
                 ctx.setVariable("deviseSymbole", "FCFA");
+            }
+
+            // Set transaction (alias tx) and reference for template
+            try {
+                ctx.setVariable("tx", tx);
+                ctx.setVariable("reference", tx.getReferenceCaisse() != null ? tx.getReferenceCaisse() : "");
+            } catch (Exception ignore) { ctx.setVariable("reference", ""); }
+
+            // Resolve a user-friendly label for the user who created the transaction
+            try {
+                String utilisateurLabel = "";
+                if (tx.getUserId() != null) {
+                    try {
+                        java.util.Optional<com.smboutique.api.model.Utilisateur> uOpt = utilisateurService.findById(tx.getUserId());
+                        if (uOpt.isPresent()) {
+                            com.smboutique.api.model.Utilisateur u = uOpt.get();
+                            StringBuilder sb = new StringBuilder();
+                            if (u.getNom() != null) sb.append(u.getNom());
+                            if (u.getPrenom() != null) { if (sb.length() > 0) sb.append(' '); sb.append(u.getPrenom()); }
+                            utilisateurLabel = sb.toString();
+                        }
+                    } catch (Exception ignore) {}
+                }
+                if (utilisateurLabel == null || utilisateurLabel.trim().isEmpty()) utilisateurLabel = tx.getUserId() != null ? String.valueOf(tx.getUserId()) : "";
+                ctx.setVariable("utilisateurLabel", utilisateurLabel);
+            } catch (Exception ignore) { ctx.setVariable("utilisateurLabel", ""); }
+
+            // Prepare formatted montant labels to avoid inline template expressions
+            try {
+                int montantVal = tx.getMontant() != null ? tx.getMontant() : 0;
+                java.text.NumberFormat nf = java.text.NumberFormat.getIntegerInstance(java.util.Locale.FRENCH);
+                String montantFormatted = nf.format(montantVal);
+                Object dsObj = ctx.getVariable("deviseSymbole");
+                String dsStr = dsObj != null ? dsObj.toString() : "FCFA";
+                String montantLabel = montantFormatted + " " + dsStr;
+                ctx.setVariable("montantFormatted", montantFormatted);
+                ctx.setVariable("montantLabel", montantLabel);
+            } catch (Exception e) {
+                ctx.setVariable("montantFormatted", "0");
+                ctx.setVariable("montantLabel", "0 FCFA");
             }
 
             try {
