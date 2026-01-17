@@ -1,0 +1,19 @@
+# Build artifacts
+/target/
+/front-react/dist/
+
+# Node modules
+/node_modules/
+
+# Logs and uploads
+/backend/logs/
+/uploads/
+*.log
+*.gz
+
+# IDE / OS
+.DS_Store
+.vscode/
+
+# Temporary
+*.tmp

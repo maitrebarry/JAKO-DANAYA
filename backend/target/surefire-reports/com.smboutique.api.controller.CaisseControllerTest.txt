@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.smboutique.api.controller.CaisseControllerTest
--------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.392 s -- in com.smboutique.api.controller.CaisseControllerTest
