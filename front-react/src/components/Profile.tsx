@@ -3,6 +3,7 @@ import { useUser } from '../contexts/UserContext';
 import * as authApi from '../api/auth';
 import Swal from 'sweetalert2';
 import PhoneWithDial from './PhoneWithDial';
+import avatarImg from '../assets/images/avatar.jpg';
 
 const Profile: React.FC = () => {
   const { user, setUserData } = useUser();
