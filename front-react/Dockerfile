@@ -8,5 +8,7 @@ RUN cd front-react && npm run build
 
 FROM nginx:stable-alpine
 COPY --from=build /app/front-react/dist /usr/share/nginx/html
+# Custom nginx config to support SPA routing and optional /api proxy
+COPY front-react/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
