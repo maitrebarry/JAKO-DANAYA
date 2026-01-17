@@ -202,7 +202,6 @@ const ListeUtilisateurs = () => {
       roleIds: []
     });
     setPhoneCodePays(null);
-    setUserTelephoneValid(null);
   };
 
   const isMountedRef = useRef(true);
@@ -468,7 +467,6 @@ const ListeUtilisateurs = () => {
       }
     }
     setPhoneCodePays(inferredCode || user.codePays || (user.boutique && user.boutique.pays ? user.boutique.pays.codeIso : (currentBoutique?.pays?.codeIso || 'ML')));
-    setUserTelephoneValid(null);
     setShowModal(true);
   };
 
@@ -753,7 +751,7 @@ const ListeUtilisateurs = () => {
               <div className="row">
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Contact</label>
-                  <PhoneWithDial value={formData.contact} defaultCountry={phoneCodePays || currentBoutique?.pays?.codeIso || 'ML'} onChange={(tel, code, valid) => { setFormData({ ...formData, contact: tel || '' }); setPhoneCodePays(code || null); }} />
+                  <PhoneWithDial value={formData.contact} defaultCountry={phoneCodePays || currentBoutique?.pays?.codeIso || 'ML'} onChange={(tel, code) => { setFormData({ ...formData, contact: tel || '' }); setPhoneCodePays(code || null); }} />
                 </div>
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Adresse</label>
