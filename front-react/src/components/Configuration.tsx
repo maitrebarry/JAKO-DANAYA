@@ -129,7 +129,6 @@ const ListeUtilisateurs = () => {
   const [search, setSearch] = useState('');
   const [creating, setCreating] = useState(false);
   const [phoneCodePays, setPhoneCodePays] = useState<string | null>(null);
-  const [userTelephoneValid, setUserTelephoneValid] = useState<boolean | null>(null);
   
   const canCreateUser = useHasPermission('UTILISATEUR_CREER');
   const canModifyUser = useHasPermission('UTILISATEUR_MODIFIER');
@@ -754,7 +753,7 @@ const ListeUtilisateurs = () => {
               <div className="row">
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Contact</label>
-                  <PhoneWithDial value={formData.contact} defaultCountry={phoneCodePays || currentBoutique?.pays?.codeIso || 'ML'} onChange={(tel, code, valid) => { setFormData({ ...formData, contact: tel || '' }); setPhoneCodePays(code || null); setUserTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
+                  <PhoneWithDial value={formData.contact} defaultCountry={phoneCodePays || currentBoutique?.pays?.codeIso || 'ML'} onChange={(tel, code, valid) => { setFormData({ ...formData, contact: tel || '' }); setPhoneCodePays(code || null); }} />
                 </div>
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Adresse</label>

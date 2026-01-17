@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vente [[${vente.id}]]</title>
+    <style>
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; }
+    .header { text-align:center; margin-bottom: 10px; }
+    .meta { margin-bottom: 10px; }
+    .table { width:100%; border-collapse: collapse; }
+    .table th, .table td { border: 1px solid #ddd; padding: 6px; }
+    .small { font-size: 11px; color: #555; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2 th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}">SMBOUTIQUE</h2>
+    <div>Vente #: [[${vente.id}]]</div>
+    <div class="small">Date: [[${dateVenteFormatted}]]</div>
+    <div class="small">Client: [[${vente.nomClient}]]</div>
+  </div>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Désignation</th>
+        <th>Quantité</th>
+        <th>Prix</th>
+        <th>Montant</th>
+      </tr>
+    </thead>
+    <tbody>
+      <th:block th:each="lv : ${lignes}">
+        <tr>
+          <td th:text="${lv.produit != null ? lv.produit.nomProduit : 'Produit inconnu'}"></td>
+          <td>
+            <span th:text="${lv.quantite}"></span>
+            <span th:if="${lv.quantiteConditionnement != null and lv.produit != null and lv.produit.nombreUnitesParConditionnement != null}" class="small"> — Vente issue de <span th:text="${lv.quantiteConditionnement}"></span> <span th:text="${lv.produit.uniteConditionnement != null ? lv.produit.uniteConditionnement : 'emballage'}"></span> (=<span th:text="${lv.produit.nombreUnitesParConditionnement}"></span> unités)</span>
+            <span th:if="${lv.resteUnitesDansCartonApresVente != null}" class="small"> — Reste dans carton: <span th:text="${lv.resteUnitesDansCartonApresVente}"></span> unité<span th:if="${lv.resteUnitesDansCartonApresVente > 1}">s</span></span>
+          </td>
+          <td th:text="${lv.prixLabel != null ? lv.prixLabel : (#numbers.formatInteger(lv.newPrice != null ? lv.newPrice : (lv.prix != null ? lv.prix : 0), 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></td>
+          <td th:text="${lv.montantLabel != null ? lv.montantLabel : (#numbers.formatInteger((lv.newPrice != null ? lv.newPrice : 0) * (lv.quantite != null ? lv.quantite : 0), 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></td>
+        </tr>
+      </th:block>
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3" style="text-align:right">TOTAL</td>
+        <td th:text="${venteMontantTotalLabel != null ? venteMontantTotalLabel : (#numbers.formatInteger(vente.montantTotal != null ? vente.montantTotal : 0, 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div style="margin-top:10px; font-size:11px; color:#555;">Établi par: <span th:text="${vente.utilisateur != null ? (vente.utilisateur.nom + ' ' + vente.utilisateur.prenom) : '-'}"></span></div>
+</body>
+</html>

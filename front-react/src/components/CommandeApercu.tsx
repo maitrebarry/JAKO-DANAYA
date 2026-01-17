@@ -106,7 +106,7 @@ const CommandeApercu: React.FC = () => {
         try {
           const r = await fetch(p, { headers: { Authorization: `Bearer ${token}` } });
           if (r.status === 401) {
-            const body = await r.text().catch(() => '');
+            await r.text().catch(() => '');
             Swal.fire('Session expirée', 'Authentification requise. Veuillez vous reconnecter.', 'warning');
             navigate('/login');
             return;

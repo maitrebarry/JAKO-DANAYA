@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vente en espèces [[${vente.id}]]</title>
+    <style>
+        body { font-family: 'Helvetica', Arial, sans-serif; color: #2b2b2b; margin: 16px; }
+        .header { width: 100%; height: 120px; margin-bottom: 8px; border: none; padding:0; box-sizing: border-box; }
+        .header.bg-logo { background-size: cover; background-position:center; background-repeat:no-repeat; }
+        .logo { display:block; width:100%; max-height: 110px; height:auto; }
+        .no-logo-info { display:block; text-align:center; height: 100%; font-size: 16px; font-weight: bold; color: #2b2b2b; line-height: 1.5; background:#f6f6f6; padding:14px; box-sizing:border-box; }
+        .footer-info { width:100%; overflow:hidden; margin-bottom: 12px; }
+        .boutique-info { float:left; width:50%; font-size: 12px; line-height:1.4; }
+        .meta-info { float:right; width:48%; text-align:right; font-size: 12px; line-height:1.4; }
+        .table { width:100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
+        .table th, .table td { border: 1px solid #ddd; padding: 6px 8px; text-align:left; vertical-align: middle; }
+        .table th { background: #fafafa; font-weight: 700; font-size: 12px; text-transform: uppercase; }
+        .right { text-align:right; }
+        .small { font-size: 11px; color: #555; }
+        footer { margin-top: 20px; font-size: 11px; color: #666; text-align: center; }
+    </style>
+</head>
+<body>
+<div th:if="${logoBase64 != null}" class="header bg-logo" th:style="'background-image: url(' + ${logoBase64} + ');'"></div>
+<div th:if="${logoBase64 == null}" class="header">
+    <div class="no-logo-info">
+        <div><strong th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></strong></div>
+        <div><span th:text="${boutiqueTelephone}"></span></div>
+        <div><span th:text="${boutiqueAdresse}"></span></div>
+    </div>
+</div>
+
+<div class="footer-info">
+    <div th:if="${logoBase64 == null}" class="boutique-info">
+        <div><strong th:text="${boutiqueNom}"></strong></div>
+        <div><span th:text="${boutiqueTelephone}"></span></div>
+        <div><span th:text="${boutiqueAdresse}"></span></div>
+    </div>
+    <div class="meta-info">
+        <div class="meta">Date: <span th:text="${dateVenteFormatted}"></span></div>
+        <div class="meta">Client: <span th:text="${vente.nomClient != null ? vente.nomClient : 'Clients divers'}"></span></div>
+    </div>
+</div>
+
+<h2 style="text-align:center; margin-top:8px;">Facture de vente</h2>
+
+<table class="table">
+    <thead>
+    <tr>
+        <th>Désignation</th>
+        <th>Quantité</th>
+        <th>Prix</th>
+        <th class="right">Montant</th>
+    </tr>
+    </thead>
+    <tbody>
+    <th:block th:each="lv : ${lignes}">
+        <tr>
+            <td>
+                <div th:text="${lv.produit != null ? lv.produit.nomProduit : (lv.designation != null ? lv.designation : 'Produit inconnu')}"></div>
+                <div class="small" th:if="${lv.quantiteConditionnement != null and lv.produit != null and lv.produit.nombreUnitesParConditionnement != null}">
+                    <span th:text="${lv.quantiteConditionnement}"></span> <span th:text="${lv.produit.uniteConditionnement != null ? lv.produit.uniteConditionnement : 'emballage'}"></span>
+                    (=<span th:text="${lv.produit.nombreUnitesParConditionnement}"></span> unités)
+                </div>
+                <div class="small" th:if="${lv.resteUnitesDansCartonApresVente != null}">Carton ouvert — reste <span th:text="${lv.resteUnitesDansCartonApresVente}"></span> unité<span th:if="${lv.resteUnitesDansCartonApresVente > 1}">s</span></div>
+            </td>
+            <td>
+                <span th:text="${lv.quantite}"></span>
+            </td>
+            <td th:text="${lv.prixLabel != null ? lv.prixLabel : (#numbers.formatInteger(lv.newPrice != null ? lv.newPrice : (lv.prix != null ? lv.prix : 0),0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></td>
+            <td class="right" th:text="${lv.montantLabel != null ? lv.montantLabel : (#numbers.formatInteger((lv.newPrice != null ? lv.newPrice : (lv.prix != null ? lv.prix : 0)) * (lv.quantite != null ? lv.quantite : 0), 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></td>
+        </tr>
+    </th:block>
+    </tbody>
+    <tfoot>
+    <tr>
+        <td colspan="3" class="right"><strong>TOTAL</strong></td>
+        <td class="right"><strong th:text="${venteMontantTotalLabel != null ? venteMontantTotalLabel : (#numbers.formatInteger(vente.montantTotal != null ? vente.montantTotal : 0, 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></strong></td>
+    </tr>
+    </tfoot>
+</table>
+
+<table class="table" style="margin-top:10px;">
+  <thead>
+    <tr>
+      <th>Remise</th>
+      <th>Net à payer</th>
+      <th>Montant reçu</th>
+      <th>Monnaie à rembourser</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong th:text="${venteRemiseLabel != null ? venteRemiseLabel : (#numbers.formatInteger(vente.remise != null ? vente.remise : 0, 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></strong></td>
+      <td><strong th:text="${venteNetAPayerLabel != null ? venteNetAPayerLabel : (#numbers.formatInteger(vente.netAPayer != null ? vente.netAPayer : (vente.montantTotal != null ? vente.montantTotal : 0), 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></strong></td>
+      <td><strong th:text="${venteMontantRecuLabel != null ? venteMontantRecuLabel : (#numbers.formatInteger(vente.montantRecu != null ? vente.montantRecu : 0, 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></strong></td>
+      <td><strong th:text="${venteMonnaieRembourseLabel != null ? venteMonnaieRembourseLabel : (#numbers.formatInteger(vente.monnaieRembourse != null ? vente.monnaieRembourse : 0, 0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA'))}"></strong></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="signature" style="margin-top:18px;">Signature: __________________________</div>
+
+<div style="margin-top:6px; font-size:11px; color:#555;">Établi par: <span th:text="${vente.utilisateur != null ? (vente.utilisateur.nom + ' ' + vente.utilisateur.prenom) : '-'}"></span></div>
+
+<footer th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
+</body>
+</html>
