@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 
-import bg1 from '../assets/images/jako_danaya.png';
-import bg2 from '../assets/images/jako_danaya2.png';
+import bg1 from '../../assets/images/jako_danaya.png';
+import bg2 from '../../assets/images/jako_danaya2.png';
 
 const SignIn = () => {
   const [email, setEmail] = useState('');
