@@ -17,7 +17,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     ports:
-      - "8085:8085"
+      - "8086:8085" # avoid conflict with local 8085
     environment:
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mysql://db:3306/smb}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-smb}
@@ -34,7 +34,7 @@ services:
       context: .
       dockerfile: front-react/Dockerfile
     ports:
-      - "80:80"
+      - "8081:80" # expose frontend on host 8081 to avoid conflict with local 8080
     restart: unless-stopped
 
 volumes:
