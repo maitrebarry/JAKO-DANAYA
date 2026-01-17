@@ -246,7 +246,6 @@ const Profile: React.FC = () => {
                 {/** resolve avatar so '/uploads/...' paths point to backend server */}
                 {(() => {
                   const API_BASE = 'http://localhost:8085';
-                  import avatarImg from '../assets/images/avatar.jpg';
                   const resolveAvatar = (a?: string | null) => {
                     if (previewUrl) return previewUrl;
                     if (!a) return avatarImg;
