@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import useHasPermission from '../contexts/useHasPermission';
 import { useUser } from '../contexts/UserContext';
 import { formatMoney } from '../utils/currency';
@@ -14,10 +14,27 @@ const Rapports: React.FC = () => {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [boutique, setBoutique] = useState<string>(currentBoutique ? String(currentBoutique.id) : '');
+  const [boutiques, setBoutiques] = useState<any[]>([]);
   const [limit, setLimit] = useState<number>(10);
   const [rows, setRows] = useState<any[]>([]);
   const [aggregates, setAggregates] = useState<any>({ totalCount: 0, totalAmount: 0, valeur: 0 });
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const r = await fetch(`${API_BASE}/boutiques`, { headers: AUTH_HEADER() });
+        if (!r.ok) return;
+        const data = await r.json();
+        if (mounted) setBoutiques(data || []);
+      } catch (e) {
+        console.error('Erreur chargement boutiques', e);
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, []);
 
   if (!canView) return <div className="alert alert-warning">Accès non autorisé</div>
 
@@ -138,7 +155,10 @@ const Rapports: React.FC = () => {
             </div>
             <div className="col-md-2">
               <label className="form-label">Boutique</label>
-              <input className="form-control" type="text" value={boutique} onChange={e => setBoutique(e.target.value)} placeholder="ID boutique" />
+              <select className="form-select" value={boutique} onChange={e => setBoutique(e.target.value)}>
+                <option value="">Toutes</option>
+                {boutiques.map(b => (<option key={b.id} value={String(b.id)}>{b.nom}</option>))}
+              </select>
             </div>
             {reportType === 'ventes' && (
               <>
