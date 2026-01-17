@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 
+import bg1 from '../assets/images/jako_danaya.png';
+import bg2 from '../assets/images/jako_danaya2.png';
+
 const SignIn = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -11,10 +14,10 @@ const SignIn = () => {
   const { setUserData } = useUser();
 
   // Background image rotation for login page (switch every 60s)
-  const [bgImage, setBgImage] = useState('/assets/images/jako_danaya.png');
+  const [bgImage, setBgImage] = useState<string>(bg1);
   useEffect(() => {
     const interval = setInterval(() => {
-      setBgImage(prev => prev === '/assets/images/jako_danaya.png' ? '/assets/images/jako_danaya2.png' : '/assets/images/jako_danaya.png');
+      setBgImage(prev => prev === bg1 ? bg2 : bg1);
     }, 60000); // switch every 60s
     return () => clearInterval(interval);
   }, []);
