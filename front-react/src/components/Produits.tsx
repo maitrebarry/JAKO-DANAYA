@@ -678,7 +678,8 @@ const Produits: React.FC = () => {
                       return;
                     }
                     const xhr = new XMLHttpRequest();
-                    xhr.open('POST', 'http://localhost:8085/api/produits/import', true);
+                    // use async import endpoint so server can provide parsing progress
+                    xhr.open('POST', 'http://localhost:8085/api/produits/import-async', true);
                     xhr.setRequestHeader('Authorization', `Bearer ${token}`);
                     xhr.upload.onprogress = (e) => {
                       if (e.lengthComputable) {
@@ -687,6 +688,47 @@ const Produits: React.FC = () => {
                       }
                     };
                     xhr.onload = async () => {
+                      if (xhr.status === 202) {
+                        // job accepted -> poll status
+                        const res = JSON.parse(xhr.responseText);
+                        const jobId = res.jobId;
+                        setImportProgress(2);
+                        const poll = setInterval(async () => {
+                          try {
+                            const stRes = await fetch(`http://localhost:8085/api/produits/import/${jobId}/status`, { headers: { Authorization: `Bearer ${token}` } });
+                            if (stRes.status === 200) {
+                              const js = await stRes.json();
+                              if (js.progress != null) setImportProgress(js.progress);
+                              if (js.phase) setMessage(`Import — étape: ${js.phase}`);
+                              if (js.state === 'COMPLETED') {
+                                clearInterval(poll);
+                                setIsImporting(false);
+                                setMessage(`Import terminé : ${js.processedCount} produits importés.`);
+                                fetchProduits();
+                                setShowImportModal(false);
+                              } else if (js.state === 'FAILED') {
+                                clearInterval(poll);
+                                setIsImporting(false);
+                                setImportErrors(js.errors || ['Échec de l\'import']);
+                              }
+                            } else if (stRes.status === 404) {
+                              clearInterval(poll);
+                              setIsImporting(false);
+                              setImportErrors(['Job introuvable']);
+                            } else {
+                              // keep polling
+                            }
+                          } catch (err) {
+                            clearInterval(poll);
+                            setIsImporting(false);
+                            setImportErrors([err instanceof Error ? err.message : String(err)]);
+                          }
+                        }, 600);
+
+                        return;
+                      }
+
+                      // synchronous / fallback handling
                       setIsImporting(false);
                       if (xhr.status === 200) {
                         const res = JSON.parse(xhr.responseText);

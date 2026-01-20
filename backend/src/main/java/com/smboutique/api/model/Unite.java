@@ -16,6 +16,9 @@ public class Unite {
     private String libelle;
     private String symbole;
 
+    @Column(length = 150)
+    private String code;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_boutique")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})

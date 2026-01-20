@@ -13,4 +13,14 @@ public interface ProduitService {
     void deleteById(Long id);
     List<Produit> findByBoutiqueId(Long boutiqueId);
     com.smboutique.api.dto.ImportResult importFromExcel(org.springframework.web.multipart.MultipartFile file, com.smboutique.api.model.Utilisateur currentUser) throws Exception;
+
+    /* New: explicit flag to allow creating missing unités during import (must be authorized). */
+    com.smboutique.api.dto.ImportResult importFromExcel(org.springframework.web.multipart.MultipartFile file, com.smboutique.api.model.Utilisateur currentUser, boolean createMissingUnits) throws Exception;
+
+    /* Async import job support */
+    String startAsyncImport(org.springframework.web.multipart.MultipartFile file, com.smboutique.api.model.Utilisateur currentUser, boolean createMissingUnits);
+
+    com.smboutique.api.dto.ImportJobStatus getImportJobStatus(String jobId);
+
+    com.smboutique.api.dto.ImportResult getImportJobReport(String jobId);
 }

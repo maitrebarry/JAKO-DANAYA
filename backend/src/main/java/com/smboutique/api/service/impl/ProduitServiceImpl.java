@@ -29,6 +29,9 @@ public class ProduitServiceImpl implements ProduitService {
     private ProduitRepository produitRepository;
     @Autowired
     private UniteRepository uniteRepository;
+
+    @Autowired
+    private com.smboutique.api.service.UniteService uniteService;
     @Autowired
     private MagasinRepository magasinRepository;
     @Autowired
@@ -42,6 +45,13 @@ public class ProduitServiceImpl implements ProduitService {
 
     @PersistenceContext
     private EntityManager em;
+
+    // --- Async import/job tracking (in-memory, short TTL) ---
+    private final java.util.concurrent.ExecutorService importExecutor = java.util.concurrent.Executors.newFixedThreadPool(2);
+    private final java.util.Map<String, com.smboutique.api.dto.ImportJobStatus> importJobs = new java.util.concurrent.ConcurrentHashMap<>();
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.context.ApplicationContext applicationContext;
 
     @Override
     public List<Produit> findAll() {
@@ -211,10 +221,33 @@ public class ProduitServiceImpl implements ProduitService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ImportResult importFromExcel(MultipartFile file, com.smboutique.api.model.Utilisateur currentUser) throws Exception {
+        // Backward-compatible default: do NOT create missing units unless the client explicitly requests it.
+        return importFromExcel(file, currentUser, false);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ImportResult importFromExcel(MultipartFile file, com.smboutique.api.model.Utilisateur currentUser, boolean createMissingUnits) throws Exception {
+        return importFromExcelInternal(file, currentUser, createMissingUnits, null);
+    }
+
+    // Internal implementation that optionally updates an in-memory job status when jobId != null
+    @Transactional(rollbackFor = Exception.class)
+    protected ImportResult importFromExcelInternal(MultipartFile file, com.smboutique.api.model.Utilisateur currentUser, boolean createMissingUnits, String jobId) throws Exception {
         List<String> errors = new java.util.ArrayList<>();
         int processed = 0;
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Fichier vide");
+        }
+
+        // If this execution is associated with a job, initialize job status
+        if (jobId != null) {
+            com.smboutique.api.dto.ImportJobStatus s = importJobs.get(jobId);
+            if (s != null) {
+                s.setState(com.smboutique.api.dto.ImportJobStatus.State.RUNNING);
+                s.setPhase("parsing");
+                s.setProgress(1);
+            }
         }
 
         try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
@@ -228,10 +261,26 @@ public class ProduitServiceImpl implements ProduitService {
                 colIndex.put(c.getStringCellValue().trim(), c.getColumnIndex());
             }
 
+            Integer totalRows = sheet.getLastRowNum() > 0 ? sheet.getLastRowNum() : null;
+            if (jobId != null) {
+                com.smboutique.api.dto.ImportJobStatus s = importJobs.get(jobId);
+                if (s != null) s.setTotalRows(totalRows);
+            }
+
             for (int r = 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
                 if (row == null) continue;
                 try {
+                    // update parsing progress
+                    if (jobId != null) {
+                        com.smboutique.api.dto.ImportJobStatus s = importJobs.get(jobId);
+                        if (s != null && totalRows != null && totalRows > 0) {
+                            int pct = Math.min(99, Math.round((processed * 100f) / totalRows));
+                            s.setProgress(pct);
+                            s.setPhase("parsing");
+                        }
+                    }
+
                     // Read values by header names: example headers
                     String nomProduit = getStringCell(row, colIndex.getOrDefault("nomProduit", -1));
                     if (nomProduit == null || nomProduit.trim().isEmpty()) {
@@ -317,10 +366,20 @@ public class ProduitServiceImpl implements ProduitService {
                     produit.setAlerteStock(alerteStock);
 
                     // Définir les conditionnements si fournis
+                    String uniteCode = getStringCell(row, colIndex.getOrDefault("unite_code", -1));
+                    String uniteName = getStringCell(row, colIndex.getOrDefault("unite_name", -1));
+
                     if (uniteId != null) {
                         Optional<Unite> uniteOpt = uniteRepository.findById(uniteId);
                         if (uniteOpt.isPresent()) {
                             Unite unite = uniteOpt.get();
+                            // enforce boutique scoping for IDs
+                            if (currentUser != null && currentUser.getBoutique() != null && unite.getBoutique() != null
+                                    && !currentUser.getBoutique().getId().equals(unite.getBoutique().getId())
+                                    && !(currentUser.getRoles() != null && currentUser.getRoles().stream().anyMatch(role -> "SUPERADMIN".equalsIgnoreCase(role.getName())))) {
+                                errors.add("Ligne " + (r+1) + ": id_unite '" + uniteId + "' n'appartient pas à votre boutique");
+                                throw new com.smboutique.api.exception.ImportValidationException(errors);
+                            }
                             produit.setUnite(unite);
                             produit.setUniteConditionnement(unite.getLibelle());
                             if (nombreUnitesParConditionnement != null && nombreUnitesParConditionnement > 0) {
@@ -332,6 +391,37 @@ public class ProduitServiceImpl implements ProduitService {
                         } else {
                             errors.add("Ligne " + (r+1) + ": id_unite '" + uniteId + "' non trouvé");
                             throw new com.smboutique.api.exception.ImportValidationException(errors);
+                        }
+                    } else {
+                        // Try resolve by code -> name (scoped to boutique)
+                        com.smboutique.api.model.Unite resolved = null;
+                        Long boutiqueId = currentUser != null && currentUser.getBoutique() != null ? currentUser.getBoutique().getId() : null;
+                        if (uniteCode != null && !uniteCode.trim().isEmpty()) {
+                            resolved = uniteService.findByBoutiqueIdAndCode(boutiqueId, uniteCode.trim()).orElse(null);
+                        }
+                        if (resolved == null && uniteName != null && !uniteName.trim().isEmpty()) {
+                            resolved = uniteService.findByBoutiqueIdAndLibelleIgnoreCase(boutiqueId, uniteName.trim()).orElse(null);
+                        }
+
+                        boolean canAutoCreate = (currentUser != null && (currentUser.getRoles() != null && currentUser.getRoles().stream().anyMatch(role -> "SUPERADMIN".equalsIgnoreCase(role.getName()))))
+                                || (currentUser != null && currentUser.getPermissions() != null && currentUser.getPermissions().stream().anyMatch(perm -> "UNITE_CREER".equalsIgnoreCase(perm.getName())));
+
+                        if (resolved == null && (uniteCode != null && !uniteCode.trim().isEmpty() || uniteName != null && !uniteName.trim().isEmpty())) {
+                            if (canAutoCreate) {
+                                // create unit scoped to boutique (idempotent)
+                                resolved = uniteService.createIfNotExistsForBoutique(boutiqueId, uniteCode != null ? uniteCode : uniteName, uniteName, null);
+                            } else {
+                                errors.add("Ligne " + (r+1) + ": unité introuvable et vous n'avez pas la permission de créer des unités (fournir id_unite ou demander la permission UNITE_CREER)");
+                                throw new com.smboutique.api.exception.ImportValidationException(errors);
+                            }
+                        }
+
+                        if (resolved != null) {
+                            produit.setUnite(resolved);
+                            produit.setUniteConditionnement(resolved.getLibelle());
+                            if (nombreUnitesParConditionnement != null && nombreUnitesParConditionnement > 0) {
+                                produit.setNombreUnitesParConditionnement(nombreUnitesParConditionnement);
+                            }
                         }
                     }
 
@@ -399,5 +489,74 @@ public class ProduitServiceImpl implements ProduitService {
             return (long) c.getNumericCellValue();
         }
         try { return Long.parseLong(getStringCell(row, idx)); } catch (Exception e) { return null; }
+    }
+
+    @Override
+    public String startAsyncImport(MultipartFile file, com.smboutique.api.model.Utilisateur currentUser, boolean createMissingUnits) {
+        String jobId = java.util.UUID.randomUUID().toString();
+        com.smboutique.api.dto.ImportJobStatus st = new com.smboutique.api.dto.ImportJobStatus();
+        st.setJobId(jobId);
+        st.setState(com.smboutique.api.dto.ImportJobStatus.State.PENDING);
+        st.setPhase("upload");
+        st.setProgress(0);
+        importJobs.put(jobId, st);
+
+        importExecutor.submit(() -> {
+            try {
+                com.smboutique.api.dto.ImportJobStatus s2 = importJobs.get(jobId);
+                if (s2 != null) {
+                    s2.setState(com.smboutique.api.dto.ImportJobStatus.State.RUNNING);
+                    s2.setPhase("parsing");
+                    s2.setProgress(1);
+                }
+                // Prefer calling the proxied service so @Transactional applies; fall back to direct call in unit-tests
+                com.smboutique.api.dto.ImportResult res;
+                if (applicationContext != null) {
+                    try {
+                        ProduitService svc = applicationContext.getBean(ProduitService.class);
+                        res = svc.importFromExcel(file, currentUser, createMissingUnits);
+                    } catch (Exception ex) {
+                        // fall back
+                        res = importFromExcelInternal(file, currentUser, createMissingUnits, jobId);
+                    }
+                } else {
+                    res = importFromExcelInternal(file, currentUser, createMissingUnits, jobId);
+                }
+
+                com.smboutique.api.dto.ImportJobStatus s3 = importJobs.get(jobId);
+                if (s3 != null) {
+                    s3.setProcessedCount(res.getProcessedCount());
+                    s3.setErrors(res.getErrors());
+                    s3.setProgress(100);
+                    s3.setPhase("completed");
+                    s3.setState(com.smboutique.api.dto.ImportJobStatus.State.COMPLETED);
+                }
+            } catch (Exception ex) {
+                com.smboutique.api.dto.ImportJobStatus s4 = importJobs.get(jobId);
+                if (s4 != null) {
+                    s4.setState(com.smboutique.api.dto.ImportJobStatus.State.FAILED);
+                    s4.setPhase("failed");
+                    s4.setProgress(100);
+                    s4.addError(ex.getMessage() == null ? ex.toString() : ex.getMessage());
+                }
+            }
+        });
+
+        return jobId;
+    }
+
+    @Override
+    public com.smboutique.api.dto.ImportJobStatus getImportJobStatus(String jobId) {
+        return importJobs.get(jobId);
+    }
+
+    @Override
+    public com.smboutique.api.dto.ImportResult getImportJobReport(String jobId) {
+        com.smboutique.api.dto.ImportJobStatus s = importJobs.get(jobId);
+        if (s == null) throw new IllegalArgumentException("Job not found");
+        if (s.getState() != com.smboutique.api.dto.ImportJobStatus.State.COMPLETED) {
+            throw new IllegalStateException("Job not completed");
+        }
+        return new com.smboutique.api.dto.ImportResult(s.getProcessedCount(), s.getErrors());
     }
 }

@@ -429,13 +429,14 @@ public class ProduitController {
     // The template endpoint was removed: the static template is now served by the front-end from `front-react/public/produits_template.xlsx`.
 
     @PostMapping("/import")
-    public ResponseEntity<?> importFromExcel(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<?> importFromExcel(@RequestParam("file") MultipartFile file,
+                                             @RequestParam(value = "createMissingUnits", required = false, defaultValue = "false") boolean createMissingUnits) {
         Utilisateur current = getCurrentUser();
         if (!isSuperAdmin(current) && !hasPermission(current, "PRODUIT_CREER")) {
             return ResponseEntity.status(403).body("Permission manquante : PRODUIT_CREER");
         }
         try {
-            com.smboutique.api.dto.ImportResult result = produitService.importFromExcel(file, current);
+            com.smboutique.api.dto.ImportResult result = produitService.importFromExcel(file, current, createMissingUnits);
             return ResponseEntity.ok(result);
         } catch (com.smboutique.api.exception.ImportValidationException ve) {
             java.util.Map<String, Object> err = new java.util.HashMap<>();
@@ -447,6 +448,60 @@ public class ProduitController {
             err.put("error", "Import failed");
             err.put("details", e.getMessage());
             return ResponseEntity.internalServerError().body(err);
+        }
+    }
+
+    @PostMapping("/import-async")
+    public ResponseEntity<?> importFromExcelAsync(@RequestParam("file") MultipartFile file,
+                                                  @RequestParam(value = "createMissingUnits", required = false, defaultValue = "false") boolean createMissingUnits) {
+        Utilisateur current = getCurrentUser();
+        if (!isSuperAdmin(current) && !hasPermission(current, "PRODUIT_CREER")) {
+            return ResponseEntity.status(403).body("Permission manquante : PRODUIT_CREER");
+        }
+        try {
+            String jobId = produitService.startAsyncImport(file, current, createMissingUnits);
+            java.util.Map<String, String> res = new java.util.HashMap<>();
+            res.put("jobId", jobId);
+            return ResponseEntity.accepted().body(res);
+        } catch (Exception e) {
+            java.util.Map<String, Object> err = new java.util.HashMap<>();
+            err.put("error", "Import failed");
+            err.put("details", e.getMessage());
+            return ResponseEntity.internalServerError().body(err);
+        }
+    }
+
+    @GetMapping("/import/{jobId}/status")
+    public ResponseEntity<?> getImportStatus(@PathVariable String jobId) {
+        Utilisateur current = getCurrentUser();
+        // Authorization: only allow users with PRODUIT_LECTURE or the owner boutique to poll status - keep it simple and allow any authenticated product reader
+        if (!isSuperAdmin(current) && !hasPermission(current, "PRODUIT_LECTURE")) {
+            return ResponseEntity.status(403).body("Permission manquante : PRODUIT_LECTURE");
+        }
+        try {
+            com.smboutique.api.dto.ImportJobStatus status = produitService.getImportJobStatus(jobId);
+            if (status == null) return ResponseEntity.notFound().build();
+            return ResponseEntity.ok(status);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(java.util.Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/import/{jobId}/report")
+    public ResponseEntity<?> getImportReport(@PathVariable String jobId) {
+        Utilisateur current = getCurrentUser();
+        if (!isSuperAdmin(current) && !hasPermission(current, "PRODUIT_LECTURE")) {
+            return ResponseEntity.status(403).body("Permission manquante : PRODUIT_LECTURE");
+        }
+        try {
+            com.smboutique.api.dto.ImportResult report = produitService.getImportJobReport(jobId);
+            return ResponseEntity.ok(report);
+        } catch (IllegalStateException ise) {
+            return ResponseEntity.status(409).body(java.util.Map.of("error", "Job not completed"));
+        } catch (IllegalArgumentException iae) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(java.util.Map.of("error", e.getMessage()));
         }
     }
 
