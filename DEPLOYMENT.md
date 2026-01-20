@@ -148,6 +148,35 @@ Si vous voulez, je peux fournir un workflow GitHub Actions prêt à l'emploi.
 
 ---
 
+## 6a) Migrations de base de données (important)
+
+🔧 Cette application n'utilise pas de framework de migration intégré dans le dépôt (Flyway/Liquibase). La modification suivante nécessite une migration SQL à exécuter en production **avant** de déployer la nouvelle version du backend :
+
+- Fichier de migration ajouté : `backend/db/migration/20260120_add_unite_code_and_indexes.sql`
+- Objectif : ajouter la colonne `code` sur la table `unite`, backfiller des valeurs, et créer des index/contraintes d'unicité scoped par `id_boutique` (prévenir créations concurrentes et accélérer les recherches par `code`).
+
+Étapes recommandées pour production :
+
+1. Récupérer la migration et vérifier qu'il n'y a pas de doublons :
+   - SELECTs au début du fichier montreront les collisions éventuelles (dupliqués par `libelle` ou par `code` attendu).
+2. Résoudre manuellement les doublons listés (fusion/suppression) si nécessaire.
+3. Exécuter la migration dans une fenêtre de maintenance :
+
+```bash
+# depuis une machine ayant accès à la base
+mysql -u $DB_USER -p$DB_PASS $DB_NAME < backend/db/migration/20260120_add_unite_code_and_indexes.sql
+```
+
+4. Redémarrer le backend et surveiller les erreurs (logs) pendant quelques heures.
+
+Rollback (si une erreur critique est détectée) :
+- Avant d'appliquer la migration, prenez un dump SQL complet : `mysqldump -u $DB_USER -p $DB_NAME > pre_migration.sql`.
+- En cas de problème : restaurer le dump et revenir à la version précédente du backend.
+
+💡 Astuce : exécutez d'abord la migration sur une copie de production (staging) pour vérifier qu'il n'y a pas de conflits inattendus.
+
+---
+
 ## 6) Conseils de production (sécurisé)
 
 - Ne laissez pas de mots de passe dans le dépôt. Utilisez `.env` sur le serveur ou un secrets manager.

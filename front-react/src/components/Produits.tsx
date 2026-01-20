@@ -37,6 +37,7 @@ const Produits: React.FC = () => {
   const [importProgress, setImportProgress] = useState<number>(0);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState<boolean>(false);
+  const [createMissingUnits, setCreateMissingUnits] = useState<boolean>(true);
   const [detailProduit, setDetailProduit] = useState<any>(null);
   const [newProduit, setNewProduit] = useState({
     nomProduit: '',
@@ -639,6 +640,12 @@ const Produits: React.FC = () => {
                 <div className="mb-3">
                   <input type="file" accept=".xlsx,.xls" onChange={(e) => setImportFile(e.target.files ? e.target.files[0] : null)} />
                 </div>
+                {useHasPermission('UNITE_CREER') && (
+                  <div className="form-check mb-3">
+                    <input id="createMissingUnits" className="form-check-input" type="checkbox" checked={createMissingUnits} onChange={e => setCreateMissingUnits(e.target.checked)} />
+                    <label htmlFor="createMissingUnits" className="form-check-label small">Créer les unités manquantes (réservé aux utilisateurs autorisés)</label>
+                  </div>
+                )}
                 {isImporting && <div className="mb-3">Traitement en cours, veuillez patienter...</div>}
                 {importProgress > 0 && (
                   <div className="mb-3">
@@ -703,6 +710,7 @@ const Produits: React.FC = () => {
                     };
                     const fd = new FormData();
                     fd.append('file', importFile);
+                    fd.append('createMissingUnits', createMissingUnits ? 'true' : 'false');
                     xhr.send(fd);
                   } catch (err: any) {
                     setImportErrors([err.message || 'Erreur inconnue']);
