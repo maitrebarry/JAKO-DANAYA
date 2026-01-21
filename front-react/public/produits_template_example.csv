@@ -1,5 +1,5 @@
-nomProduit,prixAchat,id_unite,unite_code,unite_name,nombreUnitesParConditionnement,quantiteInitiale,productImage,caracteristique,prixDetail,prixEnGros,alerteStock
+nomProduit,prixAchat,id_unite,symbole,unite_name,nombreUnitesParConditionnement,quantiteInitiale,productImage,caracteristique,prixDetail,prixEnGros,alerteStock
 "Savon A",500,,BOX,Carton,12,5,https://example.com/savon-a.jpg,"Parfum: citron",1200,1000,10
-"Brosse B",150, , ,Boîte,6,10,,"Couleur: rouge",400,350,5
+"Brosse B",150, ,BOÎTE,Boîte,6,10,,"Couleur: rouge",400,350,5
 "Clou C",50,42,,, ,100,,,80,60,20
 "Stylo D",100,,,,,50,,"Encre bleue",200,150,5

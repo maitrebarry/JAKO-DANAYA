@@ -5,7 +5,7 @@ But : expliquer comment remplir le modèle si vous ne connaissez pas `id_unite`.
 Règles importantes
 - `nomProduit` : obligatoire.
 - `id_unite` : optionnel. Si vous le fournissez, `nombreUnitesParConditionnement` est requis et l'ID doit appartenir à votre boutique.
-- `unite_code` / `unite_name` : fournissez plutôt le `unite_name` (ex : « Carton ») si vous ne connaissez pas l'ID.
+- `symbole` (préféré) ou `unite_code` (alias historique) / `unite_name` : fournissez plutôt le `unite_name` (ex : « Carton ») ou `symbole` si vous ne connaissez pas l'ID.
   - Si l'unité n'existe pas et que vous avez la permission `UNITE_CREER` (ou êtes SUPERADMIN), cochez « Créer les unités manquantes » lors de l'import pour que le serveur crée l'unité automatiquement.
 - `nombreUnitesParConditionnement` : requis si vous fournissez une unité (id, code ou name).
 - `quantiteInitiale` : quantité en conditionnements (si `nombreUnitesParConditionnement` fourni) ou en unités de base sinon.

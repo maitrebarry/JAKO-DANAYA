@@ -63,6 +63,7 @@ const Produits: React.FC = () => {
   const canCreate = useHasPermission('PRODUIT_CREER');
   const canModify = useHasPermission('PRODUIT_MODIFIER');
   const canImport = useHasPermission('PRODUIT_CREER');
+  const canCreateUnite = useHasPermission('UNITE_CREER');
   const selectedUnite = unites.find((u: any) => u.id.toString() === newProduit.uniteConditionnementId);
   const [search, setSearch] = useState('');
   const [filterUnite, setFilterUnite] = useState('');
@@ -257,6 +258,18 @@ const Produits: React.FC = () => {
     fetchMargeConfig();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentBoutique]);
+
+  // user-friendly hint when no margin configuration is present
+  const renderMargeHint = () => {
+    if (margeConfig === null) {
+      return (
+        <div className="alert alert-info" role="alert" style={{ marginTop: 8 }}>
+          Aucune configuration de marge trouvée pour cette boutique — le calcul automatique des prix est désactivé.
+        </div>
+      );
+    }
+    return null;
+  };
 
   useEffect(() => {
     // When a marge config exists, compute prices automatically from CMP (prixAchat).
@@ -619,7 +632,8 @@ const Produits: React.FC = () => {
               <div className="modal-body">
                 <p>Vous pouvez télécharger le modèle de fichier ci-dessous et le remplir avec vos produits.</p>
                 <div className="mb-3">
-                  <a className="btn btn-sm btn-secondary" href="/produits_template.xlsx" download> Télécharger le modèle </a>
+                  <a className="btn btn-sm btn-secondary me-2" href="/produits_template.xlsx" download> Télécharger le modèle (.xlsx)</a>
+                  <a className="btn btn-sm btn-outline-secondary" href="/produits_template_example.csv" download> Télécharger un exemple (.csv)</a>
                 </div>
                 <div className="alert alert-info small" role="note">
                   <p className="mb-1 fw-bold">Colonnes attendues (respecter l'ordre et les noms) :</p>
@@ -627,7 +641,8 @@ const Produits: React.FC = () => {
                     <li><code>nomProduit</code> (obligatoire) - Nom du produit</li>
                     <li><code>prixAchat</code> - Prix d'achat (nombre entier)</li>
                     <li><code>id_unite</code> - ID de l'unité de conditionnement (optionnel)</li>
-                    <li><code>nombreUnitesParConditionnement</code> - Nombre d'unités par conditionnement (requis si id_unite fourni)</li>
+                    <li><code>symbole</code> - Symbole / code de l'unité (préféré). *Alias historique*: <code>unite_code</code> est toujours accepté.</li>
+                    <li><code>nombreUnitesParConditionnement</code> - Nombre d'unités par conditionnement (requis si une unité est fournie)</li>
                     <li><code>quantiteInitiale</code> - Quantité initiale en conditionnements</li>
                     <li><code>productImage</code> - URL de l'image ou nom du fichier (optionnel)</li>
                     <li><code>caracteristique</code> - Caractéristiques du produit (optionnel)</li>
@@ -640,13 +655,14 @@ const Produits: React.FC = () => {
                 <div className="mb-3">
                   <input type="file" accept=".xlsx,.xls" onChange={(e) => setImportFile(e.target.files ? e.target.files[0] : null)} />
                 </div>
-                {useHasPermission('UNITE_CREER') && (
+                {canCreateUnite && (
                   <div className="form-check mb-3">
                     <input id="createMissingUnits" className="form-check-input" type="checkbox" checked={createMissingUnits} onChange={e => setCreateMissingUnits(e.target.checked)} />
                     <label htmlFor="createMissingUnits" className="form-check-label small">Créer les unités manquantes (réservé aux utilisateurs autorisés)</label>
                   </div>
                 )}
                 {isImporting && <div className="mb-3">Traitement en cours, veuillez patienter...</div>}
+                {renderMargeHint()}
                 {importProgress > 0 && (
                   <div className="mb-3">
                     <div className="progress">

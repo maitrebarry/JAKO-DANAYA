@@ -366,7 +366,9 @@ public class ProduitServiceImpl implements ProduitService {
                     produit.setAlerteStock(alerteStock);
 
                     // Définir les conditionnements si fournis
+                    // accept both legacy `unite_code` and the preferred `symbole` (backwards-compatible)
                     String uniteCode = getStringCell(row, colIndex.getOrDefault("unite_code", -1));
+                    String uniteSymbole = getStringCell(row, colIndex.getOrDefault("symbole", -1));
                     String uniteName = getStringCell(row, colIndex.getOrDefault("unite_name", -1));
 
                     if (uniteId != null) {
@@ -393,11 +395,14 @@ public class ProduitServiceImpl implements ProduitService {
                             throw new com.smboutique.api.exception.ImportValidationException(errors);
                         }
                     } else {
-                        // Try resolve by code -> name (scoped to boutique)
+                        // Try resolve by symbole/code -> name (scoped to boutique)
                         com.smboutique.api.model.Unite resolved = null;
                         Long boutiqueId = currentUser != null && currentUser.getBoutique() != null ? currentUser.getBoutique().getId() : null;
-                        if (uniteCode != null && !uniteCode.trim().isEmpty()) {
-                            resolved = uniteService.findByBoutiqueIdAndCode(boutiqueId, uniteCode.trim()).orElse(null);
+                        // prefer `symbole` (new column name), fall back to legacy `unite_code`
+                        String incomingSymbolOrCode = (uniteSymbole != null && !uniteSymbole.trim().isEmpty()) ? uniteSymbole.trim() : (uniteCode != null ? uniteCode.trim() : null);
+                        if (incomingSymbolOrCode != null && !incomingSymbolOrCode.isEmpty()) {
+                            // existing repository method searches by code field in DB — treat `symbole` as an alias for that
+                            resolved = uniteService.findByBoutiqueIdAndCode(boutiqueId, incomingSymbolOrCode).orElse(null);
                         }
                         if (resolved == null && uniteName != null && !uniteName.trim().isEmpty()) {
                             resolved = uniteService.findByBoutiqueIdAndLibelleIgnoreCase(boutiqueId, uniteName.trim()).orElse(null);
@@ -406,12 +411,12 @@ public class ProduitServiceImpl implements ProduitService {
                         boolean canAutoCreate = (currentUser != null && (currentUser.getRoles() != null && currentUser.getRoles().stream().anyMatch(role -> "SUPERADMIN".equalsIgnoreCase(role.getName()))))
                                 || (currentUser != null && currentUser.getPermissions() != null && currentUser.getPermissions().stream().anyMatch(perm -> "UNITE_CREER".equalsIgnoreCase(perm.getName())));
 
-                        if (resolved == null && (uniteCode != null && !uniteCode.trim().isEmpty() || uniteName != null && !uniteName.trim().isEmpty())) {
+                        if (resolved == null && (incomingSymbolOrCode != null && !incomingSymbolOrCode.isEmpty() || uniteName != null && !uniteName.trim().isEmpty())) {
                             if (canAutoCreate) {
                                 // create unit scoped to boutique (idempotent)
-                                resolved = uniteService.createIfNotExistsForBoutique(boutiqueId, uniteCode != null ? uniteCode : uniteName, uniteName, null);
+                                resolved = uniteService.createIfNotExistsForBoutique(boutiqueId, incomingSymbolOrCode != null ? incomingSymbolOrCode : uniteName, uniteName, null);
                             } else {
-                                errors.add("Ligne " + (r+1) + ": unité introuvable et vous n'avez pas la permission de créer des unités (fournir id_unite ou demander la permission UNITE_CREER)");
+                                errors.add("Ligne " + (r+1) + ": unité introuvable et vous n'avez pas la permission de créer des unités (fournir id_unite, `symbole` ou demander la permission UNITE_CREER)");
                                 throw new com.smboutique.api.exception.ImportValidationException(errors);
                             }
                         }
