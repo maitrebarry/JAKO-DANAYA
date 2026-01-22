@@ -68,4 +68,9 @@ public class StockServiceImpl implements StockService {
     public List<Stock> getStocksByProduitAndBoutique(Long produitId, Long boutiqueId) {
         return stockRepository.findByProduitIdAndBoutiqueId(produitId, boutiqueId);
     }
+
+    @Override
+    public List<Stock> getBoutiqueLevelStocks(Long boutiqueId) {
+        return stockRepository.findByBoutiqueIdAndMagasinIsNull(boutiqueId);
+    }
 }

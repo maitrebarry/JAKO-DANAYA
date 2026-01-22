@@ -22,4 +22,9 @@ public interface StockService {
     Optional<Stock> getStockByProduitAndMagasin(Long produitId, Long magasinId);
 
     List<Stock> getStocksByProduitAndBoutique(Long produitId, Long boutiqueId);
+
+    /**
+     * Retourne uniquement les stocks de niveau boutique (magasin IS NULL) pour une boutique donnée.
+     */
+    List<Stock> getBoutiqueLevelStocks(Long boutiqueId);
 }

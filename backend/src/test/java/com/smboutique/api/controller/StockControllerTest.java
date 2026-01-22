@@ -74,4 +74,20 @@ public class StockControllerTest {
 
         assertThrows(IllegalArgumentException.class, () -> stockController.createStock(s));
     }
+
+    @Test
+    public void getAllStocks_with_levelBoutique_returnsBoutiqueOnly() {
+        Utilisateur u = new Utilisateur(); u.setEmail("user@example");
+        com.smboutique.api.model.Permission p = new com.smboutique.api.model.Permission(); p.setName("INVENTAIRE_LECTURE");
+        u.setPermissions(new java.util.HashSet<>(java.util.List.of(p)));
+        u.setBoutique(new com.smboutique.api.model.Boutique()); u.getBoutique().setId(10L);
+
+        when(utilisateurService.findByEmail("user")).thenReturn(Optional.of(u));
+
+        Stock boutiqueStock = new Stock(); boutiqueStock.setId(100L); boutiqueStock.setQuantiteDisponible(7);
+        when(stockService.getBoutiqueLevelStocks(10L)).thenReturn(java.util.List.of(boutiqueStock));
+
+        java.util.List<?> resp = stockController.getAllStocks("boutique");
+        assertEquals(1, resp.size());
+    }
 }

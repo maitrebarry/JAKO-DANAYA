@@ -13,6 +13,7 @@ const Transfert: React.FC = () => {
   const canTransfer = normalizedPermissions.includes('INVENTAIRE_MODIFIER') || normalizedPermissions.includes('INVENTAIRE_CREER');
 
   const [magasins, setMagasins] = useState<Magasin[]>([]);
+  const [sourceType, setSourceType] = useState<'BOUTIQUE' | 'MAGASIN'>('MAGASIN');
   const [sourceMagasinId, setSourceMagasinId] = useState<number | null>(null);
   const [transferStocks, setTransferStocks] = useState<TransferStock[]>([]);
   const [transferSearch, setTransferSearch] = useState('');
@@ -41,12 +42,46 @@ const Transfert: React.FC = () => {
   useEffect(() => {
     if (!currentBoutique) return;
     loadMagasins();
+    // if user's default should be boutique as source, we would set sourceType here
   }, [currentBoutique]);
 
   useEffect(() => {
-    if (sourceMagasinId) loadStocks(sourceMagasinId);
-    else setTransferStocks([]);
-  }, [sourceMagasinId]);
+    // when sourceType changes, load appropriate stocks
+    if (sourceType === 'MAGASIN') {
+      if (sourceMagasinId) loadStocks(sourceMagasinId);
+      else setTransferStocks([]);
+    } else {
+      // BOUTIQUE source -> load boutique-level stocks for current boutique
+      loadBoutiqueStocks();
+    }
+  }, [sourceType, sourceMagasinId]);
+
+  const loadBoutiqueStocks = async () => {
+    try {
+      const res = await fetch(`http://localhost:8085/api/stocks?level=boutique`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) throw new Error('Impossible de charger les produits de la boutique');
+      const data = await res.json();
+      // Keep ONLY boutique-level stocks (magasin == null)
+      const boutiqueOnly = (data || []).filter((s: any) => !s.magasin);
+      const mapped = boutiqueOnly.map((s: any) => ({
+        produitId: s.produitId ?? s.produit?.id,
+        nomProduit: s.nomProduit ?? s.produit?.nomProduit ?? s.produit?.nom ?? 'Produit',
+        quantiteDisponible: s.quantiteDisponible ?? s.quantite ?? 0,
+        unite: s.unite,
+        multiplicateur: s.produit?.nombreUnitesParConditionnement ?? s.nombreUnitesParConditionnement ?? 1,
+        uniteCondLibelle: s.produit?.unite?.libelle ?? 'carton',
+        prixAchat: s.produit?.prixAchat ?? s.prixAchat ?? 0,
+        prixDetail: s.produit?.prixDetail ?? s.prixDetail ?? 0,
+        prixGros: s.produit?.prixEnGros ?? s.prixEnGros ?? 0
+      }));
+      setTransferStocks(mapped);
+      setTransferSelectedIds([]);
+      setTransferSelectAll(false);
+      setTransferQuantities({});
+    } catch (err: any) {
+      Swal.fire('Erreur', err.message || 'Erreur lors du chargement des stocks', 'error');
+    }
+  };
 
   const loadMagasins = async () => {
     try {
@@ -114,7 +149,8 @@ const Transfert: React.FC = () => {
   };
 
   const validateItems = (items: { produitId: number; quantite?: number; quantiteConditionnement?: number; }[]) => {
-    if (!sourceMagasinId) { setMessage('Sélectionnez un magasin source'); return false; }
+    if (sourceType === 'MAGASIN' && !sourceMagasinId) { setMessage('Sélectionnez un magasin source'); return false; }
+    if (sourceType === 'BOUTIQUE' && !currentBoutique) { setMessage('Impossible de déterminer la boutique source'); return false; }
     if (!items || items.length === 0) { setMessage('Aucun produit sélectionné'); return false; }
     for (const it of items) {
       const s = transferStocks.find(ts => ts.produitId === it.produitId);
@@ -137,7 +173,7 @@ const Transfert: React.FC = () => {
     if (!validateItems(items)) return;
     setLoading(true);
     try {
-      const payload = { sourceType: 'MAGASIN', sourceId: sourceMagasinId, destType: destType, destId: destType === 'BOUTIQUE' ? currentBoutique?.id : destMagasinId, items };
+      const payload = { sourceType: sourceType, sourceId: sourceType === 'BOUTIQUE' ? currentBoutique?.id : sourceMagasinId, destType: destType, destId: destType === 'BOUTIQUE' ? currentBoutique?.id : destMagasinId, items };
       const res = await fetch('http://localhost:8085/api/transferts/locations', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' }, body: JSON.stringify(payload)
       });
@@ -146,7 +182,8 @@ const Transfert: React.FC = () => {
       }
       const data = await res.json();
       setMessage(`Transfert réussi (${data.count || items.length} lignes).`);
-      loadStocks(sourceMagasinId!);
+      if (sourceType === 'MAGASIN') loadStocks(sourceMagasinId!);
+      else loadBoutiqueStocks();
       setTimeout(() => setMessage(''), 5000);
     } catch (err: any) {
       Swal.fire('Erreur', err.message || 'Erreur lors du transfert', 'error');
@@ -264,11 +301,26 @@ const Transfert: React.FC = () => {
 
               <div className="mb-3 row g-2">
                 <div className="col-md-6">
-                  <label className="form-label">Magasin source <span className="text-danger">*</span></label>
-                  <select className="form-control" value={sourceMagasinId || ''} onChange={(e) => setSourceMagasinId(Number(e.target.value))}>
-                    <option value="">Sélectionner un magasin</option>
-                    {magasins.map(m => <option key={m.id} value={m.id}>{m.nom}{m.adresse ? ` (${m.adresse})` : ''}</option>)}
-                  </select>
+                  <label className="form-label">Source <span className="text-danger">*</span></label>
+                  <div>
+                    <div className="form-check form-check-inline">
+                      <input className="form-check-input" type="radio" id="source_magasin" name="source_type" checked={sourceType === 'MAGASIN'} onChange={() => { setSourceType('MAGASIN'); if (magasins.length>0 && !sourceMagasinId) setSourceMagasinId(magasins[0].id); }} />
+                      <label className="form-check-label" htmlFor="source_magasin">Magasin</label>
+                    </div>
+                    <div className="form-check form-check-inline">
+                      <input className="form-check-input" type="radio" id="source_boutique" name="source_type" checked={sourceType === 'BOUTIQUE'} onChange={() => { setSourceType('BOUTIQUE'); setSourceMagasinId(null); }} />
+                      <label className="form-check-label" htmlFor="source_boutique">Boutique (propre)</label>
+                    </div>
+                  </div>
+
+                  {sourceType === 'MAGASIN' ? (
+                    <select className="form-control mt-2" value={sourceMagasinId || ''} onChange={(e) => setSourceMagasinId(Number(e.target.value))}>
+                      <option value="">Sélectionner un magasin</option>
+                      {magasins.map(m => <option key={m.id} value={m.id}>{m.nom}{m.adresse ? ` (${m.adresse})` : ''}</option>)}
+                    </select>
+                  ) : (
+                    <div className="mt-2 small text-muted">Produits chargés depuis la boutique actuelle{currentBoutique ? ` — ${currentBoutique.nom}` : ''}</div>
+                  )}
                 </div>
                 <div className="col-md-6">
                   <label className="form-label">Rechercher</label>
@@ -336,7 +388,7 @@ const Transfert: React.FC = () => {
                       <button className="btn btn-sm btn-primary" onClick={() => handleIndividualTransfer(s.produitId)}>Transférer</button>
                     </label>
                   ))}
-                  {transferStocks.length === 0 && <div className="text-muted small p-3">Aucun produit trouvé pour ce magasin.</div>}
+                  {transferStocks.length === 0 && <div className="text-muted small p-3">{sourceType === 'MAGASIN' ? 'Aucun produit trouvé pour ce magasin.' : 'Aucun produit trouvé pour cette boutique.'}</div>}
                 </div>
               </div>
 
@@ -383,10 +435,62 @@ const Transfert: React.FC = () => {
               <div className="mb-3">
                 <div><strong>Valeur estimée du transfert (sélection)</strong></div>
                 <div className="mt-2 small">
-                  <div>Achat total : <strong>{fmt(totals.totalAchat)}</strong></div>
-                  <div>Prix détail total : <strong>{fmt(totals.totalDetail)}</strong></div>
-                  <div>Prix gros total : <strong>{fmt(totals.totalGros)}</strong></div>
-                  <div className="text-muted">(Basé sur les produits sélectionnés et quantités renseignées)</div>
+                  <div className="row">
+                    <div className="col-12">
+                      <div>Achat total : <strong>{fmt(totals.totalAchat)}</strong></div>
+                      <div>Prix détail total : <strong>{fmt(totals.totalDetail)}</strong></div>
+                      <div>Prix gros total : <strong>{fmt(totals.totalGros)}</strong></div>
+                    </div>
+                  </div>
+
+                  {/* bénéfices estimés */}
+                  <div className="mt-2">
+                    <div><strong>Bénéfice estimé</strong></div>
+                    <div className="small text-muted">(estimation : Prix - Achat)</div>
+                    <div className="mt-1">
+                      <div>Bénéfice (détail) : <strong>{fmt(Math.max(0, totals.totalDetail - totals.totalAchat))}</strong></div>
+                      <div>Bénéfice (gros) : <strong>{fmt(Math.max(0, totals.totalGros - totals.totalAchat))}</strong></div>
+                    </div>
+                  </div>
+
+                  {/* Récapitulatif par destination (Boutique / Magasin sélectionné) */}
+                  <div className="mt-3">
+                    <div className="d-flex justify-content-between align-items-center mb-1"><small className="text-muted">Récapitulatif par endroit</small><small className="text-muted">(valeurs estimées)</small></div>
+                    <div className="table-responsive">
+                      <table className="table table-sm table-borderless mb-0 small">
+                        <thead>
+                          <tr>
+                            <th></th>
+                            <th className="text-end">Boutique</th>
+                            <th className="text-end">{destType === 'MAGASIN' ? (destMagasinId ? `Magasin #${destMagasinId}` : 'Magasin (sélection)') : 'Magasin'}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>Achat total</td>
+                            <td className="text-end">{fmt(totals.totalAchat)}</td>
+                            <td className="text-end">{fmt(totals.totalAchat)}</td>
+                          </tr>
+                          <tr>
+                            <td>Prix détail total</td>
+                            <td className="text-end">{fmt(totals.totalDetail)}</td>
+                            <td className="text-end">{fmt(totals.totalDetail)}</td>
+                          </tr>
+                          <tr>
+                            <td>Prix gros total</td>
+                            <td className="text-end">{fmt(totals.totalGros)}</td>
+                            <td className="text-end">{fmt(totals.totalGros)}</td>
+                          </tr>
+                          <tr className="border-top">
+                            <td><strong>Bénéfice estimé (détail)</strong></td>
+                            <td className="text-end"><strong>{fmt(Math.max(0, totals.totalDetail - totals.totalAchat))}</strong></td>
+                            <td className="text-end"><strong>{fmt(Math.max(0, totals.totalDetail - totals.totalAchat))}</strong></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="text-muted mt-2">(Basé sur les produits sélectionnés et quantités renseignées)</div>
+                  </div>
                 </div>
               </div>
 

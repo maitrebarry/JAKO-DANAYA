@@ -75,6 +75,7 @@ public class StockController {
                 u.setId(stock.getProduit().getUnite().getId());
                 u.setLibelle(stock.getProduit().getUnite().getLibelle());
                 u.setSymbole(stock.getProduit().getUnite().getSymbole());
+                u.setCode(stock.getProduit().getUnite().getCode());
                 produitDTO.setUnite(u);
             }
             dto.setProduit(produitDTO);
@@ -93,23 +94,24 @@ public class StockController {
     }
 
     @GetMapping
-    public List<StockDTO> getAllStocks() {
+    public List<StockDTO> getAllStocks(@RequestParam(value = "level", required = false) String level) {
         Utilisateur current = getCurrentUser();
         if (!hasPermission(current, "INVENTAIRE_LECTURE")) {
             return List.of(); // Return empty list if no permission
         }
-        System.out.println("Current user: " + current.getEmail() + ", Boutique: " + (current.getBoutique() != null ? current.getBoutique().getId() : "null"));
-        
+
         List<Stock> stocks;
         if (isSuperAdmin(current)) {
-            System.out.println("User is superadmin, getting all stocks");
             stocks = stockService.getAllStocks();
         } else if (current.getBoutique() != null) {
-            System.out.println("Getting stocks for boutique: " + current.getBoutique().getId());
-            stocks = stockService.getStocksByProduitAndBoutique(null, current.getBoutique().getId());
-            System.out.println("Found " + stocks.size() + " stocks");
+            if ("boutique".equalsIgnoreCase(level)) {
+                // explicit boutique-level request
+                stocks = stockService.getBoutiqueLevelStocks(current.getBoutique().getId());
+            } else {
+                // default: return all stocks for the boutique (magasin + boutique)
+                stocks = stockService.getStocksByProduitAndBoutique(null, current.getBoutique().getId());
+            }
         } else {
-            System.out.println("User has no boutique");
             stocks = List.of();
         }
         return stocks.stream().map(this::convertToDTO).collect(java.util.stream.Collectors.toList());
