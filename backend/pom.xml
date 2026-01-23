@@ -63,14 +63,12 @@
     </dependency>
     -->
 
-    <!-- H2 (DESACTIVE – dev only, non utilisé sur hebergement) -->
-    <!--
+    <!-- H2 (utilisé for local dev/in-memory runs) -->
     <dependency>
         <groupId>com.h2database</groupId>
         <artifactId>h2</artifactId>
         <scope>runtime</scope>
     </dependency>
-    -->
 
     <!-- ==================================================== -->
 
