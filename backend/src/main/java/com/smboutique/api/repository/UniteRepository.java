@@ -11,5 +11,10 @@ import java.util.Optional;
 public interface UniteRepository extends JpaRepository<Unite, Long> {
 	List<Unite> findAllByBoutiqueId(Long boutiqueId);
 	Optional<Unite> findByIdAndBoutiqueId(Long id, Long boutiqueId);
+
+    /* boutique-scoped lookups used by import logic */
+    Optional<Unite> findByBoutiqueIdAndCode(Long boutiqueId, String code);
+    Optional<Unite> findByBoutiqueIdAndLibelleIgnoreCase(Long boutiqueId, String libelle);
+
     Optional<Unite> findByLibelle(String libelle);
 }

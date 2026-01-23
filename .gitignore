@@ -14,6 +14,31 @@
 # IDE / OS
 .DS_Store
 .vscode/
+.idea/
+*.iml
 
-# Temporary
+# Java artifacts
+*.class
+*.jar
+*.war
+*.ear
+
+# Maven / build metadata
+/.mvn/
+.mvn/
+target/
+
+# Test reports & temp
+/surefire-reports/
+*.dump
+*.pid
 *.tmp
+
+# Frontend
+front-react/tsconfig.tsbuildinfo
+
+# Editor swap files
+*.swp
+
+# Misc
+.DS_Store

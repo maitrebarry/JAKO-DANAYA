@@ -506,6 +506,29 @@ public class ProduitServiceImpl implements ProduitService {
         st.setProgress(0);
         importJobs.put(jobId, st);
 
+        /*
+         * IMPORTANT: MultipartFile implementations provided by the servlet container
+         * may rely on temporary request-scoped storage that is cleaned up when the
+         * request thread completes. Because the import runs asynchronously after
+         * the controller returns, we must eagerly copy the uploaded bytes here and
+         * pass a stable in-memory wrapper to the background task. Otherwise the
+         * background worker can observe an empty file (see report: "Fichier vide").
+         */
+        final byte[] payload;
+        try {
+            payload = file != null ? file.getBytes() : new byte[0];
+        } catch (Exception e) {
+            // record and return a jobId so the client can poll for a clear error
+            com.smboutique.api.dto.ImportJobStatus failed = importJobs.get(jobId);
+            if (failed != null) {
+                failed.setState(com.smboutique.api.dto.ImportJobStatus.State.FAILED);
+                failed.setPhase("failed");
+                failed.setProgress(100);
+                failed.addError("Impossible de lire le fichier uploadé: " + e.getMessage());
+            }
+            return jobId;
+        }
+
         importExecutor.submit(() -> {
             try {
                 com.smboutique.api.dto.ImportJobStatus s2 = importJobs.get(jobId);
@@ -514,18 +537,42 @@ public class ProduitServiceImpl implements ProduitService {
                     s2.setPhase("parsing");
                     s2.setProgress(1);
                 }
-                // Prefer calling the proxied service so @Transactional applies; fall back to direct call in unit-tests
+
+                // Create a stable MultipartFile-like wrapper around the copied bytes so
+                // the existing import pipeline can be reused without further signature changes.
+                final MultipartFile stableFile = new MultipartFile() {
+                    @Override
+                    public String getName() { return file == null ? "file" : file.getName(); }
+                    @Override
+                    public String getOriginalFilename() { return file == null ? null : file.getOriginalFilename(); }
+                    @Override
+                    public String getContentType() { return file == null ? null : file.getContentType(); }
+                    @Override
+                    public boolean isEmpty() { return payload == null || payload.length == 0; }
+                    @Override
+                    public long getSize() { return payload == null ? 0 : payload.length; }
+                    @Override
+                    public byte[] getBytes() { return payload == null ? new byte[0] : payload; }
+                    @Override
+                    public java.io.InputStream getInputStream() { return new java.io.ByteArrayInputStream(payload == null ? new byte[0] : payload); }
+                    @Override
+                    public void transferTo(java.io.File dest) throws java.io.IOException, IllegalStateException {
+                        java.nio.file.Files.write(dest.toPath(), payload == null ? new byte[0] : payload);
+                    }
+                };
+
                 com.smboutique.api.dto.ImportResult res;
                 if (applicationContext != null) {
                     try {
                         ProduitService svc = applicationContext.getBean(ProduitService.class);
-                        res = svc.importFromExcel(file, currentUser, createMissingUnits);
+                        // call proxied service so @Transactional semantics still apply
+                        res = svc.importFromExcel(stableFile, currentUser, createMissingUnits);
                     } catch (Exception ex) {
-                        // fall back
-                        res = importFromExcelInternal(file, currentUser, createMissingUnits, jobId);
+                        // fallback to internal implementation (keeps jobId for status reporting)
+                        res = importFromExcelInternal(stableFile, currentUser, createMissingUnits, jobId);
                     }
                 } else {
-                    res = importFromExcelInternal(file, currentUser, createMissingUnits, jobId);
+                    res = importFromExcelInternal(stableFile, currentUser, createMissingUnits, jobId);
                 }
 
                 com.smboutique.api.dto.ImportJobStatus s3 = importJobs.get(jobId);
@@ -544,6 +591,8 @@ public class ProduitServiceImpl implements ProduitService {
                     s4.setProgress(100);
                     s4.addError(ex.getMessage() == null ? ex.toString() : ex.getMessage());
                 }
+                // log with jobId for easier debugging
+                org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).error("Async import job {} failed: {}", jobId, ex.getMessage(), ex);
             }
         });
 

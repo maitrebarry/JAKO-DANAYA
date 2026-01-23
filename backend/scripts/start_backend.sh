@@ -56,8 +56,30 @@ fi
 
 mkdir -p logs
 
-echo "Starting backend jar... (logs at logs/application.log)"
-nohup java -jar target/backend-0.0.1-SNAPSHOT.jar > logs/application.log 2>&1 &
+# Verify logs directory is writable; if not, fallback to /tmp and show remediation steps.
+LOG_DIR="logs"
+LOG_FILE="${LOG_DIR}/application.log"
+FALLBACK_LOG="/tmp/backend-application.log"
+
+if [ -e "$LOG_FILE" ] && [ ! -w "$LOG_FILE" ]; then
+  echo "WARNING: $LOG_FILE exists but is not writable by $(id -un)." >&2
+  echo "-> Will fallback to $FALLBACK_LOG for this run to avoid startup failure." >&2
+  echo "Suggested fix (run as sudo):" >&2
+  echo "  sudo chown $(id -un):$(id -gn) ${LOG_FILE} && sudo chmod 0644 ${LOG_FILE}" >&2
+  echo "Or remove the file if it should not be present: sudo rm ${LOG_FILE}" >&2
+  LOG_FILE="$FALLBACK_LOG"
+fi
+
+# If logs dir is not writable, attempt to create fallback and warn
+if [ ! -w "$LOG_DIR" ]; then
+  echo "WARNING: cannot write to $LOG_DIR (owner: $(ls -ld $LOG_DIR 2>/dev/null))." >&2
+  echo "-> Will fallback to $FALLBACK_LOG for this run." >&2
+  echo "Suggested fix (run as sudo): sudo chown -R $(id -un):$(id -gn) $LOG_DIR && sudo chmod -R 0755 $LOG_DIR" >&2
+  LOG_FILE="$FALLBACK_LOG"
+fi
+
+echo "Starting backend jar... (logs at $LOG_FILE)"
+nohup java -jar target/backend-0.0.1-SNAPSHOT.jar > "$LOG_FILE" 2>&1 &
 PID=$!
 # write pid for easier stop
 echo $PID > boot.pid

@@ -13,6 +13,12 @@ public interface InventaireService {
     List<Inventaire> findByBoutiqueId(Long boutiqueId);
     boolean existsActiveInventoryForBoutique(Long boutiqueId);
 
+    /**
+     * Check for an existing active inventory that would conflict with adding a ligne for given product to the provided inventaire.
+     * Throws RuntimeException with a descriptive message when a conflict is found (mapped to HTTP 409 by controller).
+     */
+    void checkActiveInventoryConflictOnAddingLine(com.smboutique.api.model.Inventaire inventaire, Long produitId);
+
     com.smboutique.api.model.LigneInventaire saveLigne(com.smboutique.api.model.LigneInventaire ligne);
     Optional<com.smboutique.api.model.LigneInventaire> findLigneById(Long id);
     void deleteLigne(Long id);

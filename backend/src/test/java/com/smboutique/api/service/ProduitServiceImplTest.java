@@ -204,5 +204,59 @@ public class ProduitServiceImplTest {
             org.mockito.Mockito.verify(uniteService, org.mockito.Mockito.atLeastOnce()).createIfNotExistsForBoutique(org.mockito.Mockito.eq(55L), org.mockito.Mockito.anyString(), org.mockito.Mockito.anyString(), org.mockito.Mockito.nullable(String.class));
         }
     }
+
+    @Test
+    public void import_async_survives_request_scoped_multipart_cleanup() throws Exception {
+        // Simulate a MultipartFile whose underlying bytes would become unavailable after the request thread
+        try (org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
+            org.apache.poi.ss.usermodel.Sheet sh = wb.createSheet();
+            org.apache.poi.ss.usermodel.Row h = sh.createRow(0);
+            h.createCell(0).setCellValue("nomProduit");
+            org.apache.poi.ss.usermodel.Row r1 = sh.createRow(1);
+            r1.createCell(0).setCellValue("ProdZ");
+
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            wb.write(out);
+            final byte[] bytes = out.toByteArray();
+            final org.springframework.mock.web.MockMultipartFile mf = new org.springframework.mock.web.MockMultipartFile("file", "p.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes);
+
+            // create a 'flaky' wrapper that returns bytes the first time but empty thereafter
+            final java.util.concurrent.atomic.AtomicBoolean first = new java.util.concurrent.atomic.AtomicBoolean(true);
+            org.springframework.web.multipart.MultipartFile flaky = new org.springframework.web.multipart.MultipartFile() {
+                @Override public String getName() { return mf.getName(); }
+                @Override public String getOriginalFilename() { return mf.getOriginalFilename(); }
+                @Override public String getContentType() { return mf.getContentType(); }
+                @Override public boolean isEmpty() { return !first.get(); }
+                @Override public long getSize() { return first.get() ? bytes.length : 0; }
+                @Override public byte[] getBytes() throws java.io.IOException { return first.getAndSet(false) ? bytes : new byte[0]; }
+                @Override public java.io.InputStream getInputStream() throws java.io.IOException { return new java.io.ByteArrayInputStream(getBytes()); }
+                @Override public void transferTo(java.io.File dest) throws java.io.IOException, IllegalStateException { java.nio.file.Files.write(dest.toPath(), getBytes()); }
+            };
+
+            com.smboutique.api.model.Utilisateur u = new com.smboutique.api.model.Utilisateur();
+            com.smboutique.api.model.Boutique bb = new com.smboutique.api.model.Boutique(); bb.setId(99L); u.setBoutique(bb);
+            com.smboutique.api.model.Permission perm = new com.smboutique.api.model.Permission(); perm.setName("UNITE_CREER");
+            u.setPermissions(java.util.Set.of(perm));
+
+            when(uniteService.createIfNotExistsForBoutique(org.mockito.Mockito.eq(99L), org.mockito.Mockito.anyString(), org.mockito.Mockito.anyString(), org.mockito.Mockito.nullable(String.class)))
+                    .thenAnswer(inv -> { com.smboutique.api.model.Unite uu = new com.smboutique.api.model.Unite(); uu.setId(101L); uu.setLibelle("Piece"); return uu; });
+            org.mockito.Mockito.lenient().when(produitRepository.save(any(Produit.class))).thenAnswer(inv -> { Produit p = inv.getArgument(0); p.setId((long)(new java.util.Random().nextInt(1000)+1)); return p; });
+            when(boutiqueRepository.findById(99L)).thenReturn(java.util.Optional.of(bb));
+
+            String jobId = produitService.startAsyncImport(flaky, u, true);
+            assertNotNull(jobId);
+
+            com.smboutique.api.dto.ImportJobStatus status = null;
+            long start = System.currentTimeMillis();
+            while (System.currentTimeMillis() - start < 3000) {
+                status = produitService.getImportJobStatus(jobId);
+                if (status != null && (status.getState() == com.smboutique.api.dto.ImportJobStatus.State.COMPLETED || status.getState() == com.smboutique.api.dto.ImportJobStatus.State.FAILED)) break;
+                Thread.sleep(100);
+            }
+            assertNotNull(status, "status should be available");
+            // With the fix, the job must NOT fail with "Fichier vide" — it should complete or report validation errors from parsing
+            assertNotEquals(com.smboutique.api.dto.ImportJobStatus.State.FAILED, status.getState(), "Async import should survive request-scoped multipart cleanup");
+        }
+    }
 }
 

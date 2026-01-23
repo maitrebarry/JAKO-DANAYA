@@ -112,6 +112,7 @@ public class UniteController {
                     }
                     unite.setLibelle(uniteDetails.getLibelle());
                     unite.setSymbole(uniteDetails.getSymbole());
+                    unite.setCode(uniteDetails.getCode());
                     return ResponseEntity.ok(uniteService.save(unite));
                 })
                 .orElse(ResponseEntity.notFound().build());

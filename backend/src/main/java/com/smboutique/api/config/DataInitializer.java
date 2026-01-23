@@ -181,7 +181,8 @@ public class DataInitializer implements CommandLineRunner {
             {"UTILISA_PERTE_CREER", "Permission pour créer des utilisations/pertes"},
             {"UTILISA_PERTE_MODIFIER", "Permission pour modifier des utilisations/pertes"},
             {"UTILISA_PERTE_SUPPRIMER", "Permission pour supprimer des utilisations/pertes"},
-
+            // unite
+                {"UNITE_CREER","Permission pour creer une unite"},
             // Fournisseurs
             {"FOURNISSEUR_LECTURE", "Permission pour lire les fournisseurs"},
             {"FOURNISSEUR_CREER", "Permission pour créer des fournisseurs"},
@@ -265,6 +266,8 @@ public class DataInitializer implements CommandLineRunner {
             Pays mali = new Pays(); mali.setCodeIso("ML"); mali.setNom("Mali"); mali.setIndicatif("+223"); mali.setDeviseCode("XOF"); mali.setDeviseSymbole("FCFA"); mali.setDrapeau("🇲🇱"); paysRepository.save(mali);
             Pays guinee = new Pays(); guinee.setCodeIso("GN"); guinee.setNom("Guinée"); guinee.setIndicatif("+224"); guinee.setDeviseCode("GNF"); guinee.setDeviseSymbole("GNF"); guinee.setDrapeau("🇬🇳"); paysRepository.save(guinee);
             Pays senegal = new Pays(); senegal.setCodeIso("SN"); senegal.setNom("Sénégal"); senegal.setIndicatif("+221"); senegal.setDeviseCode("XOF"); senegal.setDeviseSymbole("FCFA"); senegal.setDrapeau("🇸🇳"); paysRepository.save(senegal);
+            // Ghana (symbole ₵) - utile pour tests et boutiques utilisant GHS
+            Pays ghana = new Pays(); ghana.setCodeIso("GH"); ghana.setNom("Ghana"); ghana.setIndicatif("+233"); ghana.setDeviseCode("GHS"); ghana.setDeviseSymbole("₵"); ghana.setDrapeau("🇬🇭"); paysRepository.save(ghana);
             logger.info("Seeded pays: ML, GN, SN");
         } else {
             logger.info("Pays already seeded, skipping");
@@ -419,7 +422,7 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void initializeBoutique() {
-        logger.info("Initializing boutique...");
+//        logger.info("Initializing boutique...");/
         if (boutiqueRepository.count() == 0) {
             Boutique boutique = new Boutique();
             boutique.setNom("COMPUTER-SERVICE-BARRY");

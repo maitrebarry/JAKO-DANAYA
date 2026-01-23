@@ -764,8 +764,7 @@ public class CommandeFournisseurController {
                             CommandeFournisseurDTO.LigneDTO.UniteDTO u = new CommandeFournisseurDTO.LigneDTO.UniteDTO();
                             u.setId(l.getStock().getProduit().getUnite().getId());
                             u.setLibelle(l.getStock().getProduit().getUnite().getLibelle());
-                            u.setSymbole(l.getStock().getProduit().getUnite().getSymbole());
-                            li.setUnite(u);
+                            u.setSymbole(l.getStock().getProduit().getUnite().getSymbole());                            u.setCode(l.getStock().getProduit().getUnite().getCode());                            li.setUnite(u);
                         }
                     }
                 }

@@ -121,4 +121,57 @@ public class PdfTemplateTest {
         assertTrue(out.contains("Jean Dupont"));
         assertFalse(out.contains("deviseSymbole"));
     }
+
+    @Test
+    public void processTemplate_vente_espece_accepts_GHS_symbol() {
+        TemplateEngine te = templateEngine();
+        Context ctx = new Context();
+        ctx.setVariable("boutiqueNom", "GH-STORE");
+        ctx.setVariable("boutiqueTelephone", "0244123456");
+        ctx.setVariable("boutiqueAdresse", "Accra");
+        // simulate GHS symbol coming from Pays or mapping
+        ctx.setVariable("deviseSymbole", "₵");
+        ctx.setVariable("deviseLabel", "₵");
+        ctx.setVariable("vente", java.util.Map.of("montantTotal", 12000));
+        ctx.setVariable("lignes", java.util.List.of(java.util.Map.of("nom","Article","quantite",1,"prixLabel","12 000","montantLabel","12 000")));
+
+        String out = assertDoesNotThrow(() -> te.process("vente_espece", ctx));
+        assertTrue(out.contains("₵") || out.contains("GHS"), "vente_espece should render the currency symbol or code for GHS");
+
+        // If the symbol is a placeholder (e.g. '#') but the code exists, the template should still render the code
+        ctx.setVariable("deviseSymbole", "#");
+        ctx.setVariable("deviseCode", "GHS");
+        // remove any existing computed label to simulate real PdfServiceImpl behaviour
+        ctx.removeVariable("deviseLabel");
+        String out2 = assertDoesNotThrow(() -> te.process("vente_espece", ctx));
+
+        assertTrue(out2.contains("GHS"), "vente_espece should fallback to the currency code when symbol is not usable");
+    }
+
+    @Test
+    public void processTemplate_vente_espece_shows_unite_label_when_conditionnement_true() {
+        TemplateEngine te = templateEngine();
+        Context ctx = new Context();
+        ctx.setVariable("boutiqueNom", "TEST-B");
+        ctx.setVariable("deviseSymbole", "FCFA");
+        // ligne with quantiteConditionnement set -> should render as "1 Cartons"
+        java.util.Map<String,Object> produit = new java.util.HashMap<>();
+        produit.put("unite", java.util.Map.of("libelle", "Cartons"));
+        produit.put("nombreUnitesParConditionnement", 12);
+        java.util.Map<String,Object> ligne = new java.util.HashMap<>();
+        ligne.put("produit", produit);
+        ligne.put("quantiteConditionnement", 1);
+        ligne.put("quantite", 12);
+        ligne.put("newPrice", 9000);
+        ligne.put("montant", 9000);
+        ctx.setVariable("lignes", java.util.List.of(ligne));
+        ctx.setVariable("vente", java.util.Map.of("montantTotal", 9000));
+
+        String out = assertDoesNotThrow(() -> te.process("vente_espece", ctx));
+        assertTrue(out.contains("1 Cartons"), "quantiteConditionnement should render the unit libelle for quantity");
+        // when quantiteConditionnement is not set, fallback to 'U'
+        ligne.remove("quantiteConditionnement");
+        String out2 = assertDoesNotThrow(() -> te.process("vente_espece", ctx));
+        assertTrue(out2.contains("12 U"), "when no conditionnement the quantity should show unit 'U'");
+    }
 }

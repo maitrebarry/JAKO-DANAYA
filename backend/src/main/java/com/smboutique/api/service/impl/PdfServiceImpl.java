@@ -1419,15 +1419,59 @@ public class PdfServiceImpl implements PdfService {
             String deviseSymboleLocal = null;
             try {
                 Object ds = ctx.getVariable("deviseSymbole");
-                if (ds instanceof String && ((String)ds).trim().length() > 0) {
+                if (ds instanceof String && ((String)ds).trim().length() > 0 && !"#".equals(((String)ds).trim())) {
                     deviseSymboleLocal = (String) ds;
-                } else if (vente != null && vente.getBoutique() != null && vente.getBoutique().getPays() != null && vente.getBoutique().getPays().getDeviseSymbole() != null) {
-                    deviseSymboleLocal = vente.getBoutique().getPays().getDeviseSymbole();
-                } else {
+                } else if (vente != null && vente.getBoutique() != null && vente.getBoutique().getPays() != null) {
+                    if (vente.getBoutique().getPays().getDeviseSymbole() != null && !"#".equals(vente.getBoutique().getPays().getDeviseSymbole().trim())) {
+                        deviseSymboleLocal = vente.getBoutique().getPays().getDeviseSymbole();
+                    } else if (vente.getBoutique().getPays().getDeviseCode() != null) {
+                        // map common currency codes to readable symbols when possible
+                        String code = vente.getBoutique().getPays().getDeviseCode().trim().toUpperCase();
+                        switch (code) {
+                            case "XOF": deviseSymboleLocal = "FCFA"; break;
+                            case "XAF": deviseSymboleLocal = "FCFA"; break;
+                            case "GNF": deviseSymboleLocal = "GNF"; break;
+                            case "GHS": deviseSymboleLocal = "₵"; break;
+                            default: deviseSymboleLocal = code; break;
+                        }
+                    }
+                }
+                if (deviseSymboleLocal == null || deviseSymboleLocal.trim().length() == 0) {
                     deviseSymboleLocal = "FCFA";
                 }
             } catch (Exception __e) { deviseSymboleLocal = "FCFA"; }
             ctx.setVariable("deviseSymbole", deviseSymboleLocal);
+            // also expose devise code (if available) and compute a safe label (append code when symbol is non-ASCII)
+            String deviseCodeLocal = null;
+            try {
+                Object dc = ctx.getVariable("deviseCode");
+                if (dc instanceof String && ((String) dc).trim().length() > 0) deviseCodeLocal = (String) dc;
+                else if (vente != null && vente.getBoutique() != null && vente.getBoutique().getPays() != null && vente.getBoutique().getPays().getDeviseCode() != null) deviseCodeLocal = vente.getBoutique().getPays().getDeviseCode();
+            } catch (Exception __e) { /* ignore */ }
+            ctx.setVariable("deviseCode", deviseCodeLocal);
+
+            // Build a safe `deviseLabel` for templates. Treat "#" as a placeholder (absent symbol) and prefer the ISO code when symbol is not usable.
+            String labelSuffix;
+            try {
+                if (deviseSymboleLocal == null || "#".equals(deviseSymboleLocal.trim()) || deviseSymboleLocal.trim().length() == 0) {
+                    // no usable symbol -> use code (if any) or a sensible default
+                    labelSuffix = (deviseCodeLocal != null && deviseCodeLocal.trim().length() > 0) ? deviseCodeLocal.trim().toUpperCase() : "FCFA";
+                } else {
+                    // usable symbol present
+                    String s = deviseSymboleLocal.trim();
+                    if (!s.matches("[A-Za-z0-9]{1,4}") && deviseCodeLocal != null && deviseCodeLocal.trim().length() > 0) {
+                        // non-alphanumeric symbol (e.g. ₵) — append ISO code to help viewers that can't render glyphs
+                        labelSuffix = s + " (" + deviseCodeLocal.trim().toUpperCase() + ")";
+                    } else {
+                        // short alphanumeric symbol or single glyph — show as-is
+                        labelSuffix = s;
+                    }
+                }
+            } catch (Exception __e) {
+                labelSuffix = (deviseCodeLocal != null ? deviseCodeLocal : "FCFA");
+            }
+            ctx.setVariable("deviseLabel", labelSuffix);
+
             java.text.NumberFormat nf = java.text.NumberFormat.getIntegerInstance(java.util.Locale.FRANCE);
             try {
                 // ensure vente totals exist
@@ -1437,11 +1481,11 @@ public class PdfServiceImpl implements PdfService {
                 long montantRecuVal = vente.getMontantRecu() != null ? vente.getMontantRecu() : 0L;
                 long monnaieRembourseVal = vente.getMonnaieRembourse() != null ? vente.getMonnaieRembourse() : 0L;
 
-                ctx.setVariable("venteMontantTotalLabel", nf.format(montantTotalVal) + " " + deviseSymboleLocal);
-                ctx.setVariable("venteRemiseLabel", nf.format(remiseVal) + " " + deviseSymboleLocal);
-                ctx.setVariable("venteNetAPayerLabel", nf.format(netAPayerVal) + " " + deviseSymboleLocal);
-                ctx.setVariable("venteMontantRecuLabel", nf.format(montantRecuVal) + " " + deviseSymboleLocal);
-                ctx.setVariable("venteMonnaieRembourseLabel", nf.format(monnaieRembourseVal) + " " + deviseSymboleLocal);
+                ctx.setVariable("venteMontantTotalLabel", nf.format(montantTotalVal) + " " + labelSuffix);
+                ctx.setVariable("venteRemiseLabel", nf.format(remiseVal) + " " + labelSuffix);
+                ctx.setVariable("venteNetAPayerLabel", nf.format(netAPayerVal) + " " + labelSuffix);
+                ctx.setVariable("venteMontantRecuLabel", nf.format(montantRecuVal) + " " + labelSuffix);
+                ctx.setVariable("venteMonnaieRembourseLabel", nf.format(monnaieRembourseVal) + " " + labelSuffix);
 
                 // Enrich lignes maps if present
                 try {
@@ -1453,10 +1497,27 @@ public class PdfServiceImpl implements PdfService {
                                 if (m.get("newPrice") instanceof Number) priceN = (Number) m.get("newPrice");
                                 else if (m.get("prix") instanceof Number) priceN = (Number) m.get("prix");
                                 long priceL = priceN != null ? priceN.longValue() : 0L;
-                                m.put("prixLabel", nf.format(priceL) + " " + deviseSymboleLocal);
+                                // If sale was issued by conditionnement, show price per conditionnement in PDF (e.g. 9 000 / carton)
+                                Integer qCondForLabel = null;
+                                try { if (m.get("quantiteConditionnement") instanceof Number) qCondForLabel = ((Number)m.get("quantiteConditionnement")).intValue(); } catch (Exception __e) { qCondForLabel = null; }
+                                Integer mulForLabel = null;
+                                try {
+                                    if (m.get("produit") instanceof java.util.Map) {
+                                        Object mv = ((java.util.Map<?,?>)m.get("produit")).get("nombreUnitesParConditionnement");
+                                        if (mv instanceof Number) mulForLabel = ((Number)mv).intValue();
+                                    }
+                                } catch (Exception __e) { mulForLabel = null; }
+                                if (qCondForLabel != null && mulForLabel != null && mulForLabel > 1) {
+                                    long displayPrice = priceL * (long) mulForLabel;
+                                    String unitLbl = null;
+                                    try { Object um = ((java.util.Map<?,?>)m.get("produit")).get("unite"); if (um instanceof java.util.Map) unitLbl = (String) ((java.util.Map<?,?>)um).get("libelle"); } catch (Exception __e) { unitLbl = null; }
+                                    m.put("prixLabel", nf.format(displayPrice) + " " + labelSuffix + " / " + (unitLbl != null ? unitLbl : "carton"));
+                                } else {
+                                    m.put("prixLabel", nf.format(priceL) + " " + labelSuffix);
+                                }
                                 Number montantN = m.get("montant") instanceof Number ? (Number) m.get("montant") : null;
                                 long montantL = montantN != null ? montantN.longValue() : 0L;
-                                m.put("montantLabel", nf.format(montantL) + " " + deviseSymboleLocal);
+                                m.put("montantLabel", nf.format(montantL) + " " + labelSuffix);
                             } catch (Exception ignore) {}
                         }
                     }

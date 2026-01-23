@@ -27,6 +27,9 @@ public class InventaireController {
     @Autowired
     private com.smboutique.api.service.PdfService pdfService;
 
+    @Autowired
+    private com.smboutique.api.repository.StockRepository stockRepository;
+
     private com.smboutique.api.model.Utilisateur getCurrentUser() {
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -94,9 +97,10 @@ public class InventaireController {
         if (inventaire.getBoutique() == null || inventaire.getBoutique().getId() == null) {
             return ResponseEntity.badRequest().body(java.util.Map.of("error", "id_boutique requis"));
         }
-        if (inventaireService.existsActiveInventoryForBoutique(inventaire.getBoutique().getId())) {
-            return ResponseEntity.status(409).body(java.util.Map.of("code", "INVENTAIRE_ACTIVE", "message", "Une inventaire actif existe déjà pour cette boutique"));
-        }
+
+        // Enforce boutique-only inventories: Inventaire entity has no `magasin` field — any incoming magasin in payload is ignored by the mapping.
+        // Actual enforcement (rejecting magasin-scoped lignes) happens at ligne-add / service level.
+
         // assign user
         if (user != null) inventaire.setUtilisateur(user);
         // Save first to get an id and generate reference automatically
@@ -154,6 +158,55 @@ public class InventaireController {
                         return ResponseEntity.badRequest().body(java.util.Map.of("error", "Quantité totale invalide"));
                     }
 
+                    // SERVER-SIDE SCOPE VALIDATION (current data model: inventaire has no magasin field)
+                    // Goal: allow inventaires that are implicitly "magasin-scoped" (all lignes reference produits with stock.magasin != null),
+                    // but forbid mixing boutique-level and magasin-level lignes in the same inventaire.
+                    Long boutiqueId = inv.getBoutique() != null ? inv.getBoutique().getId() : null;
+
+                    // Determine produit scope by inspecting ALL stocks for the produit (not only boutique-scoped query)
+                    java.util.List<com.smboutique.api.model.Stock> allStocksForProduit = stockRepository.findByProduitId(produit.getId());
+                    boolean produitHasBoutiqueStock = allStocksForProduit != null && allStocksForProduit.stream().anyMatch(s -> s.getMagasin() == null && (s.getBoutique() == null || boutiqueId == null || s.getBoutique().getId().equals(boutiqueId)));
+                    boolean produitHasMagasinStock = allStocksForProduit != null && allStocksForProduit.stream().anyMatch(s -> s.getMagasin() != null && s.getMagasin().getBoutique() != null && (boutiqueId == null || s.getMagasin().getBoutique().getId().equals(boutiqueId)));
+
+                    // Enforce new policy: INVENTAIRE IS BOUTIQUE-ONLY
+                    // - If produit exists ONLY at magasin-level (no boutique-level row) => reject (can't be inventoried at boutique)
+                    if (produitHasMagasinStock && !produitHasBoutiqueStock) {
+                        return ResponseEntity.status(409).body(java.util.Map.of("code", "OUT_OF_SCOPE", "message", "Produit présent uniquement en magasin — inventaire boutique uniquement"));
+                    }
+
+                    // Inspect existing lignes of this inventaire to infer its current scope (if any)
+                    boolean invHasBoutiqueLines = false;
+                    boolean invHasMagasinLines = false;
+                    java.util.List<com.smboutique.api.model.LigneInventaire> existingLignes = ligneInventaireRepository.findByInventaireId(inv.getId());
+                    for (com.smboutique.api.model.LigneInventaire li : existingLignes) {
+                        Long pid = li.getProduit() != null ? li.getProduit().getId() : null;
+                        if (pid == null) continue;
+                        java.util.List<com.smboutique.api.model.Stock> stAll = stockRepository.findByProduitId(pid);
+                        if (stAll != null && stAll.stream().anyMatch(s -> s.getMagasin() == null && (s.getBoutique() == null || boutiqueId == null || s.getBoutique().getId().equals(boutiqueId)))) invHasBoutiqueLines = true;
+                        if (stAll != null && stAll.stream().anyMatch(s -> s.getMagasin() != null && s.getMagasin().getBoutique() != null && (boutiqueId == null || s.getMagasin().getBoutique().getId().equals(boutiqueId)))) invHasMagasinLines = true;
+                    }
+
+                    // Mixed existing lines -> invalid state (defensive). We keep this check (historical data may contain mixed lines) but do not allow new magasin lines.
+                    if (invHasBoutiqueLines && invHasMagasinLines) {
+                        return ResponseEntity.status(409).body(java.util.Map.of("code", "MIXED_PORTEE", "message", "Inventaire contient déjà des lignes de portées différentes"));
+                    }
+
+                    // If this inventaire currently has no lignes, ensure we don't conflict with another active inventaire of same scope
+                    if (existingLignes.isEmpty()) {
+                        try {
+                            inventaireService.checkActiveInventoryConflictOnAddingLine(inv, produit.getId());
+                        } catch (RuntimeException ex) {
+                            return ResponseEntity.status(409).body(java.util.Map.of("code", "INVENTAIRE_ACTIVE", "message", ex.getMessage()));
+                        }
+                    }
+
+                    // Note: we no longer support magasin-scoped inventaires — the previous branch that allowed inventaire to become magasin-scoped has been removed.
+
+                    // If produit has neither boutique nor magasin stock (new produit), allow adding (will inherit inventaire scope)
+                    // If produit has neither boutique nor magasin stock (new produit), allow adding (will inherit inventaire scope)
+                    // If inventaire has no lignes yet, any produit is allowed (inventaire scope inferred from first ligne)
+                    // Otherwise (both produitHasBoutiqueStock && produitHasMagasinStock) allow — resolution happens at regularisation time or by preferring magasin when inventaire is magasin-scoped.
+
                     try {
                         // Prefer to lookup a single ligne by inventaire+produit to avoid duplicates in concurrent cases
                         java.util.Optional<com.smboutique.api.model.LigneInventaire> existingOpt = ligneInventaireRepository.findByInventaireIdAndProduitId(inv.getId(), req.produitId);
@@ -182,6 +235,8 @@ public class InventaireController {
                             return ResponseEntity.ok(updated);
                         }
                         throw dive;
+                    } catch (RuntimeException rex) {
+                        return ResponseEntity.status(409).body(java.util.Map.of("code", "MIXED_PORTEE", "message", rex.getMessage()));
                     }
                 })
                 .orElse(ResponseEntity.notFound().build());

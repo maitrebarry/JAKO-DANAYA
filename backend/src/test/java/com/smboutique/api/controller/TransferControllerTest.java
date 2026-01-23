@@ -123,6 +123,32 @@ public class TransferControllerTest {
     }
 
     @Test
+    public void transfertLocations_boutiqueSource_invokesService() {
+        TransferController.LocationTransferRequest req = new TransferController.LocationTransferRequest();
+        req.sourceType = "BOUTIQUE";
+        req.sourceId = 10L;
+        req.destType = "MAGASIN";
+        req.destId = 3L;
+        TransferController.LocationTransferItem item = new TransferController.LocationTransferItem();
+        item.produitId = 11L; item.quantite = 4;
+        req.items = java.util.List.of(item);
+
+        doAnswer(inv -> {
+            String sourceType = inv.getArgument(0);
+            Long sourceId = inv.getArgument(1);
+            java.util.List<com.smboutique.api.service.TransferModuleService.TransferItem> items = inv.getArgument(4);
+            assertEquals("BOUTIQUE", sourceType);
+            assertEquals(10L, sourceId.longValue());
+            assertEquals(1, items.size());
+            assertEquals(11L, items.get(0).produitId.longValue());
+            return null;
+        }).when(transferModuleService).transferBetweenLocations(anyString(), anyLong(), anyString(), anyLong(), anyList(), anyString());
+
+        ResponseEntity<?> resp = transferController.transfertEntreEmplacements(req);
+        assertEquals(200, resp.getStatusCode().value());
+    }
+
+    @Test
     public void transfertLocations_emptyItems_returnsBadRequest() {
         TransferController.LocationTransferRequest req = new TransferController.LocationTransferRequest();
         req.sourceType = "MAGASIN";
