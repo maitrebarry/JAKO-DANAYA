@@ -148,6 +148,13 @@
         <scope>test</scope>
     </dependency>
 
+    <!-- Spring Security test utilities (fixes missing org.springframework.security.test.* imports in tests) -->
+    <dependency>
+        <groupId>org.springframework.security</groupId>
+        <artifactId>spring-security-test</artifactId>
+        <scope>test</scope>
+    </dependency>
+
 </dependencies>
 
 
