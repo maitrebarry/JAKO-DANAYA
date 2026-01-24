@@ -4,6 +4,7 @@ import Swal from 'sweetalert2';
 import RequirePermission from './RequirePermission';
 import useHasPermission from '../contexts/useHasPermission';
 import * as inventaireApi from '../api/inventaire';
+import { formatServerDate } from '../utils/date';
 import { useFormatMoney } from '../utils/currency';
 
 const InventaireDetail: React.FC = () => {
@@ -12,6 +13,7 @@ const InventaireDetail: React.FC = () => {
   const [lignes, setLignes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
+  const [mixedLinesIgnored, setMixedLinesIgnored] = useState<number>(0);
 
   // form state
   const [selectedProdId, setSelectedProdId] = useState<number | null>(null);
@@ -32,7 +34,25 @@ const InventaireDetail: React.FC = () => {
       const inv = await inventaireApi.getInventaire(Number(id));
       setInventaire(inv);
       const li = await inventaireApi.listLignes(Number(id));
-      setLignes(li);
+
+      // Ensure we don't mix 'magasin' and 'boutique' lines in the UI:
+      // - if the inventaire is for a magasin (inv.magasin.id present) only keep lignes whose stock/magasin matches
+      // - otherwise keep only lignes that belong to the boutique (no stock.magasin)
+      let filtered = li || [];
+      let ignored = 0;
+      if (inv && inv.magasin && inv.magasin.id) {
+        filtered = (li || []).filter((l: any) => {
+          return (l.stock && l.stock.magasin && l.stock.magasin.id === inv.magasin.id) || (l.magasin && l.magasin.id === inv.magasin.id);
+        });
+      } else {
+        filtered = (li || []).filter((l: any) => {
+          return !(l.stock && l.stock.magasin) && !(l.magasin);
+        });
+      }
+      ignored = (li || []).length - (filtered || []).length;
+      setMixedLinesIgnored(ignored);
+      setLignes(filtered);
+
       // load products according to inventaire scope (boutique vs magasin)
       await fetchProducts(inv);
     } catch (e: any) {
@@ -193,9 +213,15 @@ const InventaireDetail: React.FC = () => {
         <div>
           <div className="mb-3">
             <strong>Référence:</strong> {inventaire.referenceInventaire || inventaire.reference}
-            <span className="ms-3"><strong>Date:</strong> {inventaire.dateInventaire}</span>
+            <span className="ms-3"><strong>Date:</strong> {formatServerDate(inventaire.dateInventaire || inventaire.date || '')}</span>
             <span className="ms-3"><strong>Régularisé:</strong> {inventaire.regulariser ? 'Oui' : 'Non'}</span>
           </div>
+
+          {mixedLinesIgnored > 0 && (
+            <div className="alert alert-warning">
+              <strong>Attention&nbsp;:</strong> {mixedLinesIgnored} ligne(s) appartiennent à un autre dépôt (magasin/boutique) et ont été masquées pour éviter le mélange des stocks.
+            </div>
+          )}
 
           <div className="card mb-3">
             <div className="card-body">
@@ -208,7 +234,7 @@ const InventaireDetail: React.FC = () => {
                 </div>
                 <div className="col-md-4">
                   <label className="form-label">Date</label>
-                  <input className="form-control" value={inventaire.dateInventaire || ''} readOnly />
+                  <input className="form-control" value={formatServerDate(inventaire.dateInventaire || inventaire.date || '')} readOnly />
                 </div>
                 <div className="col-md-4">
                   <label className="form-label">Régularisé</label>

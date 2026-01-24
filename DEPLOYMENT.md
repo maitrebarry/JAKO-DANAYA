@@ -182,6 +182,34 @@ Rollback (si une erreur critique est détectée) :
 - Ne laissez pas de mots de passe dans le dépôt. Utilisez `.env` sur le serveur ou un secrets manager.
 - Activez TLS (Let's Encrypt) via Traefik ou Certbot/Nginx.
 - Redirigez les logs vers un système de logs (ex. `journald`, Logrotate, ou un service centralisé).
+
+### Correctif important : permissions du répertoire `backend/logs` (empêchent parfois le démarrage)
+
+Si le backend échoue au démarrage avec une erreur Logback du type `java.io.FileNotFoundException: logs/application.log (Permission non accordée)`, corrigez rapidement :
+
+1) Correction immédiate (sur le serveur) :
+
+```bash
+# exécuter en tant que sudo sur le serveur d'app
+sudo chown -R <deploy-user>:<deploy-group> /path/to/repo/backend/logs
+sudo chmod -R 0755 /path/to/repo/backend/logs
+# vérifier
+ls -ld /path/to/repo/backend/logs && ls -l /path/to/repo/backend/logs/application.log
+```
+
+2) Mesure préventive (systemd tmpfiles.d) — crée ` /etc/tmpfiles.d/smboutique.conf` :
+
+```
+# /etc/tmpfiles.d/smboutique.conf
+d /var/lib/smboutique/logs 0755 <deploy-user> <deploy-group> -
+```
+
+(ou adaptez pour `/opt/smboutique/backend/logs` selon votre path)
+
+3) Pendant le développement local, le script `backend/scripts/start_backend.sh` bascule automatiquement sur `/tmp` si `backend/logs` n'est pas inscriptible et affiche la commande `sudo` recommandée.
+
+> ⚠️ Important : corriger la propriété/permissions reste la meilleure solution — un fichier `application.log` root-owned doit être retiré ou repris par l'utilisateur de déploiement.
+
 - Sauvegarde de la base de données et stratégie de restauration.
 - Mettre en place monitoring et alerting (UptimeRobot, Prometheus, etc.).
 

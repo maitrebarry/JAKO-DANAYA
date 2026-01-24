@@ -4,7 +4,7 @@ import Swal from 'sweetalert2';
 import { formatServerDate } from '../utils/date';
 import { useFormatMoney } from '../utils/currency';
 
-interface Ligne { id: number; nom: string; quantite: number; quantiteConditionnement?: number | null; multiplicateur?: number | null; prix: number; montant: number; unitLabel?: string | null; reste?: number | null }
+interface Ligne { id: number; stockId?: number; nom: string; quantite: number; prix: number; montant: number; quantiteConditionnement?: number | null; multiplicateur?: number | null; quantiteDisplay?: number | null; unitLabel?: string | null; qLabel?: string | null; prixDisplay?: number | null; reste?: number | null }
 
 const VenteApercuEspece: React.FC = () => {
   const { id } = useParams();
@@ -19,25 +19,66 @@ const VenteApercuEspece: React.FC = () => {
       try {
         const token = localStorage.getItem('smb_token');
         if (!id) return;
+        // fetch vente
         const res = await fetch(`http://localhost:8085/api/ventes/${id}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
         if (!res.ok) throw new Error('Vente introuvable');
         const data = await res.json();
         setVente(data);
-        // fetch lignes
+
+        // fetch stocks (used to compute unit labels and conditionnement) and lignes
+        const stockRes = await fetch('http://localhost:8085/api/stocks', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        const stockData = stockRes.ok ? await stockRes.json() : [];
+
         const lres = await fetch(`http://localhost:8085/api/ventes/${id}/lignes`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
         if (lres.ok) {
           const ldata = await lres.json();
-          const computed = ldata.map((lv: any) => ({
-            id: lv.id,
-            nom: lv.produit?.nomProduit || 'Produit',
-            quantite: lv.quantite || (lv.quantiteConditionnement && lv.produit?.nombreUnitesParConditionnement ? lv.quantiteConditionnement * lv.produit.nombreUnitesParConditionnement : 0),
-            quantiteConditionnement: lv.quantiteConditionnement,
-            multiplicateur: lv.produit?.nombreUnitesParConditionnement || 1,
-            prix: lv.newPrice ?? 0,
-            montant: (lv.newPrice ?? 0) * (lv.quantite || (lv.quantiteConditionnement ? lv.quantiteConditionnement * (lv.produit?.nombreUnitesParConditionnement || 1) : 0)),
-            unitLabel: lv.produit?.unite?.libelle || lv.produit?.uniteConditionnement || 'emballage',
-            reste: lv.resteUnitesDansCartonApresVente ?? null
-          })) as Ligne[];
+          const computed = ldata.map((lv: any) => {
+            const stockId = lv.stock?.id || lv.id_stock || 0;
+            const stockInfo = stockData.find((s: any) => s.id === stockId);
+            const nom = (lv.nom && lv.nom.toString().trim()) || stockInfo?.produit?.nomProduit || lv.produit?.nomProduit || lv.produit?.designation || lv.designation || 'Produit';
+
+            const prix = (lv.newPrice !== undefined && lv.newPrice !== null) ? Number(lv.newPrice) : ((lv.prix !== undefined && lv.prix !== null) ? Number(lv.prix) : Number(stockInfo?.produit?.prixAchat ?? (lv.stock?.produit?.prixAchat ?? 0)));
+            const qCond = lv.quantiteConditionnement !== undefined && lv.quantiteConditionnement !== null ? Number(lv.quantiteConditionnement) : null;
+            const mul = stockInfo?.produit?.nombreUnitesParConditionnement ?? lv.produit?.nombreUnitesParConditionnement ?? 1;
+            const totalUnits = qCond ? qCond * mul : (lv.quantite || 0);
+            const quantiteDisplay = qCond ? qCond : (lv.quantite || 0);
+            const unitLabel = (lv.unite && (lv.unite.symbole || lv.unite.libelle)) ? (lv.unite.symbole ?? lv.unite.libelle) : (stockInfo?.produit?.unite?.symbole ?? stockInfo?.produit?.unite?.libelle ?? (lv.produit && (lv.produit.unite?.symbole || lv.produit.unite?.libelle) ? (lv.produit.unite.symbole ?? lv.produit.unite.libelle) : 'unité'));
+
+            // build qLabel exactly like commande preview
+            let qLabel: string;
+            if (qCond !== null) {
+              qLabel = `${qCond} ${unitLabel ?? 'carton'}`;
+            } else {
+              const qty = lv.quantite ?? 0;
+              if (qty === 1) {
+                qLabel = `1 ${unitLabel ?? 'U'}`;
+              } else if (mul && mul > 1 && qty >= mul) {
+                const boxes = Math.floor(qty / mul);
+                const rem = qty % mul;
+                if (boxes > 0 && rem > 0) qLabel = `${boxes} ${unitLabel ?? 'carton'} + ${rem} U`;
+                else if (boxes > 0) qLabel = `${boxes} ${unitLabel ?? 'carton'}`;
+                else qLabel = `${rem} U`;
+              } else {
+                qLabel = `${qty} U`;
+              }
+            }
+
+            return {
+              id: lv.id,
+              stockId,
+              nom,
+              quantite: totalUnits,
+              quantiteConditionnement: qCond,
+              multiplicateur: mul,
+              quantiteDisplay,
+              prix,
+              montant: prix * totalUnits,
+              unitLabel,
+              qLabel,
+              prixDisplay: qCond ? (prix * mul) : prix,
+              reste: lv.resteUnitesDansCartonApresVente ?? null
+            } as Ligne;
+          });
           setLignes(computed);
         }
       } catch (err: any) {
@@ -46,16 +87,30 @@ const VenteApercuEspece: React.FC = () => {
     })();
   }, [id]);
 
-  const printPdf = async () => {
+  const openPdfPrint = async (venteId?: number | string) => {
+    if (!venteId) return;
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/ventes/${id}/pdf`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      if (!token) { Swal.fire('Erreur', 'Authentification nécessaire. Connectez-vous.', 'error'); return; }
+
+      const tryPaths = [ `http://localhost:8085/api/ventes/${venteId}/pdf` ];
+      let lastErr: any = null;
+      for (const p of tryPaths) {
+        try {
+          const r = await fetch(p, { headers: { Authorization: `Bearer ${token}` } });
+          if (r.status === 401) { await r.text().catch(() => ''); Swal.fire('Session expirée', 'Authentification requise. Veuillez vous reconnecter.', 'warning'); navigate('/login'); return; }
+          if (r.ok) { const blob = await r.blob(); const url = URL.createObjectURL(blob); window.open(url, '_blank'); return; }
+          const txt = await r.text().catch(() => '');
+          lastErr = `${p} -> ${r.status} ${r.statusText}: ${txt}`;
+          console.debug('openPdfPrint (apercu vente):', lastErr);
+        } catch (e: any) {
+          lastErr = e.message || e;
+          console.debug('openPdfPrint (apercu vente) fetch error:', lastErr);
+        }
+      }
+      Swal.fire('Erreur', `Impossible de charger le PDF. Détails: ${lastErr}`, 'error');
     } catch (err: any) {
-      Swal.fire('Erreur', err && err.message ? err.message : 'Erreur génération PDF', 'error');
+      Swal.fire('Erreur', err.message || 'Erreur lors de l\'ouverture du PDF', 'error');
     }
   };
 
@@ -94,7 +149,7 @@ const VenteApercuEspece: React.FC = () => {
           <div className="mb-3 d-flex justify-content-between align-items-end">
             <div>
               <button className="btn btn-secondary me-2" onClick={() => navigate('/ventes/especes')}><i className="ri-arrow-left-line"></i></button>
-              <button className="btn btn-primary me-2" onClick={printPdf}>Imprimer</button>
+              <button className="btn btn-primary me-2" onClick={() => openPdfPrint(vente?.id)}>Imprimer</button>
               <button className="btn btn-outline-danger" onClick={deleteVente}>Supprimer</button>
             </div>
           </div>
@@ -116,8 +171,8 @@ const VenteApercuEspece: React.FC = () => {
                       {lignes.map(l => (
                         <tr key={l.id}>
                           <td>{l.nom}</td>
-                          <td>{l.quantite}{l.quantiteConditionnement ? <small className="text-muted"> ({l.quantiteConditionnement} x {l.multiplicateur})</small> : null} {l.reste != null ? <div className="small text-muted">Reste dans carton: {l.reste} unité{l.reste > 1 ? 's' : ''}</div> : null}</td>
-                          <td>{fmt(l.prix)}</td>
+                          <td>{l.qLabel}{l.reste != null ? <div className="small text-muted">Reste dans carton: {l.reste} unité{l.reste > 1 ? 's' : ''}</div> : null}</td>
+                          <td>{l.quantiteConditionnement ? `${fmt(l.prix * (l.multiplicateur || 1))} / ${l.unitLabel ?? 'carton'}` : fmt(l.prix)}</td>
                           <td>{fmt(l.montant)}</td>
                         </tr>
                       ))}

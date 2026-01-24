@@ -3,6 +3,7 @@ import RequirePermission from './RequirePermission';
 import { useUser } from '../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { formatServerDate } from '../utils/date';
 import * as inventaireApi from '../api/inventaire';
 
 const Inventaires: React.FC = () => {
@@ -94,7 +95,7 @@ const Inventaires: React.FC = () => {
                   {inventaires.map(inv => (
                     <tr key={inv.idInventaire || inv.id}>
                       <td>{inv.referenceInventaire || inv.reference}</td>
-                      <td>{inv.dateInventaire}</td>
+                      <td>{formatServerDate(inv.dateInventaire || inv.date || '')}</td>
                       <td>{inv.regulariser ? <span className="badge bg-success">Oui</span> : <span className="badge bg-secondary">Non</span>}</td>
                       <td className="text-end">
                         <a className="btn btn-sm btn-outline-primary me-2" href={`/inventaires/${inv.idInventaire || inv.id}`}>Voir</a>

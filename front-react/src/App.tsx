@@ -4,6 +4,7 @@ import SignIn from './components/SignIn';
 import Layout from './components/Layout';
 // Dashboard component: role-based implementation
 import Configuration from './components/Configuration';
+import ErrorBoundary from './components/ErrorBoundary';
 import RoleBasedDashboard from './components/RoleBasedDashboard';
 import Fournisseurs from './components/Fournisseurs';
 import Produits from './components/Produits';
@@ -77,7 +78,13 @@ function App() {
             path="/produits" 
             element={
               <PrivateRoute>
-                <Layout><Produits /></Layout>
+                <Layout>
+                  <React.Suspense fallback={<div>Chargement...</div>}>
+                    <ErrorBoundary>
+                      <Produits />
+                    </ErrorBoundary>
+                  </React.Suspense>
+                </Layout>
               </PrivateRoute>
             }
           />

@@ -7,9 +7,10 @@ import * as inventaireApi from '../api/inventaire';
 const AUTH_HEADER = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_token')}` });
 
 const InventaireCreate: React.FC = () => {
-  const [scope, setScope] = useState<'boutique' | 'magasin'>('boutique');
+  // inventory is boutique-only (magasin-level inventories are deprecated)
+  // Scope is fixed to 'boutique' — removed magasin-state/branches to avoid impossible comparisons
+  const scope = 'boutique';
   const [magasins, setMagasins] = useState<any[]>([]);
-  const [selectedMagasin, setSelectedMagasin] = useState<number | null>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [temps, setTemps] = useState<Record<number, { condCount?: number; unitCount?: number; qtePhysique?: number; ecart?: number }>>({});
   const [reference, setReference] = useState('');
@@ -33,7 +34,7 @@ const InventaireCreate: React.FC = () => {
 
   useEffect(() => {
     loadProductsForScope();
-  }, [scope, selectedMagasin]);
+  }, [currentBoutique?.id]);
 
   const fetchMagasins = async () => {
     try {
@@ -41,7 +42,6 @@ const InventaireCreate: React.FC = () => {
       if (!res.ok) throw new Error('Erreur chargement magasins');
       const data = await res.json();
       setMagasins(data || []);
-      if (data && data.length > 0) setSelectedMagasin(data[0].id);
     } catch (err) {
       console.error('fetchMagasins', err);
     }
@@ -49,61 +49,31 @@ const InventaireCreate: React.FC = () => {
 
   const loadProductsForScope = async () => {
     try {
-      if (scope === 'magasin') {
-        if (!selectedMagasin) {
-          setProducts([]);
-          return;
-        }
-        const res = await fetch(`http://localhost:8085/api/magasins/${selectedMagasin}/stocks`, { headers: AUTH_HEADER() });
-        if (!res.ok) throw new Error('Erreur chargement stocks magasin');
-        const stocks = await res.json();
-        // map stocks -> product with quantiteVirtuelle and packaging info
-        const items = stocks.map((s: any) => {
+      // Boutique-only path: ask the backend explicitly for boutique-level stocks
+      const res = await fetch('http://localhost:8085/api/stocks?level=boutique', { headers: AUTH_HEADER() });
+      if (!res.ok) throw new Error('Erreur chargement stocks boutique');
+      const stocks = await res.json();
+      const boutiqueStocks = (stocks || []);
+      const items = boutiqueStocks.map((s: any) => ({
+        id: s.produit?.id,
+        nom: s.produit?.nomProduit || s.produit?.nom,
+        quantiteVirtuelle: s.quantiteDisponible || 0,
+        produit: s.produit,
+        magasin: null,
+        packagingLabel: (() => {
           const mult = s.produit?.nombreUnitesParConditionnement || 1;
           const u = Number(s.quantiteDisponible || 0);
           const unitLibelle = s.produit?.uniteConditionnement || s.produit?.unite?.libelle || 'conditionnement';
-          let packagingLabel = `${u} unité${u > 1 ? 's' : ''}`;
-          if (mult && mult > 1) {
-            const full = Math.floor(u / mult);
-            const rem = u % mult;
-            if (rem === 0) packagingLabel = `${u} unités (${full} ${unitLibelle}${full > 1 && !unitLibelle.endsWith('s') ? 's' : ''})`;
-            else {
-              const openPart = rem > 1 ? `${rem} unités ouvertes` : `${rem} unité ouverte`;
-              const fullPart = full > 0 ? `${full} ${unitLibelle}${full > 1 && !unitLibelle.endsWith('s') ? 's' : ''} + ` : '';
-              packagingLabel = `${u} unités (${fullPart}${openPart})`;
-            }
-          }
-          return { id: s.produit?.id, nom: s.produit?.nomProduit || s.produit?.nom, quantiteVirtuelle: s.quantiteDisponible || 0, produit: s.produit, magasin: s.magasin || null, packagingLabel };
-        });
-        setProducts(items);
-      } else {
-        // boutique scope - /api/stocks returns boutique-level stocks for current user
-        const res = await fetch('http://localhost:8085/api/stocks', { headers: AUTH_HEADER() });
-        if (!res.ok) throw new Error('Erreur chargement stocks boutique');
-        const stocks = await res.json();
-        // Only boutique-level stocks (id_magasin == null)
-        const boutiqueStocks = (stocks || []).filter((s: any) => !s.magasin);
-        const items = boutiqueStocks.map((s: any) => ({
-          id: s.produit?.id,
-          nom: s.produit?.nomProduit || s.produit?.nom,
-          quantiteVirtuelle: s.quantiteDisponible || 0,
-          produit: s.produit,
-          magasin: s.magasin || null,
-          packagingLabel: (() => {
-            const mult = s.produit?.nombreUnitesParConditionnement || 1;
-            const u = Number(s.quantiteDisponible || 0);
-            const unitLibelle = s.produit?.uniteConditionnement || s.produit?.unite?.libelle || 'conditionnement';
-            if (!mult || mult <= 1) return `${u} unité${u > 1 ? 's' : ''}`;
-            const full = Math.floor(u / mult);
-            const rem = u % mult;
-            if (rem === 0) return `${u} unités (${full} ${unitLibelle}${full > 1 ? 's' : ''})`;
-            const openPart = rem > 1 ? `${rem} unités ouvertes` : `${rem} unité ouverte`;
-            const fullPart = full > 0 ? `${full} ${unitLibelle}${full > 1 ? 's' : ''} + ` : '';
-            return `${u} unités (${fullPart}${openPart})`;
-          })()
-        }));
-        setProducts(items);
-      }
+          if (!mult || mult <= 1) return `${u} unité${u > 1 ? 's' : ''}`;
+          const full = Math.floor(u / mult);
+          const rem = u % mult;
+          if (rem === 0) return `${u} unités (${full} ${unitLibelle}${full > 1 ? 's' : ''})`;
+          const openPart = rem > 1 ? `${rem} unités ouvertes` : `${rem} unité ouverte`;
+          const fullPart = full > 0 ? `${full} ${unitLibelle}${full > 1 ? 's' : ''} + ` : '';
+          return `${u} unités (${fullPart}${openPart})`;
+        })()
+      }));
+      setProducts(items);
     } catch (e) {
       console.error('loadProductsForScope', e);
       setProducts([]);
@@ -112,16 +82,56 @@ const InventaireCreate: React.FC = () => {
 
 
   const handleSubmit = async () => {
-    // Create inventaire minimal then create lignes for non-zero entries
+    // Create inventaire minimal then create lignes for non-zero entries.
+    // If an active inventaire already exists for the boutique, offer to reuse/open it
+    // because the backend enforces a single active inventaire per boutique.
     try {
       if (!currentBoutique || !currentBoutique.id) {
         await Swal.fire('Erreur', 'Boutique courante introuvable. Veuillez vous reconnecter.', 'error');
         return;
       }
-      const payload = { boutique: { id: currentBoutique.id }, dateInventaire } as any;
-      if (scope === 'magasin' && selectedMagasin) payload.magasin = { id: selectedMagasin };
-      const inv = await inventaireApi.createInventaire(payload);
-      const id = inv.idInventaire || inv.id;
+
+      // check for an existing active inventaire for this boutique
+      const existing = await inventaireApi.listInventaires(currentBoutique.id).catch(() => []);
+      const active = (existing || []).find((i: any) => !i.regulariser);
+      let inventaireId: number | null = null;
+
+      if (active) {
+        // Ask user whether to open the active inventaire instead of creating a new one
+        const choice = await Swal.fire({
+          title: 'Inventaire actif détecté',
+          html: `Un inventaire actif existe déjà (${active.reference || active.referenceInventaire || '—'}).<br/>Voulez-vous l'ouvrir pour y ajouter vos lignes ?`,
+          icon: 'info',
+          showCancelButton: true,
+          confirmButtonText: 'Ouvrir inventaire actif',
+          cancelButtonText: 'Annuler'
+        });
+        if (!choice.isConfirmed) return;
+
+        // verify compatibility of scopes when possible (if inventaire already has lignes)
+        const activeId = active.idInventaire || active.id;
+        inventaireId = activeId;
+        const lignes = await inventaireApi.listLignes(activeId).catch(() => []);
+        const invHasMagasinLines = (lignes || []).some((l: any) => (l.stock && l.stock.magasin) || l.magasin);
+        const invHasBoutiqueLines = (lignes || []).some((l: any) => !(l.stock && l.stock.magasin) && !l.magasin);
+
+          // If the active inventaire contains magasin-scoped lines (historical), we cannot reuse it — user must regularize or create a new boutique inventaire
+        if (invHasMagasinLines) {
+          await Swal.fire('Inventaire historique magasin', "Cet inventaire contient des lignes liées à un magasin (historique). Les nouveaux inventaires doivent être créés pour la boutique uniquement. Régularisez l'inventaire existant ou créez un nouvel inventaire boutique.", 'warning');
+          return;
+        }
+        // reuse existing inventaireId (empty inventaire can accept any scope)
+      }
+
+      // If no active inventaire -> create new one
+      if (!inventaireId) {
+        const payload = { boutique: { id: currentBoutique.id }, dateInventaire } as any;
+        // inventory is boutique-only: do not send any magasin in the payload
+        const inv = await inventaireApi.createInventaire(payload);
+        inventaireId = inv.idInventaire || inv.id;
+      }
+
+      // add lignes to the selected/reused inventaire
       for (const [prodIdStr, data] of Object.entries(temps)) {
         const prodId = Number(prodIdStr);
         const prod = products.find(p => p.id === prodId);
@@ -129,14 +139,23 @@ const InventaireCreate: React.FC = () => {
         const cond = data?.condCount || 0;
         const units = data?.unitCount || 0;
         const totalUnits = cond * perCond + units;
-        if (totalUnits > 0) {
-          await inventaireApi.addLigneInventaire(id, { produitId: prodId, quantiteConditionnement: cond, quantiteUnite: units });
+        if (totalUnits > 0 && inventaireId) {
+          await inventaireApi.addLigneInventaire(inventaireId, { produitId: prodId, quantiteConditionnement: cond, quantiteUnite: units });
         }
       }
-      await Swal.fire('Succès', 'Inventaire créé', 'success');
+
+      await Swal.fire('Succès', inventaireId ? 'Lignes ajoutées à l\'inventaire actif' : 'Inventaire créé', 'success');
       navigate('/inventaires');
     } catch (e: any) {
-      await Swal.fire('Erreur', e && e.message ? e.message : 'Erreur création inventaire', 'error');
+      // show backend error body if possible
+      let msg = 'Erreur création inventaire';
+      try {
+        const body = typeof e === 'string' ? e : (e && e.message) ? e.message : null;
+        msg = body || msg;
+      } catch (err) {
+        // ignore
+      }
+      await Swal.fire('Erreur', msg, 'error');
     }
   };
 
@@ -169,21 +188,9 @@ const InventaireCreate: React.FC = () => {
         <div className="card-body">
           <div className="row g-2 align-items-center">
             <div className="col-md-3">
-              <label className="form-label">Scope</label>
-              <select className="form-control" value={scope} onChange={(e) => setScope(e.target.value as any)}>
-                <option value="boutique">Boutique</option>
-                <option value="magasin">Magasin</option>
-              </select>
+              <label className="form-label">Portée</label>
+              <div className="form-control-plaintext">Boutique </div>
             </div>
-            {scope === 'magasin' && (
-              <div className="col-md-4">
-                <label className="form-label">Magasin</label>
-                <select className="form-control" value={selectedMagasin ?? ''} onChange={(e) => setSelectedMagasin(Number(e.target.value))}>
-                  <option value="">-- Choisir magasin --</option>
-                  {magasins.map(m => <option key={m.id} value={m.id}>{m.nom || m.nomMagasin || m.id}</option>)}
-                </select>
-              </div>
-            )}
             <div className="col-md-3">
               <label className="form-label">Référence</label>
               <input className="form-control" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Générée automatiquement" disabled />

@@ -29,6 +29,23 @@ const Produits: React.FC = () => {
   const [assignExistingProductIds, setAssignExistingProductIds] = useState<number[]>([]);
   const [assignSuccess, setAssignSuccess] = useState(false);
 
+  // profit modal state + helper
+  const [showProfitModal, setShowProfitModal] = useState(false);
+  const [profitTotals, setProfitTotals] = useState({ totalAchat: 0, totalDetail: 0, totalGros: 0 });
+  const computeProfitForBoutique = (list: any[]) => {
+    let tA = 0, tD = 0, tG = 0;
+    for (const p of list) {
+      const qty = (p.quantiteInitialeConditionnements !== undefined && p.quantiteInitialeConditionnements !== null)
+        ? (p.quantiteInitialeConditionnements * (p.nombreUnitesParConditionnement || 1))
+        : (p.quantiteInitiale || 0);
+      if (!qty || qty <= 0) continue;
+      tA += qty * (p.prixAchat || 0);
+      tD += qty * (p.prixDetail || 0);
+      tG += qty * (p.prixEnGros || p.prixGros || 0);
+    }
+    return { totalAchat: tA, totalDetail: tD, totalGros: tG };
+  };
+
 
   const [showModal, setShowModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -585,6 +602,14 @@ const Produits: React.FC = () => {
                       </button>
                     </RequirePermission>
                   </div>
+
+                  <div className="me-3">
+                    <RequirePermission permission="PRODUIT_LECTURE">
+                      <button className="btn btn-outline-info mb-3 mb-lg-0" onClick={() => { setProfitTotals(computeProfitForBoutique(produits)); setShowProfitModal(true); }} title="Voir le bénéfice des articles de la boutique">
+                        <i className='bx bx-trending-up'></i> Bénéfice boutique
+                      </button>
+                    </RequirePermission>
+                  </div>
                   <div className="flex-grow-1">
                     <form className="float-lg-end">
                       <div className="row row-cols-lg-auto g-2">
@@ -835,6 +860,57 @@ const Produits: React.FC = () => {
         </div>
       )}
       {showAssignModal && <div className="modal-backdrop fade show"></div>}
+
+      {/* Profit modal (boutique) */}
+      {showProfitModal && (
+        <div className="modal show d-block" tabIndex={-1} role="dialog" data-testid="profit-modal">
+          <div className="modal-dialog modal-md modal-fullscreen-sm-down" role="document">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Bénéfice estimé — boutique</h5>
+                <button type="button" className="btn-close" aria-label="Close" onClick={() => setShowProfitModal(false)} />
+              </div>
+              <div className="modal-body">
+                <p>Récapitulatif estimé depuis l'inventaire courant (basé sur les quantités et prix enregistrés).</p>
+
+                <div className="row g-3 mb-3">
+                  <div className="col-12 col-md-6">
+                    <div className="card p-3">
+                      <div className="text-muted small">Total achat</div>
+                      <div className="h5 fw-bold" data-testid="profit-total-achat">{useFormatMoney()(profitTotals.totalAchat)}</div>
+                    </div>
+                  </div>
+                  <div className="col-12 col-md-6">
+                    <div className="card p-3">
+                      <div className="text-muted small">Total détail</div>
+                      <div className="h5 fw-bold" data-testid="profit-total-detail">{useFormatMoney()(profitTotals.totalDetail)}</div>
+                    </div>
+                  </div>
+                  <div className="col-12 col-md-6">
+                    <div className="card p-3 mt-2">
+                      <div className="text-muted small">Total gros</div>
+                      <div className="h5 fw-bold" data-testid="profit-total-gros">{useFormatMoney()(profitTotals.totalGros)}</div>
+                    </div>
+                  </div>
+                  <div className="col-12 col-md-6">
+                    <div className="card p-3 mt-2">
+                      <div className="text-muted small">Bénéfice estimé (détail)</div>
+                      <div className="h5 fw-bold" data-testid="profit-estime-detail">{useFormatMoney()(Math.max(0, profitTotals.totalDetail - profitTotals.totalAchat))}</div>
+                      <div className="text-muted small">Bénéfice estimé (gros)</div>
+                      <div className="h6 fw-semibold" data-testid="profit-estime-gros">{useFormatMoney()(Math.max(0, profitTotals.totalGros - profitTotals.totalAchat))}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="alert alert-info small">Note: valeurs estimées à partir des prix stockés — n'inclut pas remises ni coûts additionnels.</div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowProfitModal(false)}>Fermer</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Transfer modal */}
 

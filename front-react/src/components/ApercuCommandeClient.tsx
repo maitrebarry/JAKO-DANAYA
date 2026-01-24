@@ -63,7 +63,7 @@ const ApercuCommandeClient: React.FC = () => {
               }
             }
 
-            return { id: l.id, stockId, nom, quantite: totalUnits, quantiteConditionnement: qCond, multiplicateur: mul, quantiteDisplay, prix, montant: prix * totalUnits, unitLabel, qLabel } as any;
+            return { id: l.id, stockId, nom, quantite: totalUnits, quantiteConditionnement: qCond, multiplicateur: mul, quantiteDisplay, prix, montant: prix * totalUnits, unitLabel, qLabel, prixDisplay: qCond ? (prix * mul) : prix } as any;
           });
           setLignes(computed as any);
         }

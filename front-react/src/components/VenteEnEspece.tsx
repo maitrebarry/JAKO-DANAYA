@@ -562,7 +562,11 @@ const VenteEnEspece: React.FC = () => {
                                     </td>
                                     <td>
                                       <div className="input-group">
-                                        <input type="number" min={0} className="form-control" value={l.prix || 0} onChange={e => handleLineChange(idx, 'prix', Number(e.target.value))} disabled />
+                                        {l.venteParConditionnement && (l.quantiteConditionnement || 0) > 0 ? (
+                                          <input type="text" className="form-control" value={`${formatFCFA((l.prix||0) * (l.produit?.nombreUnitesParConditionnement ?? 1))} / ${l.produit?.unite?.libelle || l.produit?.uniteConditionnement || 'carton'}`} readOnly />
+                                        ) : (
+                                          <input type="number" min={0} className="form-control" value={l.prix || 0} onChange={e => handleLineChange(idx, 'prix', Number(e.target.value))} disabled />
+                                        )}
                                         <span className="input-group-text" title="Prix automatique"><i className="bx bx-lock"></i></span>
                                       </div>
                                     </td>

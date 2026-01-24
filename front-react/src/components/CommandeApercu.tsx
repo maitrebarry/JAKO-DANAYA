@@ -179,7 +179,7 @@ const CommandeApercu: React.FC = () => {
                             ) : null}
                           </td>
                           <td>{l.qLabel}</td> 
-                          <td>{fmt(l.prix)}</td>
+                          <td>{l.quantiteConditionnement ? `${fmt(l.prix * (l.multiplicateur || 1))} / ${l.unitLabel ?? 'carton'}` : fmt(l.prix)}</td>
                           <td>{fmt(l.montant)}</td>
                         </tr>
                       ))}
