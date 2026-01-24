@@ -1,10 +1,10 @@
 spring:
-  profiles: prod
+  config:
+    activate:
+      on-profile: prod
 
   datasource:
     url: ${DATABASE_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -15,9 +15,6 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
-
-server:
-  port: ${PORT}
 
 management:
   endpoints:
