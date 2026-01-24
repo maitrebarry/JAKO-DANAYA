@@ -1,17 +1,28 @@
-# Backend Dockerfile (multi-stage)
-# Build with Maven (Java 21) then copy the jar into a small runtime image
+# ===============================
+# Backend Dockerfile (Spring Boot)
+# Multi-stage build – Java 21
+# ===============================
 
+# -------- BUILD STAGE --------
 FROM maven:3.9.6-eclipse-temurin-21 AS build
 WORKDIR /build
-COPY backend/pom.xml backend/
-COPY backend/src backend/src
 
-# Build the project
-RUN mvn -f backend/pom.xml -B -DskipTests package
+# Copier uniquement ce qui est nécessaire
+COPY pom.xml .
+COPY src ./src
 
+# Build du JAR
+RUN mvn -B -DskipTests package
+
+# -------- RUNTIME STAGE --------
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-# Adjust the path if your artifact name differs
-COPY --from=build /build/backend/target/backend-0.0.1-SNAPSHOT.jar /app/app.jar
+
+# Copier le jar généré
+COPY --from=build /build/target/backend-0.0.1-SNAPSHOT.jar app.jar
+
+# Port exposé (Render utilisera $PORT)
 EXPOSE 8085
+
+# Démarrage
 ENTRYPOINT ["java","-jar","/app/app.jar"]
