@@ -1,28 +1,25 @@
 # ===============================
 # Backend Dockerfile (Spring Boot)
-# Multi-stage build – Java 21
+# Java 21 – Multi-stage
 # ===============================
 
 # -------- BUILD STAGE --------
 FROM maven:3.9.6-eclipse-temurin-21 AS build
 WORKDIR /build
 
-# Copier uniquement ce qui est nécessaire
-COPY pom.xml .
-COPY src ./src
+# Copier les fichiers backend
+COPY backend/pom.xml backend/pom.xml
+COPY backend/src backend/src
 
 # Build du JAR
-RUN mvn -B -DskipTests package
+RUN mvn -f backend/pom.xml -B -DskipTests package
 
 # -------- RUNTIME STAGE --------
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
 # Copier le jar généré
-COPY --from=build /build/target/backend-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=build /build/backend/target/backend-0.0.1-SNAPSHOT.jar app.jar
 
-# Port exposé (Render utilisera $PORT)
 EXPOSE 8085
-
-# Démarrage
 ENTRYPOINT ["java","-jar","/app/app.jar"]
