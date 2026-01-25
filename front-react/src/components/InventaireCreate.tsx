@@ -10,7 +10,7 @@ const AUTH_HEADER = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_
 const InventaireCreate: React.FC = () => {
   // inventory is boutique-only (magasin-level inventories are deprecated)
   // Scope is fixed to 'boutique' — removed magasin-state/branches to avoid impossible comparisons
-  const [magasins, setMagasins] = useState<any[]>([]);
+  const [, setMagasins] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [temps, setTemps] = useState<Record<number, { condCount?: number; unitCount?: number; qtePhysique?: number; ecart?: number }>>({});
   const [reference, setReference] = useState('');
@@ -113,7 +113,7 @@ const InventaireCreate: React.FC = () => {
         inventaireId = activeId;
         const lignes = await inventaireApi.listLignes(activeId).catch(() => []);
         const invHasMagasinLines = (lignes || []).some((l: any) => (l.stock && l.stock.magasin) || l.magasin);
-        const _invHasBoutiqueLines = (lignes || []).some((l: any) => !(l.stock && l.stock.magasin) && !l.magasin);
+        // boutique-level lines are acceptable for reuse; no explicit check needed here.
 
           // If the active inventaire contains magasin-scoped lines (historical), we cannot reuse it — user must regularize or create a new boutique inventaire
         if (invHasMagasinLines) {
