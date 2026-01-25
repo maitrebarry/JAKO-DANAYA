@@ -11,8 +11,8 @@ WORKDIR /build
 COPY . .
 
 # Build du JAR (supprime "backend/" du chemin)
-RUN mvn -B -DskipTests package
 
+RUN mvn -f backend/pom.xml -B -DskipTests package
 # -------- RUNTIME STAGE --------
 FROM eclipse-temurin:21-jre
 WORKDIR /app
