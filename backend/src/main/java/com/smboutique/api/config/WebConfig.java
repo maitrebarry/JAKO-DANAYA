@@ -18,13 +18,13 @@ public class WebConfig implements WebMvcConfigurer {
                 .addResourceLocations("file:" + uploadDir + "/");
     }
 
-    @Override
-    public void addCorsMappings(org.springframework.web.servlet.config.annotation.CorsRegistry registry) {
-        registry.addMapping("/**")
-                .allowedOrigins("*")
-                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-                .allowedHeaders("Authorization", "Content-Type", "X-Requested-With", "Accept")
-                .exposedHeaders("Authorization")
-                .allowCredentials(false);
-    }
+    // @Override
+    // public void addCorsMappings(org.springframework.web.servlet.config.annotation.CorsRegistry registry) {
+    //     registry.addMapping("/**")
+    //             .allowedOrigins("*")
+    //             .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+    //             .allowedHeaders("Authorization", "Content-Type", "X-Requested-With", "Accept")
+    //             .exposedHeaders("Authorization")
+    //             .allowCredentials(false);
+    // }
 }
