@@ -10,7 +10,7 @@ WORKDIR /build
 # Copier tous les fichiers
 COPY . .
 
-# Build du JAR en spécifiant le chemin du pom.xml
+# Build du JAR - CORRECTION ICI !!!
 RUN mvn -f backend/pom.xml -B -DskipTests package
 
 # -------- RUNTIME STAGE --------
