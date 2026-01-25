@@ -10,15 +10,15 @@ WORKDIR /build
 # Copier tous les fichiers
 COPY . .
 
-# Build du JAR (supprime "backend/" du chemin)
-
+# Build du JAR en spécifiant le chemin du pom.xml
 RUN mvn -f backend/pom.xml -B -DskipTests package
+
 # -------- RUNTIME STAGE --------
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
-# Copier le jar généré (vérifie le nom exact)
-COPY --from=build /build/target/backend-0.0.1-SNAPSHOT.jar app.jar
+# Copier le jar généré
+COPY --from=build /build/backend/target/backend-0.0.1-SNAPSHOT.jar app.jar
 
 EXPOSE 8085
 ENTRYPOINT ["java","-jar","/app/app.jar"]
