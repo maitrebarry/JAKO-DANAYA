@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import useHasPermission from '../contexts/useHasPermission';
 import SearchableSelect from './SearchableSelect';
 
-const API_BASE = 'http://localhost:8085/api';
+import { API as API_BASE } from '../config/api';
 const AUTH_HEADER = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_token')}` });
 
 interface Props {

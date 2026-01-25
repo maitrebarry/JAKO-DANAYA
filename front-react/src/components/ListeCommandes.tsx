@@ -5,6 +5,7 @@ import { useUser } from '../contexts/UserContext';
 import { useFormatMoney } from '../utils/currency';
 import { formatServerDate } from '../utils/date';
 import useHasPermission from '../contexts/useHasPermission';
+import { API, withApi } from '../config/api';
 
 // Ajouter du CSS personnalisé pour SweetAlert2
 const swalWideStyle = document.createElement('style');
@@ -79,12 +80,12 @@ const ListeCommandes: React.FC = () => {
       if (isVenteMode) {
         // commande client / ventes
         url = currentBoutique
-          ? `http://localhost:8085/api/commandes-clients`
-          : `http://localhost:8085/api/commandes-clients`;
+          ? withApi('commandes-clients')
+          : withApi('commandes-clients');
       } else {
         url = currentBoutique
-          ? `http://localhost:8085/api/commandes-fournisseurs/boutique/${currentBoutique.id}`
-          : `http://localhost:8085/api/commandes-fournisseurs`;
+          ? `${API}/commandes-fournisseurs/boutique/${currentBoutique.id}`
+          : `${API}/commandes-fournisseurs`;
       }
 
       const res = await fetch(url, {
@@ -277,8 +278,8 @@ const ListeCommandes: React.FC = () => {
       // - Mode liste commande fournisseur -> commandes-fournisseurs uniquement
       const ventePreferred = (typeof isVenteItem === 'boolean') ? isVenteItem : isVenteMode;
       const tryPaths = ventePreferred
-        ? [`http://localhost:8085/api/commandes-clients/${commandeId}/pdf`]
-        : [`http://localhost:8085/api/commandes-fournisseurs/${commandeId}/pdf`];
+        ? [`${API}/commandes-clients/${commandeId}/pdf`]
+        : [`${API}/commandes-fournisseurs/${commandeId}/pdf`];
 
       let lastErr: any = null;
       for (const p of tryPaths) {
@@ -334,7 +335,7 @@ const ListeCommandes: React.FC = () => {
       try {
         const token = localStorage.getItem('smb_token');
         const path = (typeof isVenteItem === 'boolean') ? (isVenteItem ? 'commandes-clients' : 'commandes-fournisseurs') : (isVenteMode ? 'commandes-clients' : 'commandes-fournisseurs');
-        const res = await fetch(`http://localhost:8085/api/${path}/${id}`, {
+        const res = await fetch(`${API}/${path}/${id}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         });

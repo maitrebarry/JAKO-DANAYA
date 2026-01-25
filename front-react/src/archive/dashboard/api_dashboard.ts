@@ -1,7 +1,7 @@
+// @ts-nocheck
 // Archived copy of dashboard API client (originally in src/api/dashboard.ts)
 // Kept for reference while dashboard APIs are disabled in the frontend
 
-const API_BASE = 'http://localhost:8085/api';
 const AUTH_HEADER = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_token')}` });
 
 export type WidgetDTO = { key: string; permission?: string; data?: any };

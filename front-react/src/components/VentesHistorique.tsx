@@ -5,6 +5,7 @@ import { jsPDF } from 'jspdf';
 import { useUser } from '../contexts/UserContext';
 import useHasPermission from '../contexts/useHasPermission';
 import { formatServerDate } from '../utils/date';
+import { API, withApi } from '../config/api';
 
 interface HistoriqueItem {
   type: 'LIVRAISON' | 'PAIEMENT';
@@ -53,7 +54,7 @@ const VentesHistorique: React.FC = () => {
       const endpoint = annulations ? `/api/historique/ventes/annulations/boutique/${currentBoutique?.id}` : `/api/historique/ventes/boutique/${currentBoutique?.id}`;
       console.debug('fetchHistorique: token present?', !!token, 'endpoint=', endpoint);
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch(`http://localhost:8085${endpoint}`, { headers });
+      const res = await fetch(`${API}${endpoint}`, { headers });
       if (res.status === 401) {
         const txt = await res.text().catch(() => null);
         console.debug('fetchHistorique: 401 body=', txt);
@@ -108,7 +109,7 @@ const VentesHistorique: React.FC = () => {
     if (result.isConfirmed) {
       try {
         const token = localStorage.getItem('smb_token');
-        const res = await fetch(`http://localhost:8085/api/paiements-clients/${id}/cancel`, {
+        const res = await fetch(withApi(`paiements-clients/${id}/cancel`), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -149,7 +150,7 @@ const VentesHistorique: React.FC = () => {
     if (result.isConfirmed) {
       try {
         const token = localStorage.getItem('smb_token');
-        const res = await fetch(`http://localhost:8085/api/livraisons/${id}/cancel`, {
+        const res = await fetch(`${API}/livraisons/${id}/cancel`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -179,7 +180,7 @@ const VentesHistorique: React.FC = () => {
 
       // Try backend PDF first
       try {
-        const res = await fetch(`http://localhost:8085/api/livraisons/${livraisonId}/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        const res = await fetch(`${API}/livraisons/${livraisonId}/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
         if (!res.ok) throw new Error('Impossible de générer le PDF côté serveur');
         const blob = await res.blob();
         const blobUrl = URL.createObjectURL(blob);
@@ -192,7 +193,7 @@ const VentesHistorique: React.FC = () => {
       }
 
       // fetch livraison detail
-      const res = await fetch(`http://localhost:8085/api/livraisons/${livraisonId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`${API}/livraisons/${livraisonId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) throw new Error('Impossible de récupérer le détail de la livraison');
       const detail = await res.json();
 
@@ -313,7 +314,7 @@ const VentesHistorique: React.FC = () => {
 
       // Try backend PDF first
       try {
-        const res = await fetch(`http://localhost:8085/api/paiements-clients/${paiementId}/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        const res = await fetch(`${API}/paiements-clients/${paiementId}/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
         if (!res.ok) throw new Error('Impossible de générer le PDF côté serveur');
         const blob = await res.blob();
         const blobUrl = URL.createObjectURL(blob);
@@ -325,7 +326,7 @@ const VentesHistorique: React.FC = () => {
         console.warn('Backend paiement-client PDF failed, falling back to client-side generation', e);
       }
 
-      const res = await fetch(`http://localhost:8085/api/paiements-clients/${paiementId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`${API}/paiements-clients/${paiementId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) throw new Error('Impossible de récupérer le détail du paiement');
       const detail = await res.json();
 

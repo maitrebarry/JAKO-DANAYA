@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import Swal from 'sweetalert2';
 import * as inventaireApi from '../api/inventaire';
+import { withApi } from '../config/api';
 
 const AUTH_HEADER = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_token')}` });
 
 const InventaireCreate: React.FC = () => {
   // inventory is boutique-only (magasin-level inventories are deprecated)
   // Scope is fixed to 'boutique' — removed magasin-state/branches to avoid impossible comparisons
-  const scope = 'boutique';
   const [magasins, setMagasins] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [temps, setTemps] = useState<Record<number, { condCount?: number; unitCount?: number; qtePhysique?: number; ecart?: number }>>({});
@@ -38,7 +38,7 @@ const InventaireCreate: React.FC = () => {
 
   const fetchMagasins = async () => {
     try {
-      const res = await fetch('http://localhost:8085/api/magasins', { headers: AUTH_HEADER() });
+      const res = await fetch(withApi('magasins'), { headers: AUTH_HEADER() });
       if (!res.ok) throw new Error('Erreur chargement magasins');
       const data = await res.json();
       setMagasins(data || []);
@@ -50,7 +50,7 @@ const InventaireCreate: React.FC = () => {
   const loadProductsForScope = async () => {
     try {
       // Boutique-only path: ask the backend explicitly for boutique-level stocks
-      const res = await fetch('http://localhost:8085/api/stocks?level=boutique', { headers: AUTH_HEADER() });
+      const res = await fetch(withApi('stocks?level=boutique'), { headers: AUTH_HEADER() });
       if (!res.ok) throw new Error('Erreur chargement stocks boutique');
       const stocks = await res.json();
       const boutiqueStocks = (stocks || []);
@@ -113,7 +113,7 @@ const InventaireCreate: React.FC = () => {
         inventaireId = activeId;
         const lignes = await inventaireApi.listLignes(activeId).catch(() => []);
         const invHasMagasinLines = (lignes || []).some((l: any) => (l.stock && l.stock.magasin) || l.magasin);
-        const invHasBoutiqueLines = (lignes || []).some((l: any) => !(l.stock && l.stock.magasin) && !l.magasin);
+        const _invHasBoutiqueLines = (lignes || []).some((l: any) => !(l.stock && l.stock.magasin) && !l.magasin);
 
           // If the active inventaire contains magasin-scoped lines (historical), we cannot reuse it — user must regularize or create a new boutique inventaire
         if (invHasMagasinLines) {

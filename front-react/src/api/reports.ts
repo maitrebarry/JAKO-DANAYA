@@ -12,7 +12,7 @@ export interface Aggregates {
   totalAmount: number;
 }
 
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8085';
+import { API_BASE } from '../config/api';
 
 async function safeFetch(url: string, opts?: RequestInit) {
   try {

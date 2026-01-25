@@ -21,7 +21,7 @@ interface Mouvement {
   utilisateur?: { id?: number; email?: string; nom?: string; prenom?: string } | null;
 }
 
-const API_BASE = 'http://localhost:8085/api';
+import { API as API_BASE } from '../config/api';
 const AUTH_HEADER = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_token')}` });
 
 

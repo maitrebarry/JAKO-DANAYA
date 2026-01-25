@@ -4,6 +4,7 @@ import { useUser } from '../contexts/UserContext';
 import Swal from 'sweetalert2';
 import { formatLocalDate } from '../utils/date';
 import { useLocation } from 'react-router-dom';
+import { API } from '../config/api';
 
 interface Movement {
   id: number;
@@ -44,7 +45,7 @@ const CaisseMovements: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/caisses/${encodeURIComponent(ref)}/movements`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`${API}/caisses/${encodeURIComponent(ref)}/movements`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (res.status === 403) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de voir les mouvements de caisse', 'error'); setLoading(false); return; }
       if (!res.ok) throw new Error('Erreur lors du chargement des mouvements');
       const data = await res.json();
@@ -59,7 +60,7 @@ const CaisseMovements: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/caisses/boutique/${currentBoutique.id}/movements`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`${API}/caisses/boutique/${currentBoutique.id}/movements`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (res.status === 403) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de voir les mouvements de caisse', 'error'); setLoading(false); return; }
       if (!res.ok) throw new Error('Erreur lors du chargement des mouvements');
       const data = await res.json();

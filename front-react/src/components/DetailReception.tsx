@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { formatServerDate } from '../utils/date';
 import { useUser } from '../contexts/UserContext';
+import { API } from '../config/api';
 
 interface LigneReceptionDTO {
   idProduit: number;
@@ -46,7 +47,7 @@ const DetailReception: React.FC = () => {
     if (!id) return;
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:8085/api/receptions/${id}/detail`);
+      const res = await fetch(`${API}/receptions/${id}/detail`);
       if (!res.ok) throw new Error('Erreur lors du chargement');
       const data = await res.json();
       setDetail(data);
@@ -152,7 +153,7 @@ const DetailReception: React.FC = () => {
                     <button className="btn btn-outline-secondary me-2" onClick={async () => {
                       try {
                         const token = localStorage.getItem('smb_token');
-                        const res = await fetch(`http://localhost:8085/api/receptions/${id}/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+                        const res = await fetch(`${API}/receptions/${id}/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
                         if (res.status === 401) {
                           await Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la page de connexion.', 'error');
                           try { logout(); } catch (e) {}

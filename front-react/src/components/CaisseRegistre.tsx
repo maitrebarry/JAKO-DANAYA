@@ -4,6 +4,7 @@ import { useUser } from '../contexts/UserContext';
 import useHasPermission from '../contexts/useHasPermission';
 import RequirePermission from './RequirePermission';
 import { formatLocalDate } from '../utils/date';
+import { API } from '../config/api';
 
 const CaisseRegistre: React.FC = () => {
   const { currentBoutique } = useUser();
@@ -65,7 +66,7 @@ const CaisseRegistre: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch('http://localhost:8085/api/caisses', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`${API}/caisses`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) throw new Error('Impossible de charger les caisses');
       const data = await res.json();
       // filter by boutique
@@ -112,7 +113,7 @@ const CaisseRegistre: React.FC = () => {
         statut: statut,
         boutique: { id: currentBoutique.id }
       };
-      const res = await fetch('http://localhost:8085/api/caisses', {
+      const res = await fetch(`${API}/caisses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
         body: JSON.stringify(payload)
@@ -134,11 +135,11 @@ const CaisseRegistre: React.FC = () => {
     try {
       const token = localStorage.getItem('smb_token');
       // fetch existing caisse
-      const resGet = await fetch(`http://localhost:8085/api/caisses/${id}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const resGet = await fetch(`${API}/caisses/${id}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!resGet.ok) throw new Error('Caisse introuvable');
       const caisse = await resGet.json();
       caisse.statut = newStatut;
-      const res = await fetch(`http://localhost:8085/api/caisses/${id}`, {
+      const res = await fetch(`${API}/caisses/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
         body: JSON.stringify(caisse)

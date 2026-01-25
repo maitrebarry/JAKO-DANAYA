@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import Transfert from './Transfert';
 import { UserContext } from '../contexts/UserContext';
 import { MemoryRouter } from 'react-router-dom';
+import { API } from '../config/api';
 
 const mockMagasins = [{ id: 1, nom: 'Magasin A' }];
 const mockStocks = [
@@ -112,7 +113,7 @@ describe('Transfert — totaux et bénéfices estimés', () => {
     expect(screen.queryByText('ProdMag')).toBeNull();
 
     // verify UI requested boutique-level stocks explicitly
-    expect(fetchStub).toHaveBeenCalledWith('http://localhost:8085/api/stocks?level=boutique', expect.any(Object));
+    expect(fetchStub).toHaveBeenCalledWith(`${API}/stocks?level=boutique`, expect.any(Object));
 
     const itemLabel = prodBoutLabel.closest('label');
     const utils = within(itemLabel as HTMLElement);

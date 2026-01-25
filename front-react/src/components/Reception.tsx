@@ -4,6 +4,7 @@ import Swal from 'sweetalert2';
 import { useUser } from '../contexts/UserContext';
 import SearchableSelect from './SearchableSelect';
 import { formatServerDate, formatLocalDate } from '../utils/date';
+import { API } from '../config/api';
 
 interface CommandeData {
   id: number;
@@ -58,7 +59,7 @@ const Reception: React.FC = () => {
   const fetchMagasins = async () => {
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch('http://localhost:8085/api/magasins', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${API}/magasins`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.status === 401) {
         await Swal.fire('Session expirée', 'Votre session est expirée ou non authentifiée. Vous allez être redirigé vers la connexion.', 'warning');
         try { logout(); } catch (e) { /* ignore */ }
@@ -81,7 +82,7 @@ const Reception: React.FC = () => {
       if (lt === 'MAGASIN') {
         const idToUse = magId || selectedMagasinId;
         if (!idToUse) return [];
-        const res = await fetch(`http://localhost:8085/api/magasins/${idToUse}/stocks`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(`${API}/magasins/${idToUse}/stocks`, { headers: { Authorization: `Bearer ${token}` } });
         if (res.status === 401) {
           await Swal.fire('Session expirée', 'Votre session est expirée. Vous allez être redirigé vers la connexion.', 'warning');
           try { logout(); } catch (e) {}
@@ -91,7 +92,7 @@ const Reception: React.FC = () => {
         const data = await res.json();
         return data || [];
       } else {
-        const res = await fetch('http://localhost:8085/api/stocks', { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(`${API}/stocks`, { headers: { Authorization: `Bearer ${token}` } });
         if (res.status === 401) {
           await Swal.fire('Session expirée', 'Votre session est expirée. Vous allez être redirigé vers la connexion.', 'warning');
           try { logout(); } catch (e) {}
@@ -182,7 +183,7 @@ const Reception: React.FC = () => {
     setDebugInfo(prev => ({ ...prev, fetchStatus: 'loading', fetchResponse: null }));
     try {
       const token = localStorage.getItem('smb_token');
-      const url = `http://localhost:8085/api/commandes-fournisseurs/a-recevoir`; 
+      const url = `${API}/commandes-fournisseurs/a-recevoir`; 
       console.log('Fetching commandes from:', url);
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
@@ -220,7 +221,7 @@ const Reception: React.FC = () => {
       const token = localStorage.getItem('smb_token');
       
       // Fetch command details
-      const commandeRes = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${commandeId}`, {
+      const commandeRes = await fetch(`${API}/commandes-fournisseurs/${commandeId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (commandeRes.status === 401) {
@@ -233,7 +234,7 @@ const Reception: React.FC = () => {
       setSelectedCommande(commande);
 
       // Fetch articles for this command
-      const articlesRes = await fetch(`http://localhost:8085/api/receptions/commande/${commandeId}/articles`, {
+      const articlesRes = await fetch(`${API}/receptions/commande/${commandeId}/articles`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (articlesRes.status === 401) {
@@ -345,7 +346,7 @@ const Reception: React.FC = () => {
         }))
       };
 
-      const res = await fetch('http://localhost:8085/api/receptions/create', {
+      const res = await fetch(`${API}/receptions/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

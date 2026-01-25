@@ -32,6 +32,7 @@ ChartJS.register(
 const formatNumber = (n?: number) => n == null ? '—' : new Intl.NumberFormat('fr-FR').format(n);
 import { useFormatMoney } from '../utils/currency';
 
+
 // Note: formatting hook will be used inside components (hook rules)
 
 

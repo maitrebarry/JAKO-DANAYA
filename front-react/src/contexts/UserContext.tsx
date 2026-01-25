@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { withApi } from '../config/api';
 
 interface User {
   id: number;
@@ -138,7 +139,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       try {
         if (currentBoutique && (currentBoutique as any).id && !(currentBoutique as any).pays) {
           const token = localStorage.getItem('smb_token');
-          const res = await fetch(`http://localhost:8085/api/boutiques/${(currentBoutique as any).id}`, {
+          const res = await fetch(withApi(`boutiques/${(currentBoutique as any).id}`), {
             headers: token ? { Authorization: `Bearer ${token}` } : {}
           });
           if (res.ok) {

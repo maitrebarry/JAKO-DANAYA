@@ -3,6 +3,7 @@ import { useUser } from '../contexts/UserContext';
 import * as authApi from '../api/auth';
 import Swal from 'sweetalert2';
 import PhoneWithDial from './PhoneWithDial';
+import { API, API_BASE } from '../config/api';
 import avatarImg from '../../assets/images/avatar.jpg';
 
 const Profile: React.FC = () => {
@@ -180,7 +181,7 @@ const Profile: React.FC = () => {
       const xhr = new XMLHttpRequest();
       const fd = new FormData();
       fd.append('file', file);
-      xhr.open('POST', 'http://localhost:8085/api/auth/me/avatar');
+      xhr.open('POST', `${API}/auth/me/avatar`);
       if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.upload.onprogress = (ev) => {
         if (ev.lengthComputable) {
@@ -245,7 +246,6 @@ const Profile: React.FC = () => {
               <div style={{ position: 'relative', display: 'inline-block' }}>
                 {/** resolve avatar so '/uploads/...' paths point to backend server */}
                 {(() => {
-                  const API_BASE = 'http://localhost:8085';
                   const resolveAvatar = (a?: string | null) => {
                     if (previewUrl) return previewUrl;
                     if (!a) return avatarImg;

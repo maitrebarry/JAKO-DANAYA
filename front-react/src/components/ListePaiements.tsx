@@ -4,6 +4,7 @@ import { formatServerDate } from '../utils/date';
 import { useNavigate } from 'react-router-dom';
 import { useFormatMoney } from '../utils/currency';
 import Swal from 'sweetalert2';
+import { API } from '../config/api';
 
 interface PaiementData {
   id: number;
@@ -38,7 +39,7 @@ const ListePaiements: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/paiements`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`${API}/paiements`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) throw new Error('Erreur lors du chargement');
       const data = await res.json();
       setPaiements(data);
@@ -66,7 +67,7 @@ const ListePaiements: React.FC = () => {
     if (result.isConfirmed) {
       try {
         const token = localStorage.getItem('smb_token');
-        const res = await fetch(`http://localhost:8085/api/paiements/${id}`, { method: 'DELETE', headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        const res = await fetch(`${API}/paiements/${id}`, { method: 'DELETE', headers: token ? { Authorization: `Bearer ${token}` } : {} });
         if (!res.ok) throw new Error('Erreur lors de la suppression');
         Swal.fire('Succès', 'Paiement supprimé', 'success');
         fetchPaiements();

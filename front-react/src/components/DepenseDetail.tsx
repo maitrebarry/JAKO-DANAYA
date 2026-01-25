@@ -4,6 +4,7 @@ import Swal from 'sweetalert2';
 import { getDepense, validateDepense, rejectDepense, cancelDepense } from '../api/depense';
 import utilisateurApi from '../api/utilisateur';
 import useHasPermission from '../contexts/useHasPermission';
+import { API } from '../config/api';
 
 const DepenseDetail: React.FC = () => {
   const { id } = useParams();
@@ -93,7 +94,7 @@ const DepenseDetail: React.FC = () => {
     try {
       const token = localStorage.getItem('smb_token');
       if (!token) { Swal.fire('Erreur', 'Authentification nécessaire pour imprimer. Connectez-vous.', 'error'); return; }
-      const res = await fetch(`http://localhost:8085/api/depenses/${depense.id}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${API}/depenses/${depense.id}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error('Erreur lors de la récupération du PDF');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

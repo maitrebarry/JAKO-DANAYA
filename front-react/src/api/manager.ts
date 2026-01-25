@@ -1,5 +1,6 @@
 // NOTE: dashboard-related endpoints are archived/disabled for now. These client helpers keep local fallbacks when backend endpoints are unavailable.
-const API_BASE = 'http://localhost:8085/api';
+import { API } from '../config/api';
+const API_BASE = API;
 const AUTH_HEADER = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_token')}` });
 
 export type PendingOrder = {

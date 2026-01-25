@@ -1,4 +1,5 @@
-const API_BASE = 'http://localhost:8085/api/inventaires';
+import { API } from '../config/api';
+const API_BASE = `${API}/inventaires`;
 
 const tokenHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_token')}` });
 

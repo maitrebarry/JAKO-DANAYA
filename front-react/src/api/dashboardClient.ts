@@ -1,4 +1,5 @@
-export const API_BASE = 'http://localhost:8085/api';
+import { API } from '../config/api';
+export const API_BASE = API;
 export const AUTH_HEADER = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_token')}` });
 
 export type WidgetDTO = { key: string; permission?: string; data?: any };

@@ -79,7 +79,7 @@ docker compose logs -f backend
 
 3. Accéder à l'application :
 - Front : http://localhost (port 80) si vous mappez le port 80
-- API backend : http://localhost:8085
+- API backend: set the frontend build/runtime variable instead of a hardcoded URL — e.g. `VITE_API_URL=https://api.example.com` (build-time) or provide a runtime `/app-config.js` that sets `window.APP_CONFIG.API_BASE_URL`. See `front-react/.env.example` for an example.
 
 > Nota : les variables d'accès à la base de données sont définies dans `docker-compose.yml` (ex. MYSQL_USER/PASSWORD). En production, stockez-les de façon sécurisée (secrets manager, ou variables d'environnement du système / docker secrets).
 

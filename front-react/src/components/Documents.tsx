@@ -3,7 +3,7 @@ import useHasPermission from '../contexts/useHasPermission';
 import { formatServerDate } from '../utils/date';
 import Swal from 'sweetalert2';
 
-const API_BASE = 'http://localhost:8085';
+import { API_BASE } from '../config/api';
 const AUTH_HEADER = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_token')}` });
 
 const Documents: React.FC = () => {

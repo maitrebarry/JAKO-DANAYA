@@ -1,4 +1,5 @@
-const API_BASE = 'http://localhost:8085/api/notifications';
+import { API } from '../config/api';
+const API_BASE = `${API}/notifications`;
 
 const tokenHeader = () => {
   const token = localStorage.getItem('smb_token');

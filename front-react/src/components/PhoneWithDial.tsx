@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import PhoneInput from './PhoneInput';
 import { getExpectedNationalLengths, isNationalNumberValid } from '../utils/phoneRules';
+import { withApi } from '../config/api';
 
 export default function PhoneWithDial({ value, defaultCountry, onChange }: { value?: string, defaultCountry?: string, onChange: (full?: string, code?: string, valid?: boolean, dial?: string, national?: string) => void }) {
   const [isValid, setIsValid] = useState<boolean | null>(null);
@@ -17,7 +18,7 @@ export default function PhoneWithDial({ value, defaultCountry, onChange }: { val
     (async () => {
       try {
         const token = localStorage.getItem('smb_token');
-        const res = await fetch('http://localhost:8085/api/pays', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        const res = await fetch(withApi('pays'), { headers: token ? { Authorization: `Bearer ${token}` } : {} });
         if (res.ok) {
           const data = await res.json();
           setPaysList(data || []);

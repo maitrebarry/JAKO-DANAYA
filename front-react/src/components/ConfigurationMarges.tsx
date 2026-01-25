@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useUser } from '../contexts/UserContext';
+import { API } from '../config/api';
 
 const ConfigurationMarges: React.FC = () => {
   const { currentBoutique, permissions } = useUser();
@@ -31,7 +32,7 @@ const ConfigurationMarges: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/configuration-marge/boutique/${currentBoutique!.id}`, {
+      const res = await fetch(`${API}/configuration-marge/boutique/${currentBoutique!.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.status === 404) {
@@ -75,7 +76,7 @@ const ConfigurationMarges: React.FC = () => {
         margeMinimaleGros: parseFloat(String(form.margeMinimaleGros || 0)) || 0,
         boutique: { id: currentBoutique!.id }
       };
-      const url = config ? `http://localhost:8085/api/configuration-marge/${config.id}` : 'http://localhost:8085/api/configuration-marge';
+      const url = config ? `${API}/configuration-marge/${config.id}` : `${API}/configuration-marge`;
       const method = config ? 'PUT' : 'POST';
       const res = await fetch(url, {
         method,
@@ -119,7 +120,7 @@ const ConfigurationMarges: React.FC = () => {
     if (!isAllowed || !config) return;
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/configuration-marge/${config.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${API}/configuration-marge/${config.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error('Impossible de supprimer');
       setConfig(null);
       setMessage('Configuration supprimée');
@@ -133,7 +134,7 @@ const ConfigurationMarges: React.FC = () => {
     if (!isAllowed || !config) return;
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/configuration-marge/boutique/${currentBoutique!.id}/recompute-job`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${API}/configuration-marge/boutique/${currentBoutique!.id}/recompute-job`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
       if (res.status !== 202 && !res.ok) throw new Error('Impossible de lancer le job de recalcul');
       const data = await res.json().catch(() => null);
       const jid = data && data.jobId ? data.jobId : null;
@@ -153,7 +154,7 @@ const ConfigurationMarges: React.FC = () => {
     if (!jid) return;
     const token = localStorage.getItem('smb_token');
     try {
-      const res = await fetch(`http://localhost:8085/api/configuration-marge/job/${jid}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${API}/configuration-marge/job/${jid}`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.status === 401) { setMessage('Non autorisé (token invalide)'); return; }
       if (res.status === 404) { setMessage('Job introuvable'); return; }
       if (!res.ok) { setMessage('Impossible de récupérer le job'); return; }
@@ -170,7 +171,7 @@ const ConfigurationMarges: React.FC = () => {
     jobTimer.current = setInterval(async () => {
       try {
         const token = localStorage.getItem('smb_token');
-        const res = await fetch(`http://localhost:8085/api/configuration-marge/job/${jid}`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(`${API}/configuration-marge/job/${jid}`, { headers: { Authorization: `Bearer ${token}` } });
         // stop polling on unauthorized or not found
         if (res.status === 401) {
           clearInterval(jobTimer.current); jobTimer.current = null; setMessage('Non autorisé (token invalide)'); setJobId(null); setJobStatus(null); return;

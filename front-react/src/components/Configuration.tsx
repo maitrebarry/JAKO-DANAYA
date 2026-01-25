@@ -5,6 +5,7 @@ import Swal from 'sweetalert2';
 import useHasPermission from '../contexts/useHasPermission';
 import RequirePermission from './RequirePermission';
 import PhoneWithDial from './PhoneWithDial';
+import { withApi, API, API_BASE } from '../config/api';
 
 const Configuration = () => {
   const { roles } = useUser();
@@ -219,19 +220,19 @@ const ListeUtilisateurs = () => {
     try {
       // Chargement en parallèle pour plus de rapidité
       const [usersRes, boutiquesRes, rolesRes, assignableRes, paysRes] = await Promise.all([
-        fetch('http://localhost:8085/api/users', {
+        fetch(withApi('users'), {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('http://localhost:8085/api/boutiques', {
+        fetch(withApi('boutiques'), {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('http://localhost:8085/api/roles', {
+        fetch(withApi('roles'), {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('http://localhost:8085/api/admin/assignable-roles', {
+        fetch(`${API}/admin/assignable-roles`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('http://localhost:8085/api/pays', {
+        fetch(`${API}/pays`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -314,8 +315,8 @@ const ListeUtilisateurs = () => {
       const token = localStorage.getItem('smb_token');
       const method = isEdit ? 'PUT' : 'POST';
       const url = isEdit 
-        ? `http://localhost:8085/api/users/${formData.id}` 
-        : 'http://localhost:8085/api/users';
+        ? `${API}/users/${formData.id}` 
+        : `${API}/users`;
       
       const payload: any = {
         nom: formData.nom,
@@ -379,7 +380,7 @@ const ListeUtilisateurs = () => {
     
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/users/${id}`, {
+      const res = await fetch(`${API}/users/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -410,7 +411,7 @@ const ListeUtilisateurs = () => {
     try {
       setTogglingUserId(user.id);
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/users/${user.id}/statut`, {
+      const res = await fetch(`${API}/users/${user.id}/statut`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ statut: target })
@@ -873,7 +874,7 @@ const Boutique = () => {
   const fetchPays = async () => {
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch('http://localhost:8085/api/pays', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`${API}/pays`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       const backendPays = res.ok ? await res.json() : [];
 
       let merged = backendPays || [];
@@ -941,7 +942,7 @@ const Boutique = () => {
   const fetchBoutiques = async () => {
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch('http://localhost:8085/api/boutiques', {
+      const res = await fetch(`${API}/boutiques`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Erreur lors du chargement des boutiques');
@@ -975,8 +976,8 @@ const Boutique = () => {
       const token = localStorage.getItem('smb_token');
       const method = isEdit ? 'PUT' : 'POST';
       const url = isEdit 
-        ? `http://localhost:8085/api/boutiques/${newBoutique.id}` 
-        : 'http://localhost:8085/api/boutiques';
+        ? `${API}/boutiques/${newBoutique.id}` 
+        : `${API}/boutiques`;
 
       const formData = new FormData();
       formData.append('nom', newBoutique.nom);
@@ -1012,7 +1013,7 @@ const Boutique = () => {
       try {
         if (savedBoutique && currentBoutique && savedBoutique.id === (currentBoutique as any).id) {
           // fetch full boutique and update user context
-          const bRes = await fetch(`http://localhost:8085/api/boutiques/${savedBoutique.id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+          const bRes = await fetch(`${API}/boutiques/${savedBoutique.id}`, { headers: { 'Authorization': `Bearer ${token}` } });
           if (bRes.ok) {
             const full = await bRes.json();
             // Update stored user data in localStorage and via setUserData so components react
@@ -1064,7 +1065,7 @@ const Boutique = () => {
     
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/boutiques/${id}`, {
+      const res = await fetch(`${API}/boutiques/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -1369,7 +1370,7 @@ const Unite = () => {
   const fetchUnites = async () => {
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch('http://localhost:8085/api/unites', {
+      const res = await fetch(`${API}/unites`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Erreur lors du chargement des unités');
@@ -1385,7 +1386,7 @@ const Unite = () => {
   const fetchBoutiques = async () => {
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch('http://localhost:8085/api/boutiques', {
+      const res = await fetch(`${API}/boutiques`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Erreur lors du chargement des boutiques');
@@ -1420,8 +1421,8 @@ const Unite = () => {
       const token = localStorage.getItem('smb_token');
       const method = isEdit ? 'PUT' : 'POST';
       const url = isEdit 
-        ? `http://localhost:8085/api/unites/${newUnite.id}` 
-        : 'http://localhost:8085/api/unites';
+        ? `${API}/unites/${newUnite.id}` 
+        : `${API}/unites`;
       
       const payload: any = {
         libelle: newUnite.libelle,
@@ -1474,7 +1475,7 @@ const Unite = () => {
     
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/unites/${id}`, {
+      const res = await fetch(`${API}/unites/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -1734,7 +1735,7 @@ const Magasins = () => {
   const fetchMagasins = async () => {
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch('http://localhost:8085/api/magasins', {
+      const res = await fetch(`${API}/magasins`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Erreur lors du chargement des magasins');
@@ -1748,7 +1749,7 @@ const Magasins = () => {
   const fetchBoutiques = async () => {
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch('http://localhost:8085/api/boutiques', {
+      const res = await fetch(`${API}/boutiques`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Erreur lors du chargement des boutiques');
@@ -1780,8 +1781,8 @@ const Magasins = () => {
       const token = localStorage.getItem('smb_token');
       const method = isEdit ? 'PUT' : 'POST';
       const url = isEdit 
-        ? `http://localhost:8085/api/magasins/${newMagasin.id}` 
-        : 'http://localhost:8085/api/magasins';
+        ? `${API}/magasins/${newMagasin.id}` 
+        : `${API}/magasins`;
       
       const body = {
         nom: newMagasin.nom,
@@ -1831,7 +1832,7 @@ const Magasins = () => {
     
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/magasins/${id}`, {
+      const res = await fetch(`${API}/magasins/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -2061,7 +2062,6 @@ const Magasins = () => {
 };
 
 const AssignerPermissions = () => {
-  const apiBaseUrl = (window as any)?.APP_CONFIG?.API_BASE_URL || 'http://localhost:8085';
   const { user, roles, currentBoutique } = useUser();
   const [users, setUsers] = useState<any[]>([]);
   const [permissions, setPermissions] = useState<any[]>([]);
@@ -2106,7 +2106,7 @@ const AssignerPermissions = () => {
     }
     
     try {
-      const response = await fetch(`${apiBaseUrl}/api/utilisateurs`, {
+      const response = await fetch(`${API_BASE}/api/utilisateurs`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -2141,7 +2141,7 @@ const AssignerPermissions = () => {
     if (!token) return;
     
     try {
-      const response = await fetch(`${apiBaseUrl}/api/admin/permissions`, {
+      const response = await fetch(`${API_BASE}/api/admin/permissions`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -2161,7 +2161,7 @@ const AssignerPermissions = () => {
     if (!token) return;
     
     try {
-      const response = await fetch(`${apiBaseUrl}/api/admin/utilisateurs/${userId}/permissions`, {
+      const response = await fetch(`${API_BASE}/api/admin/utilisateurs/${userId}/permissions`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -2316,7 +2316,7 @@ const AssignerPermissions = () => {
     
     setSaving(true);
     try {
-      const response = await fetch(`${apiBaseUrl}/api/admin/utilisateurs/${selectedUserId}/permissions`, {
+      const response = await fetch(`${API_BASE}/api/admin/utilisateurs/${selectedUserId}/permissions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2578,7 +2578,7 @@ const Permissions = () => {
   const fetchPermissions = async () => {
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch('http://localhost:8085/api/permissions', {
+      const res = await fetch(`${API}/permissions`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -2611,8 +2611,8 @@ const Permissions = () => {
       const token = localStorage.getItem('smb_token');
       const method = isEdit ? 'PUT' : 'POST';
       const url = isEdit 
-        ? `http://localhost:8085/api/permissions/${newPerm.id}` 
-        : 'http://localhost:8085/api/permissions';
+        ? `${API}/permissions/${newPerm.id}` 
+        : `${API}/permissions`;
       
       const res = await fetch(url, {
         method,
@@ -2656,7 +2656,7 @@ const Permissions = () => {
     
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/permissions/${id}`, {
+      const res = await fetch(`${API}/permissions/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });

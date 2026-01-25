@@ -1,4 +1,5 @@
-const API_BASE = 'http://localhost:8085/api';
+import { API } from '../config/api';
+const API_BASE = API;
 const AUTH_HEADER = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_token')}` });
 
 export type ShopOverview = {

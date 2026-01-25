@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { formatServerDate } from '../utils/date';
 import { useFormatMoney } from '../utils/currency';
+import { API } from '../config/api';
 // import SearchableSelect from './SearchableSelect';
 
 interface Ligne { id: number; stockId: number; nom: string; quantite: number; prix: number; montant: number; quantiteConditionnement?: number | null; multiplicateur?: number | null; quantiteDisplay?: number | null; unitLabel?: string | null; qLabel?: string | null; }
@@ -23,7 +24,7 @@ const CommandeApercu: React.FC = () => {
     (async () => {
       try {
         const token = localStorage.getItem('smb_token');
-        const stockRes = await fetch('http://localhost:8085/api/stocks', { headers: { Authorization: `Bearer ${token}` } });
+        const stockRes = await fetch(`${API}/stocks`, { headers: { Authorization: `Bearer ${token}` } });
         const stockData = await stockRes.json();
         // We use stockData locally to compute line names and prices; do not store it unnecessarily.
         if (!id) return;
@@ -33,7 +34,7 @@ const CommandeApercu: React.FC = () => {
           return;
         } else {
           const path = 'commandes-fournisseurs';
-          const res = await fetch(`http://localhost:8085/api/${path}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+          const res = await fetch(`${API}/${path}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
           if (!res.ok) throw new Error('Commande introuvable');
           const data = await res.json();
           setCommande(data);
@@ -98,8 +99,8 @@ const CommandeApercu: React.FC = () => {
       }
       // Séparation stricte : vente → ventes ; commande fournisseur → commandes-fournisseurs
       const tryPaths = isVenteMode
-        ? [`http://localhost:8085/api/ventes/${commandeId}/pdf`]
-        : [`http://localhost:8085/api/commandes-fournisseurs/${commandeId}/pdf`];
+        ? [`${API}/ventes/${commandeId}/pdf`]
+        : [`${API}/commandes-fournisseurs/${commandeId}/pdf`];
 
       let lastErr: any = null;
       for (const p of tryPaths) {

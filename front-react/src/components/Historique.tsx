@@ -4,6 +4,7 @@ import Swal from 'sweetalert2';
 import { jsPDF } from 'jspdf';
 import useHasPermission from '../contexts/useHasPermission';
 import { formatServerDate } from '../utils/date';
+import { API } from '../config/api';
 
 interface HistoriqueItem {
   type: 'RECEPTION' | 'PAIEMENT';
@@ -44,7 +45,7 @@ const Historique: React.FC = () => {
       const token = localStorage.getItem('smb_token');
       console.debug('fetchHistorique - token present?', !!token, 'token preview:', token ? token.slice(0,10) + '...' : null);
       const endpoint = annulations ? `/api/historique/annulations/boutique/${currentBoutique?.id}` : `/api/historique/boutique/${currentBoutique?.id}`;
-      const res = await fetch(`http://localhost:8085${endpoint}`, {
+      const res = await fetch(`${API}${endpoint}`, {
         headers: { Authorization: token ? `Bearer ${token}` : '' }
       });
       if (res.status === 401) {
@@ -85,7 +86,7 @@ const Historique: React.FC = () => {
     if (result.isConfirmed) {
       try {
         const token = localStorage.getItem('smb_token');
-        const res = await fetch(`http://localhost:8085/api/paiements/${id}/cancel`, {
+        const res = await fetch(`${API}/paiements/${id}/cancel`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -132,7 +133,7 @@ const Historique: React.FC = () => {
     if (result.isConfirmed) {
       try {
         const token = localStorage.getItem('smb_token');
-        const res = await fetch(`http://localhost:8085/api/receptions/${id}/cancel`, {
+        const res = await fetch(`${API}/receptions/${id}/cancel`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -162,7 +163,7 @@ const Historique: React.FC = () => {
       const token = localStorage.getItem('smb_token');
       // Try backend PDF first
       try {
-        const res = await fetch(`http://localhost:8085/api/receptions/${receptionId}/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        const res = await fetch(`${API}/receptions/${receptionId}/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
         if (!res.ok) throw new Error('Impossible de générer le PDF côté serveur');
         const blob = await res.blob();
         const blobUrl = URL.createObjectURL(blob);
@@ -175,7 +176,7 @@ const Historique: React.FC = () => {
       }
 
       // fetch reception detail
-      const res = await fetch(`http://localhost:8085/api/receptions/${receptionId}/detail`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`${API}/receptions/${receptionId}/detail`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) throw new Error('Impossible de récupérer le détail de la réception');
       const detail = await res.json();
 
@@ -342,7 +343,7 @@ const Historique: React.FC = () => {
 
       // Try server
       try {
-        const res = await fetch(`http://localhost:8085/api/paiements/${paiementId}/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        const res = await fetch(`${API}/paiements/${paiementId}/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
         if (!res.ok) throw new Error('Impossible de générer le PDF côté serveur');
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -354,7 +355,7 @@ const Historique: React.FC = () => {
       }
 
       // Fallback: fetch paiement and render like PHP
-      const res = await fetch(`http://localhost:8085/api/paiements/${paiementId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`${API}/paiements/${paiementId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) throw new Error('Impossible de récupérer le paiement');
       const paie = await res.json();
 
@@ -562,7 +563,7 @@ const Historique: React.FC = () => {
                                   try {
                                     Swal.fire({ title: 'Téléchargement...', didOpen: () => Swal.showLoading() });
                                     const token = localStorage.getItem('smb_token');
-                                    const res = await fetch(`http://localhost:8085/api/receptions/commande/${item.referenceCommandeId}/last/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+                                    const res = await fetch(`${API}/receptions/commande/${item.referenceCommandeId}/last/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
                                     if (!res.ok) throw new Error('Aucune réception trouvée pour cette commande');
                                     const blob = await res.blob();
                                     const url = URL.createObjectURL(blob);

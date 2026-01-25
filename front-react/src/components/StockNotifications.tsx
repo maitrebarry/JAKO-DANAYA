@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { API_BASE, AUTH_HEADER } from '../api/dashboardClient';
 
+
 interface StockAlert {
   id: number;
   nom: string;

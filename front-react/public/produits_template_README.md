@@ -19,7 +19,7 @@ Conversion rapide si vous avez un grand fichier
 - Méthode 2 (si vous n'avez pas la permission) : récupérer la liste des unités via l'API et utiliser la feuille `units` (ou VLOOKUP) pour remplir `id_unite`.
 
 API utile pour obtenir la liste d'unités (avec token):
-  curl -H "Authorization: Bearer <TOKEN>" http://localhost:8085/api/unites | jq '.[] | {id,libelle,code}'
+  curl -H "Authorization: Bearer <TOKEN>" ${VITE_API_URL:-http://localhost:8085}/api/unites | jq '.[] | {id,libelle,code}'
 
 Générer un XLSX depuis le CSV (optionnel):
 - Un petit script est fourni dans `tools/generate_produits_template.js` (il nécessite le paquet `xlsx`).

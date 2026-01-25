@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import useHasPermission from '../contexts/useHasPermission';
 import { useUser } from '../contexts/UserContext';
 import { formatMoney } from '../utils/currency';
-
-const API_BASE = 'http://localhost:8085/api';
+import { API as API_BASE } from '../config/api';
 const AUTH_HEADER = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_token')}` });
 
 const Rapports: React.FC = () => {

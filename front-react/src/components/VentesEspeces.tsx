@@ -4,6 +4,7 @@ import Swal from 'sweetalert2';
 import { useUser } from '../contexts/UserContext';
 import useHasPermission from '../contexts/useHasPermission';
 import { formatServerDate } from '../utils/date';
+import { API, withApi } from '../config/api';
 
 interface Item {
   id: number;
@@ -41,7 +42,7 @@ const VentesEspeces: React.FC = () => {
       const endpoint = `/api/historique/ventes/especes/boutique/${currentBoutique?.id}`;
       console.debug('fetchEspeces: token present?', !!token, 'endpoint=', endpoint);
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch(`http://localhost:8085${endpoint}`, { headers });
+      const res = await fetch(`${API}${endpoint}`, { headers });
 
       if (res.status === 401) {
         const txt = await res.text().catch(() => null);
@@ -82,10 +83,10 @@ const VentesEspeces: React.FC = () => {
       const token = localStorage.getItem('smb_token');
       let url = '';
       if (it.type === 'VENTE') {
-        url = `http://localhost:8085/api/ventes/${it.id}/pdf`;
+        url = withApi(`ventes/${it.id}/pdf`);
       } else {
         // default to paiement client
-        url = `http://localhost:8085/api/paiements-clients/${it.id}/pdf`;
+        url = `${API}/paiements-clients/${it.id}/pdf`;
       }
       const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (res.status === 401) {
@@ -114,7 +115,7 @@ const VentesEspeces: React.FC = () => {
     if (!result.isConfirmed) return;
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/paiements-clients/${id}/cancel`, {
+      const res = await fetch(`${API}/paiements-clients/${id}/cancel`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ reason: 'Annulation via ventes en espèces' })
@@ -138,7 +139,7 @@ const VentesEspeces: React.FC = () => {
     if (!result.isConfirmed) return;
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/ventes/${id}`, {
+      const res = await fetch(`${API}/ventes/${id}`, {
         method: 'DELETE',
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
       });

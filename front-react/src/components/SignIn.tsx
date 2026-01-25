@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
+import { withApi } from '../config/api';
 
 import bg1 from '../../assets/images/jako_danaya.png';
 import bg2 from '../../assets/images/jako_danaya2.png';
@@ -27,7 +28,7 @@ const SignIn = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('http://localhost:8085/api/auth/login', {
+      const res = await fetch(withApi('auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -40,7 +41,7 @@ const SignIn = () => {
       if (data.token) {
         localStorage.setItem('smb_token', data.token);
 
-        const profileRes = await fetch('http://localhost:8085/api/auth/me', {
+        const profileRes = await fetch(withApi('auth/me'), {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${data.token}`

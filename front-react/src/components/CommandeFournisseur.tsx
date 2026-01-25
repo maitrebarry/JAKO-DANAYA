@@ -10,6 +10,7 @@ import { useFormatMoney } from '../utils/currency';
 import RequirePermission from './RequirePermission';
 import PhoneWithDial from './PhoneWithDial';
 import { useUser } from '../contexts/UserContext';
+import { API } from '../config/api';
 
 interface Stock {
   id: number;
@@ -166,7 +167,7 @@ const CommandeFournisseur: React.FC = () => {
   const fetchProduits = async () => {
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch('http://localhost:8085/api/produits', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      const res = await fetch(`${API}/produits`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
       if (!res.ok) throw new Error('Erreur lors du chargement des produits');
       const data = await res.json();
       setProduits(data || []);
@@ -180,7 +181,7 @@ const CommandeFournisseur: React.FC = () => {
   const fetchMagasins = async () => {
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch('http://localhost:8085/api/magasins', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      const res = await fetch(`${API}/magasins`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
       if (!res.ok) throw new Error('Erreur lors du chargement des magasins');
       const data = await res.json();
       setMagasins(data || []);
@@ -198,7 +199,7 @@ const CommandeFournisseur: React.FC = () => {
       if (lt === 'MAGASIN') {
         const idToUse = magId || selectedMagasinId;
         if (!idToUse) return [];
-        const res = await fetch(`http://localhost:8085/api/magasins/${idToUse}/stocks`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        const res = await fetch(`${API}/magasins/${idToUse}/stocks`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
         if (!res.ok) throw new Error('Impossible de charger les produits du magasin');
         const data = await res.json();
         // Normalize stocks so that product name and prices are available even when API returns produitId / nomProduit only
@@ -227,7 +228,7 @@ const CommandeFournisseur: React.FC = () => {
         setStocks(normalized);
         return normalized;
       } else {
-        const res = await fetch('http://localhost:8085/api/stocks', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        const res = await fetch(`${API}/stocks`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
         if (!res.ok) throw new Error('Impossible de charger les stocks');
         const data = await res.json();
         const boutiqueOnly = (data || []).filter((s: any) => !s.magasin).map((s: any) => {
@@ -292,7 +293,7 @@ const CommandeFournisseur: React.FC = () => {
     try {
       const token = localStorage.getItem('smb_token');
       let res = null as any;
-      res = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${commandeId}`, {
+      res = await fetch(`${API}/commandes-fournisseurs/${commandeId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Erreur lors du chargement de la commande');
@@ -361,7 +362,7 @@ const CommandeFournisseur: React.FC = () => {
   const fetchFournisseurs = async () => {
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch('http://localhost:8085/api/fournisseurs', {
+      const res = await fetch(`${API}/fournisseurs`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Erreur lors du chargement des fournisseurs');
@@ -609,7 +610,7 @@ const CommandeFournisseur: React.FC = () => {
 
     try {
       const token = localStorage.getItem('smb_token');
-      let url = isEditMode && id ? `http://localhost:8085/api/commandes-fournisseurs/${id}` : 'http://localhost:8085/api/commandes-fournisseurs';
+      let url = isEditMode && id ? `${API}/commandes-fournisseurs/${id}` : `${API}/commandes-fournisseurs`;
       let method = isEditMode && id ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
@@ -712,7 +713,7 @@ const CommandeFournisseur: React.FC = () => {
 
       // Default: commande fournisseur
       try {
-        const res = await fetch(`http://localhost:8085/api/commandes-fournisseurs/${idToOpen}/pdf`, {
+        const res = await fetch(`${API}/commandes-fournisseurs/${idToOpen}/pdf`, {
           method: 'GET',
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -1109,7 +1110,7 @@ const CommandeFournisseur: React.FC = () => {
                           }
 
                           const payload: any = { prenom: newFournisseur.prenom, nom: newFournisseur.nom, contact: newFournisseur.contact, ville: newFournisseur.ville, codePays: newFournisseurCodePays || undefined };
-                          const res = await fetch('http://localhost:8085/api/fournisseurs', {
+                          const res = await fetch(`${API}/fournisseurs`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                             body: JSON.stringify(payload)

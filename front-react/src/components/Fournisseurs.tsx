@@ -4,6 +4,7 @@ import { useUser } from '../contexts/UserContext';
 import useHasPermission from '../contexts/useHasPermission';
 import RequirePermission from './RequirePermission';
 import PhoneWithDial from './PhoneWithDial';
+import { API } from '../config/api';
 
 const Fournisseurs: React.FC = () => {
   const { roles, currentBoutique } = useUser();
@@ -44,7 +45,7 @@ const Fournisseurs: React.FC = () => {
   const fetchFournisseurs = async () => {
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch('http://localhost:8085/api/fournisseurs', {
+      const res = await fetch(`${API}/fournisseurs`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Erreur lors du chargement des fournisseurs');
@@ -60,7 +61,7 @@ const Fournisseurs: React.FC = () => {
   const fetchBoutiques = async () => {
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch('http://localhost:8085/api/boutiques', {
+      const res = await fetch(`${API}/boutiques`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Erreur lors du chargement des boutiques');
@@ -102,7 +103,7 @@ const Fournisseurs: React.FC = () => {
     try {
       const token = localStorage.getItem('smb_token');
       const method = editing ? 'PUT' : 'POST';
-      const url = editing ? `http://localhost:8085/api/fournisseurs/${editing.id}` : 'http://localhost:8085/api/fournisseurs';
+      const url = editing ? `${API}/fournisseurs/${editing.id}` : `${API}/fournisseurs`;
       const payload: any = {
         prenom: newFournisseur.prenom,
         nom: newFournisseur.nom,
@@ -151,7 +152,7 @@ const Fournisseurs: React.FC = () => {
     if (!result.isConfirmed) return;
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/fournisseurs/${id}`, {
+      const res = await fetch(`${API}/fournisseurs/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });

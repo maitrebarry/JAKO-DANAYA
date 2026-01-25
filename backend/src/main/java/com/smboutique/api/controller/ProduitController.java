@@ -18,6 +18,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -37,6 +38,19 @@ import java.util.stream.Collectors;
 public class ProduitController {
 
     private static final String UPLOAD_DIR = "uploads/products/";
+
+    @Value("${app.base-url:http://localhost:8085}")
+    private String appBaseUrl;
+
+    /**
+     * Returns the absolute base URL used to serve uploaded product files.
+     * Defaults to the configured `app.base-url` with the upload directory appended.
+     */
+    private String uploadsBase() {
+        String base = (appBaseUrl == null) ? "http://localhost:8085" : appBaseUrl;
+        return base.replaceAll("/+$","") + "/" + UPLOAD_DIR;
+    }
+
     @Autowired
     private ProduitService produitService;
 
@@ -330,8 +344,8 @@ public class ProduitController {
                     }
 
                     // Normalize productImage: if it's a full URL to our uploads, extract filename
-                    if (produit.getProductImage() != null && produit.getProductImage().startsWith("http://localhost:8085/uploads/products/")) {
-                        produit.setProductImage(produit.getProductImage().substring("http://localhost:8085/uploads/products/".length()));
+                    if (produit.getProductImage() != null && produit.getProductImage().startsWith(uploadsBase())) {
+                        produit.setProductImage(produit.getProductImage().substring(uploadsBase().length()));
                     }
                     
 
@@ -511,7 +525,7 @@ public class ProduitController {
         }
 
         if (produit.getProductImage() != null && !produit.getProductImage().startsWith("http")) {
-            produit.setProductImage("http://localhost:8085/uploads/products/" + produit.getProductImage());
+            produit.setProductImage(uploadsBase() + produit.getProductImage());
         }
 
         if (produit.getStocks() != null && !produit.getStocks().isEmpty()) {

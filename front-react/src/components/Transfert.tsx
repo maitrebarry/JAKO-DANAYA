@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
 import { useFormatMoney } from '../utils/currency';
 import { useUser } from '../contexts/UserContext';
+import { API, withApi } from '../config/api';
 
 interface Magasin { id: number; nom: string; adresse?: string }
 interface TransferStock { produitId: number; nomProduit: string; quantiteDisponible: number; unite?: string; multiplicateur?: number; uniteCondLibelle?: string; prixAchat?: number; prixDetail?: number; prixGros?: number }
@@ -58,7 +59,7 @@ const Transfert: React.FC = () => {
 
   const loadBoutiqueStocks = async () => {
     try {
-      const res = await fetch(`http://localhost:8085/api/stocks?level=boutique`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`${API}/stocks?level=boutique`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) throw new Error('Impossible de charger les produits de la boutique');
       const data = await res.json();
       // Keep ONLY boutique-level stocks (magasin == null)
@@ -85,7 +86,7 @@ const Transfert: React.FC = () => {
 
   const loadMagasins = async () => {
     try {
-      const res = await fetch('http://localhost:8085/api/magasins', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`${API}/magasins`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) throw new Error('Erreur chargement magasins');
       const data = await res.json();
       setMagasins(data || []);
@@ -97,7 +98,7 @@ const Transfert: React.FC = () => {
 
   const loadStocks = async (magasinId: number) => {
     try {
-      const res = await fetch(`http://localhost:8085/api/magasins/${magasinId}/stocks`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(withApi(`magasins/${magasinId}/stocks`), { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) throw new Error('Impossible de charger les produits du magasin');
       const data = await res.json();
       // API returns items with produit info
@@ -174,7 +175,7 @@ const Transfert: React.FC = () => {
     setLoading(true);
     try {
       const payload = { sourceType: sourceType, sourceId: sourceType === 'BOUTIQUE' ? currentBoutique?.id : sourceMagasinId, destType: destType, destId: destType === 'BOUTIQUE' ? currentBoutique?.id : destMagasinId, items };
-      const res = await fetch('http://localhost:8085/api/transferts/locations', {
+      const res = await fetch(`${API}/transferts/locations`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' }, body: JSON.stringify(payload)
       });
       if (!res.ok) {

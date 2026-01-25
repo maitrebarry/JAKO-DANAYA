@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { formatServerDate } from '../utils/date';
+import { API } from '../config/api';
 
 interface ReceptionData {
   id: number;
@@ -46,8 +47,8 @@ const ListeReceptions: React.FC = () => {
       const headers: any = {};
       if (token) headers.Authorization = `Bearer ${token}`;
       const [unfinishedRes, finishedRes] = await Promise.all([
-        fetch(`http://localhost:8085/api/receptions/unfinished`, { headers }),
-        fetch(`http://localhost:8085/api/receptions/finished`, { headers })
+        fetch(`${API}/receptions/unfinished`, { headers }),
+        fetch(`${API}/receptions/finished`, { headers })
       ]);
       // Handle authentication errors explicitly: force logout and set debug info
       if (unfinishedRes.status === 401 || finishedRes.status === 401) {

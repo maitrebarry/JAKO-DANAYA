@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { formatServerDate, formatLocalDate } from '../utils/date';
+import { API, withApi } from '../config/api';
 
 interface VenteLine {
   id?: number; // id de la ligne si disponible
@@ -60,7 +61,7 @@ const VenteLivraison: React.FC = () => {
   const fetchMagasins = async () => {
     try {
       const token = getAuthToken();
-      const res = await fetch('http://localhost:8085/api/magasins', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      const res = await fetch(withApi('magasins'), { headers: { Authorization: token ? `Bearer ${token}` : '' } });
       if (!res.ok) throw new Error('Erreur lors du chargement des magasins');
       const data = await res.json();
       setMagasins(data || []);
@@ -78,13 +79,13 @@ const VenteLivraison: React.FC = () => {
       if (lt === 'MAGASIN') {
         const idToUse = magId || selectedMagasinId;
         if (!idToUse) return [];
-        const res = await fetch(`http://localhost:8085/api/magasins/${idToUse}/stocks`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        const res = await fetch(withApi(`magasins/${idToUse}/stocks`), { headers: { Authorization: token ? `Bearer ${token}` : '' } });
         if (!res.ok) throw new Error('Impossible de charger les produits du magasin');
         const data = await res.json();
         setStocks(data || []);
         return data || [];
       } else {
-        const res = await fetch('http://localhost:8085/api/stocks', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        const res = await fetch(`${API}/stocks`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
         if (!res.ok) throw new Error('Impossible de charger les stocks');
         const data = await res.json();
         const boutiqueOnly = (data || []).filter((s: any) => !s.magasin);
@@ -136,9 +137,9 @@ const VenteLivraison: React.FC = () => {
       if (!stocks || stocks.length === 0) await fetchStocksByLocation('BOUTIQUE');
 
       const [resV, resC] = await Promise.all([
-        fetch('http://localhost:8085/api/ventes', { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
+        fetch(`${API}/ventes`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
         // Envoyer aussi l'en-tête Authorization pour commandes-clients afin d'obtenir la liste correcte
-        fetch('http://localhost:8085/api/commandes-clients', { headers: { Authorization: token ? `Bearer ${token}` : '' } })
+        fetch(`${API}/commandes-clients`, { headers: { Authorization: token ? `Bearer ${token}` : '' } })
       ]);
 
       console.debug('fetchVentesToDeliver: response statuses', { ventesStatus: resV.status, commandesStatus: resC.status });
@@ -156,12 +157,12 @@ const VenteLivraison: React.FC = () => {
       const ventesWithLines = await Promise.all((ventesData || []).map(async (v: any) => {
         if (Array.isArray(v.lignes) && v.lignes.length > 0) return v;
         try {
-          const lres = await fetch(`http://localhost:8085/api/ventes/${v.id}/lignes`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+          const lres = await fetch(`${API}/ventes/${v.id}/lignes`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
           if (lres.ok) {
             const lines = await lres.json();
             return { ...v, lignes: lines };
           }
-          const lres2 = await fetch(`http://localhost:8085/api/ventes/${v.id}/articles`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+          const lres2 = await fetch(`${API}/ventes/${v.id}/articles`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
           if (lres2.ok) {
             const lines2 = await lres2.json();
             return { ...v, lignes: lines2 };
@@ -178,7 +179,7 @@ const VenteLivraison: React.FC = () => {
       // Pour commandes-clients : essayer d'abord l'endpoint dédié (/a-livrer), sinon utiliser la liste et s'assurer que chaque commande a ses lignes
       let commandesList: any[] = [];
       try {
-        const tryRes = await fetch('http://localhost:8085/api/commandes-clients/a-livrer', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        const tryRes = await fetch(`${API}/commandes-clients/a-livrer`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
         if (tryRes.ok) {
           commandesList = await tryRes.json();
           console.debug('fetchVentesToDeliver: used /commandes-clients/a-livrer');
@@ -193,7 +194,7 @@ const VenteLivraison: React.FC = () => {
       const commandesWithLines = await Promise.all((commandesList || []).map(async (c: any) => {
         if (Array.isArray(c.lignes) && c.lignes.length > 0) return c;
         try {
-          const detailRes = await fetch(`http://localhost:8085/api/commandes-clients/${c.id}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+          const detailRes = await fetch(`${API}/commandes-clients/${c.id}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
           if (detailRes.ok) {
             const detail = await detailRes.json();
             return { ...c, lignes: detail.lignes || detail.ligne_commande_client || [] };
@@ -264,13 +265,13 @@ const VenteLivraison: React.FC = () => {
       let isClientCommande = false;
       let data: any = null;
       try {
-        const res = await fetch(`http://localhost:8085/api/ventes/${id}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        const res = await fetch(`${API}/ventes/${id}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
         if (res.ok) {
           data = await res.json();
           setVente(data);
         } else {
           // Essayer comme commande-client
-          const ccRes = await fetch(`http://localhost:8085/api/commandes-clients/${id}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+          const ccRes = await fetch(`${API}/commandes-clients/${id}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
           if (ccRes.ok) {
             data = await ccRes.json();
             // mark that we are working with a commande client
@@ -303,14 +304,14 @@ const VenteLivraison: React.FC = () => {
         }));
       } else {
         try {
-          const lres = await fetch(`http://localhost:8085/api/ventes/${id}/lignes`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+          const lres = await fetch(`${API}/ventes/${id}/lignes`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
           if (lres.ok) lines = await lres.json();
         } catch (e) {
           console.debug('fetchVenteAndLines: /ventes/{id}/lignes not available or error', { id, err: e });
         }
         if (!lines || lines.length === 0) {
           try {
-            const lres2 = await fetch(`http://localhost:8085/api/ventes/${id}/articles`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+            const lres2 = await fetch(`${API}/ventes/${id}/articles`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
             if (lres2.ok) lines = await lres2.json();
           } catch (e) {
             console.debug('fetchVenteAndLines: /ventes/{id}/articles not available or error', { id, err: e });
@@ -396,7 +397,7 @@ const VenteLivraison: React.FC = () => {
     setLoading(true);
     try {
       const token = getAuthToken();
-      const res = await fetch(`http://localhost:8085/api/commandes-clients/${id}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      const res = await fetch(`${API}/commandes-clients/${id}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
       if (!res.ok) throw new Error('Impossible de charger la commande-client');
       const data = await res.json();
       setVente(data);
@@ -506,7 +507,7 @@ const VenteLivraison: React.FC = () => {
         lignes: lignesToSend
       };
 
-      const endpoint = isClientCommande ? `http://localhost:8085/api/commandes-clients/${targetId}/livraisons` : `http://localhost:8085/api/ventes/${targetId}/livraisons`;
+      const endpoint = isClientCommande ? `${API}/commandes-clients/${targetId}/livraisons` : `${API}/ventes/${targetId}/livraisons`;
 
       const res = await fetch(endpoint, {
         method: 'POST',

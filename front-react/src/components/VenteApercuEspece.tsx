@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { formatServerDate } from '../utils/date';
 import { useFormatMoney } from '../utils/currency';
+import { API } from '../config/api';
 
 interface Ligne { id: number; stockId?: number; nom: string; quantite: number; prix: number; montant: number; quantiteConditionnement?: number | null; multiplicateur?: number | null; quantiteDisplay?: number | null; unitLabel?: string | null; qLabel?: string | null; prixDisplay?: number | null; reste?: number | null }
 
@@ -20,16 +21,16 @@ const VenteApercuEspece: React.FC = () => {
         const token = localStorage.getItem('smb_token');
         if (!id) return;
         // fetch vente
-        const res = await fetch(`http://localhost:8085/api/ventes/${id}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        const res = await fetch(`${API}/ventes/${id}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
         if (!res.ok) throw new Error('Vente introuvable');
         const data = await res.json();
         setVente(data);
 
         // fetch stocks (used to compute unit labels and conditionnement) and lignes
-        const stockRes = await fetch('http://localhost:8085/api/stocks', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        const stockRes = await fetch(`${API}/stocks`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
         const stockData = stockRes.ok ? await stockRes.json() : [];
 
-        const lres = await fetch(`http://localhost:8085/api/ventes/${id}/lignes`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        const lres = await fetch(`${API}/ventes/${id}/lignes`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
         if (lres.ok) {
           const ldata = await lres.json();
           const computed = ldata.map((lv: any) => {
@@ -93,7 +94,7 @@ const VenteApercuEspece: React.FC = () => {
       const token = localStorage.getItem('smb_token');
       if (!token) { Swal.fire('Erreur', 'Authentification nécessaire. Connectez-vous.', 'error'); return; }
 
-      const tryPaths = [ `http://localhost:8085/api/ventes/${venteId}/pdf` ];
+      const tryPaths = [ `${API}/ventes/${venteId}/pdf` ];
       let lastErr: any = null;
       for (const p of tryPaths) {
         try {
@@ -119,7 +120,7 @@ const VenteApercuEspece: React.FC = () => {
     if (!r.isConfirmed) return;
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/ventes/${id}`, { method: 'DELETE', headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      const res = await fetch(`${API}/ventes/${id}`, { method: 'DELETE', headers: { Authorization: token ? `Bearer ${token}` : '' } });
       if (!res.ok) throw new Error('Impossible de supprimer la vente');
       Swal.fire('Succès', 'Vente supprimée', 'success');
       navigate('/ventes/especes');

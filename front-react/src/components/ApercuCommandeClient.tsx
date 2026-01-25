@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { formatServerDate } from '../utils/date';
 import { useFormatMoney } from '../utils/currency';
+import { API } from '../config/api';
 
 interface Ligne { id: number; stockId: number; nom: string; quantite: number; prix: number; montant: number; quantiteConditionnement?: number | null; multiplicateur?: number | null; quantiteDisplay?: number | null; unitLabel?: string | null; qLabel?: string | null; }
 
@@ -19,11 +20,11 @@ const ApercuCommandeClient: React.FC = () => {
     (async () => {
       try {
         const token = localStorage.getItem('smb_token');
-        const stockRes = await fetch('http://localhost:8085/api/stocks', { headers: { Authorization: `Bearer ${token}` } });
+        const stockRes = await fetch(`${API}/stocks`, { headers: { Authorization: `Bearer ${token}` } });
         const stockData = await stockRes.json();
         if (!id) return;
         const path = 'commandes-clients';
-        const res = await fetch(`http://localhost:8085/api/${path}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(`${API}/${path}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) throw new Error('Commande introuvable');
         const data = await res.json();
         setCommande(data);
@@ -82,7 +83,7 @@ const ApercuCommandeClient: React.FC = () => {
 
       // Séparation stricte : commande client uniquement
       const tryPaths = [
-        `http://localhost:8085/api/commandes-clients/${commandeId}/pdf`
+        `${API}/commandes-clients/${commandeId}/pdf`
       ];
       let lastErr: any = null;
       for (const p of tryPaths) {

@@ -6,6 +6,7 @@ import useHasPermission from '../contexts/useHasPermission';
 import * as inventaireApi from '../api/inventaire';
 import { formatServerDate } from '../utils/date';
 import { useFormatMoney } from '../utils/currency';
+import { API } from '../config/api';
 
 const InventaireDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -69,12 +70,12 @@ const InventaireDetail: React.FC = () => {
       let stocks: any[] = [];
       if (inv && inv.magasin && inv.magasin.id) {
         // inventaire at magasin level -> fetch only that magasin stocks
-        const res = await fetch(`http://localhost:8085/api/magasins/${inv.magasin.id}/stocks`, { headers: { Authorization: token } });
+        const res = await fetch(`${API}/magasins/${inv.magasin.id}/stocks`, { headers: { Authorization: token } });
         if (!res.ok) return;
         stocks = await res.json();
       } else {
         // boutique-level inventaire -> only boutique stocks (id_magasin == null)
-        const res = await fetch('http://localhost:8085/api/stocks', { headers: { Authorization: token } });
+        const res = await fetch(`${API}/stocks`, { headers: { Authorization: token } });
         if (!res.ok) return;
         stocks = await res.json();
         stocks = (stocks || []).filter((s: any) => !s.magasin);

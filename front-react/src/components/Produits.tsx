@@ -5,6 +5,7 @@ import { useUser } from '../contexts/UserContext';
 import useHasPermission from '../contexts/useHasPermission';
 import RequirePermission from './RequirePermission';
 import { useFormatMoney } from '../utils/currency';
+import { withApi, API } from '../config/api';
 import '../assets/css/style_produit.css';
 
 const Produits: React.FC = () => {
@@ -146,7 +147,7 @@ const Produits: React.FC = () => {
         navigate('/');
         return;
       }
-      const res = await fetch('http://localhost:8085/api/produits', {
+      const res = await fetch(withApi('produits'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.status === 401) {
@@ -170,7 +171,7 @@ const Produits: React.FC = () => {
         navigate('/');
         return;
       }
-      const res = await fetch('http://localhost:8085/api/unites', {
+      const res = await fetch(withApi('unites'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.status === 401) {
@@ -192,7 +193,7 @@ const Produits: React.FC = () => {
         navigate('/');
         return;
       }
-      const res = await fetch('http://localhost:8085/api/magasins', {
+      const res = await fetch(withApi('magasins'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.status === 401) {
@@ -218,7 +219,7 @@ const Produits: React.FC = () => {
 
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`http://localhost:8085/api/configuration-marge/boutique/${currentBoutique.id}`, {
+      const res = await fetch(`${API}/configuration-marge/boutique/${currentBoutique.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.status === 404) {
@@ -242,7 +243,7 @@ const Produits: React.FC = () => {
         navigate('/');
         return;
       }
-      const res = await fetch(`http://localhost:8085/api/produits/${produit.id}`, {
+      const res = await fetch(`${API}/produits/${produit.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.status === 401) {
@@ -370,7 +371,7 @@ const Produits: React.FC = () => {
         navigate('/');
         return;
       }
-      const url = editing ? `http://localhost:8085/api/produits/${editing.id}` : 'http://localhost:8085/api/produits';
+      const url = editing ? `${API}/produits/${editing.id}` : `${API}/produits`;
       const formData = new FormData();
       formData.append('nomProduit', newProduit.nomProduit);
       // Always send productImage to satisfy backend required param
@@ -436,7 +437,7 @@ const Produits: React.FC = () => {
         navigate('/');
         return;
       }
-      const res = await fetch(`http://localhost:8085/api/produits/${id}`, {
+      const res = await fetch(`${API}/produits/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -477,7 +478,7 @@ const Produits: React.FC = () => {
   const fetchAssignedProducts = async (magasinId: number) => {
     try {
       const token = localStorage.getItem('smb_token'); if (!token) { navigate('/'); return; }
-      const res = await fetch(`http://localhost:8085/api/magasins/${magasinId}/stocks`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${API}/magasins/${magasinId}/stocks`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error('Impossible de récupérer les produits assignés');
       const data = await res.json();
       // map produitIds assigned in this magasin
@@ -494,7 +495,7 @@ const Produits: React.FC = () => {
     try {
       const token = localStorage.getItem('smb_token');
       if (!token) { navigate('/'); return; }
-      const res = await fetch(`http://localhost:8085/api/magasins/${assignSelectedMagasin}/assign-products`, {
+      const res = await fetch(`${API}/magasins/${assignSelectedMagasin}/assign-products`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ productIds: assignSelectedProductIds })
@@ -720,7 +721,7 @@ const Produits: React.FC = () => {
                     }
                     const xhr = new XMLHttpRequest();
                     // use async import endpoint so server can provide parsing progress
-                    xhr.open('POST', 'http://localhost:8085/api/produits/import-async', true);
+                    xhr.open('POST', withApi('produits/import-async'), true);
                     xhr.setRequestHeader('Authorization', `Bearer ${token}`);
                     xhr.upload.onprogress = (e) => {
                       if (e.lengthComputable) {
@@ -736,7 +737,7 @@ const Produits: React.FC = () => {
                         setImportProgress(2);
                         const poll = setInterval(async () => {
                           try {
-                            const stRes = await fetch(`http://localhost:8085/api/produits/import/${jobId}/status`, { headers: { Authorization: `Bearer ${token}` } });
+                            const stRes = await fetch(`${API}/produits/import/${jobId}/status`, { headers: { Authorization: `Bearer ${token}` } });
                             if (stRes.status === 200) {
                               const js = await stRes.json();
                               if (js.progress != null) setImportProgress(js.progress);

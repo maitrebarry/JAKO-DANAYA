@@ -1,5 +1,5 @@
+import { API_BASE } from '../config/api';
 // NOTE: dashboard-related endpoints are archived/disabled for now. These client helpers keep local fallbacks when backend endpoints are unavailable.
-const API_BASE = 'http://localhost:8085/api';
 const AUTH_HEADER = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_token')}` });
 
 export type Transaction = {

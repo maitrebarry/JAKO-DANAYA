@@ -12,4 +12,3 @@ export async function fetchDashboard(_shopId?: number): Promise<DashboardPayload
 export async function fetchShopOverview(_shopId: number): Promise<ShopOverviewDTO> {
   throw new Error('Dashboard API disabled (archived)');
 }
-

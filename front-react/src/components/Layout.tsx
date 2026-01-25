@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import 'flag-icons/css/flag-icons.min.css';
 import StockNotifications from './StockNotifications';
-
+import { API_BASE } from '../config/api';
 
 interface LayoutProps {
   children: ReactNode;
@@ -132,7 +132,6 @@ const Topbar = ({ toggleSidebar }: { toggleSidebar?: () => void }) => {
 
   const displayName = `${user?.prenom || ''} ${user?.nom || ''}`.trim() || user?.pseudo || user?.email || 'Profil';
   const defaultAvatar = `/assets/images/avatar.jpg`;
-  const API_BASE = 'http://localhost:8085';
   const resolveAvatarUrl = (avatar?: string) => {
     if (!avatar) return defaultAvatar || `https://via.placeholder.com/64x64/0d6efd/ffffff?text=${initials()}`;
     if (avatar.startsWith('http')) return avatar;

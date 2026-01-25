@@ -7,6 +7,7 @@ import { formatServerDate, formatLocalDate } from '../utils/date';
 import useHasPermission from '../contexts/useHasPermission';
 import { useFormatMoney } from '../utils/currency';
 import RequirePermission from './RequirePermission';
+import { API } from '../config/api';
 
 interface CommandeData {
   id: number;
@@ -86,8 +87,8 @@ const PaiementCommande: React.FC = () => {
       const token = localStorage.getItem('smb_token');
       // Use the new endpoint that returns only commandes with remaining amount (fournisseurs) or fetch clients list
       const url = currentBoutique
-        ? (isVenteMode ? `http://localhost:8085/api/commandes-clients` : `http://localhost:8085/api/commandes-fournisseurs/boutique/${currentBoutique.id}/a-payer`)
-        : (isVenteMode ? `http://localhost:8085/api/commandes-clients` : `http://localhost:8085/api/commandes-fournisseurs`);
+        ? (isVenteMode ? `${API}/commandes-clients` : `${API}/commandes-fournisseurs/boutique/${currentBoutique.id}/a-payer`)
+        : (isVenteMode ? `${API}/commandes-clients` : `${API}/commandes-fournisseurs`);
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error('Erreur lors du chargement des commandes');
         const data = await res.json();
@@ -118,7 +119,7 @@ const PaiementCommande: React.FC = () => {
     if (!currentBoutique) return setCaisses([]);
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch('http://localhost:8085/api/caisses', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`${API}/caisses`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) throw new Error('Impossible de charger les caisses');
       const data = await res.json();
       const open = (data || []).filter((c: any) => c.boutique && c.boutique.id === currentBoutique.id && (c.statut || '').toUpperCase() === 'OUVERTE');
@@ -137,7 +138,7 @@ const PaiementCommande: React.FC = () => {
 
     try {
       const token = localStorage.getItem('smb_token');
-      let endpoint = isVenteMode ? `http://localhost:8085/api/commandes-clients/${commandeId}` : `http://localhost:8085/api/commandes-fournisseurs/${commandeId}`;
+      let endpoint = isVenteMode ? `${API}/commandes-clients/${commandeId}` : `${API}/commandes-fournisseurs/${commandeId}`;
 
       const commandeRes = await fetch(endpoint, {
         headers: { Authorization: `Bearer ${token}` }
@@ -216,7 +217,7 @@ const PaiementCommande: React.FC = () => {
       });
       if (!confirm.isConfirmed) return;
 
-      const endpoint = isVenteMode ? `http://localhost:8085/api/commandes-clients/${selectedCommande.id}/paiement` : `http://localhost:8085/api/commandes-fournisseurs/${selectedCommande.id}/paiement`;
+      const endpoint = isVenteMode ? `${API}/commandes-clients/${selectedCommande.id}/paiement` : `${API}/commandes-fournisseurs/${selectedCommande.id}/paiement`;
       const payload: any = { montant: Math.round(montantToSend), reference: refPaiement, date: datePaiement, timezoneOffsetMinutes: new Date().getTimezoneOffset() };
       if (isVenteMode) payload.referenceCaisse = selectedCaisseRef;
       const res = await fetch(endpoint, {

@@ -1,4 +1,5 @@
-const API_BASE = 'http://localhost:8085/api';
+import { API } from '../config/api';
+const API_BASE = API;
 const tokenHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_token')}` });
 
 export const getProfile = async () => {

@@ -4,6 +4,7 @@ import Swal from 'sweetalert2';
 import SearchableSelect from './SearchableSelect';
 import RequirePermission from './RequirePermission';
 import { useFormatMoney } from '../utils/currency';
+import { API } from '../config/api';
 
 interface Line {
   id_stock?: number;
@@ -37,7 +38,7 @@ const VenteEnEspece: React.FC = () => {
   const fetchMagasins = async () => {
     try {
       const token = getAuthToken();
-      const res = await fetch('http://localhost:8085/api/magasins', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      const res = await fetch(`${API}/magasins`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
       if (!res.ok) throw new Error('Erreur lors du chargement des magasins');
       const data = await res.json();
       setMagasins(data || []);
@@ -55,13 +56,13 @@ const VenteEnEspece: React.FC = () => {
       if (lt === 'MAGASIN') {
         const idToUse = magId || selectedMagasinId;
         if (!idToUse) return [];
-        const res = await fetch(`http://localhost:8085/api/magasins/${idToUse}/stocks`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        const res = await fetch(`${API}/magasins/${idToUse}/stocks`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
         if (!res.ok) throw new Error('Impossible de charger les produits du magasin');
         const data = await res.json();
         setStocks(data || []);
         return data || [];
       } else {
-        const res = await fetch('http://localhost:8085/api/stocks', { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+        const res = await fetch(`${API}/stocks`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
         if (!res.ok) throw new Error('Impossible de charger les stocks');
         const data = await res.json();
         const boutiqueOnly = (data || []).filter((s: any) => !s.magasin);
@@ -300,7 +301,7 @@ const VenteEnEspece: React.FC = () => {
     setLoading(true);
     try {
       const token = getAuthToken();
-      const res = await fetch('http://localhost:8085/api/ventes/cash', {
+      const res = await fetch(`${API}/ventes/cash`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
         body: JSON.stringify(payload)
