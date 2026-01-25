@@ -7,9 +7,8 @@
 FROM maven:3.9.6-eclipse-temurin-21 AS build
 WORKDIR /build
 
-# Copier les fichiers backend
-COPY backend/pom.xml backend/pom.xml
-COPY backend/src backend/src
+# Copier les fichiers backend (toute la structure)
+COPY . .
 
 # Build du JAR
 RUN mvn -f backend/pom.xml -B -DskipTests package
