@@ -10,12 +10,16 @@ const RAW_API_BASE = (
   'http://localhost:8085'
 ) as string;
 
-export const API_BASE = RAW_API_BASE.replace(/\/$/, '');
+// Normalise the user-provided base so callers can pass either the origin
+// (https://api.example.com) or the full API root (https://api.example.com/api).
+const _NORMALISED = RAW_API_BASE.replace(/\/$/, '').replace(/\/api$/i, '');
+export const API_BASE = _NORMALISED;
 export const API = `${API_BASE}/api`;
 
 /**
- * Helper to build origin-relative paths: withApi('users/me') => `${API_BASE}/users/me`
+ * Helper to build API paths. Always uses `API` (guarantees `/api` is present):
+ * withApi('auth/login') => `${API}/auth/login`
  */
-export const withApi = (path: string) => `${API_BASE}/${path.replace(/^\//, '')}`;
+export const withApi = (path: string) => `${API}/${path.replace(/^\//, '')}`;
 
 export default { API_BASE, API, withApi };
