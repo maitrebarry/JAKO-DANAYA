@@ -1,5 +1,6 @@
 /// <reference types="vitest/globals" />
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 // mock useUser to provide necessary roles for Configuration menu
 vi.mock('../contexts/UserContext', () => ({
@@ -7,19 +8,32 @@ vi.mock('../contexts/UserContext', () => ({
 }));
 
 import Configuration from './Configuration';
+import Layout from './Layout';
+import Documentation from './Documentation';
 
-describe('Configuration → Documentation submenu', () => {
-  test('shows Documentation item and renders documentation content with download buttons', async () => {
+describe('Documentation placement', () => {
+  test('removed from Configuration menu and available from sidebar (public)', async () => {
+    // Configuration no longer exposes Documentation as a submenu
     render(<Configuration />);
+    expect(screen.queryByText(/Documentation/i)).not.toBeInTheDocument();
 
-    const docItem = screen.getByText(/Documentation/i);
-    expect(docItem).toBeInTheDocument();
+    // Sidebar exposes Documentation and clicking it shows the documentation content
 
-    fireEvent.click(docItem);
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes>
+          <Route path="/" element={<Layout><div data-testid="home-child" /></Layout>} />
+          <Route path="/documentation" element={<Documentation />} />
+        </Routes>
+      </MemoryRouter>
+    );
 
-    await waitFor(() => expect(screen.getByText(/Bienvenue sur JÀGO DÁNAYA/i)).toBeInTheDocument());
+    const sideDoc = screen.getByText(/Documentation/i);
+    expect(sideDoc).toBeInTheDocument();
 
+    fireEvent.click(sideDoc);
+
+    await waitFor(() => expect(screen.getByText(/DOCUMENTATION UTILISATEUR/i)).toBeInTheDocument());
     expect(screen.getByRole('button', { name: /Télécharger \(PDF\)/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Télécharger \(Word\)/i })).toBeInTheDocument();
   });
 });

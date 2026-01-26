@@ -4,6 +4,7 @@ import SignIn from './components/SignIn';
 import Layout from './components/Layout';
 // Dashboard component: role-based implementation
 import Configuration from './components/Configuration';
+import Documentation from './components/Documentation';
 import ErrorBoundary from './components/ErrorBoundary';
 import RoleBasedDashboard from './components/RoleBasedDashboard';
 import Fournisseurs from './components/Fournisseurs';
@@ -55,6 +56,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Layout><Configuration /></Layout>
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/documentation" 
+            element={
+              <PrivateRoute>
+                <Layout><Documentation /></Layout>
               </PrivateRoute>
             } 
           />

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
+import { withApi } from '../config/api';
 
 import bg1 from '../../assets/images/jako_danaya.png';
 import bg2 from '../../assets/images/jako_danaya2.png';
@@ -27,7 +28,7 @@ const SignIn = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('http://localhost:8085/api/auth/login', {
+      const res = await fetch(withApi('auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -40,7 +41,7 @@ const SignIn = () => {
       if (data.token) {
         localStorage.setItem('smb_token', data.token);
 
-        const profileRes = await fetch('http://localhost:8085/api/auth/me', {
+        const profileRes = await fetch(withApi('auth/me'), {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${data.token}`
@@ -86,7 +87,7 @@ const SignIn = () => {
                   backgroundClip: 'text',
                   textShadow: '1px 1px 0px #ccc, 2px 2px 0px #bbb, 3px 3px 0px #aaa',
                   fontFamily: 'Arial, sans-serif',
-                  fontSize: '3.3rem',
+                  fontSize: '3rem',
                   lineHeight: '1',
                   whiteSpace: 'nowrap'
                 }}>
@@ -96,7 +97,7 @@ const SignIn = () => {
               <div className="card-body p-4">
                 <div className="text-center w-75 m-auto">
                   <h4 className="text-dark-50 text-center pb-0 fw-bold">Connexion</h4>
-                  <p className="text-muted mb-4">Entrez votre adresse email et mot de passe pour accéder au panneau d'administration.</p>
+                  <p className="text-muted mb-4">Entrez votre adresse email et mot de passe pour accéder à JÀGO DÁNAYA.</p>
                 </div>
                 {error && <div className="alert alert-danger">{error}</div>}
                 <form onSubmit={handleSubmit}>

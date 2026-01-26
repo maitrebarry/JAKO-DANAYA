@@ -509,6 +509,12 @@ const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
             </a>
           </li>
           )}
+          <li className="side-nav-item">
+            <Link to="/documentation" className="side-nav-link">
+              <span className="menu-icon"><i className="ti ti-book"></i></span>
+              <span className="menu-text">Documentation</span>
+            </Link>
+          </li>
         </ul>
       </div>
     </div>

@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useUser } from '../contexts/UserContext';
 import ConfigurationMarges from './ConfigurationMarges';
-import Documentation from './Documentation';
 import Swal from 'sweetalert2';
 import useHasPermission from '../contexts/useHasPermission';
 import RequirePermission from './RequirePermission';
@@ -30,8 +29,6 @@ const Configuration = () => {
         return <AssignerPermissions />;
       case 'marges':
         return <ConfigurationMarges />;
-      case 'documentation':
-        return <Documentation />;
       default:
         return <ListeUtilisateurs />;
     }
@@ -108,14 +105,6 @@ const Configuration = () => {
                 onClick={(e) => { e.preventDefault(); setSelectedSub('marges'); }}
               >
                 Marges (configuration)
-              </a>
-              <a
-                href="#"
-                className={`list-group-item list-group-item-action ${selectedSub === 'documentation' ? 'active' : ''}`}
-                style={{ cursor: 'pointer' }}
-                onClick={(e) => { e.preventDefault(); setSelectedSub('documentation'); }}
-              >
-                Documentation
               </a>
             </div>
           </div>
