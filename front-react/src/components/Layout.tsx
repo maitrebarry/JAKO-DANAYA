@@ -24,7 +24,7 @@ const Layout = ({ children }: LayoutProps) => {
         const mobile = window.innerWidth < 768;
         setIsMobile(mobile);
         // keep sidebar open on desktop, closed on mobile by default
-        setSidebarOpen(s => (mobile ? false : true));
+        setSidebarOpen(!mobile);
       } catch (e) {}
     };
     onResize();
