@@ -1,6 +1,5 @@
 package com.smboutique.api.controller;
 
-import com.smboutique.api.model.Permission;
 import com.smboutique.api.model.Role;
 import com.smboutique.api.model.Utilisateur;
 import com.smboutique.api.repository.UtilisateurRepository;
@@ -15,12 +14,14 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
@@ -39,6 +40,9 @@ public class AuthController {
 
     @Autowired
     JwtUtils jwtUtils;
+
+    @Autowired(required = false)
+    private JavaMailSender mailSender;
 
     @Autowired(required = false)
     private com.smboutique.api.service.MouvementService mouvementService;
@@ -150,6 +154,9 @@ public class AuthController {
     @Value("${app.upload.user-photo-dir}")
     private String userPhotoDir;
 
+    @Value("${app.frontend.reset-password-url}")
+    private String resetPasswordUrl;
+
     @PostMapping("/me/avatar")
     public ResponseEntity<?> uploadAvatar(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
         Utilisateur utilisateur = resolveAuthenticatedUser();
@@ -171,6 +178,52 @@ public class AuthController {
         } catch (Exception ex) {
             return ResponseEntity.status(500).body(Map.of("error", "Impossible d'enregistrer le fichier"));
         }
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordRequest req) {
+        if (req.getEmail() == null || req.getEmail().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Email requis"));
+        }
+
+        utilisateurRepository.findByEmailIgnoreCase(req.getEmail()).ifPresent(u -> {
+            String token = java.util.UUID.randomUUID().toString();
+            u.setResetToken(token);
+            u.setResetTokenExpire(LocalDateTime.now().plusMinutes(30));
+            utilisateurRepository.save(u);
+
+            if (mailSender != null) {
+                try {
+                    String link = resetPasswordUrl + "?token=" + token;
+                    SimpleMailMessage msg = new SimpleMailMessage();
+                    msg.setTo(u.getEmail());
+                    msg.setSubject("Réinitialisation du mot de passe");
+                    msg.setText("Cliquez sur ce lien pour réinitialiser votre mot de passe : " + link);
+                    mailSender.send(msg);
+                } catch (Exception ignored) {}
+            }
+        });
+
+        // Always return OK to avoid account enumeration
+        return ResponseEntity.ok(Map.of("status", "ok"));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest req) {
+        if (req.getToken() == null || req.getToken().isBlank() || req.getNewPassword() == null || req.getNewPassword().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Token et nouveau mot de passe requis"));
+        }
+
+        Utilisateur utilisateur = utilisateurRepository.findByResetToken(req.getToken()).orElse(null);
+        if (utilisateur == null || utilisateur.getResetTokenExpire() == null || utilisateur.getResetTokenExpire().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.status(400).body(Map.of("error", "Token invalide ou expiré"));
+        }
+
+        utilisateur.setMotDePasse(encoder.encode(req.getNewPassword()));
+        utilisateur.setResetToken(null);
+        utilisateur.setResetTokenExpire(null);
+        utilisateurRepository.save(utilisateur);
+        return ResponseEntity.ok(Map.of("status", "ok"));
     }
 
     private Utilisateur resolveAuthenticatedUser() {
@@ -271,6 +324,39 @@ public class AuthController {
 
         public void setPassword(String password) {
             this.password = password;
+        }
+    }
+
+    public static class ForgotPasswordRequest {
+        private String email;
+
+        public String getEmail() {
+            return email;
+        }
+
+        public void setEmail(String email) {
+            this.email = email;
+        }
+    }
+
+    public static class ResetPasswordRequest {
+        private String token;
+        private String newPassword;
+
+        public String getToken() {
+            return token;
+        }
+
+        public void setToken(String token) {
+            this.token = token;
+        }
+
+        public String getNewPassword() {
+            return newPassword;
+        }
+
+        public void setNewPassword(String newPassword) {
+            this.newPassword = newPassword;
         }
     }
 

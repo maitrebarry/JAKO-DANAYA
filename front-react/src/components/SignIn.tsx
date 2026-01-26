@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { withApi } from '../config/api';
+import Swal from 'sweetalert2';
 
 import bg1 from '../../assets/images/jako_danaya.png';
 import bg2 from '../../assets/images/jako_danaya2.png';
@@ -67,17 +68,43 @@ const SignIn = () => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    const { value: emailInput } = await Swal.fire({
+      title: 'Mot de passe oublié',
+      input: 'email',
+      inputLabel: 'Adresse email',
+      inputPlaceholder: 'Entrez votre email',
+      confirmButtonText: 'Envoyer',
+      showCancelButton: true,
+      cancelButtonText: 'Annuler'
+    });
+
+    if (!emailInput) return;
+
+    try {
+      const res = await fetch(withApi('auth/forgot-password'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailInput })
+      });
+      if (!res.ok) throw new Error('Fonctionnalité non activée');
+      Swal.fire('Succès', 'Un lien de réinitialisation a été envoyé si l’email existe.', 'success');
+    } catch (e: any) {
+      Swal.fire('Info', e.message || 'Fonctionnalité non activée', 'info');
+    }
+  };
+
   return (
-    <div className="account-pages pt-2 pt-sm-5 pb-4 pb-sm-5" style={{
+    <div className="account-pages pt-2 pt-sm-5 pb-4 pb-sm-5 d-flex align-items-center" style={{
       backgroundImage: `url(${bgImage})`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
       minHeight: '100vh'
     }}>
-      <div className="container">
+      <div className="container-fluid">
         <div className="row justify-content-end">
-          <div className="col-xxl-4 col-lg-5 ms-md-4 ms-lg-5">
+          <div className="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5 col-xxl-4 me-lg-4 me-xl-5">
             <div className="card">
               <div className="card-header pt-4 pb-4 text-center bg-primary">
                 <span className="fw-bold text-white" style={{
@@ -103,17 +130,27 @@ const SignIn = () => {
                 <form onSubmit={handleSubmit}>
                   <div className="mb-3">
                     <label htmlFor="emailaddress" className="form-label">Adresse email</label>
-                    <input className="form-control" type="email" id="emailaddress" value={email} onChange={e => setEmail(e.target.value)} placeholder="Entrez votre email" required />
+                    <input className="form-control form-control-lg" type="email" id="emailaddress" value={email} onChange={e => setEmail(e.target.value)} placeholder="Entrez votre email" required />
                   </div>
                   <div className="mb-3">
                     <label htmlFor="password" className="form-label">Mot de passe</label>
-                    <input className="form-control" type="password" id="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Entrez votre mot de passe" required />
+                    <input className="form-control form-control-lg" type="password" id="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Entrez votre mot de passe" required />
                   </div>
                   <div className="mb-3 mb-0 text-center">
-                    <button className="btn btn-primary" type="submit" disabled={loading}>{loading ? 'Connexion...' : 'Se connecter'}</button>
+                    <button className="btn btn-primary btn-lg w-100" type="submit" disabled={loading}>{loading ? 'Connexion...' : 'Se connecter'}</button>
                   </div>
+                  <div className="text-center my-3">
+                    <span className="text-muted">ou</span>
+                  </div>
+
+                  <a className="btn btn-outline-secondary w-100" href={`${withApi('')}`.replace(/\/api\/?$/, '') + '/oauth2/authorization/google'}>
+                    <i className="bi bi-google me-2"></i> Se connecter avec Google
+                  </a>
+
                   <div className="mt-3 text-center">
-                    <p className="text-muted mb-0">Vous n'avez pas de compte ? <a href="#" className="text-muted ms-1"><b>Mot de passe oublié ?</b></a></p>
+                    <button type="button" className="btn btn-link text-muted p-0" onClick={handleForgotPassword}>
+                      Mot de passe oublié ?
+                    </button>
                   </div>
                 </form>
               </div>

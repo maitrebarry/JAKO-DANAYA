@@ -4,7 +4,7 @@ import * as authApi from '../api/auth';
 import Swal from 'sweetalert2';
 import PhoneWithDial from './PhoneWithDial';
 import { API, API_BASE } from '../config/api';
-import avatarImg from '../../assets/images/avatar.jpg';
+const avatarImg = '/assets/images/avatar.svg';
 
 const Profile: React.FC = () => {
   const { user, setUserData } = useUser();

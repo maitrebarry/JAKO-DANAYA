@@ -743,10 +743,10 @@ const RoleBasedDashboard: React.FC = () => {
         {/* Header avec info boutique */}
         <div className="card mb-4">
           <div className="card-body">
-            <div className="row align-items-center">
-              <div className="col">
-                <div className="row align-items-center">
-                  <div className="col-auto">
+            <div className="row align-items-center gy-2 flex-column flex-sm-row">
+              <div className="col-12 col-sm">
+                <div className="row align-items-center gy-2">
+                  <div className="col-12 col-sm-auto">
                     <h5 className="mb-1">
                       {role === 'ADMIN' || role === 'PROPRIETAIRE' ? 'Votre boutique' :
                        role === 'GERANT' ? 'Votre point de vente' :
@@ -754,12 +754,11 @@ const RoleBasedDashboard: React.FC = () => {
                        role === 'CAISSIER' ? 'Votre caisse' : 'Tableau de bord'}
                     </h5>
                   </div>
-                  <div className="col">
+                  <div className="col-12 col-sm">
                     <select
-                      className="form-select form-select-sm"
+                      className="form-select form-select-sm dashboard-location-select"
                       value={selectedMagasinId ? `magasin-${selectedMagasinId}` : (selectedBoutiqueId ? `boutique-${selectedBoutiqueId}` : '')}
                       onChange={handleLocationChange}
-                      style={{ maxWidth: '300px' }}
                       disabled={boutiques.length === 0}
                     >
                       {boutiques.length === 0 ? (
@@ -796,8 +795,8 @@ const RoleBasedDashboard: React.FC = () => {
                   Sélectionnez une boutique pour afficher ses données
                 </p>
               </div>
-              <div className="col-auto">
-                <button className="btn btn-outline-primary btn-sm" onClick={() => load()}>
+              <div className="col-12 col-sm-auto">
+                <button className="btn btn-outline-primary btn-sm dashboard-refresh-btn" onClick={() => load()}>
                   <i className="bi bi-arrow-clockwise me-1"></i> Rafraîchir
                 </button>
               </div>
@@ -1128,10 +1127,10 @@ const RoleBasedDashboard: React.FC = () => {
           </ol>
         </nav>
         
-        <div className="d-flex justify-content-between align-items-center">
+        <div className="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2">
           {/* Sélecteur de boutique */}
           {boutiques.length > 1 && (
-            <div className="d-flex align-items-center me-3">
+            <div className="d-flex align-items-center me-sm-3 dashboard-boutique-select">
               <label htmlFor="boutiqueSelect" className="form-label me-2 mb-0 fw-bold">
                 Boutique:
               </label>
@@ -1140,7 +1139,6 @@ const RoleBasedDashboard: React.FC = () => {
                 className="form-select form-select-sm"
                 value={selectedBoutiqueId || ''}
                 onChange={(e) => setSelectedBoutiqueId(Number(e.target.value))}
-                style={{ minWidth: '200px' }}
               >
                 {boutiques.map(boutique => (
                   <option key={boutique.id} value={boutique.id}>
@@ -1151,13 +1149,13 @@ const RoleBasedDashboard: React.FC = () => {
             </div>
           )}
           
-          <div className="d-flex align-items-center">
+          <div className="dashboard-action-buttons d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
             {(role === 'ADMIN' || role === 'PROPRIETAIRE' || role === 'SUPERADMIN') && (
-              <button className="btn btn-outline-primary me-2" onClick={exportJson}>
+              <button className="btn btn-outline-primary dashboard-action-btn" onClick={exportJson}>
                 <i className="bi bi-download me-1"></i> Exporter
               </button>
             )}
-            <button className="btn btn-primary" onClick={() => load()}>
+            <button className="btn btn-primary dashboard-action-btn" onClick={() => load()}>
               <i className="bi bi-arrow-clockwise me-1"></i> Actualiser
             </button>
           </div>

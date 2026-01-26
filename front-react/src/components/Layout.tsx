@@ -206,7 +206,11 @@ const Topbar = ({ toggleSidebar, isMobile, sidebarOpen }: { toggleSidebar?: () =
     if (avatar.startsWith('/uploads') || avatar.startsWith('uploads')) {
       return avatar.startsWith('/') ? API_BASE + avatar : API_BASE + '/' + avatar;
     }
-    return avatar; // assume already a valid URL or relative path
+    // If a stale relative asset is stored (e.g. avatar.jpg), fallback to default
+    if (avatar.includes('avatar.jpg') || avatar.startsWith('assets/')) {
+      return defaultAvatar || `https://via.placeholder.com/64x64/0d6efd/ffffff?text=${initials()}`;
+    }
+    return avatar.startsWith('/') ? avatar : `/${avatar}`;
   };
   const avatarUrl = resolveAvatarUrl((user as any)?.avatar);
 

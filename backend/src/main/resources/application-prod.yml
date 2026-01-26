@@ -19,6 +19,11 @@ spring:
         jdbc:
           time_zone: UTC
 
+# Frontend base for production
+app:
+  frontend:
+    base-url: ${APP_FRONTEND_BASE_URL:https://jakodanaya.onrender.com}
+
 management:
   endpoints:
     web:

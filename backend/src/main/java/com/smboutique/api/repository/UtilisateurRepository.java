@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 public interface UtilisateurRepository extends JpaRepository<Utilisateur, Long> {
     Optional<Utilisateur> findByPseudo(String pseudo);
     Optional<Utilisateur> findByEmailIgnoreCase(String email);
+    Optional<Utilisateur> findByResetToken(String resetToken);
     List<Utilisateur> findByBoutiqueId(Long boutiqueId);
 
     @Query("select distinct u from Utilisateur u left join fetch u.roles r left join fetch r.permissions p where u.id = :id")

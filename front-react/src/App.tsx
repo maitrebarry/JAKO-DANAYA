@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import SignIn from './components/SignIn';
+import OAuth2Redirect from './components/OAuth2Redirect';
+import ResetPassword from './components/ResetPassword';
 import Layout from './components/Layout';
 // Dashboard component: role-based implementation
 import Configuration from './components/Configuration';
@@ -51,6 +53,8 @@ function App() {
       <UserProvider>
         <Routes>
           <Route path="/" element={<SignIn />} />
+          <Route path="/oauth2/redirect" element={<OAuth2Redirect />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route 
             path="/configuration" 
             element={

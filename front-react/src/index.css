@@ -85,6 +85,9 @@
   border-radius: 0.6rem;
   -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
 }
 
 .brand-title {
@@ -158,8 +161,7 @@
    - touch-friendly action buttons inside tables/cards
    ------------------------------------------------------------------------- */
 .dashboard-grid {
-  /* Remove CSS Grid - let Bootstrap handle the layout */
-  /* Use margin instead of gap for Bootstrap compatibility */
+  display: block;
 }
 
 .dashboard-grid .row {
@@ -207,6 +209,46 @@
 .table .btn, .card .btn {
   min-width: 44px;
   padding: 0.45rem 0.6rem;
+}
+
+/* Keep dashboard refresh button inside card on small screens */
+.dashboard-refresh-btn {
+  width: 100%;
+}
+
+.dashboard-location-select {
+  width: 100%;
+}
+
+.dashboard-action-btn {
+  width: 100%;
+}
+
+.dashboard-boutique-select {
+  width: 100%;
+}
+
+.dashboard-boutique-select .form-select {
+  width: 100%;
+}
+
+@media (min-width: 576px) {
+  .dashboard-refresh-btn {
+    width: auto;
+  }
+  .dashboard-location-select {
+    max-width: 300px;
+  }
+  .dashboard-action-btn {
+    width: auto;
+  }
+  .dashboard-boutique-select {
+    width: auto;
+  }
+  .dashboard-boutique-select .form-select {
+    min-width: 200px;
+    width: auto;
+  }
 }
 
 /* Reduce visual noise on very small screens */
