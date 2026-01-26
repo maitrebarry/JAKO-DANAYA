@@ -718,7 +718,7 @@ const RoleBasedDashboard: React.FC = () => {
     return config;
   };
 
-  // Fonction pour calculer la classe de colonne optimale selon le nombre de widgets
+// Fonction pour calculer la classe de colonne optimale selon le nombre de widgets
   const getOptimalColumnClass = (widgetCount: number) => {
     if (widgetCount === 1) return 'col-12';
     if (widgetCount === 2) return 'col-md-6';
@@ -727,7 +727,7 @@ const RoleBasedDashboard: React.FC = () => {
     if (widgetCount === 5) return 'col-md-4'; // 5 widgets: 3 en première ligne, 2 en deuxième
     if (widgetCount === 6) return 'col-md-4';
     if (widgetCount >= 7) return 'col-md-3'; // Pour 7+ widgets, utiliser col-3 pour un maximum de 4 par ligne
-    
+
     return 'col-md-6'; // Par défaut
   };
 

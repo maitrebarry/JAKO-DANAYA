@@ -46,16 +46,52 @@ const Layout = ({ children }: LayoutProps) => {
     return () => window.removeEventListener('keydown', onKey);
   }, [isMobile, sidebarOpen]);
 
+  React.useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+
+    if (isMobile) {
+      html.setAttribute('data-sidenav-size', 'offcanvas');
+    } else {
+      html.setAttribute('data-sidenav-size', 'default');
+    }
+
+    const backdropId = 'custom-backdrop';
+    const removeBackdrop = () => {
+      const existing = document.getElementById(backdropId);
+      if (existing && existing.parentElement) existing.parentElement.removeChild(existing);
+    };
+
+    if (isMobile && sidebarOpen) {
+      html.classList.add('sidebar-enable');
+      if (!document.getElementById(backdropId)) {
+        const backdrop = document.createElement('div');
+        backdrop.id = backdropId;
+        backdrop.className = 'offcanvas-backdrop fade show';
+        backdrop.addEventListener('click', closeSidebar);
+        document.body.appendChild(backdrop);
+      }
+      body.style.overflow = 'hidden';
+    } else {
+      html.classList.remove('sidebar-enable');
+      removeBackdrop();
+      body.style.overflow = '';
+      body.style.paddingRight = '';
+    }
+
+    return () => {
+      html.classList.remove('sidebar-enable');
+      removeBackdrop();
+      body.style.overflow = '';
+      body.style.paddingRight = '';
+    };
+  }, [isMobile, sidebarOpen]);
+
   return (
-    <div className={`wrapper ${isMobile && sidebarOpen ? 'sidebar-open-mobile' : ''}`}>
+    <div className="wrapper">
       <Sidebar isOpen={sidebarOpen} isMobile={isMobile} closeSidebar={closeSidebar} />
       <Topbar toggleSidebar={toggleSidebar} isMobile={isMobile} sidebarOpen={sidebarOpen} />
       {user && user.typeUtilisateur === 'PROPRIETAIRE' && <StockNotifications />}
-
-      {/* Mobile overlay */}
-      {isMobile && sidebarOpen && (
-        <div className="sidenav-overlay" aria-hidden onClick={closeSidebar} />
-      )}
 
       <div className="content-page">
         <div className="content">
@@ -336,7 +372,7 @@ const Sidebar = ({ isOpen = true, isMobile = false, closeSidebar = () => {} }: {
     }
   }, [permissions]);
   return (
-    <div className={`sidenav-menu ${isMobile ? 'mobile' : ''} ${isOpen ? 'open' : ''} ${!isOpen && !isMobile ? 'd-none d-md-block' : ''}`} role="navigation" aria-hidden={isMobile ? (!isOpen) : false}>
+    <div className="sidenav-menu" role="navigation" aria-hidden={isMobile ? (!isOpen) : false}>
       <div className="text-center py-1" style={{ borderBottom: '1px solid #e9ecef' }}>
         <span className="fw-bold text-primary d-block" style={{ 
           fontSize: '1.5rem',
@@ -353,7 +389,7 @@ const Sidebar = ({ isOpen = true, isMobile = false, closeSidebar = () => {} }: {
           JÀGO DÁNAYA
         </span>
       </div>
-      <div className="scrollbar" style={{ height: 'calc(100vh - 130px)' }}>
+      <div className="scrollbar" data-simplebar>
         <ul
           className="side-nav"
           id="sidebar-nav"

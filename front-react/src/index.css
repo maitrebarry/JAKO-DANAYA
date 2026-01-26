@@ -158,22 +158,22 @@
    - touch-friendly action buttons inside tables/cards
    ------------------------------------------------------------------------- */
 .dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
-  align-items: start;
+  /* Remove CSS Grid - let Bootstrap handle the layout */
+  /* Use margin instead of gap for Bootstrap compatibility */
 }
 
-/* Ensure cards behave well when constrained vertically */
-.dashboard-grid .card {
-  min-height: 0; /* allow grid to size properly */
-  display: flex;
-  flex-direction: column;
+.dashboard-grid .row {
+  margin-bottom: 0; /* Remove default row margin */
 }
-.dashboard-grid .card .card-body {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
+
+.dashboard-grid .card {
+  margin-bottom: 1rem; /* Add consistent spacing between cards */
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-grid .card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 /* When card-body uses d-flex/row, allow wrapping on small screens */
