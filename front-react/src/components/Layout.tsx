@@ -199,7 +199,7 @@ const Topbar = ({ toggleSidebar, isMobile, sidebarOpen }: { toggleSidebar?: () =
   } catch (e) { /* ignore in non-browser env */ }
 
   const displayName = `${user?.prenom || ''} ${user?.nom || ''}`.trim() || user?.pseudo || user?.email || 'Profil';
-  const defaultAvatar = `/assets/images/avatar.jpg`;
+  const defaultAvatar = `/assets/images/avatar.svg`;
   const resolveAvatarUrl = (avatar?: string) => {
     if (!avatar) return defaultAvatar || `https://via.placeholder.com/64x64/0d6efd/ffffff?text=${initials()}`;
     if (avatar.startsWith('http')) return avatar;
