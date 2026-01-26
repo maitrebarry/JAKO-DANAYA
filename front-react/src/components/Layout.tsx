@@ -212,6 +212,26 @@ const Topbar = ({ toggleSidebar, isMobile, sidebarOpen }: { toggleSidebar?: () =
 
   const unreadCount = notifications.length;
 
+  const [theme, setTheme] = React.useState<'light' | 'dark'>(() => {
+    try {
+      const stored = localStorage.getItem('__D_THEME__');
+      return stored === 'dark' ? 'dark' : 'light';
+    } catch (e) {
+      return 'light';
+    }
+  });
+
+  React.useEffect(() => {
+    const html = document.documentElement;
+    html.setAttribute('data-bs-theme', theme);
+    html.setAttribute('data-topbar-color', theme);
+    try {
+      localStorage.setItem('__D_THEME__', theme);
+    } catch (e) {}
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+
   const openNotification = async (n: any) => {
     try {
       const notifApi = await import('../api/notification');
@@ -230,13 +250,13 @@ const Topbar = ({ toggleSidebar, isMobile, sidebarOpen }: { toggleSidebar?: () =
         <div className="d-flex align-items-center gap-2">
 
           <button
-            className={`sidenav-toggle-button btn btn-primary btn-icon d-md-none d-flex ${sidebarOpen && isMobile ? 'open' : ''}`}
+            className={`sidenav-toggle-button btn btn-primary btn-icon d-md-none d-flex text-white ${sidebarOpen && isMobile ? 'open' : ''}`}
             onClick={toggleSidebar}
             aria-label={sidebarOpen && isMobile ? 'Fermer le menu' : 'Ouvrir le menu'}
             aria-expanded={!!(isMobile && sidebarOpen)}
             type="button"
           >
-            <i className={`${sidebarOpen && isMobile ? 'ti ti-x' : 'ti ti-menu-2'} fs-22`} aria-hidden />
+            <i className="ti ti-menu-2 fs-22 text-white" aria-hidden />
           </button>
           {displayRoles && (
             <span className="text-primary fw-semibold d-none d-lg-inline" style={{ fontSize: '0.7rem', marginLeft: '20em' }}>
@@ -245,6 +265,17 @@ const Topbar = ({ toggleSidebar, isMobile, sidebarOpen }: { toggleSidebar?: () =
           )}
         </div>
         <div className="d-flex align-items-center gap-2">
+          <button
+            id="light-dark-mode"
+            className="btn btn-icon btn-light"
+            type="button"
+            onClick={toggleTheme}
+            aria-label="Changer le thème"
+          >
+            <i className="ti ti-sun mode-light-sun" aria-hidden></i>
+            <i className="ti ti-moon mode-light-moon" aria-hidden></i>
+          </button>
+
           <div className="dropdown me-2">
             <button className="btn btn-icon btn-light position-relative" data-bs-toggle="dropdown" aria-expanded="false">
               <i className="ti ti-bell fs-20"></i>
