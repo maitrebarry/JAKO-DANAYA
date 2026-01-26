@@ -11,7 +11,7 @@ type Props = {
 const MetricCard = ({ title, subtitle, value, icon, bg = 'bg-primary' }: Props) => {
   return (
     <div className="col-xl-3 col-lg-6">
-      <div className="card">
+      <div className="card metric-card">
         <div className="card-body">
           <div className="d-flex align-items-center">
             <div className="flex-grow-1">

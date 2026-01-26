@@ -806,6 +806,7 @@ const RoleBasedDashboard: React.FC = () => {
         </div>
 
         {/* Widgets principaux */}
+        <div className="dashboard-grid">
         {widgetsConfig.length > 0 ? (
           <div className="row g-4">
             {widgetsConfig.map((widget, index) => (
@@ -977,6 +978,7 @@ const RoleBasedDashboard: React.FC = () => {
           </div>
         )}
       </div>
+        </div>
     );
   };
 

@@ -57,3 +57,161 @@
   z-index: 1060;
   position: relative;
 }
+
+/* -------------------------------------------------------------------------
+   Responsive improvements for the global layout and the SignIn page
+   - Mobile-first rules to make the login form usable on small screens
+   - Keeps the existing desktop appearance intact
+   ------------------------------------------------------------------------- */
+.account-pages {
+  position: relative;
+  overflow: hidden;
+}
+
+/* subtle dark overlay to improve contrast between background image and form */
+.account-pages::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(0,0,0,0.18), rgba(0,0,0,0.18));
+  pointer-events: none;
+  z-index: 0;
+}
+
+.account-pages .card {
+  position: relative;
+  z-index: 2; /* above the overlay */
+  background-color: rgba(255,255,255,0.98);
+  border-radius: 0.6rem;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+.brand-title {
+  display: inline-block;
+  background: linear-gradient(45deg, #007bff, #6610f2);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  font-family: 'Arial', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.04);
+  /* keep the brand on a single line while remaining responsive — shrink to fit on small viewports */
+  font-size: clamp(1rem, 5.5vw, 3.3rem);
+  white-space: nowrap;               /* IMPORTANT: single line */
+  overflow: hidden;                  /* avoid layout overflow on very narrow viewports */
+  text-overflow: ellipsis;           /* visual fallback if it cannot fit */
+  max-width: 100%;                   /* don't overflow parent */
+  word-break: normal;
+}
+
+/* On very small devices we slightly reduce letter-spacing to help fitting */
+@media (max-width: 420px) {
+  .brand-title { letter-spacing: -0.5px; }
+}
+
+.account-pages .form-control-lg {
+  padding: 0.75rem 0.9rem;
+  font-size: 1rem;
+}
+
+.account-pages .btn-lg {
+  padding: 0.65rem 1rem;
+  font-size: 1rem;
+}
+
+/* Ensure full-width primary actions on small screens */
+@media (max-width: 991.98px) {
+  .account-pages .card { margin: 0.5rem 0.5rem; }
+  .account-pages .w-75 { width: 100% !important; }
+}
+
+/* Small screens: center the card, increase touch targets and reduce background emphasis */
+@media (max-width: 575.98px) {
+  .account-pages { background-position: center top; }
+  .account-pages::before { background: linear-gradient(rgba(0,0,0,0.28), rgba(0,0,0,0.28)); }
+  .brand-title { font-size: 1.8rem; text-align: center; }
+  .account-pages .card { margin: 0.75rem; box-shadow: 0 8px 24px rgba(4,9,20,0.08); }
+  .account-pages .card-body { padding: 1rem; }
+  .account-pages .form-label { font-size: 0.95rem; }
+  .account-pages .btn { height: 48px; }
+}
+
+/* Accessibility: visible focus for keyboard users */
+.form-control:focus {
+  box-shadow: 0 0 0 0.15rem rgba(13,110,253,0.15);
+  border-color: #86b7fe;
+}
+
+/* Reduce heavy shadows on very small devices */
+@media (max-width: 420px) {
+  .account-pages .card { box-shadow: 0 6px 18px rgba(4,9,20,0.06); }
+}
+
+/* -------------------------------------------------------------------------
+   Global responsive utilities applied across the app
+   - dashboard-grid: responsive card grid (auto-fit cards)
+   - make card-body flex layouts wrap on small screens
+   - lightweight table responsiveness for mobile (horizontal scroll)
+   - touch-friendly action buttons inside tables/cards
+   ------------------------------------------------------------------------- */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+/* Ensure cards behave well when constrained vertically */
+.dashboard-grid .card {
+  min-height: 0; /* allow grid to size properly */
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-grid .card .card-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* When card-body uses d-flex/row, allow wrapping on small screens */
+@media (max-width: 767.98px) {
+  .card .d-flex {
+    flex-wrap: wrap !important;
+  }
+  .card .d-flex > * {
+    flex: 1 1 100% !important;
+    min-width: 0; /* prevent overflow from long text */
+  }
+}
+
+/* Table responsiveness: allow horizontal scroll on narrow viewports */
+@media (max-width: 991.98px) {
+  .card-body table,
+  .table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+  .card-body table td,
+  .card-body table th { white-space: nowrap; }
+  /* opt-in class for wrapping long text inside table cells */
+  .cell-break { white-space: normal !important; word-break: break-word; }
+}
+
+/* Make action buttons easier to tap on mobile */
+.table .btn, .card .btn {
+  min-width: 44px;
+  padding: 0.45rem 0.6rem;
+}
+
+/* Reduce visual noise on very small screens */
+@media (max-width: 420px) {
+  .dashboard-grid { gap: 0.6rem; }
+  .card .card-body p, .card .card-body small { font-size: 0.95rem; }
+}
+
