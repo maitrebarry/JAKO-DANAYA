@@ -1,0 +1,98 @@
+/* Responsive sidebar behaviour for mobile/tablet
+   - Mobile (<768px): sidebar is off-canvas, opens as an overlay with backdrop
+   - Desktop (>=768px): existing behaviour preserved
+   Additive styles only — rely on existing theme for colors/sizing. */
+
+:root {
+  --smb-sidebar-width: 260px;
+  --smb-sidebar-z: 1060;
+  --smb-overlay-z: 1050;
+  --smb-transition: 280ms cubic-bezier(.2,.9,.2,1);
+}
+
+/* Default: keep existing layout intact */
+.sidenav-menu {
+  transition: transform var(--smb-transition), box-shadow 180ms ease;
+  will-change: transform;
+}
+
+/* MOBILE: off-canvas behaviour */
+@media (max-width: 767.98px) {
+  .sidenav-menu {
+    position: fixed !important;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    width: var(--smb-sidebar-width);
+    transform: translateX(-110%);
+    box-shadow: 0 8px 30px rgba(6, 18, 38, 0.18);
+    z-index: var(--smb-sidebar-z);
+    background: var(--bs-body-bg, #fff);
+    border-right: 1px solid rgba(0,0,0,0.04);
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sidenav-menu.open {
+    transform: translateX(0);
+  }
+
+  /* overlay that covers the page when sidebar is open */
+  .sidenav-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: var(--smb-overlay-z);
+    opacity: 1;
+    transition: opacity var(--smb-transition);
+    backdrop-filter: blur(2px);
+  }
+
+  /* ensure the main content uses full width when sidebar closed */
+  .content-page, .content {
+    width: 100%;
+    transition: transform var(--smb-transition);
+  }
+
+  /* optional gentle push of the content when sidebar opens */
+  .sidebar-open-mobile .content-page {
+    /* comment/uncomment to change behaviour: slide-over (no push) vs push
+       using translateX will push the content; leave as subtle for UX */
+    transform: translateX(0);
+  }
+
+  /* small visual tweak for the hamburger button */
+  .sidenav-toggle-button.open {
+    transform: rotate(0deg);
+    background-color: #e9ecef !important;
+  }
+
+  .sidenav-toggle-button .ti-x {
+    color: #fff;
+  }
+
+  /* ensure large desktop-only helpers remain hidden/per spec */
+  .d-md-none { display: inline-flex !important; }
+}
+
+/* DESKTOP: keep existing behaviour but add smoothness */
+@media (min-width: 768px) {
+  .sidenav-menu {
+    transform: none !important;
+    position: relative;
+    height: 100vh;
+    box-shadow: none;
+  }
+
+  .sidenav-overlay { display: none !important; }
+}
+
+/* Small accessibility helpers */
+.sidenav-menu[aria-hidden="true"] {
+  pointer-events: none;
+}
+
+/* When sidebar is hidden on desktop we still want the d-md-block helper to work */
+@media (min-width: 768px) {
+  .sidenav-menu.d-none.d-md-block { display: block !important; }
+}

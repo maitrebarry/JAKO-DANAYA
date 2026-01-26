@@ -5,26 +5,58 @@ import 'flag-icons/css/flag-icons.min.css';
 import StockNotifications from './StockNotifications';
 import { API_BASE } from '../config/api';
 
+// responsive layout styles (mobile overlay, transitions)
+import '../styles/layout-responsive.css';
+
 interface LayoutProps {
   children: ReactNode;
 }
 
 const Layout = ({ children }: LayoutProps) => {
+  // Responsive states
+  const [isMobile, setIsMobile] = React.useState<boolean>(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
   const [sidebarOpen, setSidebarOpen] = React.useState<boolean>(typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
+
+  // Sync on resize: update isMobile and ensure sensible sidebar default
   React.useEffect(() => {
-    const onResize = () => { try { setSidebarOpen(window.innerWidth >= 768); } catch(e) {} };
+    const onResize = () => {
+      try {
+        const mobile = window.innerWidth < 768;
+        setIsMobile(mobile);
+        // keep sidebar open on desktop, closed on mobile by default
+        setSidebarOpen(s => (mobile ? false : true));
+      } catch (e) {}
+    };
+    onResize();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  // Close sidebar (useful to pass to children)
+  const closeSidebar = () => setSidebarOpen(false);
   const toggleSidebar = () => setSidebarOpen(s => !s);
 
   const { user } = useUser();
 
+  // Close on ESC when in mobile overlay mode
+  React.useEffect(() => {
+    if (!isMobile) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && sidebarOpen) closeSidebar(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isMobile, sidebarOpen]);
+
   return (
-    <div className="wrapper">
-      <Sidebar isOpen={sidebarOpen} />
-      <Topbar toggleSidebar={toggleSidebar} />
+    <div className={`wrapper ${isMobile && sidebarOpen ? 'sidebar-open-mobile' : ''}`}>
+      <Sidebar isOpen={sidebarOpen} isMobile={isMobile} closeSidebar={closeSidebar} />
+      <Topbar toggleSidebar={toggleSidebar} isMobile={isMobile} sidebarOpen={sidebarOpen} />
       {user && user.typeUtilisateur === 'PROPRIETAIRE' && <StockNotifications />}
+
+      {/* Mobile overlay */}
+      {isMobile && sidebarOpen && (
+        <div className="sidenav-overlay" aria-hidden onClick={closeSidebar} />
+      )}
+
       <div className="content-page">
         <div className="content">
           <div className="container-fluid" style={{ paddingBottom: '80px' }}>
@@ -56,7 +88,7 @@ const Footer = () => {
   );
 };
 
-const Topbar = ({ toggleSidebar }: { toggleSidebar?: () => void }) => {
+const Topbar = ({ toggleSidebar, isMobile, sidebarOpen }: { toggleSidebar?: () => void, isMobile?: boolean, sidebarOpen?: boolean }) => {
   const navigate = useNavigate();
   const { user, logout, roles = [] } = useUser();
 
@@ -161,8 +193,14 @@ const Topbar = ({ toggleSidebar }: { toggleSidebar?: () => void }) => {
       <div className="container-fluid topbar-menu d-flex justify-content-between align-items-center">
         <div className="d-flex align-items-center gap-2">
 
-          <button className="sidenav-toggle-button btn btn-primary btn-icon d-md-none d-flex" onClick={toggleSidebar} aria-label="Toggle navigation" type="button">
-            <i className="ti ti-menu-2 fs-22"></i>
+          <button
+            className={`sidenav-toggle-button btn btn-primary btn-icon d-md-none d-flex ${sidebarOpen && isMobile ? 'open' : ''}`}
+            onClick={toggleSidebar}
+            aria-label={sidebarOpen && isMobile ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-expanded={!!(isMobile && sidebarOpen)}
+            type="button"
+          >
+            <i className={`${sidebarOpen && isMobile ? 'ti ti-x' : 'ti ti-menu-2'} fs-22`} aria-hidden />
           </button>
           {displayRoles && (
             <span className="text-primary fw-semibold d-none d-lg-inline" style={{ fontSize: '0.7rem', marginLeft: '20em' }}>
@@ -243,7 +281,7 @@ const Topbar = ({ toggleSidebar }: { toggleSidebar?: () => void }) => {
   );
 };
 
-const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
+const Sidebar = ({ isOpen = true, isMobile = false, closeSidebar = () => {} }: { isOpen?: boolean, isMobile?: boolean, closeSidebar?: () => void }) => {
   const { permissions, user, roles = [] } = useUser();
   // Only use explicit permissions to show/hide UI elements. Some menus (like Configuration)
   // are also visible to owners (PROPRIETAIRE) and SUPERADMIN by role.
@@ -298,7 +336,7 @@ const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
     }
   }, [permissions]);
   return (
-    <div className={`sidenav-menu ${!isOpen ? 'd-none d-md-block' : ''}`}>
+    <div className={`sidenav-menu ${isMobile ? 'mobile' : ''} ${isOpen ? 'open' : ''} ${!isOpen && !isMobile ? 'd-none d-md-block' : ''}`} role="navigation" aria-hidden={isMobile ? (!isOpen) : false}>
       <div className="text-center py-1" style={{ borderBottom: '1px solid #e9ecef' }}>
         <span className="fw-bold text-primary d-block" style={{ 
           fontSize: '1.5rem',
@@ -316,7 +354,19 @@ const Sidebar = ({ isOpen = true }: { isOpen?: boolean }) => {
         </span>
       </div>
       <div className="scrollbar" style={{ height: 'calc(100vh - 130px)' }}>
-        <ul className="side-nav" id="sidebar-nav">
+        <ul
+          className="side-nav"
+          id="sidebar-nav"
+          onClick={(e) => {
+            try {
+              const a = (e.target as HTMLElement).closest('a.side-nav-link');
+              if (a && isMobile && !a.hasAttribute('data-bs-toggle')) {
+                // close when navigating on mobile (but not when toggling submenu)
+                closeSidebar();
+              }
+            } catch (ex) {}
+          }}
+        >
 
           {can.dashboard && (
           <li className="side-nav-item">
