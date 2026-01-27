@@ -4,7 +4,7 @@ import Swal from 'sweetalert2';
 import { jsPDF } from 'jspdf';
 import useHasPermission from '../contexts/useHasPermission';
 import { formatServerDate } from '../utils/date';
-import { API } from '../config/api';
+import { API, withApi } from '../config/api';
 
 interface HistoriqueItem {
   type: 'RECEPTION' | 'PAIEMENT';
@@ -44,8 +44,8 @@ const Historique: React.FC = () => {
     try {
       const token = localStorage.getItem('smb_token');
       console.debug('fetchHistorique - token present?', !!token, 'token preview:', token ? token.slice(0,10) + '...' : null);
-      const endpoint = annulations ? `/api/historique/annulations/boutique/${currentBoutique?.id}` : `/api/historique/boutique/${currentBoutique?.id}`;
-      const res = await fetch(`${API}${endpoint}`, {
+      const endpoint = annulations ? `historique/annulations/boutique/${currentBoutique?.id}` : `historique/boutique/${currentBoutique?.id}`;
+      const res = await fetch(withApi(endpoint), {
         headers: { Authorization: token ? `Bearer ${token}` : '' }
       });
       if (res.status === 401) {
