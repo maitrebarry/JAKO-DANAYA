@@ -51,10 +51,10 @@ const VentesHistorique: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('smb_token');
-      const endpoint = annulations ? `/api/historique/ventes/annulations/boutique/${currentBoutique?.id}` : `/api/historique/ventes/boutique/${currentBoutique?.id}`;
+      const endpoint = annulations ? `historique/ventes/annulations/boutique/${currentBoutique?.id}` : `historique/ventes/boutique/${currentBoutique?.id}`;
       console.debug('fetchHistorique: token present?', !!token, 'endpoint=', endpoint);
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch(`${API}${endpoint}`, { headers });
+      const res = await fetch(withApi(endpoint), { headers });
       if (res.status === 401) {
         const txt = await res.text().catch(() => null);
         console.debug('fetchHistorique: 401 body=', txt);

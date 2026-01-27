@@ -39,10 +39,10 @@ const VentesEspeces: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('smb_token');
-      const endpoint = `/api/historique/ventes/especes/boutique/${currentBoutique?.id}`;
+      const endpoint = `historique/ventes/especes/boutique/${currentBoutique?.id}`;
       console.debug('fetchEspeces: token present?', !!token, 'endpoint=', endpoint);
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch(`${API}${endpoint}`, { headers });
+      const res = await fetch(withApi(endpoint), { headers });
 
       if (res.status === 401) {
         const txt = await res.text().catch(() => null);
