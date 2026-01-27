@@ -9,14 +9,20 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.config.oauth2.client.CommonOAuth2Provider;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.util.Arrays;
 
@@ -54,7 +60,12 @@ public class WebSecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler, Environment environment) throws Exception {
+    public SecurityFilterChain filterChain(
+        HttpSecurity http,
+        OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
+        Environment environment,
+        ObjectProvider<ClientRegistrationRepository> clientRegistrationRepository
+    ) throws Exception {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
@@ -69,8 +80,8 @@ public class WebSecurityConfig {
                 .anyRequest().authenticated()
             );
 
-        String googleClientId = environment.getProperty("GOOGLE_CLIENT_ID", "").trim();
-        if (!googleClientId.isEmpty()) {
+        ClientRegistrationRepository registrations = clientRegistrationRepository.getIfAvailable();
+        if (registrations != null) {
             http.oauth2Login(oauth2 -> oauth2
                 .successHandler(oAuth2AuthenticationSuccessHandler)
             );
@@ -80,6 +91,19 @@ public class WebSecurityConfig {
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = {"GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"})
+    public ClientRegistrationRepository clientRegistrationRepository(Environment environment) {
+        String clientId = environment.getProperty("GOOGLE_CLIENT_ID", "").trim();
+        String clientSecret = environment.getProperty("GOOGLE_CLIENT_SECRET", "").trim();
+        ClientRegistration google = CommonOAuth2Provider.GOOGLE.getBuilder("google")
+            .clientId(clientId)
+            .clientSecret(clientSecret)
+            .build();
+
+        return new InMemoryClientRegistrationRepository(google);
     }
 
     @Bean
