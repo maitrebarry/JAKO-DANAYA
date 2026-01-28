@@ -19,6 +19,7 @@ import {
   Boutique,
   Magasin
 } from '../api/dashboardClient';
+import { API } from '../config/api';
 
 ChartJS.register(
   CategoryScale,
@@ -246,6 +247,7 @@ const RoleBasedDashboard: React.FC = () => {
   const [magasins, setMagasins] = useState<Magasin[]>([]);
   const [selectedBoutiqueId, setSelectedBoutiqueId] = useState<number | null>(null);
   const [selectedMagasinId, setSelectedMagasinId] = useState<number | null>(null);
+  const [superAdminUsers, setSuperAdminUsers] = useState<any[]>([]);
   const navigate = useNavigate();
   const fmt = useFormatMoney();
 
@@ -271,6 +273,10 @@ const RoleBasedDashboard: React.FC = () => {
       console.log('✅ Dashboard data received:', p);
       console.log('📊 Top products data:', p.widgets?.top_products);
       setPayload(p);
+
+      if (p.role === 'SUPERADMIN') {
+        await loadSuperAdminUsers();
+      }
 
       // Si c'est un ADMIN, charger les dashboards des subalternes
       if (p.role === 'ADMIN' || p.role === 'PROPRIETAIRE') {
@@ -327,6 +333,21 @@ const RoleBasedDashboard: React.FC = () => {
     }
   };
 
+  async function loadSuperAdminUsers() {
+    const token = localStorage.getItem('smb_token');
+    if (!token) return;
+    try {
+      const res = await fetch(`${API}/utilisateurs`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setSuperAdminUsers(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setSuperAdminUsers([]);
+    }
+  }
+
   const handleLocationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
     if (value.startsWith('boutique-')) {
@@ -357,9 +378,38 @@ const RoleBasedDashboard: React.FC = () => {
     return 'Chargement...';
   };
 
+  const ONLINE_WINDOW_MINUTES = 15;
+  const isOnline = (lastSeenAt?: string | null) => {
+    if (!lastSeenAt) return false;
+    const dt = new Date(lastSeenAt);
+    if (isNaN(dt.getTime())) return false;
+    const diffMs = Date.now() - dt.getTime();
+    return diffMs <= ONLINE_WINDOW_MINUTES * 60 * 1000;
+  };
+
+  const userStatsByBoutique = React.useMemo(() => {
+    const stats = new Map<number, { total: number; online: number; offline: number }>();
+    superAdminUsers.forEach((u: any) => {
+      const bId = u?.boutique?.id;
+      if (!bId) return;
+      const current = stats.get(bId) || { total: 0, online: 0, offline: 0 };
+      current.total += 1;
+      if (isOnline(u?.lastSeenAt)) current.online += 1;
+      else current.offline += 1;
+      stats.set(bId, current);
+    });
+    return stats;
+  }, [superAdminUsers]);
+
   useEffect(() => {
     loadLocations();
   }, []);
+
+  useEffect(() => {
+    if (payload?.role === 'SUPERADMIN') {
+      loadSuperAdminUsers();
+    }
+  }, [payload?.role]);
 
   // Charger le dashboard initialement
   useEffect(() => {
@@ -843,6 +893,15 @@ const RoleBasedDashboard: React.FC = () => {
                           <div>
                             <div className="fw-semibold">{b.nom}</div>
                             <div className="text-muted small">{b.pays?.nom || b.pays?.codeIso || 'Inconnue'}</div>
+                            {(() => {
+                              const stats = userStatsByBoutique.get(b.id) || { online: 0, offline: 0, total: 0 };
+                              return (
+                                <div className="small mt-1">
+                                  <span className="badge bg-success">Connectés: {stats.online}</span>
+                                  <span className="badge bg-secondary ms-2">Déconnectés: {stats.offline}</span>
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>

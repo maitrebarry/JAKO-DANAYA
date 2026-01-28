@@ -306,3 +306,18 @@ html[data-bs-theme="dark"] .breadcrumb-subtitle {
   color: var(--bs-body-color);
 }
 
+/* Fixed footer: ensure it stays at the bottom and adapts to dark theme */
+.footer.fixed-bottom {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1030;
+}
+
+html[data-bs-theme="dark"] .footer {
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  border-top: 1px solid var(--bs-border-color);
+}
+

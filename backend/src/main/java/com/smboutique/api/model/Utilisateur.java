@@ -40,6 +40,12 @@ public class Utilisateur {
     private String adresse;
     private String avatar;
 
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
+
+    @Column(name = "last_seen_at")
+    private LocalDateTime lastSeenAt;
+
     @Column(name = "type_utilisateur")
     private String typeUtilisateur;
 

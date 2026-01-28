@@ -82,6 +82,16 @@ public class AuthController {
                     .collect(Collectors.toList());
 
             try {
+                Utilisateur u = utilisateurRepository.findById(userDetails.getId()).orElse(null);
+                if (u != null) {
+                    LocalDateTime now = LocalDateTime.now();
+                    u.setLastLoginAt(now);
+                    u.setLastSeenAt(now);
+                    utilisateurRepository.save(u);
+                }
+            } catch (Exception ignored) {}
+
+            try {
                 // audit connexion (if mouvementService is available)
                 if (mouvementService != null) {
                     Long uid = userDetails.getId();
@@ -122,6 +132,18 @@ public class AuthController {
     public ResponseEntity<?> getCurrentUser() {
         Utilisateur utilisateur = resolveAuthenticatedUser();
         return ResponseEntity.ok(buildProfileResponse(utilisateur));
+    }
+
+    @PostMapping("/ping")
+    public ResponseEntity<?> ping() {
+        try {
+            Utilisateur utilisateur = resolveAuthenticatedUser();
+            utilisateur.setLastSeenAt(LocalDateTime.now());
+            utilisateurRepository.save(utilisateur);
+            return ResponseEntity.ok(Map.of("status", "ok"));
+        } catch (Exception e) {
+            return ResponseEntity.status(401).body(Map.of("error", "Authentication required"));
+        }
     }
 
     @PutMapping("/me")

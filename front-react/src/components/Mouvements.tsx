@@ -58,6 +58,17 @@ const Mouvements: React.FC = () => {
   const [page, setPage] = useState(1);
   const pageSize = 25;
 
+  const toLocalDateTimeInput = (dt: Date) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+  };
+
+  const toServerLocalDateTime = (value: string) => {
+    if (!value) return '';
+    if (value.length === 16) return `${value}:00`;
+    return value;
+  };
+
   useEffect(() => {
     let mounted = true;
     const loadLookups = async () => {
@@ -91,8 +102,8 @@ const Mouvements: React.FC = () => {
     if (sousType) params.set('sousType', sousType);
     if (boutiqueId && isAuditor) params.set('boutiqueId', String(boutiqueId));
     if (magasinId) params.set('magasinId', String(magasinId));
-    if (from) params.set('from', from);
-    if (to) params.set('to', to);
+    if (from) params.set('from', toServerLocalDateTime(from));
+    if (to) params.set('to', toServerLocalDateTime(to));
     if (p != null) params.set('page', String(p));
     params.set('size', String(pageSize));
     return params.toString();
@@ -136,10 +147,8 @@ const Mouvements: React.FC = () => {
       case 'month': fromDt.setMonth(toDt.getMonth()-1); break;
       case 'year': fromDt.setFullYear(toDt.getFullYear()-1); break;
     }
-    const f = fromDt.toISOString();
-    const t = toDt.toISOString();
-    setFrom(f);
-    setTo(t);
+    setFrom(toLocalDateTimeInput(fromDt));
+    setTo(toLocalDateTimeInput(toDt));
     // Trigger a search for page 1 after state updates
     setTimeout(() => { setPage(1); fetchResults(1); }, 0);
   };
@@ -195,13 +204,21 @@ const Mouvements: React.FC = () => {
           <div className="row g-2 align-items-end">
             <div className="col-auto">
               <label className="form-label">De</label>
-              <input type="date-local" className="form-control" value={from ? new Date(from).toISOString().slice(0,16) : ''}
-                onChange={e => setFrom(e.target.value ? new Date(e.target.value).toISOString() : '')} />
+              <input
+                type="datetime-local"
+                className="form-control"
+                value={from}
+                onChange={e => setFrom(e.target.value || '')}
+              />
             </div>
             <div className="col-auto">
               <label className="form-label">À</label>
-              <input type="date-local" className="form-control" value={to ? new Date(to).toISOString().slice(0,16) : ''}
-                onChange={e => setTo(e.target.value ? new Date(e.target.value).toISOString() : '')} />
+              <input
+                type="datetime-local"
+                className="form-control"
+                value={to}
+                onChange={e => setTo(e.target.value || '')}
+              />
             </div>
             <div className="col-auto">
               <label className="form-label">Type</label>

@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import 'flag-icons/css/flag-icons.min.css';
 import StockNotifications from './StockNotifications';
-import { API_BASE } from '../config/api';
+import { API_BASE, API } from '../config/api';
 
 // responsive layout styles (mobile overlay, transitions)
 import '../styles/layout-responsive.css';
@@ -37,6 +37,27 @@ const Layout = ({ children }: LayoutProps) => {
   const toggleSidebar = () => setSidebarOpen(s => !s);
 
   const { user } = useUser();
+
+  // Heartbeat to keep user presence updated
+  React.useEffect(() => {
+    const token = localStorage.getItem('smb_token');
+    if (!token) return;
+
+    let active = true;
+    const ping = async () => {
+      if (!active) return;
+      try {
+        await fetch(`${API}/auth/ping`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (e) {}
+    };
+
+    ping();
+    const id = window.setInterval(ping, 2 * 60 * 1000);
+    return () => { active = false; window.clearInterval(id); };
+  }, [user?.id]);
 
   // Close on ESC when in mobile overlay mode
   React.useEffect(() => {
@@ -107,7 +128,7 @@ const Layout = ({ children }: LayoutProps) => {
 
 const Footer = () => {
   return (
-    <footer className="footer fixed-bottom w-100 bg-white shadow-sm">
+    <footer className="footer fixed-bottom w-100 bg-body-tertiary text-body border-top shadow-sm">
       <div className="container-fluid">
         <div className="row px-4 py-2">
           <div className="col-md-6 text-center text-md-start">
