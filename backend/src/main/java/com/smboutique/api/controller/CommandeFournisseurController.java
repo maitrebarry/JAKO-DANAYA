@@ -14,6 +14,7 @@ import com.smboutique.api.service.PaiementService;
 import java.time.LocalDateTime;
 import com.smboutique.api.dto.CommandeFournisseurDTO;
 import com.smboutique.api.service.CommandeFournisseurService;
+import com.smboutique.api.service.PdfService;
 import com.smboutique.api.service.UtilisateurService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -64,6 +65,9 @@ public class CommandeFournisseurController {
 
     @Autowired
     private com.smboutique.api.repository.ReceptionRepository receptionRepository;
+
+    @Autowired
+    private PdfService pdfService;
 
     private Utilisateur getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
