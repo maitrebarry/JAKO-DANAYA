@@ -189,7 +189,18 @@ public class CommandeClientController {
                 }
             } catch (Exception ignore) {}
         } catch (Exception e) {
-            try { response.sendError(500, e.getMessage()); } catch (java.io.IOException ex) { /* ignore */ }
+            logger.error("getCommandeClientPdf error for id={}: {}", id, e.getMessage(), e);
+            try {
+                if (!response.isCommitted()) {
+                    response.resetBuffer();
+                    response.setStatus(500);
+                    response.setContentType("application/json");
+                    String msg = e.getMessage() != null ? e.getMessage() : "Erreur inconnue";
+                    String body = "{\"error\":\"Erreur génération PDF commande client\",\"message\":\"" + msg.replace("\"", "\\\"") + "\"}";
+                    response.getWriter().write(body);
+                    response.getWriter().flush();
+                }
+            } catch (java.io.IOException ex) { /* ignore */ }
         }
     }
 

@@ -25,7 +25,7 @@
 <div th:if="${logoBase64 != null}" class="header bg-logo" th:style="'background-image: url(' + ${logoBase64} + ');'"></div>
 <div th:if="${logoBase64 == null}" class="header">
     <div class="no-logo-info">
-        <div><strong th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></strong></div>
+        <div><strong th:text="${boutiqueNom != null and boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></strong></div>
         <div><span th:text="${boutiqueTelephone}"></span></div>
         <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
@@ -104,6 +104,6 @@
 
 <div style="margin-top:6px; font-size:11px; color:#555;">Établi par: <span th:text="${vente.utilisateur != null ? (vente.utilisateur.nom + ' ' + vente.utilisateur.prenom) : '-'}"></span></div>
 
-<footer th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
+<footer th:text="${boutiqueNom != null and boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
 </body>
 </html>

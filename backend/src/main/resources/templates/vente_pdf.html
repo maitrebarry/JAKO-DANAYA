@@ -15,7 +15,7 @@
 </head>
 <body>
   <div class="header">
-    <h2 th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}">SMBOUTIQUE</h2>
+    <h2 th:text="${boutiqueNom != null and boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}">SMBOUTIQUE</h2>
     <div>Vente #: [[${vente.id}]]</div>
     <div class="small">Date: [[${dateVenteFormatted}]]</div>
     <div class="small">Client: [[${vente.nomClient}]]</div>

@@ -59,7 +59,7 @@
     <div style="display:inline-block;border:1px solid #2b2b2b;padding:6px 8px;font-weight:700;">BON DE RECEPTION N : <span th:text="${reception.reference}"></span></div>
 </div>
 
-<div style="text-align:center;margin-top:6px;font-weight:700;">FOURNISSEUR: <span th:text="${reception.commandeFournisseur != null && reception.commandeFournisseur.fournisseur != null ? reception.commandeFournisseur.fournisseur.nom + ' ' + reception.commandeFournisseur.fournisseur.prenom : ''}"></span>   RECU le: <span th:text="${dateReceptionFormatted}"></span></div>
+<div style="text-align:center;margin-top:6px;font-weight:700;">FOURNISSEUR: <span th:text="${reception.commandeFournisseur != null and reception.commandeFournisseur.fournisseur != null ? reception.commandeFournisseur.fournisseur.nom + ' ' + reception.commandeFournisseur.fournisseur.prenom : ''}"></span>   RECU le: <span th:text="${dateReceptionFormatted}"></span></div>
 <div class="title" style="margin-top:6px;"> </div>
 
 <table class="table">
@@ -80,9 +80,9 @@
     <tbody>
     <tr th:each="lc : ${receptionLignes}">
         <td>
-            <span th:with="designation=${lc.stock != null && lc.stock.produit != null ? lc.stock.produit.nomProduit : (lc.designation != null ? lc.designation : 'Produit')}, 
-                            nombreUnites=${lc.stock != null && lc.stock.produit != null ? lc.stock.produit.nombreUnitesParConditionnement : null},
-                            uniteLib=${lc.stock != null && lc.stock.produit != null && lc.stock.produit.unite != null ? lc.stock.produit.unite.libelle : 'carton'}">
+            <span th:with="designation=${lc.stock != null and lc.stock.produit != null ? lc.stock.produit.nomProduit : (lc.designation != null ? lc.designation : 'Produit')}, 
+                            nombreUnites=${lc.stock != null and lc.stock.produit != null ? lc.stock.produit.nombreUnitesParConditionnement : null},
+                            uniteLib=${lc.stock != null and lc.stock.produit != null and lc.stock.produit.unite != null ? lc.stock.produit.unite.libelle : 'carton'}">
                 <span th:if="${lc.quantiteConditionnement != null}">
                     <span th:text="${#numbers.formatInteger(lc.quantiteConditionnement,0)}">0</span>
                     <span th:text="${uniteLib}">carton</span>
@@ -106,7 +106,7 @@
         </td>
         <td class="right">
             <span th:if="${lc.quantiteConditionnement != null}">
-                <span th:text="${#numbers.formatInteger(lc.quantiteConditionnement,0)}"></span> <span th:text="${lc.stock != null && lc.stock.produit != null && lc.stock.produit.unite != null ? lc.stock.produit.unite.libelle : 'carton'}"></span>
+                <span th:text="${#numbers.formatInteger(lc.quantiteConditionnement,0)}"></span> <span th:text="${lc.stock != null and lc.stock.produit != null and lc.stock.produit.unite != null ? lc.stock.produit.unite.libelle : 'carton'}"></span>
             </span>
             <span th:unless="${lc.quantiteConditionnement != null}">
                 <span th:if="${lc.stock != null and lc.stock.produit != null and lc.stock.produit.nombreUnitesParConditionnement != null and lc.quantite != null and lc.quantite % lc.stock.produit.nombreUnitesParConditionnement == 0}">
@@ -117,7 +117,7 @@
         </td>
         <td class="right">
             <!-- Find corresponding view entry for this lc to get qteRecueThis -->
-            <span th:each="v : ${lignesView}" th:if="${v.designation == (lc.stock != null && lc.stock.produit != null ? lc.stock.produit.nomProduit : (lc.designation != null ? lc.designation : 'Produit'))}">
+            <span th:each="v : ${lignesView}" th:if="${v.designation == (lc.stock != null and lc.stock.produit != null ? lc.stock.produit.nomProduit : (lc.designation != null ? lc.designation : 'Produit'))}">
                 <span th:if="${(lc.stock != null and lc.stock.produit != null and lc.stock.produit.nombreUnitesParConditionnement != null) and (v.qteRecueThis % lc.stock.produit.nombreUnitesParConditionnement == 0)}">
                     <span th:text="${v.qteRecueThis / lc.stock.produit.nombreUnitesParConditionnement}"></span> <span th:text="${lc.stock.produit.unite.libelle}"></span>
                     <br/><small>(≈ <span th:text="${v.qteRecueThis}"></span> u)</small>
@@ -127,7 +127,7 @@
         </td>
         <td class="right">
             <!-- Remaining: prefer carton display if divisible -->
-            <span th:each="v : ${lignesView}" th:if="${v.designation == (lc.stock != null && lc.stock.produit != null ? lc.stock.produit.nomProduit : (lc.designation != null ? lc.designation : 'Produit'))}">
+            <span th:each="v : ${lignesView}" th:if="${v.designation == (lc.stock != null and lc.stock.produit != null ? lc.stock.produit.nomProduit : (lc.designation != null ? lc.designation : 'Produit'))}">
                 <span th:if="${(lc.stock != null and lc.stock.produit != null and lc.stock.produit.nombreUnitesParConditionnement != null) and (v.qteRestante % lc.stock.produit.nombreUnitesParConditionnement == 0)}">
                     <span th:text="${v.qteRestante / lc.stock.produit.nombreUnitesParConditionnement}"></span> <span th:text="${lc.stock.produit.unite.libelle}"></span>
                 </span>
@@ -140,6 +140,6 @@
 
 <div class="signature">Signature: __________________________</div>
 
-<footer th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
+<footer th:text="${boutiqueNom != null and boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
 </body>
 </html>

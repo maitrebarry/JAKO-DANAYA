@@ -42,9 +42,9 @@
         <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
     <div class="meta-info">
-        <div class="meta">Réf: <span th:text="${reference != null ? reference : (tx != null && tx.referenceCaisse != null ? tx.referenceCaisse : '')}"></span></div>
+        <div class="meta">Réf: <span th:text="${reference != null ? reference : (tx != null and tx.referenceCaisse != null ? tx.referenceCaisse : '')}"></span></div>
         <div class="meta">Date: <span th:text="${dateTransactionFormatted}"></span></div>
-        <div class="meta">Utilisateur: <span th:text="${utilisateurLabel != null ? utilisateurLabel : (tx != null && tx.userId != null ? tx.userId : '')}"></span></div>
+        <div class="meta">Utilisateur: <span th:text="${utilisateurLabel != null ? utilisateurLabel : (tx != null and tx.userId != null ? tx.userId : '')}"></span></div>
     </div>
 </div>
 <div class="title">REÇU DE CAISSE</div>
@@ -62,7 +62,7 @@
     </thead>
     <tbody>
     <tr>
-        <td th:text="${raison != null ? raison : (tx != null && tx.referenceCaisse != null ? tx.referenceCaisse : 'Transaction caisse')}"></td>
+        <td th:text="${raison != null ? raison : (tx != null and tx.referenceCaisse != null ? tx.referenceCaisse : 'Transaction caisse')}"></td>
         <td class="right" th:text="${montantLabel}"></td>
     </tr>
     </tbody>
@@ -72,6 +72,6 @@
 <div class="meta">Montant: <strong th:text="${montantLabel}"></strong></div>
 <div class="meta">Date: <strong th:text="${dateTransactionFormatted}"></strong></div>
 <div class="signature">Signature: __________________________</div>
-<footer th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
+<footer th:text="${boutiqueNom != null and boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
 </body>
 </html>

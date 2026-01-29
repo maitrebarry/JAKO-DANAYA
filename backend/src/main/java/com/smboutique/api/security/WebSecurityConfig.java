@@ -77,6 +77,8 @@ public class WebSecurityConfig {
                 .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/error").permitAll()
+                .requestMatchers("/api/commandes-fournisseurs/*/pdf").permitAll()
+                .requestMatchers("/api/commandes-clients/*/pdf").permitAll()
                 .anyRequest().authenticated()
             );
 

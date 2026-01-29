@@ -163,6 +163,22 @@ const ListeUtilisateurs = () => {
     { value: 'MAGASINIER', label: 'Magasinier' }
   ];
 
+  const normalizeRoleName = (value: string) => (value || '').replace(/^ROLE_/i, '').toUpperCase();
+
+  const roleCandidatesByType: Record<string, string[]> = {
+    SUPERADMIN: ['SUPERADMIN'],
+    ADMINISTRATEUR: ['ADMINISTRATEUR', 'ADMIN'],
+    GERANT_BOUTIQUE: ['GERANT_BOUTIQUE', 'GERANT', 'MANAGER'],
+    CAISSIER: ['CAISSIER'],
+    MAGASINIER: ['MAGASINIER']
+  };
+
+  const getRoleIdForType = (typeValue: string) => {
+    const candidates = roleCandidatesByType[typeValue] || [typeValue];
+    const match = roles.find((r: any) => candidates.includes(normalizeRoleName(r?.name || '')));
+    return match?.id;
+  };
+
   // Determine which type options are allowed to be shown based on current user's role
   const forbiddenTypes = new Set<string>();
   if (normalizedRoles.includes('SUPERADMIN')) {
@@ -204,6 +220,16 @@ const ListeUtilisateurs = () => {
     });
     setPhoneCodePays(null);
   };
+
+  useEffect(() => {
+    if (formData.id) return;
+    const roleId = getRoleIdForType(formData.typeUtilisateur);
+    if (!roleId) return;
+    const nextRoleId = String(roleId);
+    if (formData.roleIds.length !== 1 || formData.roleIds[0] !== nextRoleId) {
+      setFormData(prev => ({ ...prev, roleIds: [nextRoleId] }));
+    }
+  }, [formData.typeUtilisateur, roles, formData.id]);
 
   const isMountedRef = useRef(true);
 
@@ -353,6 +379,7 @@ const ListeUtilisateurs = () => {
       }
       
       setShowModal(false);
+      await Swal.fire('Succès', `Utilisateur ${isEdit ? 'modifié' : 'créé'} avec succès !`, 'success');
       setMessage(`Utilisateur ${isEdit ? 'modifié' : 'créé'} avec succès !`);
       resetForm();
       loadUsers();
@@ -722,7 +749,15 @@ const ListeUtilisateurs = () => {
                   <select
                     className="form-control"
                     value={formData.typeUtilisateur}
-                    onChange={(e) => setFormData({ ...formData, typeUtilisateur: e.target.value })}
+                    onChange={(e) => {
+                      const nextType = e.target.value;
+                      const roleId = getRoleIdForType(nextType);
+                      setFormData({
+                        ...formData,
+                        typeUtilisateur: nextType,
+                        roleIds: roleId ? [String(roleId)] : []
+                      });
+                    }}
                   >
                     {(() => {
                       const optionsToShow = [...filteredTypeOptions];
@@ -790,6 +825,7 @@ const ListeUtilisateurs = () => {
                   {roles.map(role => {
                     const assigned = formData.roleIds.includes(String(role.id));
                     const allowed = assignableRoleIds.length === 0 || assignableRoleIds.includes(role.id);
+                    const creationLocked = !formData.id;
                     return (
                       <div className="form-check" key={role.id}>
                         <input
@@ -797,8 +833,8 @@ const ListeUtilisateurs = () => {
                           type="checkbox"
                           id={`role-${role.id}`}
                           checked={assigned}
-                          onChange={() => handleRoleToggle(role.id)}
-                          disabled={!allowed && !assigned}
+                          onChange={() => !creationLocked && handleRoleToggle(role.id)}
+                          disabled={creationLocked || (!allowed && !assigned)}
                         />
                         <label className="form-check-label" htmlFor={`role-${role.id}`}>
                           {role.name}{!allowed && ' (non assignable)'}

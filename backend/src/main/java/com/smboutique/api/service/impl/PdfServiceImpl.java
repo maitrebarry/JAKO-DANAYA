@@ -89,8 +89,7 @@ public class PdfServiceImpl implements PdfService {
         CommandeFournisseur commande = commandeFournisseurService.findById(commandeId).orElse(null);
         if (commande == null) {
             log.warn("writeCommandePdf: commande {} not found", commandeId);
-            response.sendError(404, "Commande not found");
-            return;
+            throw new RuntimeException("Commande fournisseur non trouvée");
         }
 
         // Ne pas définir les headers PDF avant d'être certain que la génération réussit
@@ -253,7 +252,6 @@ public class PdfServiceImpl implements PdfService {
 
             try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
                 PdfRendererBuilder builder = new PdfRendererBuilder();
-                builder.useFastMode();
                 builder.withHtmlContent(html, null);
                 builder.toStream(baos);
                 builder.run();
@@ -268,16 +266,17 @@ public class PdfServiceImpl implements PdfService {
             log.error("writeCommandePdf error for id={} by {} : {}", commandeId, currentUser, e.getMessage(), e);
             try {
                 // Renvoyer un corps JSON explicite pour que le front affiche le détail
-                response.setStatus(500);
+                response.setStatus(400);
                 response.setContentType("application/json");
                 String msg = e.getMessage() != null ? e.getMessage() : "Erreur inconnue";
                 String body = "{\"error\":\"Erreur génération PDF commande fournisseur\",\"message\":\"" + msg.replace("\"", "\\\"") + "\"}";
-                byte[] bytes = body.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-                response.setHeader("Content-Length", String.valueOf(bytes.length));
-                response.getOutputStream().write(bytes);
-                response.getOutputStream().flush();
-            } catch (Exception ignore) {
-                // en dernier recours
+                response.setHeader("Content-Length", String.valueOf(body.length()));
+                response.getWriter().write(body);
+                response.getWriter().flush();
+                response.flushBuffer();
+            } catch (Exception responseException) {
+                log.error("Failed to set error response for PDF generation", responseException);
+                throw new RuntimeException("Erreur génération PDF: " + e.getMessage(), e);
             }
             return;
         }
@@ -876,15 +875,23 @@ public class PdfServiceImpl implements PdfService {
 
     @Override
     public void writeCommandeClientPdf(Long commandeId, HttpServletResponse response) throws IOException {
+        org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PdfServiceImpl.class);
+        String currentUser = "anonymous";
+        try {
+            if (org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication() != null) {
+                Object p = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+                try { currentUser = p == null ? "anonymous" : (p instanceof java.security.Principal ? ((java.security.Principal)p).getName() : p.toString()); } catch (Exception e) {}
+            }
+        } catch (Exception e) {}
+        log.info("writeCommandeClientPdf start for id={} by {}", commandeId, currentUser);
+
         // Similar to writeCommandePdf but use CommandeClient
         com.smboutique.api.model.CommandeClient commande = commandeClientService.findById(commandeId).orElse(null);
         if (commande == null) {
             response.sendError(404, "Commande client not found");
             return;
         }
-
-        response.setContentType("application/pdf");
-        response.setHeader("Content-Disposition", "attachment; filename=commande_client_" + commandeId + ".pdf");
+        // Ne pas définir les headers PDF avant d'être certain que la génération réussit
 
         try {
             ClassLoaderTemplateResolver templateResolver = new ClassLoaderTemplateResolver();
@@ -1031,6 +1038,11 @@ public class PdfServiceImpl implements PdfService {
             ctx.setVariable("lignesNormalized", lignesNorm);
 
             String html = templateEngine.process("commande_pdf", ctx);
+            try {
+                java.nio.file.Files.write(java.nio.file.Paths.get("/tmp/commande_client_" + commandeId + "_debug.html"), html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            } catch (Exception e) {
+                // ignore
+            }
 
             try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
                 PdfRendererBuilder builder = new PdfRendererBuilder();
@@ -1039,11 +1051,25 @@ public class PdfServiceImpl implements PdfService {
                 builder.toStream(baos);
                 builder.run();
                 byte[] pdfBytes = baos.toByteArray();
+                response.setContentType("application/pdf");
+                response.setHeader("Content-Disposition", "attachment; filename=commande_client_" + commandeId + ".pdf");
                 response.getOutputStream().write(pdfBytes);
             }
         } catch (Exception e) {
-            throw new IOException(e.getMessage());
+            log.error("writeCommandeClientPdf error for id={} by {} : {}", commandeId, currentUser, e.getMessage(), e);
+            try {
+                response.setStatus(500);
+                response.setContentType("application/json");
+                String msg = e.getMessage() != null ? e.getMessage() : "Erreur inconnue";
+                String body = "{\"error\":\"Erreur génération PDF commande client\",\"message\":\"" + msg.replace("\"", "\\\"") + "\"}";
+                byte[] bytes = body.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                response.setHeader("Content-Length", String.valueOf(bytes.length));
+                response.getOutputStream().write(bytes);
+                response.getOutputStream().flush();
+            } catch (Exception ignore) {}
+            return;
         }
+        log.info("writeCommandeClientPdf finished for id={} by {}", commandeId, currentUser);
     }
 
     @Override

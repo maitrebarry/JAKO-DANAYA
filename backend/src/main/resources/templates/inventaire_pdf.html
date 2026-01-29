@@ -44,7 +44,7 @@
     </div>
     <div class="meta-info">
         <div class="meta">Réf: <span th:text="${reference}"></span></div>
-    <div class="meta">Date: <span th:text="${dateInventaireFormatted != null ? dateInventaireFormatted : (inventaire != null && inventaire.dateInventaire != null ? inventaire.dateInventaire : '')}"></span></div>
+    <div class="meta">Date: <span th:text="${dateInventaireFormatted != null ? dateInventaireFormatted : (inventaire != null and inventaire.dateInventaire != null ? inventaire.dateInventaire : '')}"></span></div>
         <div class="meta">Par: <span th:text="${par}"></span></div>
     </div>
 </div>
@@ -65,7 +65,7 @@
         <td class="product" th:text="${li.produit != null ? (li.produit.nomProduit != null ? li.produit.nomProduit : li.produit.nom) : '-'}"></td>
         <td>
             <span th:text="${li.quantitePhysique != null ? #numbers.formatInteger(li.quantitePhysique,0) : 0}"></span>
-            <span th:text="${li.produit != null && li.produit.unite != null ? li.produit.unite.libelle : 'u'}"></span>
+            <span th:text="${li.produit != null and li.produit.unite != null ? li.produit.unite.libelle : 'u'}"></span>
             <br th:if="${li.produit != null and li.produit.nombreUnitesParConditionnement != null and li.produit.nombreUnitesParConditionnement > 0}"/>
             <small th:if="${li.produit != null and li.produit.nombreUnitesParConditionnement != null and li.produit.nombreUnitesParConditionnement > 0}">
                 (≈ <span th:text="${#numbers.formatInteger((li.quantitePhysique != null ? li.quantitePhysique : 0) / li.produit.nombreUnitesParConditionnement,0)}">0</span>

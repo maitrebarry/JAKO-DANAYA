@@ -136,6 +136,12 @@
         <artifactId>thymeleaf-spring6</artifactId>
         <version>3.1.1.RELEASE</version>
     </dependency>
+    <!-- OGNL for Thymeleaf expressions -->
+    <dependency>
+        <groupId>ognl</groupId>
+        <artifactId>ognl</artifactId>
+        <version>3.3.4</version>
+    </dependency>
   <!-- OpenHTMLToPDF -> render HTML+CSS to PDF via PDFBox -->
         <dependency>
             <groupId>com.openhtmltopdf</groupId>

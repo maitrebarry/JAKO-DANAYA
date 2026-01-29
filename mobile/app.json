@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "JÀGO DÁNAYA",
+    "slug": "jago-danaya-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "platforms": [
+      "android",
+      "ios"
+    ],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "android": {
+      "package": "com.jagodanana.mobile"
+    },
+    "ios": {
+      "bundleIdentifier": "com.jagodanana.mobile"
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
+  }
+}

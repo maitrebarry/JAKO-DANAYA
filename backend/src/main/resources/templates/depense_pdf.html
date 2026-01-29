@@ -39,11 +39,11 @@
 <div class="title">BON DE DÉPENSE</div>
 
 <div class="box">
-  <div><strong>Créée par:</strong> <span th:text="${createurNom != null && createurNom != '' ? createurNom : (depense.createurId != null ? '#'+depense.createurId : '-')}"></span></div>
-  <div th:if="${validatorNom != null && validatorNom != ''}"><strong>Validée par:</strong> <span th:text="${validatorNom}"></span> — <span th:text="${validatedAtFormatted}"></span></div>
-  <div th:if="${annuleParNom != null && annuleParNom != ''}"><strong>Annulée par:</strong> <span th:text="${annuleParNom}"></span> — <span th:text="${annuleAtFormatted}"></span> — <span th:text="${annuleReason}"></span></div>
+  <div><strong>Créée par:</strong> <span th:text="${createurNom != null and createurNom != '' ? createurNom : (depense.createurId != null ? '#'+depense.createurId : '-')}"></span></div>
+  <div th:if="${validatorNom != null and validatorNom != ''}"><strong>Validée par:</strong> <span th:text="${validatorNom}"></span> — <span th:text="${validatedAtFormatted}"></span></div>
+  <div th:if="${annuleParNom != null and annuleParNom != ''}"><strong>Annulée par:</strong> <span th:text="${annuleParNom}"></span> — <span th:text="${annuleAtFormatted}"></span> — <span th:text="${annuleReason}"></span></div>
 </div>
 
-<footer th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
+<footer th:text="${boutiqueNom != null and boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
 </body>
 </html>

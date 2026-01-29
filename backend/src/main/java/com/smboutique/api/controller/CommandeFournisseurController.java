@@ -187,6 +187,7 @@ public class CommandeFournisseurController {
 
     @GetMapping("/{id}/pdf")
     public void getCommandePdf(@PathVariable Long id, jakarta.servlet.http.HttpServletResponse response) {
+        logger.info("getCommandePdf called for id={}", id);
         // Diagnostic log: record principal and authentication presence
         try {
             java.security.Principal principal = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
@@ -219,8 +220,11 @@ public class CommandeFournisseurController {
                 }
             } catch (Exception ignore) {}
         } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(CommandeFournisseurController.class)
+                    .error("getCommandePdf error for id={}: {}", id, e.getMessage(), e);
             try {
                 if (!response.isCommitted()) {
+                    response.resetBuffer();
                     response.setStatus(500);
                     response.setContentType("application/json");
                     String msg = e.getMessage() != null ? e.getMessage() : "Erreur inconnue";

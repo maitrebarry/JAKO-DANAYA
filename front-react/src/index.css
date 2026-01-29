@@ -306,6 +306,23 @@ html[data-bs-theme="dark"] .breadcrumb-subtitle {
   color: var(--bs-body-color);
 }
 
+/* SweetAlert2 responsive popup */
+.swal2-popup {
+  max-width: 92vw;
+}
+
+@media (max-width: 576px) {
+  .swal2-popup {
+    width: 92% !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .swal2-popup {
+    width: 32em;
+  }
+}
+
 /* Fixed footer: ensure it stays at the bottom and adapts to dark theme */
 .footer.fixed-bottom {
   position: fixed;

@@ -29,7 +29,7 @@
         <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
     <div class="meta-info">
-        <div class="meta">Boutique: <span th:text="${boutiqueNom != null && boutiqueNom != '' ? boutiqueNom : 'Toutes'}"></span></div>
+        <div class="meta">Boutique: <span th:text="${boutiqueNom != null and boutiqueNom != '' ? boutiqueNom : 'Toutes'}"></span></div>
         <div class="meta">Généré le: <span th:text="${#dates.format(#dates.createNow(), 'dd/MM/yyyy HH:mm')}"></span></div>
     </div>
 </div>
