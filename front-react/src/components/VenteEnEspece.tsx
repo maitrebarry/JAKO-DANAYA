@@ -386,57 +386,61 @@ const VenteEnEspece: React.FC = () => {
                     <div className="card">
                       <div className="card-header bg-dark text-white">Produits Disponible</div>
                       <div className="card-body">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ minWidth: 'min(220px, 90vw)' }}>
-                            <select
-                              className="form-select form-select-sm" disabled={locationLocked}
-                              value={locationType === 'MAGASIN' ? `MAGASIN:${selectedMagasinId || ''}` : 'BOUTIQUE'}
-                              onChange={async (e) => {
-                                const val = e.target.value;
-                                if (val.startsWith('MAGASIN:')) {
-                                  const idVal = Number(val.split(':')[1]);
-                                  setLocationType('MAGASIN');
-                                  setSelectedMagasinId(idVal);
-                                  await fetchStocksByLocation('MAGASIN', idVal);
-                                } else {
-                                  setLocationType('BOUTIQUE');
-                                  setSelectedMagasinId(null);
-                                  await fetchStocksByLocation('BOUTIQUE');
-                                }
-                              }}
-                            >
-                              <option value="BOUTIQUE">Dépôt boutique</option>
-                              {magasins.map(m => (
-                                <option key={m.id} value={`MAGASIN:${m.id}`}>{`Magasin - ${m.nom}`}</option>
-                              ))}
-                            </select>
-                          </div>                          <RequirePermission permission="VENTE_EMPLACEMENT_MODIFIER">
-                            <div className="form-check form-switch ms-2">
-                              <input className="form-check-input" type="checkbox" id="unlock_location" checked={!locationLocked} onChange={async (e) => {
-                                const unlocked = e.target.checked;
-                                setLocationLocked(!unlocked);
-                                if (unlocked) {
-                                  // unlock -> default to first magasin if available
-                                  if (magasins && magasins.length > 0) {
+                        <div className="row gy-2 gx-3 align-items-end">
+                          <div className="col-12 col-sm-4">
+                            <div className="d-flex flex-column gap-2">
+                              <label className="form-label small mb-1 text-muted">Dépôt / Emplacement</label>
+                              <select
+                                className="form-select form-select-sm"
+                                disabled={locationLocked}
+                                value={locationType === 'MAGASIN' ? `MAGASIN:${selectedMagasinId || ''}` : 'BOUTIQUE'}
+                                onChange={async (e) => {
+                                  const val = e.target.value;
+                                  if (val.startsWith('MAGASIN:')) {
+                                    const idVal = Number(val.split(':')[1]);
                                     setLocationType('MAGASIN');
-                                    setSelectedMagasinId(magasins[0].id);
-                                    await fetchStocksByLocation('MAGASIN', magasins[0].id);
+                                    setSelectedMagasinId(idVal);
+                                    await fetchStocksByLocation('MAGASIN', idVal);
                                   } else {
                                     setLocationType('BOUTIQUE');
                                     setSelectedMagasinId(null);
                                     await fetchStocksByLocation('BOUTIQUE');
                                   }
-                                } else {
-                                  // lock back to boutique
-                                  setLocationType('BOUTIQUE');
-                                  setSelectedMagasinId(null);
-                                  await fetchStocksByLocation('BOUTIQUE');
-                                }
-                              }} />
-                              <label className="form-check-label small ms-2" htmlFor="unlock_location">Autoriser vente depuis magasin</label>
+                                }}
+                              >
+                                <option value="BOUTIQUE">Dépôt boutique</option>
+                                {magasins.map(m => (
+                                  <option key={m.id} value={`MAGASIN:${m.id}`}>{`Magasin - ${m.nom}`}</option>
+                                ))}
+                              </select>
+                              <RequirePermission permission="VENTE_EMPLACEMENT_MODIFIER">
+                                <div className="form-check form-switch">
+                                  <input className="form-check-input" type="checkbox" id="unlock_location" checked={!locationLocked} onChange={async (e) => {
+                                    const unlocked = e.target.checked;
+                                    setLocationLocked(!unlocked);
+                                    if (unlocked) {
+                                      if (magasins && magasins.length > 0) {
+                                        setLocationType('MAGASIN');
+                                        setSelectedMagasinId(magasins[0].id);
+                                        await fetchStocksByLocation('MAGASIN', magasins[0].id);
+                                      } else {
+                                        setLocationType('BOUTIQUE');
+                                        setSelectedMagasinId(null);
+                                        await fetchStocksByLocation('BOUTIQUE');
+                                      }
+                                    } else {
+                                      setLocationType('BOUTIQUE');
+                                      setSelectedMagasinId(null);
+                                      await fetchStocksByLocation('BOUTIQUE');
+                                    }
+                                  }} />
+                                  <label className="form-check-label small ms-2" htmlFor="unlock_location">Autoriser vente depuis magasin</label>
+                                </div>
+                              </RequirePermission>
                             </div>
-                          </RequirePermission>                          <div style={{ flex: 1 }}>
-                            <label className="form-label">Rechercher</label>
+                          </div>
+                          <div className="col-12 col-sm-8">
+                            <label className="form-label small mb-1 visually-hidden">Rechercher un produit</label>
                             <SearchableSelect
                               options={stocks.map(s => {
                                 const prodName = (s.produit && (s.produit.nomProduit || s.produit.nom)) || (`Stock ${s.id}`);
@@ -461,8 +465,6 @@ const VenteEnEspece: React.FC = () => {
                             />
                           </div>
                         </div>
-
-
                       </div>
                     </div>
                   </div>

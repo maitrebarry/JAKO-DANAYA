@@ -21,6 +21,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.time.format.DateTimeFormatter;
 
 @RestController
@@ -61,7 +63,7 @@ public class CommandeFournisseurController {
     private com.smboutique.api.repository.CaisseRepository caisseRepository;
 
     @Autowired
-    private com.smboutique.api.service.PdfService pdfService;
+    private com.smboutique.api.repository.ReceptionRepository receptionRepository;
 
     private Utilisateur getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -711,11 +713,27 @@ public class CommandeFournisseurController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCommandeFournisseur(@PathVariable Long id) {
+    public ResponseEntity<?> deleteCommandeFournisseur(@PathVariable Long id) {
         return commandeFournisseurService.findById(id)
                 .map(commandeFournisseur -> {
+                    // Check if there are any receptions for this commande
+                    List<Reception> receptions = receptionRepository.findByCommandeFournisseurId(id);
+                    if (!receptions.isEmpty()) {
+                        Map<String, Object> error = new HashMap<>();
+                        error.put("error", "Cannot delete commande fournisseur with existing receptions");
+                        error.put("receptionsCount", receptions.size());
+                        return ResponseEntity.badRequest().body(error);
+                    }
+                    // Check if any ligne has been received (quantiteLivre > 0)
+                    boolean hasReceivedItems = commandeFournisseur.getLignes().stream()
+                            .anyMatch(ligne -> ligne.getQuantiteLivre() != null && ligne.getQuantiteLivre() > 0);
+                    if (hasReceivedItems) {
+                        Map<String, Object> error = new HashMap<>();
+                        error.put("error", "Cannot delete commande fournisseur with received items");
+                        return ResponseEntity.badRequest().body(error);
+                    }
                     commandeFournisseurService.deleteById(id);
-                    return ResponseEntity.ok().<Void>build();
+                    return ResponseEntity.ok().build();
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

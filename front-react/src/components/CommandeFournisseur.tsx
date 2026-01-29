@@ -811,68 +811,67 @@ const CommandeFournisseur: React.FC = () => {
                       <h6>Produits disponibles</h6>
                     </div>
                     <div className="card-body">
-                      <div className="d-flex justify-content-between align-items-center mb-3" style={{ gap: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-                          <div style={{ minWidth: 'min(220px, 90vw)' }}>
-                            <select
-                              className="form-select form-select-sm"
-                              value={locationType === 'MAGASIN' ? `MAGASIN:${selectedMagasinId || ''}` : 'BOUTIQUE'}
-                              onChange={async (e) => {
-                                const val = e.target.value;
-                                if (val.startsWith('MAGASIN:')) {
-                                  const idVal = Number(val.split(':')[1]);
-                                  setLocationType('MAGASIN');
-                                  setSelectedMagasinId(idVal);
-                                  await fetchStocksByLocation('MAGASIN', idVal);
-                                } else {
-                                  setLocationType('BOUTIQUE');
-                                  setSelectedMagasinId(null);
-                                  await fetchStocksByLocation('BOUTIQUE');
-                                }
-                              }}
-                            >
-                              <option value="BOUTIQUE">Dépôt boutique</option>
-                              {magasins.map(m => (
-                                <option key={m.id} value={`MAGASIN:${m.id}`}>{`Magasin - ${m.nom}`}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div style={{ flex: 1 }}>
-                            <SearchableSelect
-                              options={stocks.map((stock) => {
-                                const mult = getProduitMultiplicateur(stock);
-                                const unitLabel = (stock?.produit as any)?.unite?.libelle ?? 'carton';
-                                const multLabel = mult > 1 ? ` - ${mult}u/${unitLabel}` : ''; 
-                                const price = stock.produit?.prixAchat ?? 0;
-                                return {
-                                  value: stock.id,
-                                  label: (() => {
+                      <div className="row gy-2 gx-3 align-items-end">
+                        <div className="col-12 col-sm-4">
+                          <label className="form-label small mb-1 text-muted">Dépôt / Emplacement</label>
+                          <select
+                            className="form-select form-select-sm"
+                            value={locationType === 'MAGASIN' ? `MAGASIN:${selectedMagasinId || ''}` : 'BOUTIQUE'}
+                            onChange={async (e) => {
+                              const val = e.target.value;
+                              if (val.startsWith('MAGASIN:')) {
+                                const idVal = Number(val.split(':')[1]);
+                                setLocationType('MAGASIN');
+                                setSelectedMagasinId(idVal);
+                                await fetchStocksByLocation('MAGASIN', idVal);
+                              } else {
+                                setLocationType('BOUTIQUE');
+                                setSelectedMagasinId(null);
+                                await fetchStocksByLocation('BOUTIQUE');
+                              }
+                            }}
+                          >
+                            <option value="BOUTIQUE">Dépôt boutique</option>
+                            {magasins.map(m => (
+                              <option key={m.id} value={`MAGASIN:${m.id}`}>{`Magasin - ${m.nom}`}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-12 col-sm-8">
+                          <label className="form-label small mb-1 visually-hidden">Sélectionner un produit</label>
+                          <SearchableSelect
+                            options={stocks.map((stock) => {
+                              const mult = getProduitMultiplicateur(stock);
+                              const unitLabel = (stock?.produit as any)?.unite?.libelle ?? 'carton';
+                              const multLabel = mult > 1 ? ` - ${mult}u/${unitLabel}` : ''; 
+                              const price = stock.produit?.prixAchat ?? 0;
+                              return {
+                                value: stock.id,
+                                label: (() => {
                                   const prodName = getProductDisplayName(stock);
                                   const mult = getProduitMultiplicateur(stock);
                                   const unitLabel = (stock?.produit as any)?.unite?.libelle ?? 'conditionnement';
                                   const multPart = mult && mult > 1 ? ` — 1 ${unitLabel} = ${mult} unités` : '';
                                   return `${prodName}${multLabel} - ${fmt(Number(price))} - ${stock.magasin?.nom || 'Dépôt boutique'}${multPart} — Stock : ${stock.quantiteDisponible || 0} unités`;
                                 })()
-                                };
-                              })}
-                              value={selectedStockOption}
-                              onChange={(val) => {
-                                // reflect the choice in the select briefly
-                                setSelectedStockOption(val);
-                                if (val !== null) {
-                                  handleProductSelect(String(val));
-                                  // reset selection to allow reselecting the same product later
-                                  setTimeout(() => setSelectedStockOption(null), 0);
-                                }
-                              }}
-                              placeholder="Sélectionner un produit"
-                              allowClear={true}
-                            />
-                          </div>
+                              };
+                            })}
+                            value={selectedStockOption}
+                            onChange={(val) => {
+                              setSelectedStockOption(val);
+                              if (val !== null) {
+                                handleProductSelect(String(val));
+                                setTimeout(() => setSelectedStockOption(null), 0);
+                              }
+                            }}
+                            placeholder="Sélectionner un produit"
+                            allowClear={true}
+                          />
                         </div>
-                        <button 
-                          className="btn btn-outline-secondary btn-sm ms-2" 
+                      </div>
+                      <div className="d-flex justify-content-end gap-2 mt-2">
+                        <button
+                          className="btn btn-outline-secondary btn-sm"
                           onClick={() => {
                             const keys = Object.keys(localStorage).filter(key => key.startsWith('lastPrice_'));
                             keys.forEach(key => localStorage.removeItem(key));
