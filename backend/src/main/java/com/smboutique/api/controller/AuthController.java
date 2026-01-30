@@ -65,6 +65,7 @@ public class AuthController {
         }
 
         try {
+            logger.info("Attempting authentication for email={}", loginRequest != null ? loginRequest.getEmail() : null);
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword()));
 
@@ -112,6 +113,7 @@ public class AuthController {
                     roles));
 
         } catch (org.springframework.security.authentication.BadCredentialsException ex) {
+            logger.warn("Bad credentials for email={}", loginRequest != null ? loginRequest.getEmail() : null);
             // Return a French message for bad credentials
             Map<String, Object> body = new HashMap<>();
             body.put("status", 401);
