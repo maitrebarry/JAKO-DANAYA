@@ -8,8 +8,8 @@
     // Local dev: keep explicit backend port.
     var apiHost = (host === 'localhost' || host === '127.0.0.1')
       ? 'http://localhost:8085'
-      // Production: default to same origin (reverse proxy) unless overridden.
-      : origin;
+      // Production: backend on different domain
+      : 'https://jako-danaya.onrender.com';
 
     window.APP_CONFIG = { API_BASE_URL: apiHost };
     console.info('[app-config] using API_BASE_URL=', window.APP_CONFIG.API_BASE_URL);

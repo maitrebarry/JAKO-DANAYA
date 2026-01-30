@@ -442,6 +442,22 @@ public class CommandeFournisseurController {
                                             stockRepository.findById(stockId).ifPresent(stock -> {
                                                 Integer currentQty = stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0;
 
+                                                // Ensure costAverage is initialized when adding stock
+                                                if (stock.getCostAverage() == null) {
+                                                    java.math.BigDecimal purchaseUnitPrice = null;
+                                                    if (existing.getNewPrice() != null) {
+                                                        purchaseUnitPrice = java.math.BigDecimal.valueOf(existing.getNewPrice());
+                                                    } else if (stock.getLastPurchasePrice() != null) {
+                                                        purchaseUnitPrice = stock.getLastPurchasePrice();
+                                                    } else if (stock.getProduit() != null && stock.getProduit().getPrixAchat() != null) {
+                                                        purchaseUnitPrice = java.math.BigDecimal.valueOf(stock.getProduit().getPrixAchat());
+                                                    }
+                                                    if (purchaseUnitPrice == null) {
+                                                        throw new IllegalArgumentException("Impossible de réceptionner : prix d'achat inconnu pour ce produit. Veuillez renseigner un prix d'achat ou prix sur la ligne de commande.");
+                                                    }
+                                                    stock.setCostAverage(purchaseUnitPrice);
+                                                }
+
                                                 // Create a Reception wrapper for this batch if not already created for this request
                                                 // We'll create one Reception per API call linked to the commande
                                                 Reception reception = new Reception();
@@ -489,7 +505,7 @@ public class CommandeFournisseurController {
                         CommandeFournisseur updated = commandeFournisseurService.save(cmd);
                         return ResponseEntity.ok(updated);
                     } catch (IllegalArgumentException ex) {
-                        return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST).body((CommandeFournisseur) null);
+                        return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST).header("X-Error-Message", ex.getMessage()).body((CommandeFournisseur) null);
                     }
                 })
                 .orElse(ResponseEntity.notFound().build());

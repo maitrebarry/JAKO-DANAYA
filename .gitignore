@@ -42,3 +42,4 @@ front-react/tsconfig.tsbuildinfo
 
 # Misc
 .DS_Store
+backend/src/main/resources/application-local.yml
