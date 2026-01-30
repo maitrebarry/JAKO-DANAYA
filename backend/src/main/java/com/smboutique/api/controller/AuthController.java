@@ -18,6 +18,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -29,6 +31,8 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = "*")
 public class AuthController {
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     @Autowired
     AuthenticationManager authenticationManager;
@@ -126,6 +130,13 @@ public class AuthController {
             body.put("error", "Non autorisé");
             body.put("message", "Erreur d'authentification");
             return ResponseEntity.status(401).body(body);
+        } catch (Throwable ex) {
+            logger.error("Unexpected error during authentication for email={}", loginRequest != null ? loginRequest.getEmail() : null, ex);
+            Map<String, Object> body = new HashMap<>();
+            body.put("status", 500);
+            body.put("error", "Internal Server Error");
+            body.put("message", "Erreur interne du serveur");
+            return ResponseEntity.status(500).body(body);
         }
     }
 
