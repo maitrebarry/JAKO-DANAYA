@@ -29,13 +29,21 @@ public class JwtUtils {
 
     public String generateJwtToken(Authentication authentication) {
         UserDetails userPrincipal = (UserDetails) authentication.getPrincipal();
-
-        return Jwts.builder()
-                .setSubject((userPrincipal.getUsername()))
-                .setIssuedAt(new Date())
-                .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
-                .compact();
+        try {
+            return Jwts.builder()
+                    .setSubject((userPrincipal.getUsername()))
+                    .setIssuedAt(new Date())
+                    .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
+                    .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                    .compact();
+        } catch (IllegalArgumentException e) {
+            // Likely caused by invalid/short jwtSecret
+            logger.error("Invalid JWT signing key (length={}), jwt.secret may be misconfigured", jwtSecret != null ? jwtSecret.length() : 0, e);
+            throw e;
+        } catch (Exception e) {
+            logger.error("Unexpected error while generating JWT for user={}", userPrincipal != null ? userPrincipal.getUsername() : null, e);
+            throw e;
+        }
     }
 
     public String generateTokenFromUsername(String username) {
