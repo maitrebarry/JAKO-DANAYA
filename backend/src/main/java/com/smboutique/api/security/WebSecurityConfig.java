@@ -96,19 +96,6 @@ public class WebSecurityConfig {
     }
 
     @Bean
-    @ConditionalOnProperty(name = {"GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"})
-    public ClientRegistrationRepository clientRegistrationRepository(Environment environment) {
-        String clientId = environment.getProperty("GOOGLE_CLIENT_ID", "").trim();
-        String clientSecret = environment.getProperty("GOOGLE_CLIENT_SECRET", "").trim();
-        ClientRegistration google = CommonOAuth2Provider.GOOGLE.getBuilder("google")
-            .clientId(clientId)
-            .clientSecret(clientSecret)
-            .build();
-
-        return new InMemoryClientRegistrationRepository(google);
-    }
-
-    @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(Arrays.asList("*"));
