@@ -17,7 +17,8 @@ public class JwtUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
 
-    private String jwtSecret = "votreSecretSuperSecureTresLongAuMoins256BitsChangezEnProduction";
+    @Value("${jwt.secret:votreSecretSuperSecureTresLongAuMoins256BitsChangezEnProduction}")
+    private String jwtSecret;
 
     @Value("${app.jwt.expiration:86400000}") // 24 hours
     private int jwtExpirationMs;
