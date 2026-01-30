@@ -19,10 +19,26 @@ spring:
         jdbc:
           time_zone: UTC
 
+# Server config for proxy handling
+server:
+  forward-headers-strategy: framework
+
 # Frontend base for production
 app:
   frontend:
     base-url: ${APP_FRONTEND_BASE_URL:https://jakodanaya.onrender.com}
+
+# OAuth2 Google configuration for production
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: openid,profile,email
+            redirect-uri: https://jakodanaya.onrender.com/login/oauth2/code/google
 
 management:
   endpoints:

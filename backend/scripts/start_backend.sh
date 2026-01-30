@@ -79,6 +79,8 @@ if [ ! -w "$LOG_DIR" ]; then
 fi
 
 echo "Starting backend jar... (logs at $LOG_FILE)"
+# Set OAuth2 redirect URI for local development
+export APP_OAUTH2_REDIRECT_URI=http://localhost:8085/login/oauth2/code/google
 nohup java -jar target/backend-0.0.1-SNAPSHOT.jar > "$LOG_FILE" 2>&1 &
 PID=$!
 # write pid for easier stop
