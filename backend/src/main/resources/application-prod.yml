@@ -27,7 +27,7 @@ spring:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
             scope: openid,profile,email
-            redirect-uri: https://jakodanaya.onrender.com/login/oauth2/code/google
+            redirect-uri: https://jako-danaya.onrender.com/login/oauth2/code/google
 
 # Server config for proxy handling
 server:
