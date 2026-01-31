@@ -45,12 +45,21 @@ public class AuthTokenFilter extends OncePerRequestFilter {
             if (jwt != null) {
                 String reason = jwtUtils.validateJwtTokenWithMessage(jwt);
                 if (reason == null) {
-                    String username = jwtUtils.getUserNameFromJwtToken(jwt);
+                    String username = null;
+                    try {
+                        username = jwtUtils.getUserNameFromJwtToken(jwt);
+                    } catch (Exception ex) {
+                        // Log and mark token as invalid to prevent propagation of parsing exceptions
+                        String shortToken = jwt.length() > 10 ? jwt.substring(0,10) + "..." : jwt;
+                        log.warn("Failed to extract username from JWT for request {} {} - tokenStartsWith={} - error={}", request.getMethod(), request.getRequestURI(), shortToken, ex.getMessage(), ex);
+                    }
 
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                    UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    if (username != null) {
+                        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                        UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
 
                     // Check that the user account is enabled before accepting the token
                     if (!userDetails.isEnabled()) {
@@ -73,6 +82,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                         java.util.Collection<?> auths = userDetails.getAuthorities();
                         log.debug("User {} authorities: {}", username, auths);
                     } catch (Exception ignore) {}
+                    }
                 } else {
                     String shortToken = jwt.length() > 10 ? jwt.substring(0,10) + "..." : jwt;
                     log.warn("JWT validation failed for request {} {} - tokenStartsWith={} - reason={}", request.getMethod(), request.getRequestURI(), shortToken, reason);
@@ -83,11 +93,11 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                 if ((uri != null && uri.startsWith("/api/documents")) && (headerAuth == null || !headerAuth.startsWith("Bearer ")) && !"OPTIONS".equalsIgnoreCase(request.getMethod())) {
                     log.warn("Document endpoint requested without Bearer Authorization header: {} {}", request.getMethod(), uri);
                 } else {
-                    logger.debug("Authorization header missing or not a Bearer token for request " + request.getMethod() + " " + uri);
+                    log.debug("Authorization header missing or not a Bearer token for request {} {}", request.getMethod(), uri);
                 }
             }
         } catch (Exception e) {
-            logger.error("Cannot set user authentication", e);
+            log.error("Cannot set user authentication", e);
         }
 
         filterChain.doFilter(request, response);
