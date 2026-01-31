@@ -118,7 +118,7 @@ const SignIn = () => {
                   lineHeight: '1',
                   whiteSpace: 'nowrap'
                 }}>
-                  JÀGO DÁNAYA
+                  JÀGO DÁNNAYA
                 </span>
               </div>
               <div className="card-body p-4">

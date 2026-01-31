@@ -30,6 +30,17 @@ public class LegacyAuthForwardController {
         String context = request.getContextPath();
         String path = uri.substring(context.length());
         String target = "/api" + path; // /api/auth/login
+
+        // If this is a browser navigation (GET), redirect to the application root so the SPA can handle the route.
+        // Forwarding GET requests to the API causes 405 Method Not Supported when the API only expects POST.
+        if ("GET".equalsIgnoreCase(request.getMethod())) {
+            logger.debug("Redirecting legacy auth GET [{}] -> / (let SPA handle it)", path);
+            // preserve context path if present
+            String redirectTo = context != null && !context.isEmpty() ? context + "/" : "/";
+            response.sendRedirect(redirectTo);
+            return;
+        }
+
         logger.debug("Forwarding legacy auth request [{}] -> [{}]", path, target);
         request.getRequestDispatcher(target).forward(request, response);
     }

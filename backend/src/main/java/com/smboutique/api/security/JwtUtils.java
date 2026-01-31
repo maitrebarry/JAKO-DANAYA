@@ -95,4 +95,20 @@ public class JwtUtils {
             return "error: " + e.getMessage();
         }
     }
+
+    @jakarta.annotation.PostConstruct
+    public void validateSigningKey() {
+        try {
+            SecretKey key = getSigningKey();
+            // Try a quick sign to ensure the key is acceptable to the library
+            Jwts.builder().setSubject("_check_").signWith(key, SignatureAlgorithm.HS256).compact();
+            logger.info("JWT signing key validated (length={})", jwtSecret != null ? jwtSecret.length() : 0);
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid JWT signing key (length={}), jwt.secret may be misconfigured", jwtSecret != null ? jwtSecret.length() : 0, e);
+            throw new IllegalStateException("Invalid jwt.secret: " + e.getMessage(), e);
+        } catch (Exception e) {
+            logger.error("Unexpected error validating JWT signing key", e);
+            throw new IllegalStateException("Unable to validate jwt.secret: " + e.getMessage(), e);
+        }
+    }
 }
