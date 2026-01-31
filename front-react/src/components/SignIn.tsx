@@ -24,6 +24,23 @@ const SignIn = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Ensure the SignIn page respects the user's stored theme preference
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('__D_THEME__');
+      const html = document.documentElement;
+      if (stored === 'dark') {
+        html.setAttribute('data-bs-theme', 'dark');
+        html.setAttribute('data-topbar-color', 'dark');
+      } else {
+        html.setAttribute('data-bs-theme', 'light');
+        html.setAttribute('data-topbar-color', 'light');
+      }
+    } catch (e) {
+      // ignore (server-side rendering or restricted storage)
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);

@@ -90,6 +90,51 @@
   margin: 0 auto;
 }
 
+/* Dark theme overrides for the login page */
+html[data-bs-theme="dark"] .account-pages::before {
+  background: linear-gradient(rgba(0,0,0,0.72), rgba(0,0,0,0.72));
+}
+
+html[data-bs-theme="dark"] .account-pages {
+  /* keep background image but darken it more */
+  background-color: #0b1220;
+}
+
+html[data-bs-theme="dark"] .account-pages .card {
+  background-color: rgba(18,18,18,0.92);
+  color: #e9ecef;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.6);
+  border: 1px solid rgba(255,255,255,0.04);
+}
+
+html[data-bs-theme="dark"] .account-pages .card h4,
+html[data-bs-theme="dark"] .account-pages .card p,
+html[data-bs-theme="dark"] .account-pages .card .form-label {
+  color: #e9ecef;
+}
+
+html[data-bs-theme="dark"] .account-pages .form-control {
+  background-color: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.08);
+  color: #fff;
+}
+
+html[data-bs-theme="dark"] .account-pages .form-control::placeholder {
+  color: rgba(255,255,255,0.6);
+}
+
+html[data-bs-theme="dark"] .account-pages .btn.btn-primary {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+html[data-bs-theme="dark"] .account-pages .btn.btn-outline-secondary {
+  color: #e9ecef;
+  border-color: rgba(255,255,255,0.08);
+  background-color: transparent;
+}
+
+
 .brand-title {
   display: inline-block;
   background: linear-gradient(45deg, #007bff, #6610f2);

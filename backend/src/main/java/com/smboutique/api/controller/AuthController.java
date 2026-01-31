@@ -210,8 +210,11 @@ public class AuthController {
             String publicPath = "/uploads/user_photo/" + original;
             utilisateur.setAvatar(publicPath);
             utilisateurRepository.save(utilisateur);
+            // Log saved avatar path for debugging in production
+            logger.info("Saved avatar for user {} -> {}", utilisateur.getId(), dest.toAbsolutePath().toString());
             return ResponseEntity.ok(Map.of("avatar", publicPath));
         } catch (Exception ex) {
+            logger.error("Failed to save avatar for user: {} - error: {}", utilisateur != null ? utilisateur.getId() : null, ex.getMessage(), ex);
             return ResponseEntity.status(500).body(Map.of("error", "Impossible d'enregistrer le fichier"));
         }
     }
