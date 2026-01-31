@@ -973,12 +973,51 @@ public class PdfServiceImpl implements PdfService {
                 if (commande.getLignes() != null) {
                     for (com.smboutique.api.model.LigneCommandeClient l : commande.getLignes()) {
                         java.util.Map<String,Object> m = new java.util.HashMap<>();
-                        m.put("designation", null);
+                        // Determine designation safely: prefer product name, otherwise attempt reflective getter if available
+                        String designation = null;
+                        try {
+                            if (l.getProduit() != null && l.getProduit().getNomProduit() != null) designation = l.getProduit().getNomProduit();
+                            else {
+                                try {
+                                    java.lang.reflect.Method gd = l.getClass().getMethod("getDesignation");
+                                    Object gdv = gd.invoke(l);
+                                    if (gdv != null) designation = gdv.toString();
+                                } catch (NoSuchMethodException ignore) {}
+                            }
+                        } catch (Exception ignore) { }
+                        m.put("designation", designation);
                         m.put("quantiteConditionnement", l.getQuantiteConditionnement());
                         m.put("quantite", l.getQuantite());
-                        m.put("price", null);
+                        // Use newPrice as the effective unit price when present; fall back to product prixDetail/prixEnGros if available
+                        Integer unitPrice = 0;
+                        try {
+                            if (l.getNewPrice() != null) unitPrice = l.getNewPrice();
+                            else if (l.getProduit() != null && l.getProduit().getPrixDetail() != null) unitPrice = l.getProduit().getPrixDetail();
+                            else if (l.getProduit() != null && l.getProduit().getPrixEnGros() != null) unitPrice = l.getProduit().getPrixEnGros();
+                        } catch (Exception ex) {
+                            // Defensive: if any accessor is missing at runtime, fall back to 0
+                            unitPrice = 0;
+                        }
+                        m.put("price", unitPrice);
                         m.put("newPrice", l.getNewPrice());
-                        m.put("montant", null);
+
+                        // Compute line montant = unitPrice * quantity (quantity in units)
+                        int qty = l.getQuantite() != null ? l.getQuantite() : 0;
+                        int montantVal = unitPrice * qty;
+                        // If the Ligne object has an explicit getter getMontant(), prefer it (use reflection safely)
+                        try {
+                            java.lang.reflect.Method gm = l.getClass().getMethod("getMontant");
+                            Object gmv = gm.invoke(l);
+                            if (gmv instanceof Number) {
+                                montantVal = ((Number) gmv).intValue();
+                            }
+                        } catch (NoSuchMethodException ignore) {
+                            // nothing
+                        } catch (Exception ex) {
+                            // log and continue with computed montant
+                            org.slf4j.LoggerFactory.getLogger(PdfServiceImpl.class).warn("Unable to read montant via reflection for ligne: {}", ex.getMessage());
+                        }
+                        m.put("montant", montantVal);
 
                         java.util.Map<String,Object> stock = new java.util.HashMap<>();
                         java.util.Map<String,Object> produitMap = new java.util.HashMap<>();
