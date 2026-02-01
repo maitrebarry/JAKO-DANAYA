@@ -24,12 +24,20 @@ interface Stock {
     // number of base units per conditionnement (e.g., carton = 12)
     nombreUnitesParConditionnement?: number;
   };
-  magasin: {
-    id: number;
-    nom: string;
-    adresse: string;
+  magasin?: {
+    id?: number;
+    nom?: string;
+    // some APIs return 'nomMagasin' or 'magasinId' historically
+    nomMagasin?: string;
+    magasinId?: number;
+    adresse?: string;
   };
-}
+  boutique?: {
+    id?: number;
+    nom?: string;
+    adresse?: string;
+  };
+} 
 
 interface Fournisseur {
   id: number;
@@ -50,6 +58,7 @@ interface CartItem {
   multiplicateur?: number; // cached nombre d'unités par conditionnement
   prix: number;
   montant: number;
+  depot?: string;
 } 
 
 const CommandeFournisseur: React.FC = () => {
@@ -258,10 +267,19 @@ const CommandeFournisseur: React.FC = () => {
         if (mags && mags.length > 0) {
           setLocationType('MAGASIN');
           setSelectedMagasinId(mags[0].id);
-          await fetchStocksByLocation('MAGASIN', mags[0].id);
+          const initialStocks = await fetchStocksByLocation('MAGASIN', mags[0].id);
+          // If editing, eagerly load the commande using the freshly fetched stocks to ensure depot resolution
+          if (id) {
+            setIsEditMode(true);
+            await fetchCommandeForEdit(parseInt(id), initialStocks || stocks);
+          }
         } else {
           setLocationType('BOUTIQUE');
-          await fetchStocksByLocation('BOUTIQUE');
+          const initialStocks = await fetchStocksByLocation('BOUTIQUE');
+          if (id) {
+            setIsEditMode(true);
+            await fetchCommandeForEdit(parseInt(id), initialStocks || stocks);
+          }
         }
 
         await fetchFournisseurs();
@@ -271,10 +289,6 @@ const CommandeFournisseur: React.FC = () => {
         const pad = (n: number) => n.toString().padStart(2, '0');
         const localDt = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
         setDateCommande(localDt);
-        if (id) {
-          setIsEditMode(true);
-          await fetchCommandeForEdit(parseInt(id), stocks);
-        }
       } catch (err: any) {
         setError(err.message || 'Erreur inconnue');
       } finally {
@@ -337,7 +351,17 @@ const CommandeFournisseur: React.FC = () => {
           const venteParConditionnement = savedQuantiteConditionnement !== undefined && savedQuantiteConditionnement > 0;
           const qCond = savedQuantiteConditionnement || 1;
 
-          return { uid: uidVal, id_stock: stockId || null, ligneId: l.id || null, produitId: l.produit?.id || null, nom: nomProduit, quantite: quantite, prix, montant: prix * quantite, multiplicateur, venteParConditionnement, quantiteConditionnement: venteParConditionnement ? qCond : undefined };
+          const computedDepot = (() => {
+            if (stockInfo) {
+              if (locationType === 'MAGASIN' && stockInfo.magasin) return stockInfo.magasin.nom;
+              if (locationType === 'BOUTIQUE' && stockInfo.boutique) return stockInfo.boutique.nom;
+              if (stockInfo.magasin) return stockInfo.magasin.nom;
+              if (stockInfo.boutique) return stockInfo.boutique.nom;
+            }
+            return l.depot || '';
+          })();
+
+          return { uid: uidVal, id_stock: stockId || null, ligneId: l.id || null, produitId: l.produit?.id || null, nom: nomProduit, quantite: quantite, prix, montant: prix * quantite, multiplicateur, venteParConditionnement, quantiteConditionnement: venteParConditionnement ? qCond : undefined, depot: computedDepot };
         });
         setCart(loadedCart);
       }
@@ -410,6 +434,7 @@ const CommandeFournisseur: React.FC = () => {
       const defaultVenteParConditionnement = multiplicateur > 1;
       const initialQuantiteConditionnement = 1;
       const initialQuantiteUnits = (multiplicateur && multiplicateur > 0) ? (multiplicateur * initialQuantiteConditionnement) : 1;
+      const depotName = (locationType === 'MAGASIN') ? (magasins.find(m => m.id === selectedMagasinId)?.nom || '') : (currentBoutique?.nom || '');
       const newItem: CartItem = {
         uid: nextUid(),
         id_stock: stock.id,
@@ -422,7 +447,8 @@ const CommandeFournisseur: React.FC = () => {
         multiplicateur: multiplicateur,
         // Default to conditionnement for achats, unit for ventes
         venteParConditionnement: defaultVenteParConditionnement,
-        quantiteConditionnement: initialQuantiteConditionnement
+        quantiteConditionnement: initialQuantiteConditionnement,
+        depot: depotName
       };
 
       setCart(prev => [...prev, newItem]);
@@ -520,7 +546,7 @@ const CommandeFournisseur: React.FC = () => {
   // Dev-only: log cart snapshot on changes to trace unexpected cross-updates
   useEffect(() => {
     if (process.env.NODE_ENV !== 'production') {
-      console.debug('Cart snapshot:', cart.map(i => ({ uid: i.uid, id_stock: i.id_stock, produitId: i.produitId, quantite: i.quantite, qCond: i.quantiteConditionnement })));
+      console.debug('Cart snapshot:', cart.map(i => ({ uid: i.uid, id_stock: i.id_stock, produitId: i.produitId, quantite: i.quantite, qCond: i.quantiteConditionnement, depot: i.depot })));
     }
   }, [cart]);
 
@@ -843,17 +869,16 @@ const CommandeFournisseur: React.FC = () => {
                             options={stocks.map((stock) => {
                               const mult = getProduitMultiplicateur(stock);
                               const unitLabel = (stock?.produit as any)?.unite?.libelle ?? 'carton';
-                              const multLabel = mult > 1 ? ` - ${mult}u/${unitLabel}` : ''; 
+                              const multLabel = mult > 1 ? ` - ${mult}u/${unitLabel}` : '';
                               const price = stock.produit?.prixAchat ?? 0;
+                              const prodName = getProductDisplayName(stock);
+                              const multPart = (mult && mult > 1) ? ` — 1 ${(stock?.produit as any)?.unite?.libelle ?? 'conditionnement'} = ${mult} unités` : '';
+                              const depotLabel = (locationType === 'MAGASIN') ? (stock.magasin?.nom || stock.magasin?.nomMagasin || String(stock.magasin?.magasinId || '') || 'Dépôt magasin') : (currentBoutique?.nom || stock.boutique?.nom || 'Dépôt boutique');
+
                               return {
                                 value: stock.id,
-                                label: (() => {
-                                  const prodName = getProductDisplayName(stock);
-                                  const mult = getProduitMultiplicateur(stock);
-                                  const unitLabel = (stock?.produit as any)?.unite?.libelle ?? 'conditionnement';
-                                  const multPart = mult && mult > 1 ? ` — 1 ${unitLabel} = ${mult} unités` : '';
-                                  return `${prodName}${multLabel} - ${fmt(Number(price))} - ${stock.magasin?.nom || 'Dépôt boutique'}${multPart} — Stock : ${stock.quantiteDisponible || 0} unités`;
-                                })()
+                                label: `${prodName}${multLabel} - ${fmt(Number(price))}${multPart} — Stock : ${stock.quantiteDisponible || 0} unités`,
+                                depot: depotLabel
                               };
                             })}
                             value={selectedStockOption}
@@ -896,7 +921,10 @@ const CommandeFournisseur: React.FC = () => {
                                     <small className="text-muted">{fmt(Number(stock.produit?.prixAchat ?? 0))}</small>
                                   </div>
                                   <div>
-                                    <span className="badge bg-primary me-1">{stock.magasin?.nom || 'Dépôt boutique'}</span>
+                                    {(() => {
+                                      const depotLabel = (locationType === 'MAGASIN') ? (stock.magasin?.nom || stock.magasin?.nomMagasin || String(stock.magasin?.magasinId || '') || 'Dépôt magasin') : (currentBoutique?.nom || stock.boutique?.nom || 'Dépôt boutique');
+                                      return <span className="badge bg-primary me-1">{depotLabel}</span>;
+                                    })()}
                                     <span className="badge bg-danger">
                                       Stock: {stock.quantiteDisponible ?? 0}
                                     </span>

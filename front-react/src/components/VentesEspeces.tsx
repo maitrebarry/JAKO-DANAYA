@@ -5,6 +5,7 @@ import { useUser } from '../contexts/UserContext';
 import useHasPermission from '../contexts/useHasPermission';
 import { formatServerDate } from '../utils/date';
 import { API, withApi } from '../config/api';
+import { useFormatMoney } from '../utils/currency';
 
 interface Item {
   id: number;
@@ -23,6 +24,7 @@ interface Item {
 
 const VentesEspeces: React.FC = () => {
   const { currentBoutique, logout } = useUser();
+  const fmt = useFormatMoney();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -184,7 +186,7 @@ const VentesEspeces: React.FC = () => {
                   <td>{formatServerDate((it as any).dateIso || it.date || '')}</td>
                   <td>{it.client ?? it.fournisseur}</td>
                   <td>{it.responsable ?? '-'}</td>
-                  <td>{it.montant != null ? it.montant.toFixed(0) : '-'}</td>
+                  <td>{it.montant != null ? fmt(it.montant) : '-'}</td>
                   <td>
                     <button className={`btn btn-sm btn-outline-primary me-1 ${((it.type === 'VENTE') || it.referenceCommandeId) ? '' : 'disabled'}`} title={((it.type === 'VENTE') || it.referenceCommandeId) ? 'Aperçu' : 'Détail indisponible'} onClick={() => {
                       if (it.type === 'VENTE') {

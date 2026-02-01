@@ -5,6 +5,7 @@ import SearchableSelect from './SearchableSelect';
 import RequirePermission from './RequirePermission';
 import { useFormatMoney } from '../utils/currency';
 import { API } from '../config/api';
+import { useUser } from '../contexts/UserContext';
 
 interface Line {
   id_stock?: number;
@@ -34,6 +35,8 @@ const VenteEnEspece: React.FC = () => {
   const [selectedMagasinId, setSelectedMagasinId] = useState<number | null>(null);
   // By default sales occur in the boutique and the emplacement is locked; certain users can unlock
   const [locationLocked, setLocationLocked] = useState<boolean>(true);
+
+  const { currentBoutique } = useUser();
 
   const fetchMagasins = async () => {
     try {
@@ -457,7 +460,8 @@ const VenteEnEspece: React.FC = () => {
                                   const fullPart = full > 0 ? `${full} carton${full > 1 ? 's' : ''} + ` : '';
                                   return `${u} unités (${fullPart}${openPart})`;
                                 })();
-                                return { value: String(s.id), label: `${prodName}${multPart} - ${s.magasin?.nom || 'Dépôt boutique'} — Stock : ${packagingLabel}` }; 
+                                const depotLabel = (locationType === 'MAGASIN') ? (s.magasin?.nom || s.magasin?.nomMagasin || String(s.magasin?.magasinId || '') || 'Dépôt magasin') : (currentBoutique?.nom || s.boutique?.nom || 'Dépôt boutique');
+                                return { value: String(s.id), label: `${prodName}${multPart} — Stock : ${packagingLabel}`, depot: depotLabel };
                               })}
                               value={null}
                               onChange={(v) => handleProductSelect(v as string)}

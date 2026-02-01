@@ -275,7 +275,7 @@ const UtilisationForm: React.FC<Props> = ({ onSuccess, onClose, editing }) => {
                       const fullPart = full > 0 ? `${full} carton${full > 1 ? 's' : ''} + ` : '';
                       return `${u} unités (${fullPart}${openPart})`;
                     })();
-                    const loc = s.magasin?.nom || 'Boutique';
+                    const loc = s.magasin?.nom || s.magasin?.nomMagasin || s.magasinId || 'Boutique';
                     return { value: String(s.id), label: `${prodName}${multPart} — ${loc} — Stock : ${packagingLabel}` };
                   })}
                   value={selectedStockId}
@@ -298,7 +298,7 @@ const UtilisationForm: React.FC<Props> = ({ onSuccess, onClose, editing }) => {
               {selectedStock && (
                 <div className="mb-2">
                   <div><strong>Produit sélectionné :</strong> {selectedStock.produit?.nomProduit || selectedStock.produit?.nom || `Stock ${selectedStock.id}`}</div>
-                  <div className="small text-muted">Stock disponible : {selectedStock.quantiteDisponible ?? 0} — Emplacement : {selectedStock.magasin?.nom || 'Boutique'}</div>
+                  <div className="small text-muted">Stock disponible : {selectedStock.quantiteDisponible ?? 0} — Emplacement : {selectedStock.magasin?.nom || selectedStock.magasin?.nomMagasin || selectedStock.magasinId || 'Boutique'}</div>
                 </div>
               )}
 

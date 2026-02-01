@@ -313,6 +313,19 @@ public class PdfServiceImpl implements PdfService {
         log.info("writeHtmlPdf finished for {} by {}", filename, currentUser);
     }
 
+    private String sanitizeCurrencySymbol(String s) {
+        try {
+            if (s == null) return "FCFA";
+            String t = s.trim();
+            // Remove any leading/trailing colons or placeholder text
+            t = t.replace(":", "").trim();
+            if (t.isEmpty() || "devisesymbole".equalsIgnoreCase(t) || "deviseSymbole".equalsIgnoreCase(t)) return "FCFA";
+            return t;
+        } catch (Exception e) {
+            return "FCFA";
+        }
+    }
+
     @Override
     public void writeRapportVentesPdf(String filename, java.time.LocalDate from, java.time.LocalDate to, Long boutiqueId, jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
         var data = rapportService.ventes(from, to, boutiqueId);
@@ -394,6 +407,7 @@ public class PdfServiceImpl implements PdfService {
             ctx.setVariable("boutiqueNom", boutiqueNom);
             ctx.setVariable("boutiqueTelephone", boutiqueTelephone);
             ctx.setVariable("boutiqueAdresse", boutiqueAdresse);
+            deviseSymbole = sanitizeCurrencySymbol(deviseSymbole);
             ctx.setVariable("deviseSymbole", deviseSymbole);
         }
 
@@ -626,6 +640,7 @@ public class PdfServiceImpl implements PdfService {
 
     @Override
     public void writeReceptionPdf(Long receptionId, HttpServletResponse response) throws IOException {
+        org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PdfServiceImpl.class);
         // Build template context for reception
         com.smboutique.api.model.Reception reception = null;
         try {
@@ -637,9 +652,6 @@ public class PdfServiceImpl implements PdfService {
             response.sendError(404, "Reception not found");
             return;
         }
-
-        response.setContentType("application/pdf");
-        response.setHeader("Content-Disposition", "attachment; filename=reception_" + receptionId + ".pdf");
 
         try {
             ClassLoaderTemplateResolver templateResolver = new ClassLoaderTemplateResolver();
@@ -666,7 +678,8 @@ public class PdfServiceImpl implements PdfService {
                     }
                 }
             } catch (Exception ex) {
-                // ignore
+                // ignore but log for diagnostics
+                log.warn("Failed to read boutique logo for reception {}: {}", receptionId, ex.getMessage());
             }
             ctx.setVariable("logoBase64", logoData);
 
@@ -824,6 +837,46 @@ public class PdfServiceImpl implements PdfService {
                     m.put("quantiteConditionnementCommande", quantiteConditionnementCommande);
                     m.put("quantiteConditionnementRecueThis", quantiteConditionnementRecueThis);
                     m.put("quantiteConditionnementRestante", quantiteConditionnementRestante);
+
+                    // Build human-friendly labels with unit libelle for columns (e.g., "10 Pieces" or "1 Carton")
+                    try {
+                        String unitLabelSafe = (uniteLibelle != null && uniteLibelle.trim().length() > 0) ? uniteLibelle : "Pieces";
+
+                        // qteCommandeLabel
+                        String qteCommandeLabel;
+                        if (quantiteConditionnementCommande != null) {
+                            qteCommandeLabel = String.format("%d %s", quantiteConditionnementCommande, unitLabelSafe);
+                        } else if (nombreUnites != null && nombreUnites > 1 && qteCommande % nombreUnites == 0) {
+                            qteCommandeLabel = String.format("%d %s", (qteCommande / nombreUnites), unitLabelSafe);
+                        } else {
+                            qteCommandeLabel = String.format("%d %s", qteCommande, unitLabelSafe);
+                        }
+                        m.put("qteCommandeLabel", qteCommandeLabel);
+
+                        // qteRecueThisLabel
+                        String qteRecueThisLabel;
+                        if (quantiteConditionnementRecueThis != null) {
+                            qteRecueThisLabel = String.format("%d %s", quantiteConditionnementRecueThis, unitLabelSafe);
+                        } else {
+                            qteRecueThisLabel = String.format("%d %s", qteRecueThis, unitLabelSafe);
+                        }
+                        m.put("qteRecueThisLabel", qteRecueThisLabel);
+
+                        // qteRestanteLabel
+                        String qteRestanteLabel;
+                        if (quantiteConditionnementRestante != null) {
+                            qteRestanteLabel = String.format("%d %s", quantiteConditionnementRestante, unitLabelSafe);
+                        } else {
+                            qteRestanteLabel = String.format("%d %s", qteRestante, unitLabelSafe);
+                        }
+                        m.put("qteRestanteLabel", qteRestanteLabel);
+                    } catch (Exception ex) {
+                        // fallback: ensure labels exist
+                        m.put("qteCommandeLabel", String.valueOf(qteCommande));
+                        m.put("qteRecueThisLabel", String.valueOf(qteRecueThis));
+                        m.put("qteRestanteLabel", String.valueOf(qteRestante));
+                    }
+
                     // Debug helpers to diagnose matching issues: list matched reception line ids and total available reception lines
                     m.put("matchedReceptionLineIds", matchedIds);
                     m.put("lignesReceptionCount", lignesReception != null ? lignesReception.size() : 0);
@@ -855,21 +908,43 @@ public class PdfServiceImpl implements PdfService {
             // save debug copy for inspection when needed
             try {
                 java.nio.file.Files.write(java.nio.file.Paths.get("/tmp/reception_" + receptionId + "_debug.html"), html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                System.err.println("DEBUG: wrote /tmp/reception_" + receptionId + "_debug.html, length=" + (html == null ? "null" : html.length()));
             } catch (Exception e) {
-                // ignore non-fatal
+                System.err.println("DEBUG: failed to write debug html: " + e.getMessage());
             }
+
+            System.err.println("DEBUG: html length=" + (html == null ? "null" : html.length()));
 
             try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
                 PdfRendererBuilder builder = new PdfRendererBuilder();
                 builder.useFastMode();
                 builder.withHtmlContent(html, null);
                 builder.toStream(baos);
-                builder.run();
+                try {
+                    builder.run();
+                } catch (Throwable t) {
+                    System.err.println("DEBUG: builder.run() failed: " + t.getMessage());
+                    t.printStackTrace(System.err);
+                    throw t;
+                }
                 byte[] pdfBytes = baos.toByteArray();
-                response.getOutputStream().write(pdfBytes);
+
+                // Only set headers after successful generation
+                try {
+                    response.setContentType("application/pdf");
+                    response.setHeader("Content-Disposition", "attachment; filename=reception_" + receptionId + ".pdf");
+                    response.getOutputStream().write(pdfBytes);
+                    response.getOutputStream().flush();
+                } catch (Exception ioEx) {
+                    log.error("Failed to write PDF response for reception {}: {}", receptionId, ioEx.getMessage(), ioEx);
+                    try { response.sendError(500, "Erreur envoi PDF: " + (ioEx.getMessage() != null ? ioEx.getMessage() : "unknown")); } catch (Exception ignored) {}
+                }
+                return;
             }
         } catch (Exception e) {
-            throw new IOException(e.getMessage());
+            log.error("writeReceptionPdf error for id={} : {}", receptionId, e.getMessage(), e);
+            try { response.sendError(500, "Erreur génération PDF: " + (e.getMessage() != null ? e.getMessage() : "unknown")); } catch (Exception ignored) {}
+            return;
         }
     }
 
@@ -1886,19 +1961,33 @@ public class PdfServiceImpl implements PdfService {
 
                 try {
                     java.text.NumberFormat nf = java.text.NumberFormat.getIntegerInstance(java.util.Locale.FRENCH);
-                    ctx.setVariable("montantTotalLabel", nf.format(montantTotal) + " " + (ctx.getVariable("deviseSymbole") != null ? ctx.getVariable("deviseSymbole") : "FCFA"));
-                    ctx.setVariable("montantPayeCommandeLabel", nf.format(montantPayeCommande) + " " + (ctx.getVariable("deviseSymbole") != null ? ctx.getVariable("deviseSymbole") : "FCFA"));
-                    ctx.setVariable("montantRestantLabel", nf.format(montantRestant) + " " + (ctx.getVariable("deviseSymbole") != null ? ctx.getVariable("deviseSymbole") : "FCFA"));
-                    ctx.setVariable("montantPayeThisLabel", nf.format(montantPayeThis) + " " + (ctx.getVariable("deviseSymbole") != null ? ctx.getVariable("deviseSymbole") : "FCFA"));
+                    String ds = ctx.getVariable("deviseSymbole") != null ? String.valueOf(ctx.getVariable("deviseSymbole")) : "FCFA";
+                    ds = sanitizeCurrencySymbol(ds);
+                    ctx.setVariable("deviseSymbole", ds);
+                    ctx.setVariable("montantTotalLabel", nf.format(montantTotal) + " " + ds);
+                    ctx.setVariable("montantPayeCommandeLabel", nf.format(montantPayeCommande) + " " + ds);
+                    ctx.setVariable("montantRestantLabel", nf.format(montantRestant) + " " + ds);
+                    ctx.setVariable("montantPayeThisLabel", nf.format(montantPayeThis) + " " + ds);
                 } catch (Exception ignore) {
-                    ctx.setVariable("montantTotalLabel", (montantTotal != null ? montantTotal : 0) + " " + (ctx.getVariable("deviseSymbole") != null ? ctx.getVariable("deviseSymbole") : "FCFA"));
-                    ctx.setVariable("montantPayeCommandeLabel", (montantPayeCommande != null ? montantPayeCommande : 0) + " " + (ctx.getVariable("deviseSymbole") != null ? ctx.getVariable("deviseSymbole") : "FCFA"));
-                    ctx.setVariable("montantRestantLabel", (montantRestant != null ? montantRestant : 0) + " " + (ctx.getVariable("deviseSymbole") != null ? ctx.getVariable("deviseSymbole") : "FCFA"));
-                    ctx.setVariable("montantPayeThisLabel", (montantPayeThis != null ? montantPayeThis : 0) + " " + (ctx.getVariable("deviseSymbole") != null ? ctx.getVariable("deviseSymbole") : "FCFA"));
+                    String ds = ctx.getVariable("deviseSymbole") != null ? String.valueOf(ctx.getVariable("deviseSymbole")) : "FCFA";
+                    ds = sanitizeCurrencySymbol(ds);
+                    ctx.setVariable("deviseSymbole", ds);
+                    ctx.setVariable("montantTotalLabel", (montantTotal != null ? montantTotal : 0) + " " + ds);
+                    ctx.setVariable("montantPayeCommandeLabel", (montantPayeCommande != null ? montantPayeCommande : 0) + " " + ds);
+                    ctx.setVariable("montantRestantLabel", (montantRestant != null ? montantRestant : 0) + " " + ds);
+                    ctx.setVariable("montantPayeThisLabel", (montantPayeThis != null ? montantPayeThis : 0) + " " + ds);
                 }
             } catch (Exception ex) {}
 
             String html = templateEngine.process("paiement_client_pdf", ctx);
+            // write debug HTML for inspection and log result
+            try {
+                java.nio.file.Path debugPath = java.nio.file.Paths.get("/tmp/paiement_" + paiementId + "_debug.html");
+                java.nio.file.Files.write(debugPath, html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                logger.debug("wrote {} , length={}", debugPath.toString(), java.nio.file.Files.size(debugPath));
+            } catch (Exception e) {
+                logger.warn("failed to write paiement debug html: {}", e.getMessage());
+            }
             try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
                 PdfRendererBuilder builder = new PdfRendererBuilder();
                 builder.useFastMode();

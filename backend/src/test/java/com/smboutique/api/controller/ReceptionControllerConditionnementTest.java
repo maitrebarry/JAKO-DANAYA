@@ -68,6 +68,7 @@ public class ReceptionControllerConditionnementTest {
         Stock stock = new Stock(); stock.setId(200L); stock.setQuantiteDisponible(5); // 5 units currently
         Produit p = new Produit(); p.setId(300L);
         p.setNombreUnitesParConditionnement(4); // 1 conditionnement = 4 units
+        p.setPrixAchat(100); // ensure price exists so reception can compute cost average
         stock.setProduit(p);
         lc.setStock(stock);
 

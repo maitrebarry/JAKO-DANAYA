@@ -4,6 +4,8 @@ export interface Option {
   value: string | number;
   label: string;
   disabled?: boolean;
+  // optional depot label to display as a badge next to the option
+  depot?: string;
 }
 
 interface Props {

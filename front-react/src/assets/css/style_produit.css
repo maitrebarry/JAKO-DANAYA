@@ -208,3 +208,19 @@
   right: 10px;
   top: 10px;
 }
+
+/* Responsive adjustments */
+@media (max-width: 575.98px) {
+  .product-card { min-height: 240px; padding: 8px; }
+  .product-image-wrapper { min-height: 100px; height: 100px; }
+  .product-details .card-title { font-size: 14px; }
+  .product-details p { font-size: 13px; }
+  .icon-group { flex-direction: row; position: static; justify-content: space-between; gap: 8px; opacity: 1; margin-top: 8px; }
+  .icon-group button { width: 44px; height: 44px; border-radius: 6px; }
+}
+
+@media (min-width: 1400px) {
+  .product-card { min-height: 420px; padding: 16px; }
+  .product-image-wrapper { min-height: 260px; height: 260px; }
+  .product-details .card-title { font-size: 18px; }
+}

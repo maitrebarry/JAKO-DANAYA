@@ -248,7 +248,7 @@ const InventaireDetail: React.FC = () => {
                   <label className="form-label">Produit</label>
                   <select className="form-control" value={selectedProdId ?? ''} onChange={(e) => setSelectedProdId(e.target.value ? Number(e.target.value) : null)}>
                     <option value="">-- Choisir --</option>
-                    {products.map(p => <option key={p.id} value={p.id}>{`${p.nom} — ${p.magasin?.nom || 'Dépôt boutique'} — Stock: ${p.packagingLabel || (p.quantiteVirtuelle + ' unités')}`}</option>)}
+                    {products.map(p => <option key={p.id} value={p.id}>{`${p.nom} — ${(p.magasin?.nom || p.magasin?.nomMagasin || p.magasinId || 'Dépôt boutique')} — Stock: ${p.packagingLabel || (p.quantiteVirtuelle + ' unités')}`}</option>)}
                   </select>
                   {selectedProduct && condCount > 0 && (() => {
                     const unitLib = selectedProduct?.produit?.uniteConditionnement || selectedProduct?.produit?.unite?.libelle || 'conditionnement';

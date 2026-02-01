@@ -51,6 +51,13 @@ public class DocumentControllerUnitTest {
 
         when(venteRepository.findById(123L)).thenReturn(Optional.of(v));
 
+        // set authenticated user in same boutique so controller allows download
+        org.springframework.security.core.Authentication auth = mock(org.springframework.security.core.Authentication.class);
+        when(auth.getName()).thenReturn("testuser");
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+        com.smboutique.api.model.Utilisateur u = new com.smboutique.api.model.Utilisateur(); u.setId(10L); com.smboutique.api.model.Boutique bb = new com.smboutique.api.model.Boutique(); bb.setId(5L); u.setBoutique(bb);
+        when(utilisateurService.findByEmail("testuser")).thenReturn(Optional.of(u));
+
         // call
         controller.download("vente", 123L, "pdf", response);
 
@@ -68,6 +75,13 @@ public class DocumentControllerUnitTest {
         tx.setMontant(5000);
         tx.setReferenceCaisse("CAISSE-99");
         when(caisseTransactionRepository.findById(99L)).thenReturn(Optional.of(tx));
+
+        // set authenticated user in same boutique so controller allows download
+        org.springframework.security.core.Authentication auth = mock(org.springframework.security.core.Authentication.class);
+        when(auth.getName()).thenReturn("testuser");
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+        com.smboutique.api.model.Utilisateur u = new com.smboutique.api.model.Utilisateur(); u.setId(11L); com.smboutique.api.model.Boutique bb = new com.smboutique.api.model.Boutique(); bb.setId(5L); u.setBoutique(bb);
+        when(utilisateurService.findByEmail("testuser")).thenReturn(Optional.of(u));
 
         // call
         controller.download("caisse", 99L, "pdf", response);

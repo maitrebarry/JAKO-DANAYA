@@ -380,20 +380,23 @@ const PaiementCommande: React.FC = () => {
                         <tr>
                           <td>
                             <input
-                              type="number"
+                              type="text"
                               className="form-control"
-                              value={montantTotal}
+                              value={fmt(montantTotal)}
                               readOnly
                             />
                           </td>
                           <td>
-                            <input type="number" className="form-control" value={selectedCommande?.paie || 0} readOnly />
+                            <input type="text" className="form-control" value={fmt(selectedCommande?.paie || 0)} readOnly />
                           </td>
                           <td>
-                            <input type="number" className="form-control" value={montantRestant} readOnly />
+                            <input type="text" className="form-control" value={fmt(montantRestant)} readOnly />
                           </td>
                           <td>
-                            <input type="number" className="form-control" value={montantAPayerTotal} onChange={(e) => setMontantAPayerTotal(Number(e.target.value || 0))} />
+                            <div className="input-group">
+                              <input type="number" className="form-control" value={montantAPayerTotal} onChange={(e) => setMontantAPayerTotal(Number(e.target.value || 0))} />
+                              <span className="input-group-text">{currentBoutique?.pays?.deviseSymbole ?? 'FCFA'}</span>
+                            </div>
                           </td>
                         </tr>
                       </tbody>

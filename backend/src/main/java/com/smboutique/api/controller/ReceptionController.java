@@ -212,7 +212,8 @@ public class ReceptionController {
                 mouvementService.log("DOCUMENT", "RECEPTION_PDF", "Génération PDF - RECEPTION", id, boutiqueId, null, userId, null);
             } catch (Exception ignore) {}
         } catch (Exception e) {
-            try { response.sendError(500); } catch (Exception ignored) {}
+            logger.error("Error while generating reception PDF for id={}: {}", id, e.getMessage(), e);
+            try { response.sendError(500, "Erreur génération PDF: " + (e.getMessage() != null ? e.getMessage() : "unknown")); } catch (Exception ignored) {}
         }
     }
 

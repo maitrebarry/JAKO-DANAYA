@@ -74,7 +74,7 @@ public class CommandeFournisseurControllerTest {
         LigneCommande lc = new LigneCommande();
         lc.setId(50L);
         Stock stock = new Stock(); stock.setId(200L); stock.setQuantiteDisponible(5);
-        Produit p = new Produit(); p.setId(300L);
+        Produit p = new Produit(); p.setId(300L); p.setPrixAchat(100);
         stock.setProduit(p);
         lc.setStock(stock);
 
@@ -214,6 +214,35 @@ public class CommandeFournisseurControllerTest {
         com.smboutique.api.dto.CommandeFournisseurDTO dto = (com.smboutique.api.dto.CommandeFournisseurDTO) m.invoke(commandeController, cmd);
         assertNotNull(dto);
         assertEquals("2026-01-05 11:02:00", dto.getDateCommande());
+    }
+
+    @Test
+    public void convertToDTO_sets_depot_from_stock_scope() throws Exception {
+        CommandeFournisseur cmd = new CommandeFournisseur();
+        cmd.setId(2000L);
+        cmd.setTotal(0);
+        LigneCommande lc = new LigneCommande(); lc.setId(10L); lc.setQuantite(0);
+        Stock s = new Stock(); s.setId(20L);
+        com.smboutique.api.model.Magasin m = new com.smboutique.api.model.Magasin(); m.setNom("MagasinX");
+        s.setMagasin(m);
+        lc.setStock(s);
+        cmd.setLignes(java.util.List.of(lc));
+
+        java.lang.reflect.Method mth = com.smboutique.api.controller.CommandeFournisseurController.class.getDeclaredMethod("convertToDTO", com.smboutique.api.model.CommandeFournisseur.class);
+        mth.setAccessible(true);
+        com.smboutique.api.dto.CommandeFournisseurDTO dto = (com.smboutique.api.dto.CommandeFournisseurDTO) mth.invoke(commandeController, cmd);
+        assertNotNull(dto);
+        assertNotNull(dto.getLignes());
+        assertEquals(1, dto.getLignes().size());
+        assertEquals("MagasinX", dto.getLignes().get(0).getDepot());
+
+        // Now test boutique fallback
+        com.smboutique.api.model.Magasin nullM = null;
+        s.setMagasin(nullM);
+        com.smboutique.api.model.Boutique b = new com.smboutique.api.model.Boutique(); b.setNom("BoutiqueY");
+        s.setBoutique(b);
+        dto = (com.smboutique.api.dto.CommandeFournisseurDTO) mth.invoke(commandeController, cmd);
+        assertEquals("BoutiqueY", dto.getLignes().get(0).getDepot());
     }
 
     @Test

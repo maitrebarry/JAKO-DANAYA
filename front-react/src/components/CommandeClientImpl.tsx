@@ -24,10 +24,18 @@ interface Stock {
     // number of base units per conditionnement (e.g., carton = 12)
     nombreUnitesParConditionnement?: number;
   };
-  magasin: {
-    id: number;
-    nom: string;
-    adresse: string;
+  magasin?: {
+    id?: number;
+    nom?: string;
+    // compatibility fields from older API shapes
+    nomMagasin?: string;
+    magasinId?: number;
+    adresse?: string;
+  };
+  boutique?: {
+    id?: number;
+    nom?: string;
+    adresse?: string;
   };
 }
 
@@ -1082,17 +1090,15 @@ const CommandeClient: React.FC = () => {
                               options={stocks.map((stock) => {
                                 const mult = getProduitMultiplicateur(stock);
                                 const unitLabel = (stock?.produit as any)?.unite?.libelle ?? 'carton';
-                                const multLabel = mult > 1 ? ` - ${mult}u/${unitLabel}` : ''; 
+                                const multLabel = mult > 1 ? ` - ${mult}u/${unitLabel}` : '';
                                 const price = stock.produit?.prixAchat ?? 0;
+                                const prodName = getProductDisplayName(stock);
+                                const multPart = (mult && mult > 1) ? ` — 1 ${unitLabel} = ${mult} unités` : '';
+                                const depotLabel = (locationType === 'MAGASIN') ? (stock.magasin?.nom || stock.magasin?.nomMagasin || String(stock.magasin?.magasinId || '') || 'Dépôt magasin') : (currentBoutique?.nom || stock.boutique?.nom || 'Dépôt boutique');
                                 return {
                                   value: stock.id,
-                                  label: (() => {
-                                  const prodName = getProductDisplayName(stock);
-                                  const mult = getProduitMultiplicateur(stock);
-                                  const unitLabel = (stock?.produit as any)?.unite?.libelle ?? 'conditionnement';
-                                  const multPart = mult && mult > 1 ? ` — 1 ${unitLabel} = ${mult} unités` : '';
-                                  return `${prodName}${multLabel} - ${fmt(Number(price))} - ${stock.magasin?.nom || 'Dépôt boutique'}${multPart} — Stock : ${formatPackaging(stock.quantiteDisponible || 0, mult)}`;
-                                })()
+                                  label: `${prodName}${multLabel} - ${fmt(Number(price))}${multPart} — Stock : ${formatPackaging(stock.quantiteDisponible || 0, mult)}`,
+                                  depot: depotLabel
                                 };
                               })}
                               value={selectedStockOption}
@@ -1136,7 +1142,7 @@ const CommandeClient: React.FC = () => {
                                     <small className="text-muted">{fmt(Number(stock.produit?.prixAchat ?? 0))}</small>
                                   </div>
                                   <div>
-                                    <span className="badge bg-primary me-1">{stock.magasin?.nom || 'Dépôt boutique'}</span>
+                                    <span className="badge bg-primary me-1">{stock.magasin?.nom || stock.magasin?.nomMagasin || stock.magasin?.magasinId || 'Dépôt boutique'}</span>
                                     <span className="badge bg-danger">
                                       Stock: {stock.quantiteDisponible ?? 0}
                                     </span>

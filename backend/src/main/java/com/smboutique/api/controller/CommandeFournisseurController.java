@@ -798,6 +798,12 @@ public class CommandeFournisseurController {
                 li.setMontant(p * q * 1.0);
                 if (l.getStock() != null) {
                     li.setStockId(l.getStock().getId());
+                    // Determine depot name: prefer magasin name when present, else boutique name, else empty
+                    String depotName = "";
+                    if (l.getStock().getMagasin() != null && l.getStock().getMagasin().getNom() != null) depotName = l.getStock().getMagasin().getNom();
+                    else if (l.getStock().getBoutique() != null && l.getStock().getBoutique().getNom() != null) depotName = l.getStock().getBoutique().getNom();
+                    li.setDepot(depotName);
+
                     if (l.getStock().getProduit() != null) {
                         li.setProduitId(l.getStock().getProduit().getId());
                         li.setNom(l.getStock().getProduit().getNomProduit());
