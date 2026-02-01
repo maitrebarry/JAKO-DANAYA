@@ -484,8 +484,14 @@ public class MouvementController {
             boutiqueId = currentUser.getBoutique().getId();
         }
 
-        com.smboutique.api.service.dto.CaisseSummaryResult res = mouvementService.summarizeCaisse(period, userId, boutiqueId, magasinId, from, to);
-        return ResponseEntity.ok(res);
+        try {
+            com.smboutique.api.service.dto.CaisseSummaryResult res = mouvementService.summarizeCaisse(period, userId, boutiqueId, magasinId, from, to);
+            return ResponseEntity.ok(res);
+        } catch (Exception e) {
+            // log stacktrace for debugging and return readable error to client
+            org.slf4j.LoggerFactory.getLogger(MouvementController.class).error("caisseSummary error: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(java.util.Map.of("error", "Internal Server Error", "message", e.getMessage()));
+        }
     }
 
     @PostMapping

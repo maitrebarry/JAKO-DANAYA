@@ -241,36 +241,47 @@ public class MouvementServiceImpl implements MouvementService {
         String labelExpr;
         switch (periodParam) {
             case "month":
-                // YYYY-MM
-                labelExpr = "DATE_FORMAT(date_mov, '%Y-%m')";
+                // YYYY-MM -> use to_char for Postgres compatibility
+                labelExpr = "to_char(date_mov, 'YYYY-MM')";
                 break;
             case "year":
-                labelExpr = "YEAR(date_mov)";
+                // YYYY
+                labelExpr = "to_char(date_mov, 'YYYY')";
                 break;
             default:
+                // date only
                 labelExpr = "DATE(date_mov)";
                 break;
         }
 
-        String sql = "select " + labelExpr + " as period, "
-                + "sum(case when montant > 0 then montant else 0 end) as total_entrees, "
-                + "sum(case when montant < 0 then -montant else 0 end) as total_sorties "
-                + "from mouvement where montant is not null "
-                + "and (:userId is null or id_utilisateur = :userId) "
-                + "and (:boutiqueId is null or id_boutique = :boutiqueId) "
-                + "and (:magasinId is null or id_magasin = :magasinId) "
-                + "and (:from is null or date_mov >= :from) "
-                + "and (:to is null or date_mov <= :to) "
-                + "group by " + labelExpr + " order by period desc";
+        StringBuilder sql = new StringBuilder();
+        sql.append("select ").append(labelExpr).append(" as period, ")
+                .append("sum(case when montant > 0 then montant else 0 end) as total_entrees, ")
+                .append("sum(case when montant < 0 then -montant else 0 end) as total_sorties ")
+                .append("from mouvement where montant is not null ");
 
-        log.debug("SummarizeCaisse SQL: {}", sql);
+        java.util.List<String> conditions = new java.util.ArrayList<>();
+        if (userId != null) conditions.add("id_utilisateur = :userId");
+        if (boutiqueId != null) conditions.add("id_boutique = :boutiqueId");
+        if (magasinId != null) conditions.add("id_magasin = :magasinId");
+        if (from != null) conditions.add("date_mov >= :from");
+        if (to != null) conditions.add("date_mov <= :to");
+
+        if (!conditions.isEmpty()) {
+            sql.append("and ").append(String.join(" and ", conditions)).append(" ");
+        }
+
+        sql.append("group by ").append(labelExpr).append(" order by period desc");
+
+        log.debug("SummarizeCaisse SQL: {}", sql.toString());
         log.debug("SummarizeCaisse params: userId={}, boutiqueId={}, magasinId={}, from={}, to={}", userId, boutiqueId, magasinId, from, to);
-        jakarta.persistence.Query q = em.createNativeQuery(sql);
-        q.setParameter("userId", userId);
-        q.setParameter("boutiqueId", boutiqueId);
-        q.setParameter("magasinId", magasinId);
-        q.setParameter("from", from);
-        q.setParameter("to", to);
+
+        jakarta.persistence.Query q = em.createNativeQuery(sql.toString());
+        if (userId != null) q.setParameter("userId", userId);
+        if (boutiqueId != null) q.setParameter("boutiqueId", boutiqueId);
+        if (magasinId != null) q.setParameter("magasinId", magasinId);
+        if (from != null) q.setParameter("from", from);
+        if (to != null) q.setParameter("to", to);
 
         @SuppressWarnings("unchecked")
         java.util.List<Object[]> rows = q.getResultList();

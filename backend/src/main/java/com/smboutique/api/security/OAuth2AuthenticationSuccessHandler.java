@@ -56,8 +56,18 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             return;
         }
 
-        Utilisateur utilisateur = utilisateurRepository.findByEmailIgnoreCase(email)
-            .orElseGet(() -> createUserFromOAuth(email, oAuth2User));
+        java.util.Optional<Utilisateur> maybe = utilisateurRepository.findByEmailIgnoreCase(email);
+        if (maybe.isEmpty()) {
+            // Do NOT auto-provision. Reject the login and redirect back with an explicit error so the frontend can handle it.
+            org.slf4j.LoggerFactory.getLogger(OAuth2AuthenticationSuccessHandler.class).warn("OAuth2 login attempted for unknown email: {}", email);
+            String target = UriComponentsBuilder.fromUriString(redirectUri)
+                .queryParam("error", "not_authorized")
+                .build()
+                .toUriString();
+            getRedirectStrategy().sendRedirect(request, response, target);
+            return;
+        }
+        Utilisateur utilisateur = maybe.get();
 
         if (utilisateur.getStatut() != null && utilisateur.getStatut().equalsIgnoreCase("DESACTIVE")) {
             String target = UriComponentsBuilder.fromUriString(redirectUri)
