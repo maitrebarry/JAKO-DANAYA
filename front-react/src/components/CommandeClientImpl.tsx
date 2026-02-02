@@ -46,9 +46,9 @@ interface CartItem {
   produitId?: number;
   ligneId?: number | null;
   nom: string;
-  quantite: number; // units when selling by unit
+  quantite: number | string; // units when selling by unit (allow empty string during edit)
   venteParConditionnement?: boolean;
-  quantiteConditionnement?: number; // number of conditionnements when selling by conditionnement
+  quantiteConditionnement?: number | string; // number of conditionnements when selling by conditionnement (allow empty during edit)
   multiplicateur?: number; // cached nombre d'unités par conditionnement
   prix: number;
   montant: number;
@@ -154,10 +154,10 @@ const CommandeClient: React.FC = () => {
     if (!productId) return 0;
     return cart.reduce((sum, it) => {
       if (it.produitId !== productId) return sum;
-      if (it.venteParConditionnement) return sum + ((it.quantiteConditionnement || 0) * (it.multiplicateur || 1));
-      return sum + (it.quantite || 0);
+      if (it.venteParConditionnement) return sum + ((Number(it.quantiteConditionnement) || 0) * (it.multiplicateur || 1));
+      return sum + (Number(it.quantite) || 0);
     }, 0);
-  };
+  }; 
 
   // Helper to resolve price for a given product and mode (accounts for various field names)
   const getModePriceFromProduct = (product: any, mode: 'DETAIL'|'GROS') => {
@@ -509,17 +509,18 @@ const CommandeClient: React.FC = () => {
     }
   };
 
-  const updateQuantity = (uid: string, quantite: number) => {
+  const updateQuantity = (uid: string, quantite: number | string) => {
     setCart(prev => prev.map(item => {
       if (item.uid !== uid) return item;
       // only update unit quantity when selling by unit
       if (item.venteParConditionnement) return item;
-      const newMontant = item.prix * quantite;
-      const updated = { ...item, quantite, montant: newMontant };
+      const qVal = quantite === '' ? '' : Number(quantite) || 0;
+      const newMontant = (Number(qVal) || 0) * (item.prix || 0);
+      const updated = { ...item, quantite: qVal as any, montant: newMontant };
       if (process.env.NODE_ENV !== 'production') console.debug('updateQuantity', { uid, quantite, updated });
       return updated;
     }));
-  };
+  }; 
 
   const updateConditionnementQuantity = (uid: string, quantiteConditionnement: number) => {
     setCart(prev => prev.map(item => {
@@ -543,7 +544,7 @@ const CommandeClient: React.FC = () => {
       const multiplier = getProduitMultiplicateur(stock);
       console.debug('toggleVenteParConditionnement called', { uid, venteParConditionnement, multiplier });
       // initialize quantiteConditionnement to 1 when turning on
-      const qCond = venteParConditionnement ? (item.quantiteConditionnement || 1) : item.quantite;
+      const qCond = venteParConditionnement ? (Number(item.quantiteConditionnement || 1)) : (Number(item.quantite || 1));
 
       // Business rules:
       // - For Vente: allow unit input; conditionnement only if multiplier>1 (keep existing behavior)
@@ -562,7 +563,7 @@ const CommandeClient: React.FC = () => {
       }
 
       // Update stored unit quantity when conditionnement changes so stock-impacting quantity is always in units
-      const updatedQuantite = venteParConditionnement ? (qCond * (multiplier || 1)) : (item.quantite || 1);
+      const updatedQuantite = venteParConditionnement ? (qCond * (multiplier || 1)) : (Number(item.quantite || 1));
       return { ...item, venteParConditionnement, quantiteConditionnement: venteParConditionnement ? qCond : undefined, quantite: updatedQuantite, montant: item.prix * (updatedQuantite || 0) };
     }));
   };
@@ -572,7 +573,7 @@ const CommandeClient: React.FC = () => {
 
     setCart(prev => prev.map(item =>
       item.uid === uid
-        ? (item.venteParConditionnement ? (() => { const stock = stocks.find(s => s.id === item.id_stock); const multiplier = stock?.produit?.nombreUnitesParConditionnement || 0; const realQ = (item.quantiteConditionnement || 0) * multiplier; return { ...item, prix, montant: prix * realQ }; })() : { ...item, prix, montant: prix * item.quantite })
+        ? (item.venteParConditionnement ? (() => { const stock = stocks.find(s => s.id === item.id_stock); const multiplier = stock?.produit?.nombreUnitesParConditionnement || 0; const realQ = (Number(item.quantiteConditionnement || 0)) * multiplier; return { ...item, prix, montant: prix * realQ }; })() : { ...item, prix, montant: prix * (Number(item.quantite) || 0) })
         : item
     ));
 
@@ -611,7 +612,7 @@ const CommandeClient: React.FC = () => {
       }
 
       const multiplier = (venteParConditionnement && multiplicateur) ? multiplicateur : 1;
-      const realQ = venteParConditionnement ? ((quantiteConditionnement || 0) * multiplier) : item.quantite;
+      const realQ = venteParConditionnement ? ((Number(quantiteConditionnement) || 0) * multiplier) : (Number(item.quantite) || 0);
       const newMontant = (newPrix || 0) * (realQ || 0);
 
       return { ...item, prix: newPrix, montant: newMontant, venteParConditionnement, quantiteConditionnement, multiplicateur };
@@ -635,7 +636,7 @@ const CommandeClient: React.FC = () => {
   const total = cart.reduce((sum, item) => {
     const stock = stocks.find(s => s.id === item.id_stock);
     const multiplier = stock?.produit?.nombreUnitesParConditionnement || 0;
-    const realQ = item.venteParConditionnement ? ((item.quantiteConditionnement || 0) * multiplier) : item.quantite;
+    const realQ = item.venteParConditionnement ? ((Number(item.quantiteConditionnement) || 0) * multiplier) : (Number(item.quantite) || 0);
     const montant = (item.prix || 0) * (realQ || 0);
     return sum + montant;
   }, 0);
@@ -668,12 +669,12 @@ const CommandeClient: React.FC = () => {
 
       // Client-side validations: ensure quantities make sense
       if (item.venteParConditionnement) {
-        if (!item.quantiteConditionnement || item.quantiteConditionnement <= 0) {
+        if ((Number(item.quantiteConditionnement || 0)) <= 0) {
           Swal.fire('Erreur', `Quantité conditionnement invalide pour ${item.nom}`, 'error');
           return;
         }
       } else {
-        if (!item.quantite || item.quantite <= 0) {
+        if ((Number(item.quantite || 0)) <= 0) {
           Swal.fire('Erreur', `Quantité invalide pour ${item.nom}`, 'error');
           return;
         }
@@ -681,7 +682,7 @@ const CommandeClient: React.FC = () => {
 
       // For sales, realQ is computed using conditionnement when applicable.
       // For purchases, we always treat quantite as units ordered and do NOT validate stock availability here.
-      const realQ = item.venteParConditionnement ? ((item.quantiteConditionnement || 0) * multiplier) : item.quantite;
+      const realQ = item.venteParConditionnement ? ((Number(item.quantiteConditionnement || 0)) * multiplier) : (Number(item.quantite) || 0);
 
       // Only enforce stock availability for sales
       if (isVente) {
@@ -707,9 +708,9 @@ const CommandeClient: React.FC = () => {
       };
 
       if (item.venteParConditionnement) {
-        produitsSelectionnes.push({ ...baseObj, venteParConditionnement: true, quantiteConditionnement: item.quantiteConditionnement });
+        produitsSelectionnes.push({ ...baseObj, venteParConditionnement: true, quantiteConditionnement: Number(item.quantiteConditionnement) });
       } else {
-        produitsSelectionnes.push({ ...baseObj, quantite: item.quantite });
+        produitsSelectionnes.push({ ...baseObj, quantite: Number(item.quantite) });
       }
     }
 
@@ -1180,7 +1181,7 @@ const CommandeClient: React.FC = () => {
                           {cart.map(item => {
                             const stock = stocks.find(s => s.id === item.id_stock);
                             const multiplier = (item.multiplicateur || getProduitMultiplicateur(stock));
-                            const realQ = item.venteParConditionnement ? ((item.quantiteConditionnement || 0) * multiplier) : item.quantite;
+                            const realQ = item.venteParConditionnement ? ((Number(item.quantiteConditionnement) || 0) * multiplier) : (Number(item.quantite) || 0);
                             const montant = (item.prix || 0) * (realQ || 0);
                             return (
                               <tr key={item.uid}>
@@ -1193,10 +1194,10 @@ const CommandeClient: React.FC = () => {
                                           id={`qty_${item.uid}`}
                                           type="number"
                                           className="form-control"
-                                          value={item.quantite}
+                                          value={item.quantite ?? ''}
                                           min="1"
                                           placeholder={`ex: 6`}
-                                          onChange={(e) => updateQuantity(item.uid, parseInt(e.target.value) || 1)}
+                                          onChange={(e) => updateQuantity(item.uid, e.target.value === '' ? '' : parseInt(e.target.value) || 1)}
                                           style={{ width: 100 }}
                                         />
                                         </>); })() : null}
@@ -1209,13 +1210,13 @@ const CommandeClient: React.FC = () => {
                                         {item.venteParConditionnement ? (
                                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                             {(() => { const unitLabelRaw = ((stock?.produit as any)?.unite?.libelle) ?? 'carton'; const unitLabel = typeof unitLabelRaw === 'string' ? unitLabelRaw : String(unitLabelRaw); return (<><label className="small">Qté ({unitLabel})</label><input type="number" className="form-control" value={item.quantiteConditionnement ?? 1} min={1} onChange={(e) => updateConditionnementQuantity(item.uid, parseInt(e.target.value) || 1)} style={{ width: 80 }} disabled={multiplier <= 1} /></>); })()} 
-                                            <div className="text-muted small">{`${item.quantiteConditionnement || 0} ${(((stock?.produit as any)?.unite?.libelle) ?? 'carton')}${((item.quantiteConditionnement || 0) > 1 && !((((stock?.produit as any)?.unite?.libelle) ?? 'carton') as string).toLowerCase().endsWith('s') ? 's' : '')} ≈ ${((item.quantiteConditionnement || 0) * multiplier)} unités`}</div>
+                                            <div className="text-muted small">{`${Number(item.quantiteConditionnement || 0)} ${(((stock?.produit as any)?.unite?.libelle) ?? 'carton')}${((Number(item.quantiteConditionnement || 0)) > 1 && !((((stock?.produit as any)?.unite?.libelle) ?? 'carton') as string).toLowerCase().endsWith('s') ? 's' : '')} ≈ ${((Number(item.quantiteConditionnement || 0)) * multiplier)} unités`}</div>
                                             <div className="text-muted small">1 {((stock?.produit as any)?.unite?.libelle) ?? 'carton'} = {multiplier} u</div>
                                             <button type="button" className="btn btn-link btn-sm" onClick={() => { toggleVenteParConditionnement(item.uid, false); setTimeout(() => { const el = document.getElementById(`qty_${item.uid}`) as HTMLInputElement | null; if (el) el.focus(); }, 60); }}>Saisir en unités</button>
                                           </div>
                                         ) : ( 
                                           (() => {
-                                            if (!stock) return <div style={{ marginLeft: 6 }} className="text-muted small">{`${item.quantite || 0} unité${(item.quantite || 0) > 1 ? 's' : ''}`}</div>;
+                                            if (!stock) return <div style={{ marginLeft: 6 }} className="text-muted small">{`${Number(item.quantite || 0)} unité${(Number(item.quantite || 0) > 1) ? 's' : ''}`}</div>;
                                             const prodId = item.produitId;
                                             const cartUnits = getCartUnitsForProduct(prodId);
                                             const stockAfter = (stock.quantiteDisponible || 0) - cartUnits;

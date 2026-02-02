@@ -40,12 +40,14 @@ public class DashboardServiceImplTest {
     StockService stockService;
     @Mock
     com.smboutique.api.service.InventaireService inventaireService;
+    @Mock
+    com.smboutique.api.service.VenteService venteService;
 
     DashboardServiceImpl service;
 
     @BeforeEach
     void setup() {
-        service = new DashboardServiceImpl(produitService, clientGrossisteService, fournisseurService, commandeClientService, commandeFournisseurService, stockService, inventaireService);
+        service = new DashboardServiceImpl(produitService, clientGrossisteService, fournisseurService, commandeClientService, commandeFournisseurService, stockService, inventaireService, venteService);
     }
 
     @Test
@@ -94,5 +96,35 @@ public class DashboardServiceImplTest {
         assertThat(p.role).isEqualToIgnoringCase("GERANT");
         assertThat(p.widgets).containsKey("ventes_jour");
         assertThat(p.widgets).containsKey("valeur_stock_boutique");
+    }
+
+    @Test
+    void proprietaire_resume_includes_ventes_especes() {
+        Utilisateur u = new Utilisateur();
+        u.setId(4L);
+        u.setTypeUtilisateur("PROPRIETAIRE");
+        Boutique b = new Boutique(); b.setId(10L); b.setNom("B1"); u.setBoutique(b);
+
+        when(commandeClientService.findAllByBoutiqueId(10L)).thenReturn(java.util.Collections.emptyList());
+        // prepare a cash sale (Vente) for today
+        com.smboutique.api.model.Vente v = new com.smboutique.api.model.Vente();
+        v.setId(99L);
+        v.setMontantTotal(5000);
+        v.setDateVente(java.time.LocalDateTime.now());
+        v.setBoutique(b);
+        when(venteService.findByBoutiqueId(10L)).thenReturn(java.util.Arrays.asList(v));
+
+        DashboardPayload p = service.getDashboardFor(u, null, null);
+        assertThat(p.role).isEqualToIgnoringCase("PROPRIETAIRE");
+        assertThat(p.widgets).containsKey("resume_caisse");
+        Object resumeObj = p.widgets.get("resume_caisse");
+        assertThat(resumeObj).isInstanceOf(java.util.Map.class);
+        java.util.Map<?,?> resume = (java.util.Map<?,?>) resumeObj;
+        // ventes_especes should be present and equal to the cash sale
+        assertThat(resume.get("ventes_especes")).isNotNull();
+        assertThat(((Number)resume.get("ventes_especes")).longValue()).isEqualTo(5000L);
+        // paiements_complets should include the cash sale
+        assertThat(resume.get("paiements_complets")).isNotNull();
+        assertThat(((Number)resume.get("paiements_complets")).longValue()).isGreaterThanOrEqualTo(5000L);
     }
 }

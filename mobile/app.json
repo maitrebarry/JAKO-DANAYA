@@ -6,7 +6,8 @@
     "orientation": "portrait",
     "platforms": [
       "android",
-      "ios"
+      "ios",
+      "web"
     ],
     "assetBundlePatterns": [
       "**/*"
@@ -21,7 +22,8 @@
       "bundleIdentifier": "com.jagodanana.mobile"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-barcode-scanner"
     ]
   }
 }

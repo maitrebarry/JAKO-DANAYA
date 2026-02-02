@@ -458,17 +458,18 @@ const CommandeFournisseur: React.FC = () => {
     }
   };
 
-  const updateQuantity = (uid: string, quantite: number) => {
+  const updateQuantity = (uid: string, quantite: number | string) => {
     setCart(prev => prev.map(item => {
       if (item.uid !== uid) return item;
       // only update unit quantity when selling by unit
       if (item.venteParConditionnement) return item;
-      const newMontant = item.prix * quantite;
-      const updated = { ...item, quantite, montant: newMontant };
+      const qVal = quantite === '' ? '' : Number(quantite) || 0;
+      const newMontant = (Number(qVal) || 0) * (item.prix || 0);
+      const updated = { ...item, quantite: qVal as any, montant: newMontant };
       if (process.env.NODE_ENV !== 'production') console.debug('updateQuantity', { uid, quantite, updated });
       return updated;
     }));
-  };
+  }; 
 
   const updateConditionnementQuantity = (uid: string, quantiteConditionnement: number) => {
     setCart(prev => prev.map(item => {
@@ -976,9 +977,9 @@ const CommandeFournisseur: React.FC = () => {
                                         <input
                                           type="number"
                                           className="form-control"
-                                          value={item.quantite}
+                                          value={item.quantite ?? ''}
                                           min="1"
-                                          onChange={(e) => updateQuantity(item.uid, parseInt(e.target.value) || 1)}
+                                          onChange={(e) => updateQuantity(item.uid, e.target.value === '' ? '' : parseInt(e.target.value) || 1)}
                                           style={{ width: 80 }}
                                           disabled={!!item.venteParConditionnement}
                                         />

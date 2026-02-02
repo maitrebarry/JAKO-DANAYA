@@ -571,7 +571,7 @@ const RoleBasedDashboard: React.FC = () => {
           const paiementsComplets = value?.paiements_complets || 0;
           const ventesCredit = value?.ventes_credit || 0;
           config.push({
-            title: 'Résumé caisse',
+            title: 'Solde de la caisse journalière',
             value: entrees,
             icon: 'cash',
             color: 'info',

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, ActivityIndicator, ImageBackground } from 'react-native';
-import { login } from '../services/auth';
+import { login, fetchCurrentUser } from '../services/auth';
 import { useApp } from '../store/AppContext';
 
 export default function LoginScreen() {
-  const { setToken } = useApp();
+  const { setToken, setBoutiqueId } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,6 +22,17 @@ export default function LoginScreen() {
       const token = res.token || res.accessToken;
       if (!token) throw new Error('Token manquant');
       setToken(token);
+
+      // Auto-fetch profile to improve UX: if user already tied to a boutique, set it immediately
+      try {
+        const profile = await fetchCurrentUser(token);
+        if (profile && profile.boutique && profile.boutique.id) {
+          setBoutiqueId(Number(profile.boutique.id));
+        }
+      } catch (e) {
+        // Don't block login UX if profile fetch fails; the user will be asked to select boutique
+      }
+
     } catch (e: any) {
       setError(e.message || 'Erreur de connexion');
     } finally {

@@ -192,11 +192,18 @@ public class BoutiqueController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('SUPERADMIN')")
-    public ResponseEntity<Void> deleteBoutique(@PathVariable Long id) {
+    public ResponseEntity<?> deleteBoutique(@PathVariable Long id) {
         return boutiqueService.findById(id)
                 .map(boutique -> {
-                    boutiqueService.deleteById(id);
-                    return ResponseEntity.ok().<Void>build();
+                    try {
+                        boutiqueService.deleteById(id);
+                        return ResponseEntity.ok().<Void>build();
+                    } catch (org.springframework.dao.DataIntegrityViolationException dive) {
+                        // Can't delete due to FK constraints - return actionable 409 with message
+                        String msg = "Impossible de supprimer la boutique : il existe des données liées (ventes, commandes, paiements, etc.). Supprimez d'abord les dépendances ou contactez l'administrateur.";
+                        org.slf4j.LoggerFactory.getLogger(BoutiqueController.class).warn("Failed to delete boutique id={}. Reason: {}", id, dive.getMessage());
+                        return ResponseEntity.status(409).body(java.util.Map.of("error", msg));
+                    }
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

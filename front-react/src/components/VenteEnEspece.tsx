@@ -537,7 +537,7 @@ const VenteEnEspece: React.FC = () => {
                                         {!l.venteParConditionnement ? (
                                           <div style={{ flex: 1 }}>
                                             <label className="form-label small mb-1">Vendu (unités)</label>
-                                            <input type="number" min={0} className="form-control" value={l.quantite || 0} onChange={e => handleLineChange(idx, 'quantite', Number(e.target.value))} />
+                                            <input type="number" min={0} className="form-control" value={l.quantite ?? ''} onChange={e => handleLineChange(idx, 'quantite', e.target.value === '' ? '' : Number(e.target.value))} />
                                           </div>
                                         ) : (
                                           <div style={{ width: 140 }}>

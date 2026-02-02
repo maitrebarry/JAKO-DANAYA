@@ -31,6 +31,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final CommandeFournisseurService commandeFournisseurService;
     private final StockService stockService;
     private final InventaireService inventaireService;
+    private final com.smboutique.api.service.VenteService venteService;
 
     public DashboardServiceImpl(ProduitService produitService,
                                 ClientGrossisteService clientGrossisteService,
@@ -38,7 +39,8 @@ public class DashboardServiceImpl implements DashboardService {
                                 CommandeClientService commandeClientService,
                                 CommandeFournisseurService commandeFournisseurService,
                                 StockService stockService,
-                                InventaireService inventaireService) {
+                                InventaireService inventaireService,
+                                com.smboutique.api.service.VenteService venteService) {
         this.produitService = produitService;
         this.clientGrossisteService = clientGrossisteService;
         this.fournisseurService = fournisseurService;
@@ -46,6 +48,7 @@ public class DashboardServiceImpl implements DashboardService {
         this.commandeFournisseurService = commandeFournisseurService;
         this.stockService = stockService;
         this.inventaireService = inventaireService;
+        this.venteService = venteService;
     }
 
     @Override
@@ -185,7 +188,7 @@ public class DashboardServiceImpl implements DashboardService {
         return sales7d;
     }
 
-    private Map<String, Object> calculateResumeCaisse(List<CommandeClient> commandes) {
+    private Map<String, Object> calculateResumeCaisse(List<CommandeClient> commandes, Long boutiqueId) {
         // Calculate today's cash register summary
         LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
         LocalDateTime endOfToday = LocalDateTime.now();
@@ -214,12 +217,30 @@ public class DashboardServiceImpl implements DashboardService {
                 .filter(c -> c.getPaie() == null || (c.getTotal() != null && c.getPaie().compareTo(c.getTotal()) < 0))
                 .count();
 
+        // Add today's cash sales (Vente) for this boutique to the totals when boutiqueId is provided
+        long ventesEspeces = 0L;
+        try {
+            if (boutiqueId != null && venteService != null) {
+                java.util.List<com.smboutique.api.model.Vente> ventes = venteService.findByBoutiqueId(boutiqueId);
+                ventesEspeces = ventes.stream()
+                        .filter(v -> v.getDateVente() != null && !v.getDateVente().isBefore(startOfToday) && !v.getDateVente().isAfter(endOfToday))
+                        .mapToLong(v -> v.getMontantTotal() == null ? 0L : v.getMontantTotal().longValue())
+                        .sum();
+            }
+        } catch (Exception ex) {
+            ventesEspeces = 0L; // ignore failures
+        }
+
+        long entreeTotal = totalVentes + ventesEspeces;
+        long paiementsCompletsTotal = paiementsComplets + ventesEspeces;
+
         Map<String, Object> resume = new HashMap<>();
-        resume.put("entrees", totalVentes);
-        resume.put("paiements_complets", paiementsComplets);
+        resume.put("entrees", entreeTotal);
+        resume.put("paiements_complets", paiementsCompletsTotal);
         resume.put("paiements_partiels", paiementsPartiels);
         resume.put("ventes_credit", ventesCredit);
         resume.put("total_commandes", todayOrders.size());
+        resume.put("ventes_especes", ventesEspeces);
 
         return resume;
     }
@@ -284,7 +305,7 @@ public class DashboardServiceImpl implements DashboardService {
                         return price.multiply(q);
                     }).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add).doubleValue());
             widgets.put("top_products", dto.getTopProducts());
-            widgets.put("resume_caisse", calculateResumeCaisse(commandeClientService.findAllByBoutiqueId(finalTargetBoutiqueId)));
+            widgets.put("resume_caisse", calculateResumeCaisse(commandeClientService.findAllByBoutiqueId(finalTargetBoutiqueId), finalTargetBoutiqueId));
             widgets.put("evolution_ventes", java.util.Map.of("trend", calculateSalesTrend(dto.getSales7d())));
             if (finalTargetMagasinId != null) {
                 // Count products that have stock in the selected magasin

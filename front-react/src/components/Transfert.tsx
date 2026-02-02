@@ -20,16 +20,16 @@ const Transfert: React.FC = () => {
   const [transferSearch, setTransferSearch] = useState('');
   const [transferSelectedIds, setTransferSelectedIds] = useState<number[]>([]);
   const [transferSelectAll, setTransferSelectAll] = useState(false);
-  const [transferQuantities, setTransferQuantities] = useState<Record<number, number>>({});
+  const [transferQuantities, setTransferQuantities] = useState<Record<number, number | ''>>({});
   const [transferIsCond, setTransferIsCond] = useState<Record<number, boolean>>({});
-  const [transferCondQuantities, setTransferCondQuantities] = useState<Record<number, number>>({});
+  const [transferCondQuantities, setTransferCondQuantities] = useState<Record<number, number | ''>>({});
 
   const toggleTransferCond = (pid: number, checked: boolean) => {
     setTransferIsCond(prev => ({ ...prev, [pid]: checked }));
     if (checked && (transferCondQuantities[pid] === undefined)) setTransferCondQuantities(prev => ({ ...prev, [pid]: 1 }));
   };
 
-  const setCondQty = (pid: number, qty: number) => {
+  const setCondQty = (pid: number, qty: number | '') => {
     setTransferCondQuantities(prev => ({ ...prev, [pid]: qty }));
   };
 
@@ -145,11 +145,11 @@ const Transfert: React.FC = () => {
     }
   };
 
-  const setQty = (pid: number, qty: number) => {
+  const setQty = (pid: number, qty: number | '') => {
     setTransferQuantities(prev => ({ ...prev, [pid]: qty }));
   };
 
-  const validateItems = (items: { produitId: number; quantite?: number; quantiteConditionnement?: number; }[]) => {
+  const validateItems = (items: { produitId: number; quantite?: number | ''; quantiteConditionnement?: number | '' ; }[]) => {
     if (sourceType === 'MAGASIN' && !sourceMagasinId) { setMessage('Sélectionnez un magasin source'); return false; }
     if (sourceType === 'BOUTIQUE' && !currentBoutique) { setMessage('Impossible de déterminer la boutique source'); return false; }
     if (!items || items.length === 0) { setMessage('Aucun produit sélectionné'); return false; }
@@ -158,12 +158,12 @@ const Transfert: React.FC = () => {
       if (!s) { setMessage('Produit introuvable dans le stock sélectionné'); return false; }
 
       if (it.quantiteConditionnement !== undefined && it.quantiteConditionnement !== null) {
-        if (it.quantiteConditionnement <= 0) { setMessage('Quantités invalides détectées'); return false; }
-        const real = (it.quantiteConditionnement || 0) * (s.multiplicateur || 1);
+        if ((Number(it.quantiteConditionnement || 0)) <= 0) { setMessage('Quantités invalides détectées'); return false; }
+        const real = (Number(it.quantiteConditionnement || 0)) * (s.multiplicateur || 1);
         if (real > (s.quantiteDisponible || 0)) { setMessage(`Quantité supérieure au disponible pour ${s.nomProduit}`); return false; }
       } else {
-        if (!it.quantite || it.quantite <= 0) { setMessage('Quantités invalides détectées'); return false; }
-        if (it.quantite > (s.quantiteDisponible || 0)) { setMessage(`Quantité supérieure au disponible pour ${s.nomProduit}`); return false; }
+        if ((Number(it.quantite || 0)) <= 0) { setMessage('Quantités invalides détectées'); return false; }
+        if (Number(it.quantite || 0) > (s.quantiteDisponible || 0)) { setMessage(`Quantité supérieure au disponible pour ${s.nomProduit}`); return false; }
       }
     }
     if (destType === 'MAGASIN' && !destMagasinId) { setMessage('Sélectionnez un magasin destination'); return false; }
@@ -196,10 +196,10 @@ const Transfert: React.FC = () => {
   const computeEffectiveQty = (s: TransferStock) => {
     const pid = s.produitId;
     if (transferIsCond[pid]) {
-      const qCond = transferCondQuantities[pid] || 0;
+      const qCond = Number(transferCondQuantities[pid] || 0);
       return qCond * (s.multiplicateur || 1);
     }
-    return transferQuantities[pid] || 0;
+    return Number(transferQuantities[pid] || 0);
   };
 
 
@@ -370,14 +370,14 @@ const Transfert: React.FC = () => {
                           </div>
 
                           {transferIsCond[s.produitId] ? (
-                            <input type="number" min={0} className="form-control form-control-sm" value={transferCondQuantities[s.produitId] ?? 0} onChange={(e) => setCondQty(s.produitId, Number(e.target.value))} style={{ width: 100 }} />
+                            <input type="number" min={0} className="form-control form-control-sm" value={transferCondQuantities[s.produitId] ?? ''} onChange={(e) => setCondQty(s.produitId, e.target.value === '' ? '' : Number(e.target.value))} style={{ width: 100 }} />
                           ) : (
-                            <input type="number" min={0} max={s.quantiteDisponible ?? 0} className="form-control form-control-sm" value={transferQuantities[s.produitId] ?? 0} onChange={(e) => setQty(s.produitId, Number(e.target.value))} style={{ width: 100 }} />
-                          )}
+                            <input type="number" min={0} max={s.quantiteDisponible ?? 0} className="form-control form-control-sm" value={transferQuantities[s.produitId] ?? ''} onChange={(e) => setQty(s.produitId, e.target.value === '' ? '' : Number(e.target.value))} style={{ width: 100 }} />
+                          )} 
                         </div>
                         <small className="text-muted">
-                          {transferIsCond[s.produitId] && (transferCondQuantities[s.produitId] ?? 0) > 0 ? (() => {
-                            const q = transferCondQuantities[s.produitId] || 0;
+                          {transferIsCond[s.produitId] && (Number(transferCondQuantities[s.produitId] || 0) > 0) ? (() => {
+                            const q = Number(transferCondQuantities[s.produitId] || 0);
                             const mul = s.multiplicateur || 1;
                             const unitRaw = s.uniteCondLibelle || 'cond';
                             const unit = typeof unitRaw === 'string' ? unitRaw : String(unitRaw);
