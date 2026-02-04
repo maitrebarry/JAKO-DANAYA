@@ -30,6 +30,9 @@ public class UploadsController {
     @Value("${app.upload.user-photo-dir:./uploads/user_photo/}")
     private String userPhotoDir;
 
+    @Value("${app.upload.dir:./uploads/}")
+    private String uploadDir;
+
     @GetMapping("/uploads/user_photo/{filename:.+}")
     public ResponseEntity<Resource> serveUserPhoto(@PathVariable String filename) {
         if (!StringUtils.hasText(filename)) {
@@ -59,6 +62,54 @@ public class UploadsController {
         } catch (Exception e) {
             logger.error("Error while serving avatar {}: {}", filename, e.getMessage());
             return serveDefaultAvatar();
+        }
+    }
+
+    @GetMapping("/api/uploads/products/{filename:.+}")
+    public ResponseEntity<Resource> serveProductImage(@PathVariable String filename) {
+        if (!StringUtils.hasText(filename)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        try {
+            Path dir = Paths.get(uploadDir).toAbsolutePath().normalize().resolve("products");
+            Path file = dir.resolve(filename).normalize();
+
+            if (!file.startsWith(dir) || !Files.exists(file) || !Files.isReadable(file)) {
+                // Fallback: try mounted path /app/uploads/products (Render disk mount)
+                try {
+                    Path fallbackDir = Paths.get("/app/uploads/products").toAbsolutePath().normalize();
+                    Path fb = fallbackDir.resolve(filename).normalize();
+                    if (Files.exists(fb) && Files.isReadable(fb)) {
+                        logger.info("Product image served from fallback path: {}", fb.toString());
+                        UrlResource resource = new UrlResource(fb.toUri());
+                        Optional<MediaType> mt = MediaTypeFactory.getMediaType(filename);
+                        return ResponseEntity.ok()
+                                .contentType(mt.orElse(MediaType.APPLICATION_OCTET_STREAM))
+                                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                                .body(resource);
+                    }
+                } catch (Exception ex) {
+                    logger.warn("Fallback product image check failed: {}", ex.getMessage());
+                }
+
+                logger.debug("Product image not found - requested: {} (resolved: {})", filename, file.toString());
+                return ResponseEntity.notFound().build();
+            }
+
+            UrlResource resource = new UrlResource(file.toUri());
+            Optional<MediaType> mt = MediaTypeFactory.getMediaType(filename);
+            return ResponseEntity.ok()
+                    .contentType(mt.orElse(MediaType.APPLICATION_OCTET_STREAM))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                    .body(resource);
+
+        } catch (MalformedURLException e) {
+            logger.warn("Malformed URL while serving product image {}: {}", filename, e.getMessage());
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            logger.error("Error while serving product image {}: {}", filename, e.getMessage());
+            return ResponseEntity.notFound().build();
         }
     }
 

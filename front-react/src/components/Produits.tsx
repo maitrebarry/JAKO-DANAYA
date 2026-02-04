@@ -246,10 +246,12 @@ const Produits: React.FC = () => {
     const s = String(p);
     if (s.startsWith('http://') || s.startsWith('https://')) return s;
     if (s.startsWith('/uploads') || s.startsWith('uploads')) {
-      return s.startsWith('/') ? `${API_BASE}${s}` : `${API_BASE}/${s}`;
+      // ensure requests go through backend by using /api prefix
+      const clean = s.startsWith('/') ? s : ('/' + s);
+      return `${API}${clean}`;
     }
-    // Bare filename or other path -> assume filename and map to uploads/products/
-    return `${API_BASE}/uploads/products/${s}`;
+    // Bare filename or other path -> assume filename and map to API endpoint
+    return `${API}/uploads/products/${s}`;
   };
 
   const handleShowDetail = async (produit: any) => {
