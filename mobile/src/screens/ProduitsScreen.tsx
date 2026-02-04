@@ -3,6 +3,7 @@ import { View, Text, FlatList, Image, Pressable, TextInput, ActivityIndicator, R
 import { useApp } from '../store/AppContext';
 import { fetchProduits } from '../services/produit';
 import { useTheme } from '../theme';
+import { resolveMediaUrl } from '../utils/urls';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ProduitsScreen({ navigation, route }: any) {
@@ -119,7 +120,13 @@ export default function ProduitsScreen({ navigation, route }: any) {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.primary]} />}
           renderItem={({ item }) => (
             <Pressable onPress={() => navigation.navigate('ProductDetail', { id: item.id })} style={{ flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: theme.surface, margin: 8, borderRadius: 8 }}>
-              {item.productImage ? <Image source={{ uri: item.productImage }} style={{ width: 64, height: 64, borderRadius: 6, marginRight: 12 }} /> : <View style={{ width: 64, height: 64, borderRadius: 6, backgroundColor: theme.background, marginRight: 12 }} />}
+              {item.productImage ? (
+                (() => {
+                  const imgUrl = resolveMediaUrl(item.productImage);
+                  console.debug('Product image URL:', imgUrl);
+                  return <Image source={{ uri: imgUrl }} style={{ width: 64, height: 64, borderRadius: 6, marginRight: 12 }} />;
+                })()
+              ) : <View style={{ width: 64, height: 64, borderRadius: 6, backgroundColor: theme.background, marginRight: 12 }} />}
               <View style={{ flex: 1 }}>
                 <Text style={{ color: theme.text, fontWeight: '700' }}>{item.nomProduit}</Text>
                 <Text style={{ color: theme.muted, marginTop: 6 }}>{item.prixDetail ? `${item.prixDetail} FCFA` : ''}</Text>

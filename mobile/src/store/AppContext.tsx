@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useMemo, useState, useEffect } from 'react';
-import * as SecureStore from 'expo-secure-store';
 
 import { fetchCurrentUser } from '../services/auth';
+import { getItem, setItem, removeItem } from '../utils/storage';
 
 type AppState = {
   token: string | null;
@@ -28,9 +28,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let mounted = true;
     const load = async () => {
       try {
-        const savedToken = await SecureStore.getItemAsync('auth_token');
-        const savedBoutique = await SecureStore.getItemAsync('boutique_id');
-        const savedTheme = await SecureStore.getItemAsync('theme_pref');
+        const savedToken = await getItem('auth_token');
+        const savedBoutique = await getItem('boutique_id');
+        const savedTheme = await getItem('theme_pref');
         if (!mounted) return;
         if (savedToken) setToken(savedToken);
         if (savedBoutique) setBoutiqueId(Number(savedBoutique));
@@ -45,7 +45,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     if (!ready) return;
-    if (themePref) SecureStore.setItemAsync('theme_pref', themePref);
+    if (themePref) setItem('theme_pref', themePref);
   }, [themePref, ready]);
   // When token changes, load current user profile
   useEffect(() => {
@@ -66,14 +66,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     if (!ready) return;
-    if (token) SecureStore.setItemAsync('auth_token', token);
-    else SecureStore.deleteItemAsync('auth_token');
+    if (token) setItem('auth_token', token);
+    else removeItem('auth_token');
   }, [token, ready]);
 
   useEffect(() => {
     if (!ready) return;
-    if (boutiqueId != null) SecureStore.setItemAsync('boutique_id', String(boutiqueId));
-    else SecureStore.deleteItemAsync('boutique_id');
+    if (boutiqueId != null) setItem('boutique_id', String(boutiqueId));
+    else removeItem('boutique_id');
   }, [boutiqueId, ready]);
 
   const value = useMemo(() => ({ token, setToken, boutiqueId, setBoutiqueId, profile, setProfile, ready, themePref, setThemePref }), [token, boutiqueId, profile, ready, themePref]);

@@ -5,7 +5,7 @@ import { useUser } from '../contexts/UserContext';
 import useHasPermission from '../contexts/useHasPermission';
 import RequirePermission from './RequirePermission';
 import { useFormatMoney } from '../utils/currency';
-import { withApi, API } from '../config/api';
+import { withApi, API, API_BASE } from '../config/api';
 import '../assets/css/style_produit.css';
 
 const Produits: React.FC = () => {
@@ -234,6 +234,22 @@ const Produits: React.FC = () => {
       setMargeConfig(null);
     } finally {
     }
+  };
+
+  // Resolve product image URL robustly: accepts
+  // - absolute URLs (http...)
+  // - leading slash public paths ('/uploads/products/...')
+  // - bare filenames ('abc.jpg') => resolves to `${API_BASE}/uploads/products/abc.jpg`
+  const resolveProductImage = (p?: string | null) => {
+    const placeholder = 'https://via.placeholder.com/200x200?text=No+Image';
+    if (!p) return placeholder;
+    const s = String(p);
+    if (s.startsWith('http://') || s.startsWith('https://')) return s;
+    if (s.startsWith('/uploads') || s.startsWith('uploads')) {
+      return s.startsWith('/') ? `${API_BASE}${s}` : `${API_BASE}/${s}`;
+    }
+    // Bare filename or other path -> assume filename and map to uploads/products/
+    return `${API_BASE}/uploads/products/${s}`;
   };
 
   const handleShowDetail = async (produit: any) => {
@@ -922,7 +938,7 @@ const Produits: React.FC = () => {
             <div className="card product-card position-relative">
               <div className="product-image-wrapper">
                 <img
-                  src={produit.productImage || 'https://via.placeholder.com/200x200?text=No+Image'}
+                  src={resolveProductImage(produit.productImage)}
                   className="card-img-top"
                   alt={produit.nomProduit}
                   onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/200x200?text=No+Image'; }}
@@ -1198,7 +1214,7 @@ const Produits: React.FC = () => {
                 <div className="row g-3">
                   <div className="col-md-6">
                     <img
-                      src={detailProduit.productImage || 'https://via.placeholder.com/200x200?text=No+Image'}
+                      src={resolveProductImage(detailProduit.productImage)}
                       className="img-fluid"
                       alt={detailProduit.nomProduit}
                     />

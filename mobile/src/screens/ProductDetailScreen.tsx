@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, ActivityIndicator, Alert, ScrollView, Pressable, Modal, TouchableOpacity } from 'react-native';
+import { View, Text, Image, ActivityIndicator, ScrollView, Pressable, Modal, TouchableOpacity } from 'react-native';
 import { useApp } from '../store/AppContext';
+import { showError, showSuccess } from '../utils/notify';
 import { fetchProduit, deleteProduit } from '../services/produit';
 import { useTheme } from '../theme';
+import { resolveMediaUrl } from '../utils/urls';
 
 export default function ProductDetailScreen({ route, navigation }: any) {
   const { token } = useApp();
@@ -21,7 +23,7 @@ export default function ProductDetailScreen({ route, navigation }: any) {
         const p = await fetchProduit(id, token as string);
         setProduct(p);
       } catch (e:any) {
-        Alert.alert('Erreur', e.message || 'Impossible de charger le produit');
+        showError('Erreur', e.message || 'Impossible de charger le produit');
         navigation.goBack();
       } finally {
         setLoading(false);
@@ -41,15 +43,14 @@ export default function ProductDetailScreen({ route, navigation }: any) {
     try {
       await deleteProduit(id, token as string);
       setShowDeleteModal(false);
-      setSuccessMsg('Produit supprimé avec succès');
-      // show success briefly then go back
+      setSuccessMsg('Produit supprimé avec succès');      showSuccess('Succès', 'Produit supprimé avec succès');      // show success briefly then go back
       setTimeout(() => {
         setSuccessMsg(null);
         navigation.goBack();
       }, 1400);
     } catch (e:any) {
       setShowDeleteModal(false);
-      Alert.alert('Erreur', e.message || 'Suppression impossible');
+      showError('Erreur', e.message || 'Suppression impossible');
     } finally {
       setDeleting(false);
     }
@@ -74,7 +75,7 @@ export default function ProductDetailScreen({ route, navigation }: any) {
       ) : null}
 
       <View style={{ padding: 16 }}>
-        {product?.productImage ? <Image source={{ uri: product.productImage }} style={{ width: '100%', height: 220, borderRadius: 8, marginBottom: 12 }} /> : null}
+        {product?.productImage ? (() => { const imgUrl = resolveMediaUrl(product.productImage); console.debug('Product detail image URL:', imgUrl); return <Image source={{ uri: imgUrl }} style={{ width: '100%', height: 220, borderRadius: 8, marginBottom: 12 }} /> })() : null}
         <Text style={{ color: theme.text, fontSize: 20, fontWeight: '800' }}>{product?.nomProduit}</Text>
       <Text style={{ color: theme.muted, marginTop: 6 }}>{product?.caracteristique}</Text>
 

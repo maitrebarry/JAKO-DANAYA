@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, FlatList, Pressable, ActivityIndicator } from 'react-native';
 import { useApp } from '../store/AppContext';
+import { showError } from '../utils/notify';
 import { MaterialIcons } from '@expo/vector-icons';
 
 export default function NotificationsScreen() {
@@ -18,10 +19,10 @@ export default function NotificationsScreen() {
         setItems(Array.isArray(data) ? data : []);
       } else {
         const t = await res.text().catch(()=>'');
-        Alert.alert('Erreur', t || 'Impossible de charger les notifications');
+        showError('Erreur', t || 'Impossible de charger les notifications');
       }
     } catch (e:any) {
-      Alert.alert('Erreur', e?.message || 'Erreur réseau');
+      showError('Erreur', e?.message || 'Erreur réseau');
     } finally { setLoading(false); }
   };
 
@@ -31,8 +32,8 @@ export default function NotificationsScreen() {
     if (!token) return;
     try {
       const res = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL_LOCAL || ''}/api/notifications/${id}/read`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) load(); else Alert.alert('Erreur', 'Impossible de marquer comme lu');
-    } catch (e:any) { Alert.alert('Erreur', e?.message || 'Erreur réseau'); }
+      if (res.ok) load(); else showError('Erreur', 'Impossible de marquer comme lu');
+    } catch (e:any) { showError('Erreur', e?.message || 'Erreur réseau'); }
   };
 
   if (loading) return <View style={{ flex:1, justifyContent:'center', alignItems:'center' }}><ActivityIndicator /></View>;

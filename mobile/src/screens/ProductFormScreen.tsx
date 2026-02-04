@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, ScrollView, Pressable, Image, Alert } from 'react-native';
+import { View, Text, TextInput, ScrollView, Pressable, Image, SafeAreaView, KeyboardAvoidingView, Platform, TouchableOpacity, Switch } from 'react-native';
 // dynamic import of expo-image-picker to avoid runtime crash when not installed
 let ImagePicker: any = null;
 import { useApp } from '../store/AppContext';
 import { createProduit, fetchProduit, updateProduit, fetchConfigurationMarge } from '../services/produit';
 import { useTheme } from '../theme';
+import { showSuccess, showError, showInfo } from '../utils/notify';
 
 export default function ProductFormScreen({ route, navigation }: any) {
   const { token, boutiqueId } = useApp();
@@ -106,7 +107,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
               setImage({ uri: p.productImage });
             }
           }
-        } catch (e:any) { Alert.alert('Erreur', e.message || 'Erreur'); navigation.goBack(); }
+        } catch (e:any) { showError('Erreur', e.message || 'Erreur'); navigation.goBack(); }
       })();
     }
   }, [mode, id, boutiqueId, token]);
@@ -119,7 +120,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes, quality: 0.7, base64: false });
       if (!res.cancelled) setImage(res);
     } catch (e:any) {
-      Alert.alert('Fonctionnalité non disponible', "Le module d'accès aux images n'est pas installé. Exécutez 'expo install expo-image-picker'");
+      showError('Fonctionnalité non disponible', "Le module d'accès aux images n'est pas installé. Exécutez 'expo install expo-image-picker'");
     }
   };
 
@@ -220,7 +221,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
       if (selectedUniteId != null) {
         const nb = Number(nombreUnitesParConditionnement || '0');
         if (!Number.isFinite(nb) || nb < 1) {
-          Alert.alert('Erreur', 'Le nombre d\'unités par conditionnement doit être ≥ 1');
+          showError('Erreur', 'Le nombre d\'unités par conditionnement doit être ≥ 1');
           setCreating(false); return;
         }
       }
@@ -230,192 +231,189 @@ export default function ProductFormScreen({ route, navigation }: any) {
         console.log('PRODUCT_CREATE', { nom, prixDetail, computed: computeMargins, saved });
         // Success alert with actions
         const totalUnits = Number(quantite || '0') * Number(nombreUnitesParConditionnement || '1');
-        Alert.alert(
-          'Produit créé',
-          `${saved.nomProduit} a été créé avec succès. Quantité initiale: ${quantite} ${selectedUniteId ? (unites.find(u=>u.id===selectedUniteId)?.libelle || '') + '(s)' : 'unités'} (= ${totalUnits} unités)`,
-          [
-            { text: 'Voir', onPress: () => navigation.navigate('ProductDetail', { id: saved.id }) },
-            { text: 'OK', onPress: () => navigation.goBack(), style: 'cancel' }
-          ]
-        );
+        showSuccess('Produit créé', `${saved.nomProduit} a été créé avec succès. Quantité initiale: ${quantite} ${selectedUniteId ? (unites.find(u=>u.id===selectedUniteId)?.libelle || '') + '(s)' : 'unités'} (= ${totalUnits} unités)`);
+        navigation.navigate('ProductDetail', { id: saved.id });
       } else {
         const saved = await updateProduit(id, fd, token as string);
         console.log('PRODUCT_UPDATE', { id, nom, saved });
-        Alert.alert('Produit mis à jour', `${nom} a été mis à jour avec succès.` , [{ text: 'OK', onPress: () => navigation.goBack() }]);
+        showSuccess('Produit mis à jour', `${nom} a été mis à jour avec succès.`);
+        navigation.goBack();
       }
     } catch (e:any) {
-      Alert.alert('Erreur', e.message || 'Erreur enregistrement');
+      showError('Erreur', e.message || 'Erreur enregistrement');
     } finally {
       setCreating(false);
     }
   };
 
+  // Small helper to render labelled fields consistently ✅
+  const Field = ({ label, children, help, error }: any) => (
+    <View style={{ marginTop: 12 }}>
+      <Text style={{ color: theme.text, fontWeight: '600', marginBottom: 6 }}>{label}</Text>
+      {children}
+      {help ? <Text style={{ color: theme.muted, marginTop: 6 }}>{help}</Text> : null}
+      {error ? <Text style={{ color: theme.danger, marginTop: 6 }}>{error}</Text> : null}
+    </View>
+  );
+
+  const inputStyle = { backgroundColor: theme.surface, padding: 12, borderRadius: 10, color: theme.text, borderWidth: 1, borderColor: theme.surface } as any;
+
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: theme.background }}>
-      <BackHeader title="Produit" />
-      <View style={{ padding: 16 }}>
-        <Text style={{ color: theme.text, fontWeight: '700' }}>{mode === 'create' ? 'Créer un produit' : 'Modifier le produit'}</Text>
-        <TextInput placeholder="Nom" placeholderTextColor={theme.muted} value={nom} onChangeText={setNom} style={{ backgroundColor: theme.surface, padding: 12, borderRadius: 8, marginTop: 12, color: theme.text }} />
-        {errors.nom ? <Text style={{ color: theme.danger, marginTop: 6 }}>{errors.nom}</Text> : null}
-      <View style={{ marginTop: 12 }}>
-        {/* Prix achat en premier */}
-        <TextInput placeholder="Prix achat" keyboardType="numeric" placeholderTextColor={theme.muted} value={prixAchat} onChangeText={setPrixAchat} style={{ backgroundColor: theme.surface, padding: 12, borderRadius: 8, color: theme.text }} />
-        {errors.prixAchat ? <Text style={{ color: theme.danger, marginTop: 6 }}>{errors.prixAchat}</Text> : null}
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
+          <BackHeader title="Produit" />
 
-        {/* Indication et contrôles pour calcul automatique */}
-        {computeMargins && margeConfig ? (
-          <Text style={{ color: theme.muted, marginTop: 8 }}>Les prix en gros et détail seront calculés automatiquement à partir du CMP (configuration boutique).</Text>
-        ) : (
-          <Text style={{ color: theme.muted, marginTop: 8 }}>Saisir les prix en gros et détail ou activer le calcul automatique.</Text>
-        )}
+          <Text style={{ color: theme.text, fontWeight: '800', fontSize: 18 }}>{mode === 'create' ? 'Créer un produit' : 'Modifier le produit'}</Text>
 
-        {/* Prix en gros (editable si computeMargins désactivé) */}
-        {computeMargins && margeConfig ? (
-          <TextInput placeholder="Prix en gros (calculé)" keyboardType="numeric" placeholderTextColor={theme.muted} value={suggested.prixEnGros != null ? String(suggested.prixEnGros) : ''} editable={false} style={{ backgroundColor: theme.surface, padding: 12, borderRadius: 8, marginTop: 8, color: theme.text, opacity: 0.8 }} />
-        ) : (
-          <TextInput placeholder="Prix en gros" keyboardType="numeric" placeholderTextColor={theme.muted} value={prixEnGros} onChangeText={(v)=>{ setPrixEnGros(v); setPrixEnGrosTouched(true); }} style={{ backgroundColor: theme.surface, padding: 12, borderRadius: 8, marginTop: 8, color: theme.text }} />
-        )}
-        {errors.prixEnGros ? <Text style={{ color: theme.danger, marginTop: 6 }}>{errors.prixEnGros}</Text> : null}
+          <Field label="Nom" error={errors.nom}>
+            <TextInput placeholder="Nom du produit" placeholderTextColor={theme.muted} value={nom} onChangeText={setNom} style={{ ...inputStyle, marginTop: 0 }} />
+          </Field>
 
-        {/* Prix détail (editable si computeMargins désactivé) */}
-        {computeMargins && margeConfig ? (
-          <TextInput placeholder="Prix détail (calculé)" keyboardType="numeric" placeholderTextColor={theme.muted} value={suggested.prixDetail != null ? String(suggested.prixDetail) : ''} editable={false} style={{ backgroundColor: theme.surface, padding: 12, borderRadius: 8, marginTop: 8, color: theme.text, opacity: 0.8 }} />
-        ) : (
-          <TextInput placeholder="Prix détail" keyboardType="numeric" placeholderTextColor={theme.muted} value={prixDetail} onChangeText={(v)=>{ setPrixDetail(v); setPrixDetailTouched(true); }} style={{ backgroundColor: theme.surface, padding: 12, borderRadius: 8, marginTop: 8, color: theme.text }} />
-        )}
-        {errors.prixDetail ? <Text style={{ color: theme.danger, marginTop: 6 }}>{errors.prixDetail}</Text> : null}
+          <Field label="Prix d'achat" error={errors.prixAchat} help={computeMargins && margeConfig ? 'Le prix de vente sera calculé automatiquement si activé' : undefined}>
+            <TextInput placeholder="Prix achat" keyboardType="numeric" placeholderTextColor={theme.muted} value={prixAchat} onChangeText={setPrixAchat} style={inputStyle} />
+          </Field>
 
-        {/* Unité de conditionnement (après prix détail) */}
-        <View style={{ marginTop: 12 }}>
-          <Text style={{ color: theme.muted }}>Unité de conditionnement (optionnel)</Text>
-          <Pressable onPress={() => setShowUnitsModal(s => !s)} style={{ padding: 12, backgroundColor: theme.surface, borderRadius: 8, marginTop: 8 }}>
-            <Text style={{ color: theme.text }}>{selectedUniteId ? (unites.find(u=>u.id===selectedUniteId)?.libelle || String(selectedUniteId)) : 'Sélectionner une unité (optionnel)'}</Text>
-          </Pressable>
-          {showUnitsModal && (
-            <View style={{ backgroundColor: theme.surface, marginTop: 8, borderRadius: 8, padding: 8, maxHeight: 200 }}>
-              {unites.map(u => (
-                <Pressable key={u.id} onPress={() => { setSelectedUniteId(u.id); setShowUnitsModal(false); }} style={{ padding: 8 }}>
-                  <Text style={{ color: theme.text }}>{u.libelle}</Text>
-                </Pressable>
-              ))}
+          <Field label="Prix en gros" error={errors.prixEnGros}>
+            {computeMargins && margeConfig ? (
+              <TextInput placeholder="Prix en gros (calculé)" keyboardType="numeric" placeholderTextColor={theme.muted} value={suggested.prixEnGros != null ? String(suggested.prixEnGros) : ''} editable={false} style={{ ...inputStyle, opacity: 0.85 }} />
+            ) : (
+              <TextInput placeholder="Prix en gros" keyboardType="numeric" placeholderTextColor={theme.muted} value={prixEnGros} onChangeText={(v)=>{ setPrixEnGros(v); setPrixEnGrosTouched(true); }} style={inputStyle} />
+            )}
+          </Field>
+
+          <Field label="Prix détail" error={errors.prixDetail}>
+            {computeMargins && margeConfig ? (
+              <TextInput placeholder="Prix détail (calculé)" keyboardType="numeric" placeholderTextColor={theme.muted} value={suggested.prixDetail != null ? String(suggested.prixDetail) : ''} editable={false} style={{ ...inputStyle, opacity: 0.85 }} />
+            ) : (
+              <TextInput placeholder="Prix détail" keyboardType="numeric" placeholderTextColor={theme.muted} value={prixDetail} onChangeText={(v)=>{ setPrixDetail(v); setPrixDetailTouched(true); }} style={inputStyle} />
+            )}
+          </Field>
+
+          <Field label="Unité de conditionnement (optionnel)">
+            <Pressable onPress={() => setShowUnitsModal(s => !s)} style={{ padding: 12, backgroundColor: theme.surface, borderRadius: 10 }}>
+              <Text style={{ color: theme.text }}>{selectedUniteId ? (unites.find(u=>u.id===selectedUniteId)?.libelle || String(selectedUniteId)) : 'Sélectionner une unité'}</Text>
+            </Pressable>
+            {showUnitsModal && (
+              <View style={{ backgroundColor: theme.surface, marginTop: 8, borderRadius: 10, padding: 8, maxHeight: 240 }}>
+                {unites.length === 0 ? <Text style={{ color: theme.muted }}>Aucune unité disponible</Text> : unites.map(u => (
+                  <Pressable key={u.id} onPress={() => { setSelectedUniteId(u.id); setShowUnitsModal(false); }} style={{ padding: 10 }}>
+                    <Text style={{ color: theme.text }}>{u.libelle}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            <TextInput placeholder="Nombre d'unités par conditionnement" keyboardType="numeric" placeholderTextColor={theme.muted} value={nombreUnitesParConditionnement} onChangeText={setNombreUnitesParConditionnement} style={{ ...inputStyle, marginTop: 8 }} />
+          </Field>
+
+          <Field label="Alerte stock">
+            <TextInput placeholder="Alerte stock" keyboardType="numeric" placeholderTextColor={theme.muted} value={alerteStock} onChangeText={setAlerteStock} style={inputStyle} />
+          </Field>
+
+          <Field label={`Quantité initiale ${selectedUniteId ? `(${(unites.find(u=>u.id===selectedUniteId)?.libelle || '').toLowerCase()}s)` : ''}`}>
+            <TextInput placeholder={selectedUniteId ? `Nombre de ${unites.find(u=>u.id===selectedUniteId)?.libelle?.toLowerCase() || 'conditionnements'}` : 'Quantité en unités de base'} keyboardType="numeric" placeholderTextColor={theme.muted} value={quantite} onChangeText={setQuantite} style={inputStyle} />
+            {selectedUniteId ? (
+              <Text style={{ color: theme.muted, marginTop: 6 }}>1 {unites.find(u=>u.id===selectedUniteId)?.libelle} = {Number(nombreUnitesParConditionnement || '1')} unités. Total: {Number(quantite || '0') * Number(nombreUnitesParConditionnement || '1')} unités.</Text>
+            ) : null}
+          </Field>
+
+          <Field label="Image">
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <TouchableOpacity onPress={pickImage} style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: theme.surface, justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderWidth: 1, borderColor: theme.muted }}>
+                {(imageType === 'file' && image?.uri) || (imageType === 'url' && imageUrl) ? (
+                  <Image source={{ uri: imageType === 'file' ? image.uri : imageUrl }} style={{ width: 96, height: 96 }} />
+                ) : (
+                  <Text style={{ color: theme.muted, textAlign: 'center' }}>Ajouter{"\n"}photo</Text>
+                )}
+              </TouchableOpacity>
+
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Pressable onPress={() => setImageType('file')} style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: imageType === 'file' ? theme.primary : theme.surface, borderRadius: 8 }}>
+                    <Text style={{ color: imageType === 'file' ? '#fff' : theme.text }}>Fichier</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setImageType('url')} style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: imageType === 'url' ? theme.primary : theme.surface, borderRadius: 8 }}>
+                    <Text style={{ color: imageType === 'url' ? '#fff' : theme.text }}>URL</Text>
+                  </Pressable>
+                </View>
+
+                {imageType === 'file' && (
+                  <TouchableOpacity onPress={pickImage} style={{ marginTop: 12 }}>
+                    <Text style={{ color: theme.primary }}>Choisir une image depuis la galerie</Text>
+                  </TouchableOpacity>
+                )}
+
+                {imageType === 'url' && (
+                  <TextInput placeholder="https://..." value={imageUrl} onChangeText={setImageUrl} placeholderTextColor={theme.muted} style={{ ...inputStyle, marginTop: 12 }} />
+                )}
+              </View>
             </View>
-          )}
+          </Field>
 
-          <Text style={{ color: theme.muted, marginTop: 8 }}>Nombre d'unités par conditionnement</Text>
-          <TextInput placeholder="Ex: 12" keyboardType="numeric" placeholderTextColor={theme.muted} value={nombreUnitesParConditionnement} onChangeText={setNombreUnitesParConditionnement} style={{ backgroundColor: theme.surface, padding: 12, borderRadius: 8, marginTop: 8, color: theme.text }} />
-        </View>
+          <View style={{ marginTop: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ color: theme.muted }}>Calculer prix à partir de la marge boutique</Text>
+              <Switch value={computeMargins} onValueChange={(v:any)=>setComputeMargins(v)} trackColor={{ true: theme.primary, false: theme.surface }} thumbColor={computeMargins ? '#fff' : '#fff'} />
+            </View>
 
-        <TextInput placeholder="Alerte stock" keyboardType="numeric" placeholderTextColor={theme.muted} value={alerteStock} onChangeText={setAlerteStock} style={{ backgroundColor: theme.surface, padding: 12, borderRadius: 8, marginTop: 8, color: theme.text }} />
-        <Text style={{ color: theme.muted, marginTop: 8 }}>
-          Quantité initiale {selectedUniteId ? `(${(unites.find(u=>u.id===selectedUniteId)?.libelle || '').toLowerCase()}s)` : '(unités)'}
-        </Text>
-        <TextInput
-          placeholder={selectedUniteId ? `Nombre de ${unites.find(u=>u.id===selectedUniteId)?.libelle?.toLowerCase() || 'conditionnements'}` : 'Quantité en unités de base'}
-          keyboardType="numeric"
-          placeholderTextColor={theme.muted}
-          value={quantite}
-          onChangeText={setQuantite}
-          style={{ backgroundColor: theme.surface, padding: 12, borderRadius: 8, marginTop: 8, color: theme.text }}
-        />
-        {selectedUniteId ? (
-          <Text style={{ color: theme.muted, marginTop: 6 }}>
-            1 {unites.find(u=>u.id===selectedUniteId)?.libelle} = {Number(nombreUnitesParConditionnement || '1')} unités. Total: {Number(quantite || '0') * Number(nombreUnitesParConditionnement || '1')} unités.
-          </Text>
-        ) : null}
-      </View>
-
-      <View style={{ marginTop: 12 }}>
-        <Text style={{ color: theme.muted }}>Image</Text>
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, alignItems: 'center' }}>
-          {(imageType === 'file' && image?.uri) || (imageType === 'url' && imageUrl) ? (
-            <Image source={{ uri: imageType === 'file' ? image.uri : imageUrl }} style={{ width: 80, height: 80, borderRadius: 6, marginRight: 8 }} />
-          ) : null}
-
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-            <Pressable onPress={() => setImageType('file')} style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: imageType === 'file' ? theme.primary : 'transparent', borderRadius: 6, borderWidth: 1, borderColor: theme.muted }}>
-              <Text style={{ color: imageType === 'file' ? '#fff' : theme.text }}>Fichier</Text>
-            </Pressable>
-            <Pressable onPress={() => setImageType('url')} style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: imageType === 'url' ? theme.primary : 'transparent', borderRadius: 6, borderWidth: 1, borderColor: theme.muted }}>
-              <Text style={{ color: imageType === 'url' ? '#fff' : theme.text }}>URL</Text>
-            </Pressable>
-
-            {imageType === 'file' && (
-              <Pressable onPress={pickImage} style={{ padding: 8, backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.muted, borderRadius: 6, justifyContent: 'center' }}>
-                <Text style={{ color: theme.primary }}>Choisir</Text>
-              </Pressable>
+            {margeLoading ? (
+              <Text style={{ color: theme.muted, marginTop: 6 }}>Chargement configuration marges...</Text>
+            ) : margeConfig == null ? (
+              <View style={{ marginTop: 6 }}>
+                <Text style={{ color: theme.danger }}>La configuration des marges n'est pas définie pour cette boutique.</Text>
+                <Pressable onPress={loadMargeConfig} style={{ marginTop: 8, padding: 8, backgroundColor: theme.primary, borderRadius: 8 }}>
+                  <Text style={{ color: '#fff' }}>Recharger la configuration</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={{ marginTop: 6 }}>
+                <Text style={{ color: theme.muted }}>Type: {margeConfig.typeMarge}</Text>
+                <View style={{ marginTop: 8, flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                  <Pressable onPress={async () => {
+                    try {
+                      if (!boutiqueId) { showError('Erreur', 'Boutique introuvable'); return; }
+                      const res = await require('../services/produit').recomputeMargeForBoutique(boutiqueId, token as string);
+                      const jid = res?.jobId || res?.job || null;
+                      setRecomputeJobId(jid);
+                      setRecomputeStatus('RUNNING');
+                      showInfo('Recalcul lancé', 'Job: ' + (jid || 'n/a'));
+                      if (jid) {
+                        if (recomputeTimer.current) clearInterval(recomputeTimer.current);
+                        recomputeTimer.current = setInterval(async () => {
+                          try {
+                            const { fetchRecomputeJobStatus } = require('../services/produit');
+                            const d = await fetchRecomputeJobStatus(jid, token as string);
+                            setRecomputeStatus(d.status);
+                            if (d.status === 'DONE' || d.status === 'FAILED') {
+                              clearInterval(recomputeTimer.current);
+                              recomputeTimer.current = null;
+                              if (d.status === 'DONE') showSuccess('Recalcul terminé', `Produits mis à jour: ${d.updatedCount || 0}`);
+                              else showError('Recalcul échoué', d.error || 'Erreur');
+                              loadMargeConfig();
+                            }
+                          } catch (e) { /* ignore */ }
+                        }, 2000);
+                      }
+                    } catch (e:any) { showError('Erreur', e.message || 'Impossible de lancer le recalcul'); }
+                  }} style={{ padding: 8, backgroundColor: '#10b981', borderRadius: 8 }}>
+                    <Text style={{ color: '#fff' }}>Recalculer maintenant</Text>
+                  </Pressable>
+                  {recomputeJobId ? <Text style={{ color: theme.muted }}>Job: {recomputeJobId} ({recomputeStatus})</Text> : null}
+                </View>
+              </View>
             )}
           </View>
-        </View>
-        {imageType === 'url' && (
-          <TextInput placeholder="https://..." value={imageUrl} onChangeText={setImageUrl} placeholderTextColor={theme.muted} style={{ backgroundColor: theme.surface, padding: 8, marginTop: 8, borderRadius: 6, color: theme.text }} />
-        )}
 
+        </ScrollView>
 
-      </View>
-      {/* Margin computation */}
-      <View style={{ marginTop: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text style={{ color: theme.muted }}>Calculer prix à partir de la marge boutique</Text>
-          <Pressable onPress={() => setComputeMargins(s => !s)} style={{ padding: 8, backgroundColor: computeMargins ? theme.primary : theme.surface, borderRadius: 6 }}>
-            <Text style={{ color: computeMargins ? '#fff' : theme.text }}>{computeMargins ? 'Activé' : 'Désactivé'}</Text>
-          </Pressable>
+        {/* Sticky submit button to improve ergonomics */}
+        <View style={{ position: 'absolute', left: 16, right: 16, bottom: Platform.OS === 'ios' ? 24 : 16 }}>
+          <TouchableOpacity onPress={submit} disabled={creating} style={{ padding: 14, backgroundColor: creating ? '#94a3b8' : theme.primary, borderRadius: 12, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 6 }}>
+            <Text style={{ color: '#fff', fontWeight: '800' }}>{creating ? (mode === 'create' ? 'Création...' : 'Enregistrement...') : (mode === 'create' ? 'Créer' : 'Enregistrer')}</Text>
+          </TouchableOpacity>
         </View>
-        {margeLoading ? (
-          <Text style={{ color: theme.muted, marginTop: 6 }}>Chargement configuration marges...</Text>
-        ) : margeConfig == null ? (
-          <View style={{ marginTop: 6 }}>
-            <Text style={{ color: theme.danger }}>La configuration des marges n'est pas définie pour cette boutique.</Text>
-            <Pressable onPress={loadMargeConfig} style={{ marginTop: 8, padding: 8, backgroundColor: theme.primary, borderRadius: 6 }}>
-              <Text style={{ color: '#fff' }}>Recharger la configuration</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <View style={{ marginTop: 6 }}>
-            <Text style={{ color: theme.muted }}>Type: {margeConfig.typeMarge}</Text>
-            {/* Recompute now button */}
-            <View style={{ marginTop: 8, flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-              <Pressable onPress={async () => {
-                try {
-                  if (!boutiqueId) { Alert.alert('Erreur', 'Boutique introuvable'); return; }
-                  const res = await require('../services/produit').recomputeMargeForBoutique(boutiqueId, token as string);
-                  const jid = res?.jobId || res?.job || null;
-                  setRecomputeJobId(jid);
-                  setRecomputeStatus('RUNNING');
-                  Alert.alert('Recalcul lancé', 'Job: ' + (jid || 'n/a'));
-                  // start polling
-                  if (jid) {
-                    if (recomputeTimer.current) clearInterval(recomputeTimer.current);
-                    recomputeTimer.current = setInterval(async () => {
-                      try {
-                        const { fetchRecomputeJobStatus } = require('../services/produit');
-                        const d = await fetchRecomputeJobStatus(jid, token as string);
-                        setRecomputeStatus(d.status);
-                        if (d.status === 'DONE' || d.status === 'FAILED') {
-                          clearInterval(recomputeTimer.current);
-                          recomputeTimer.current = null;
-                          if (d.status === 'DONE') Alert.alert('Recalcul terminé', `Produits mis à jour: ${d.updatedCount || 0}`);
-                          else Alert.alert('Recalcul échoué', d.error || 'Erreur');
-                          // refresh marge config
-                          loadMargeConfig();
-                        }
-                      } catch (e) { /* ignore */ }
-                    }, 2000);
-                  }
-                } catch (e:any) { Alert.alert('Erreur', e.message || 'Impossible de lancer le recalcul'); }
-              }} style={{ padding: 8, backgroundColor: '#10b981', borderRadius: 6 }}>
-                <Text style={{ color: '#fff' }}>Recalculer maintenant</Text>
-              </Pressable>
-              {recomputeJobId ? <Text style={{ color: theme.muted }}>Job: {recomputeJobId} ({recomputeStatus})</Text> : null}
-            </View>
-          </View>
-        )}
-      </View>
-      <View style={{ marginTop: 18 }}>
-        <Pressable onPress={submit} disabled={creating} style={{ padding: 14, backgroundColor: creating ? '#94a3b8' : theme.primary, borderRadius: 8, opacity: creating ? 0.6 : 1 }}>
-          <Text style={{ color: '#fff', fontWeight: '700' }}>{creating ? (mode === 'create' ? 'Création...' : 'Enregistrement...') : (mode === 'create' ? 'Créer' : 'Enregistrer')}</Text>
-        </Pressable>
-      </View>
-      </View>
-    </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

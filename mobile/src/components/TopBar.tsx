@@ -83,7 +83,7 @@ export default function TopBar() {
             <Ionicons name={isDark ? 'moon' : 'sunny'} size={22} color={textColor} />
           </Pressable>
 
-          <Pressable onPress={() => navigation.navigate('Profil') }>
+          <Pressable onPress={() => navigation.navigate('Profil', { openAvatarPicker: true }) }>
             <Image source={ profile?.photoUrl || profile?.photo ? { uri: profile.photoUrl || profile.photo } : require('../assets/logo.png') } style={{ width: 40, height: 40, borderRadius: 20 }} />
           </Pressable>
         </View>

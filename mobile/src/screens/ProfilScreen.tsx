@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, Image, TextInput, ScrollView, Alert, Modal, TouchableOpacity } from 'react-native';
-import { fetchCurrentUser, fetchBoutiques, updateCurrentUser, changePassword, uploadAvatar } from '../services/auth';
+import { View, Text, Pressable, ActivityIndicator, Image, TextInput, ScrollView, Modal, TouchableOpacity } from 'react-native';
+import { fetchCurrentUser, fetchBoutiques, updateCurrentUser, changePassword, uploadAvatar, uploadAvatarWithProgress } from '../services/auth';
 import { useApp } from '../store/AppContext';
 import * as ImagePicker from 'expo-image-picker';
+import { resolveMediaUrl } from '../utils/urls';
+import { useRoute } from '@react-navigation/native';
+import { showSuccess, showError } from '../utils/notify';
 
 export default function ProfilScreen() {
   const { token, setToken, setBoutiqueId, profile: ctxProfile, setProfile, themePref, setThemePref } = useApp();
@@ -46,6 +49,17 @@ export default function ProfilScreen() {
     if (ctxProfile) setLocalProfile(ctxProfile);
   }, [ctxProfile]);
 
+  const route = useRoute<any>();
+  // If navigated with openAvatarPicker, open the image picker immediately
+  useEffect(() => {
+    try {
+      if (route?.params?.openAvatarPicker) {
+        // small timeout so screen is mounted before launching picker
+        setTimeout(() => { pickAvatar(); try { route.params.openAvatarPicker = false; } catch (e) {} }, 300);
+      }
+    } catch (e) { /* ignore */ }
+  }, [route?.params?.openAvatarPicker]);
+
   const logout = () => {
     setToken(null);
     setBoutiqueId(null);
@@ -63,20 +77,20 @@ export default function ProfilScreen() {
       setEditing(false);
       setTimeout(() => setSuccessMsg(null), 1400);
     } catch (e:any) {
-      Alert.alert('Erreur', e.message || 'Impossible de mettre à jour');
+      showError('Erreur', e.message || 'Impossible de mettre à jour');
     } finally { setSaving(false); }
   };
 
   const doChangePassword = async () => {
     if (!token) return;
-    if (!oldPwd || !newPwd) { Alert.alert('Erreur', 'Veuillez renseigner l\'ancien et le nouveau mot de passe'); return; }
+    if (!oldPwd || !newPwd) { showError('Erreur', 'Veuillez renseigner l\'ancien et le nouveau mot de passe'); return; }
     try {
       await changePassword(oldPwd, newPwd, token);
       setPwdModal(false);
-      Alert.alert('Succès', 'Mot de passe changé');
+      showSuccess('Succès', 'Mot de passe changé');
       setOldPwd(''); setNewPwd('');
     } catch (e:any) {
-      Alert.alert('Erreur', e.message || 'Changement impossible');
+      showError('Erreur', e.message || 'Changement impossible');
     }
   };
 
@@ -84,19 +98,26 @@ export default function ProfilScreen() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   const pickAvatar = async () => {
+    if (!token) { showError('Erreur', 'Session invalide. Veuillez vous reconnecter.'); return; }
     try {
-      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaType?.Images || ImagePicker.MediaTypeOptions?.Images, quality: 0.7 });
-      if (res.cancelled) return;
-      if (!res.uri) return;
+      const res: any = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions?.Images || ImagePicker.MediaTypeOptions.Images, quality: 0.7 });
+      const cancelled = res.cancelled ?? res.canceled ?? false;
+      if (cancelled) return;
+      const uri = res.uri || (res.assets && res.assets[0] && res.assets[0].uri);
+      if (!uri) return;
+
       // show preview immediately
-      setAvatarPreview(res.uri);
+      setAvatarPreview(uri);
       setUploadProgress(0);
       setAvatarUploading(true);
 
-      // prepare file blob
-      const resp = await fetch(res.uri);
-      const blob = await resp.blob();
-      const file: any = new File([blob], (res.uri.split('/').pop() || 'avatar.jpg'));
+      // build a file object compatible with React Native FormData
+      const asset = (res.assets && res.assets[0]) || {};
+      const name = asset.fileName || uri.split('/').pop() || 'avatar.jpg';
+      const ext = (name.split('.').pop() || 'jpg').toLowerCase();
+      const type = asset.type ? `${asset.type}/${ext}` : `image/${ext}`;
+
+      const file: any = { uri, name, type };
 
       const { promise, abort } = uploadAvatarWithProgress(file, token, (p) => {
         setUploadProgress(p);
@@ -105,21 +126,25 @@ export default function ProfilScreen() {
       try {
         const uploaded = await promise;
         if (uploaded && uploaded.avatar) {
-          setLocalProfile((p:any)=> ({ ...p, avatar: uploaded.avatar }));
-          setProfile((p:any)=> ({ ...p, avatar: uploaded.avatar }));
+          const avatarPath = uploaded.avatar;
+          // Add a timestamp to bust client image cache so the TopBar shows the updated image immediately
+          const avatarUrlBase = resolveMediaUrl(avatarPath);
+          const avatarUrl = avatarUrlBase + (avatarUrlBase.includes('?') ? '&' : '?') + 'ts=' + Date.now();
+          // keep both legacy keys (`photo`, `photoUrl`) and `avatar` in sync so TopBar and other screens update immediately
+          setLocalProfile((p:any)=> ({ ...p, avatar: avatarPath, photo: avatarPath, photoUrl: avatarUrl }));
+          setProfile((p:any)=> ({ ...p, avatar: avatarPath, photo: avatarPath, photoUrl: avatarUrl }));
           setSuccessMsg('Avatar mis à jour');
           setTimeout(() => setSuccessMsg(null), 1400);
         }
       } catch (e:any) {
-        Alert.alert('Erreur', e.message || 'Impossible d\'uploader');
-        setAvatarPreview(null);
+        showError('Erreur', e.message || 'Impossible d\'uploader');
       } finally {
         setUploadProgress(null);
         setAvatarUploading(false);
       }
 
     } catch (e:any) {
-      Alert.alert('Erreur', e.message || 'Impossible d\'uploader');
+      showError('Erreur', e.message || 'Impossible d\'uploader');
       setAvatarUploading(false);
       setUploadProgress(null);
       setAvatarPreview(null);
@@ -131,6 +156,8 @@ export default function ProfilScreen() {
     setSuccessMsg('Boutique sélectionnée');
     setTimeout(() => setSuccessMsg(null), 1200);
   };
+
+  const avatarUri = avatarPreview || (profile?.avatar ? resolveMediaUrl(profile.avatar) : null);
 
   return (
     <ScrollView style={{ flex: 1, padding: 24 }}>
@@ -144,7 +171,9 @@ export default function ProfilScreen() {
       {!loading && profile && (
         <View>
           <View style={{ alignItems: 'center', marginBottom: 12 }}>
-            {(avatarPreview || profile.avatar) ? <Image source={{ uri: avatarPreview || profile.avatar }} style={{ width: 96, height: 96, borderRadius: 48, marginBottom: 8 }} /> : <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#eee', marginBottom: 8 }} />}
+            <Pressable onPress={() => pickAvatar()} style={{ borderRadius: 48, overflow: 'hidden', marginBottom: 8 }}>
+              {avatarUri ? <Image source={{ uri: avatarUri }} style={{ width: 96, height: 96, borderRadius: 48 }} /> : <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#eee' }} />}
+            </Pressable>
 
             {uploadProgress != null ? (
               <View style={{ width: 140, marginBottom: 8 }}>
