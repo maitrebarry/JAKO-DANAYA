@@ -5,7 +5,7 @@ import { useUser } from '../contexts/UserContext';
 import useHasPermission from '../contexts/useHasPermission';
 import RequirePermission from './RequirePermission';
 import { useFormatMoney } from '../utils/currency';
-import { withApi, API, API_BASE } from '../config/api';
+import { withApi, API } from '../config/api';
 import '../assets/css/style_produit.css';
 
 const Produits: React.FC = () => {
