@@ -9,12 +9,13 @@
         try {
           // If a global APP_CONFIG is injected by the host (Render static site), keep it.
           if (window.APP_CONFIG) return;
-          // Optionally load /app-config.js which should set window.APP_CONFIG = { API_BASE_URL: 'https://...' }
-          var s = document.createElement('script');
-          s.src = '/app-config.js';
-          s.defer = true;
-          s.onerror = function(){ /* no runtime override available */ };
-          document.head.appendChild(s);
+          // Load /app-config.js synchronously to ensure it's available before modules load
+          var xhr = new XMLHttpRequest();
+          xhr.open('GET', '/app-config.js', false); // synchronous
+          xhr.send();
+          if (xhr.status === 200) {
+            eval(xhr.responseText); // execute the script
+          }
         } catch(e) { /* ignore */ }
       })();
     </script>
