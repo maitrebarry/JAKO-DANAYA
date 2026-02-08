@@ -6,6 +6,7 @@ import { useApp } from '../store/AppContext';
 import { createProduit, fetchProduit, updateProduit, fetchConfigurationMarge } from '../services/produit';
 import { useTheme } from '../theme';
 import { showSuccess, showError, showInfo } from '../utils/notify';
+import { useAccess } from '../utils/access';
 
 const Field = React.memo(function Field({ label, children, help, error, theme }: any) {
   return (
@@ -21,6 +22,7 @@ const Field = React.memo(function Field({ label, children, help, error, theme }:
 export default function ProductFormScreen({ route, navigation }: any) {
   const { token, boutiqueId } = useApp();
   const theme = useTheme();
+  const access = useAccess();
   const nomInputRef = React.useRef<TextInput>(null);
   const moneyDigits = (v: string) => String(v || '').replace(/[^0-9]/g, '');
   const formatThousands = (digits: string) => {
@@ -36,6 +38,8 @@ export default function ProductFormScreen({ route, navigation }: any) {
   };
   const mode = route.params?.mode || 'create';
   const id = route.params?.id;
+
+  const canEditThis = mode === 'create' ? access.produitsCreate : access.produitsEdit;
   const [margeLoading, setMargeLoading] = useState(false);
   const [activeTab, setActiveTab] = useState(0); // 0: Produit, 1: Conditionnement, 2: Prix & CMP
 
@@ -221,6 +225,10 @@ export default function ProductFormScreen({ route, navigation }: any) {
   const [creating, setCreating] = useState(false);
 
   const submit = async () => {
+    if (!canEditThis) {
+      showError('Permission', mode === 'create' ? "Vous n'avez pas la permission d'ajouter un produit." : "Vous n'avez pas la permission de modifier un produit.");
+      return;
+    }
     if (creating) return; // prevent double submit
     setCreating(true);
     try {
@@ -303,6 +311,20 @@ export default function ProductFormScreen({ route, navigation }: any) {
   };
 
   const inputStyle = { backgroundColor: theme.surface, padding: 12, borderRadius: 10, color: theme.text, borderWidth: 1, borderColor: theme.surface } as any;
+
+  if (!canEditThis) {
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+        <Text style={{ color: theme.text, fontSize: 18, fontWeight: '800' }}>{mode === 'create' ? 'Nouveau produit' : 'Modifier le produit'}</Text>
+        <Text style={{ color: theme.muted, marginTop: 8, textAlign: 'center' }}>
+          Permission requise.
+        </Text>
+        <Pressable onPress={() => navigation.goBack()} style={{ marginTop: 14, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: theme.surface }}>
+          <Text style={{ color: theme.text, fontWeight: '800' }}>Retour</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>

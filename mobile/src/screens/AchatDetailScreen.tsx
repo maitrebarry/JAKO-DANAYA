@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -17,10 +16,12 @@ import {
   type CommandeFournisseurDTO,
 } from '../services/achat';
 import { downloadAndSharePdf } from '../services/pdf';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AchatStackParamList } from '../navigation/achatTypes';
+import { showError, showInfo } from '../utils/notify';
+import { useAccess } from '../utils/access';
 
 function formatThousands(n: number) {
   const s = String(Math.trunc(Number(n) || 0));
@@ -45,6 +46,7 @@ function toPercent(v: any) {
 export default function AchatDetailScreen() {
   const theme = useTheme();
   const { token, boutiqueId } = useApp();
+  const access = useAccess();
   const navigation = useNavigation<NativeStackNavigationProp<AchatStackParamList>>();
   const route = useRoute<RouteProp<AchatStackParamList, 'AchatDetail'>>();
   const id = route.params?.id;
@@ -54,20 +56,32 @@ export default function AchatDetailScreen() {
 
   const load = useCallback(async () => {
     if (!token) return;
+    if (!access.achats) {
+      setCmd(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const data = await fetchCommandeFournisseurById(id, token);
       setCmd(data);
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || 'Impossible de charger la commande');
+      showError('Erreur', e?.message || 'Impossible de charger la commande');
     } finally {
       setLoading(false);
     }
-  }, [token, id]);
+  }, [token, id, access.achats]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Refresh whenever we come back from paiement/réception
+      load();
+    }, [load])
+  );
 
   const received = toPercent(cmd?.pourcentageRecu);
   const paid = toPercent(cmd?.pourcentagePaye);
@@ -83,7 +97,7 @@ export default function AchatDetailScreen() {
         filename: `${cmd?.reference || `commande-${id}`}.pdf`,
       });
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || "Impossible d'ouvrir le PDF");
+      showError('Erreur', e?.message || "Impossible d'ouvrir le PDF");
     }
   }, [cmd?.reference, id, token]);
 
@@ -96,14 +110,14 @@ export default function AchatDetailScreen() {
         filename: `reception-last-${cmd?.reference || id}.pdf`,
       });
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || "Impossible d'ouvrir le PDF");
+      showError('Erreur', e?.message || "Impossible d'ouvrir le PDF");
     }
   }, [cmd?.reference, id, token]);
 
   const printLastPaiementPdf = useCallback(async () => {
     if (!token || !id) return;
     if (!boutiqueId) {
-      Alert.alert('Boutique', 'Boutique inconnue.');
+      showInfo('Boutique', 'Boutique inconnue.');
       return;
     }
     try {
@@ -113,7 +127,7 @@ export default function AchatDetailScreen() {
         .sort((a: any, b: any) => String(b?.dateIso || '').localeCompare(String(a?.dateIso || '')));
       const paiementId = Number(items?.[0]?.id || 0);
       if (!paiementId) {
-        Alert.alert('Paiement', 'Aucun paiement trouvé pour cette commande.');
+        showInfo('Paiement', 'Aucun paiement trouvé pour cette commande.');
         return;
       }
       await downloadAndSharePdf({
@@ -122,7 +136,7 @@ export default function AchatDetailScreen() {
         filename: `paiement-${cmd?.reference || id}-${paiementId}.pdf`,
       });
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || "Impossible d'ouvrir le PDF");
+      showError('Erreur', e?.message || "Impossible d'ouvrir le PDF");
     }
   }, [boutiqueId, cmd?.reference, id, token]);
 
@@ -130,6 +144,23 @@ export default function AchatDetailScreen() {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background, padding: 16 }}>
         <Text style={{ color: theme.text, fontWeight: '900' }}>Authentification requise</Text>
+      </View>
+    );
+  }
+
+  if (token && !access.achats) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background, padding: 16 }}>
+        <Text style={{ color: theme.text, fontWeight: '900' }}>Permission requise</Text>
+        <Text style={{ marginTop: 8, color: theme.muted, textAlign: 'center' }}>
+          Vous n'avez pas la permission de voir les commandes fournisseur.
+        </Text>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={{ marginTop: 12, backgroundColor: theme.surface, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: theme.isDark ? '#1f2937' : '#e5e7eb' }}
+        >
+          <Text style={{ color: theme.text, fontWeight: '900' }}>Retour</Text>
+        </Pressable>
       </View>
     );
   }
@@ -187,7 +218,14 @@ export default function AchatDetailScreen() {
 
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
               <Pressable
-                onPress={() => navigation.navigate('AchatPaiement', { id, reference: cmd?.reference })}
+                onPress={() =>
+                  navigation.navigate('AchatPaiement', {
+                    id,
+                    reference: cmd?.reference,
+                    total: Number(cmd?.total) || 0,
+                    montantPaye: Number(cmd?.montantPaye) || 0,
+                  })
+                }
                 style={{ flex: 1, backgroundColor: theme.primary, paddingVertical: 12, borderRadius: 14, alignItems: 'center' }}
               >
                 <Text style={{ color: 'white', fontWeight: '900' }}>Paiement</Text>

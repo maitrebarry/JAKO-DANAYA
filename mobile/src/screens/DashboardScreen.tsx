@@ -6,9 +6,14 @@ import { fetchCurrentUser } from '../services/auth';
 import { API_BASE_URL } from '../utils/env';
 import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
+import { useAccess } from '../utils/access';
+import { mergeAuthMeResponse } from '../utils/profile';
 
 export default function DashboardScreen({ navigation }: any) {
   const { token, boutiqueId, profile, setProfile } = useApp();
+  const theme = useTheme();
+  const isDark = (theme as any).isDark;
+  const access = useAccess();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [overview, setOverview] = useState<any>(null);
@@ -21,6 +26,7 @@ export default function DashboardScreen({ navigation }: any) {
 
   const load = async () => {
     if (!token) return;
+    if (!access.dashboard) return;
     setError(null);
     try {
       if (!refreshing) setLoading(true);
@@ -46,8 +52,8 @@ export default function DashboardScreen({ navigation }: any) {
       const res = await Promise.all([profileP, overviewP, movementsP, cashierP, stockP]);
       const [p, ov, mv, ct, sv] = res as any[];
 
-      // store profile in global context so TopBar and other screens can access it
-      setProfile(p?.user || p || null);
+      // store profile in global context so TopBar and permission gating stay correct
+      setProfile(mergeAuthMeResponse(p));
       setOverview(ov);
       setRecent(mv?.items || mv || []);
 
@@ -152,19 +158,20 @@ export default function DashboardScreen({ navigation }: any) {
   useEffect(() => {
     let mounted = true;
     if (!token) return;
+    if (!access.dashboard) return;
     // initial animation start at 0
     fadeAnim.setValue(0);
     load();
     return () => { mounted = false; };
-  }, [token, boutiqueId]);
+  }, [token, boutiqueId, access.dashboard]);
 
   const onRefresh = () => {
+    if (!token) return;
+    if (!access.dashboard) return;
     setRefreshing(true);
     load();
   }
 
-  const theme = useTheme();
-  const isDark = (theme as any).isDark;
   const fmt = (n: number | null | undefined) => n == null ? '—' : new Intl.NumberFormat('fr-FR').format(n);
   const fmtMoney = (n: number | null | undefined) => n == null ? '—' : new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
 
@@ -214,6 +221,17 @@ export default function DashboardScreen({ navigation }: any) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <Text>Non authentifié</Text>
+      </View>
+    );
+  }
+
+  if (token && !access.dashboard) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background, padding: 16 }}>
+        <Text style={{ fontSize: 18, fontWeight: '800', color: theme.text }}>Dashboard</Text>
+        <Text style={{ marginTop: 8, color: theme.muted, textAlign: 'center' }}>
+          Vous n'avez pas la permission d'accéder au tableau de bord.
+        </Text>
       </View>
     );
   }
@@ -292,31 +310,19 @@ export default function DashboardScreen({ navigation }: any) {
         <View style={{ marginTop: 16 }}>
           <Text style={{ fontWeight: '700', marginBottom: 8, color: theme.text }}>Actions rapides</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between' as any }}>
-            <Pressable onPress={() => navigation.navigate('VenteEspece')} style={{ backgroundColor: theme.primary, padding: 14, borderRadius: 12, width: '48%', marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-              <MaterialIcons name="attach-money" size={18} color="#fff" />
-              <Text style={{ color: '#fff', fontWeight: '700', textAlign: 'center', marginLeft: 8 }}>Vente en espèces</Text>
-            </Pressable>
-
-            <Pressable onPress={() => navigation.navigate('Caisse')} style={{ backgroundColor: theme.primary, padding: 14, borderRadius: 12, width: '48%', marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-              <MaterialIcons name="account-balance-wallet" size={18} color="#fff" />
-              <Text style={{ color: '#fff', fontWeight: '700', textAlign: 'center', marginLeft: 8 }}>Caisse</Text>
-            </Pressable>
-
-
-
-            { (hasRole('MAGASINIER') || hasRole('GERANT') || hasRole('PROPRIETAIRE')) && (
-              <Pressable onPress={() => navigation.navigate('StockInventaire')} style={{ backgroundColor: '#7c3aed', padding: 14, borderRadius: 12, width: '48%', marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                <MaterialCommunityIcons name="clipboard-list" size={18} color="#fff" />
-                <Text style={{ color: '#fff', fontWeight: '700', textAlign: 'center', marginLeft: 8 }}>Inventaire</Text>
+            {access.ventes ? (
+              <Pressable onPress={() => navigation.navigate('VentesEspecesList')} style={{ backgroundColor: '#0ea5e9', padding: 14, borderRadius: 12, width: '48%', marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <MaterialCommunityIcons name="format-list-bulleted" size={18} color="#fff" />
+                <Text style={{ color: '#fff', fontWeight: '700', textAlign: 'center', marginLeft: 8 }}>Ventes espèces</Text>
               </Pressable>
-            )}
+            ) : null}
 
-            { (hasRole('MAGASINIER') || hasRole('GERANT')) && (
-              <Pressable onPress={() => navigation.navigate('Produits')} style={{ backgroundColor: '#ef4444', padding: 14, borderRadius: 12, width: '48%', marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                <MaterialIcons name="swap-horiz" size={18} color="#fff" />
-                <Text style={{ color: '#fff', fontWeight: '700', textAlign: 'center', marginLeft: 8 }}>Transfert</Text>
+            {access.caisse ? (
+              <Pressable onPress={() => navigation.navigate('Caisse')} style={{ backgroundColor: theme.primary, padding: 14, borderRadius: 12, width: '48%', marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <MaterialIcons name="account-balance-wallet" size={18} color="#fff" />
+                <Text style={{ color: '#fff', fontWeight: '700', textAlign: 'center', marginLeft: 8 }}>Caisse</Text>
               </Pressable>
-            )}
+            ) : null}
 
           </View>
         </View>

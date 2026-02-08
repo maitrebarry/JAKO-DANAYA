@@ -2,6 +2,7 @@ import React, { createContext, useContext, useMemo, useState, useEffect } from '
 
 import { fetchCurrentUser } from '../services/auth';
 import { getItem, setItem, removeItem } from '../utils/storage';
+import { mergeAuthMeResponse } from '../utils/profile';
 
 type AppState = {
   token: string | null;
@@ -23,6 +24,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [profile, setProfile] = useState<any | null>(null);
   const [ready, setReady] = useState(false);
   const [themePref, setThemePref] = useState<'system'|'light'|'dark'>('system');
+
+  const extractBoutiqueId = (payload: any): number | null => {
+    const p = payload || null;
+    const merged = mergeAuthMeResponse(p);
+    const fromMerged = merged?.currentBoutique?.id ?? merged?.boutique?.id;
+    const fromRaw = p?.currentBoutique?.id ?? p?.boutique?.id ?? p?.user?.currentBoutique?.id ?? p?.user?.boutique?.id;
+    const id = fromMerged ?? fromRaw;
+    if (id == null) return null;
+    const n = Number(id);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -55,7 +67,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         const p = await fetchCurrentUser(token).catch(() => null);
         if (!mounted) return;
-        setProfile(p?.user || p || null);
+        const merged = mergeAuthMeResponse(p);
+        setProfile(merged);
+
+        // Auto-select boutique if backend provides an assigned boutique (common for GERANT/CAISSIER/MAGASINIER)
+        const inferred = extractBoutiqueId(p);
+        if (inferred != null) {
+          setBoutiqueId((prev) => (prev != null ? prev : inferred));
+        }
       } catch (e) {
         setProfile(null);
       }

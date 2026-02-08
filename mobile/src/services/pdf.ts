@@ -34,7 +34,27 @@ export async function downloadAndSharePdf(opts: {
     return { uri: objectUrl, shared: true };
   }
 
-  const fileUri = `${FileSystem.cacheDirectory || FileSystem.documentDirectory}${filename}`;
+  const fsAny = FileSystem as any;
+  const baseDir: string | null | undefined = fsAny?.cacheDirectory ?? fsAny?.documentDirectory;
+  if (!baseDir) {
+    // Extremely rare, but can happen if the runtime doesn't expose app directories.
+    // Best-effort fallback: open remote URL (may fail if backend requires Authorization header).
+    try {
+      await Linking.openURL(url);
+      return { uri: url, shared: true };
+    } catch {
+      throw new Error('Impossible de déterminer un dossier local pour enregistrer le PDF');
+    }
+  }
+
+  const pdfDir = `${baseDir.endsWith('/') ? baseDir : `${baseDir}/`}pdf/`;
+  try {
+    await FileSystem.makeDirectoryAsync(pdfDir, { intermediates: true });
+  } catch {
+    // ignore (directory may already exist or FS may not support it)
+  }
+
+  const fileUri = `${pdfDir}${filename}`;
 
   const res = await FileSystem.downloadAsync(url, fileUri, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},

@@ -31,9 +31,13 @@ export default function LoginScreen() {
       // Auto-fetch profile to improve UX: if user already tied to a boutique, set it immediately
       try {
         const profile = await fetchCurrentUser(token);
-        if (profile && profile.boutique && profile.boutique.id) {
-          setBoutiqueId(Number(profile.boutique.id));
-        }
+        const inferred =
+          profile?.currentBoutique?.id ??
+          profile?.boutique?.id ??
+          profile?.user?.currentBoutique?.id ??
+          profile?.user?.boutique?.id ??
+          null;
+        if (inferred != null) setBoutiqueId(Number(inferred));
       } catch (e) {
         // Don't block login UX if profile fetch fails; the user will be asked to select boutique
       }
@@ -84,9 +88,13 @@ export default function LoginScreen() {
 
       try {
         const profile = await fetchCurrentUser(token);
-        if (profile && profile.boutique && profile.boutique.id) {
-          setBoutiqueId(Number(profile.boutique.id));
-        }
+        const inferred =
+          profile?.currentBoutique?.id ??
+          profile?.boutique?.id ??
+          profile?.user?.currentBoutique?.id ??
+          profile?.user?.boutique?.id ??
+          null;
+        if (inferred != null) setBoutiqueId(Number(inferred));
       } catch (e) {
         // ignore
       }

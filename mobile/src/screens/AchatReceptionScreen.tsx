@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -23,7 +22,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AchatStackParamList } from '../navigation/achatTypes';
-import { downloadAndSharePdf } from '../services/pdf';
+import { showError, showSuccess } from '../utils/notify';
+import { useAccess } from '../utils/access';
 
 function digitsOnly(input: string) {
   return (input || '').replace(/\D+/g, '');
@@ -54,6 +54,7 @@ function generateRefReception() {
 export default function AchatReceptionScreen() {
   const theme = useTheme();
   const { token, boutiqueId } = useApp();
+  const access = useAccess();
   const navigation = useNavigation<NativeStackNavigationProp<AchatStackParamList>>();
   const route = useRoute<RouteProp<AchatStackParamList, 'AchatReception'>>();
   const id = route.params?.id;
@@ -111,6 +112,12 @@ export default function AchatReceptionScreen() {
 
   const load = useCallback(async () => {
     if (!token) return;
+    if (!access.achats) {
+      setCmd(null);
+      setArticles([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const [commande, receivable] = await Promise.all([
@@ -121,18 +128,33 @@ export default function AchatReceptionScreen() {
       setArticles(Array.isArray(receivable) ? receivable : []);
 
       const init: Record<number, LineInput> = {};
+      const byPid = new Map<number, any>();
+      (commande?.lignes || []).forEach((l: any) => {
+        if (l?.produitId != null) byPid.set(Number(l.produitId), l);
+      });
+
       (receivable || []).forEach((a: any) => {
         if (a?.idProduit == null) return;
-        init[Number(a.idProduit)] = { units: '', cartons: '' };
+        const pid = Number(a.idProduit);
+        const remainingUnits = Math.max(0, Number(a.receptionActuelle || 0));
+        const l = byPid.get(pid);
+        const mul = Number(l?.multiplicateur || 1);
+        const multiplicateur = Number.isFinite(mul) && mul > 0 ? mul : 1;
+
+        if (multiplicateur > 1 && remainingUnits % multiplicateur === 0) {
+          init[pid] = { units: '0', cartons: String(Math.floor(remainingUnits / multiplicateur)) };
+        } else {
+          init[pid] = { units: String(remainingUnits), cartons: multiplicateur > 1 ? '0' : '' };
+        }
       });
       setInputs(init);
       setStep('SAISIE');
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || 'Impossible de charger la commande');
+      showError('Erreur', e?.message || 'Impossible de charger la commande');
     } finally {
       setLoading(false);
     }
-  }, [token, id]);
+  }, [token, id, access.achats]);
 
   useEffect(() => {
     load();
@@ -161,12 +183,12 @@ export default function AchatReceptionScreen() {
 
   const continueToConfirm = useCallback(() => {
     if (selectedLines.length === 0) {
-      Alert.alert('Réception', 'Renseignez au moins une ligne.');
+      showError('Réception', 'Renseignez au moins une ligne.');
       return;
     }
     const invalid = selectedLines.find((l) => l.receivedUnits > l.remainingUnits);
     if (invalid) {
-      Alert.alert('Quantité invalide', `La quantité reçue dépasse le restant pour ${invalid.designation || 'un article'}.`);
+      showError('Quantité invalide', `La quantité reçue dépasse le restant pour ${invalid.designation || 'un article'}.`);
       return;
     }
     setStep('CONFIRMATION');
@@ -174,17 +196,17 @@ export default function AchatReceptionScreen() {
 
   const submit = useCallback(async () => {
     if (!token) {
-      Alert.alert('Connexion', 'Vous devez être connecté.');
+      showError('Connexion', 'Vous devez être connecté.');
       return;
     }
     if (!id) {
-      Alert.alert('Commande', 'Commande inconnue.');
+      showError('Commande', 'Commande inconnue.');
       return;
     }
 
     const invalid = selectedLines.find((l) => l.receivedUnits > l.remainingUnits);
     if (invalid) {
-      Alert.alert('Quantité invalide', `La quantité reçue dépasse le restant pour ${invalid.designation || 'un article'}.`);
+      showError('Quantité invalide', `La quantité reçue dépasse le restant pour ${invalid.designation || 'un article'}.`);
       return;
     }
 
@@ -213,35 +235,11 @@ export default function AchatReceptionScreen() {
 
     setSubmitting(true);
     try {
-      const res = await createReception(payload, token);
-      const receptionId = Number((res as any)?.id || 0);
-
-      if (receptionId) {
-        Alert.alert('Succès', 'Réception enregistrée.', [
-          {
-            text: 'Imprimer PDF',
-            onPress: async () => {
-              try {
-                await downloadAndSharePdf({
-                  apiPath: `receptions/${receptionId}/pdf`,
-                  token,
-                  filename: `reception-${reference}-${receptionId}.pdf`,
-                });
-              } catch (e: any) {
-                Alert.alert('Erreur', e?.message || "Impossible d'ouvrir le PDF");
-              }
-            },
-          },
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]);
-      } else {
-        Alert.alert('Succès', 'Réception enregistrée.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
-      }
+      await createReception(payload, token);
+      showSuccess('Réception enregistrée', `Commande: ${cmd?.reference || id}`);
+      navigation.goBack();
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || 'Réception impossible');
+      showError('Erreur', e?.message || 'Réception impossible');
     } finally {
       setSubmitting(false);
     }
@@ -251,6 +249,23 @@ export default function AchatReceptionScreen() {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background, padding: 16 }}>
         <Text style={{ color: theme.text, fontWeight: '900' }}>Authentification requise</Text>
+      </View>
+    );
+  }
+
+  if (token && !access.achats) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background, padding: 16 }}>
+        <Text style={{ color: theme.text, fontWeight: '900' }}>Permission requise</Text>
+        <Text style={{ marginTop: 8, color: theme.muted, textAlign: 'center' }}>
+          Vous n'avez pas la permission de voir les commandes fournisseur.
+        </Text>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={{ marginTop: 12, backgroundColor: theme.surface, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: theme.isDark ? '#1f2937' : '#e5e7eb' }}
+        >
+          <Text style={{ color: theme.text, fontWeight: '900' }}>Retour</Text>
+        </Pressable>
       </View>
     );
   }

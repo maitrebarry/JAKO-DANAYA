@@ -9,6 +9,8 @@ export const API_BASE_URL = APP_ENV === 'prod' ? API_BASE_URL_PROD : API_BASE_UR
 const FRONTEND_BASE_URL_LOCAL = process.env.EXPO_PUBLIC_FRONTEND_BASE_URL_LOCAL || 'http://192.168.1.199:5173';
 const FRONTEND_BASE_URL_PROD = process.env.EXPO_PUBLIC_FRONTEND_BASE_URL_PROD || 'https://jakodanaya.onrender.com';
 
+export const FRONTEND_BASE_URL = (APP_ENV === 'prod' ? FRONTEND_BASE_URL_PROD : FRONTEND_BASE_URL_LOCAL).replace(/\/$/, '');
+
 export const OAUTH_REDIRECT_URL =
 	process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URL ||
-	((APP_ENV === 'prod' ? FRONTEND_BASE_URL_PROD : FRONTEND_BASE_URL_LOCAL).replace(/\/$/, '') + '/oauth2/redirect');
+	(FRONTEND_BASE_URL + '/oauth2/redirect');

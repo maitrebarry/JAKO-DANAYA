@@ -7,6 +7,7 @@ import { resolveMediaUrl } from '../utils/urls';
 import { useRoute } from '@react-navigation/native';
 import { showSuccess, showError } from '../utils/notify';
 import { useTheme } from '../theme';
+import { mergeAuthMeResponse } from '../utils/profile';
 
 export default function ProfilScreen() {
   const { token, setToken, setBoutiqueId, profile: ctxProfile, setProfile, themePref, setThemePref } = useApp();
@@ -74,8 +75,9 @@ export default function ProfilScreen() {
       const payload: any = { nom: profile.nom, prenom: profile.prenom, pseudo: profile.pseudo, contact: profile.contact, adresse: profile.adresse };
       const updated = await updateCurrentUser(payload, token);
       setSuccessMsg('Profil mis à jour');
-      setProfile(updated?.user || updated);
-      setLocalProfile(updated?.user || updated);
+      const merged = mergeAuthMeResponse(updated);
+      setProfile(merged);
+      setLocalProfile(merged);
       setEditing(false);
       setTimeout(() => setSuccessMsg(null), 1400);
     } catch (e:any) {

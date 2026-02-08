@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -14,6 +13,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import { useApp } from '../store/AppContext';
+import { showError, showSuccess } from '../utils/notify';
+import { useAccess } from '../utils/access';
 import {
   createCommandeFournisseur,
   createFournisseur,
@@ -478,6 +479,7 @@ const ProductPickerModal = React.memo(function ProductPickerModal({
 export default function AchatScreen() {
   const theme = useTheme();
   const { token } = useApp();
+  const access = useAccess();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -523,6 +525,12 @@ export default function AchatScreen() {
       setLoading(false);
       return;
     }
+    if (!access.achatsCreate) {
+      setFournisseurs([]);
+      setStocks([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const [fs, st] = await Promise.all([
@@ -532,11 +540,11 @@ export default function AchatScreen() {
       setFournisseurs(fs);
       setStocks(st);
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || 'Erreur lors du chargement');
+      showError('Erreur', e?.message || 'Erreur lors du chargement');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, access.achatsCreate]);
 
   useEffect(() => {
     load();
@@ -599,19 +607,23 @@ export default function AchatScreen() {
 
   const submit = useCallback(async () => {
     if (!token) {
-      Alert.alert('Connexion', 'Vous devez être connecté.');
+      showError('Connexion', 'Vous devez être connecté.');
+      return;
+    }
+    if (!access.achatsCreate) {
+      showError('Permission', "Vous n'avez pas la permission de créer une commande fournisseur.");
       return;
     }
     if (!selectedFournisseur) {
-      Alert.alert('Fournisseur', 'Sélectionnez un fournisseur.');
+      showError('Fournisseur', 'Sélectionnez un fournisseur.');
       return;
     }
     if (!cart.length) {
-      Alert.alert('Produits', 'Ajoutez au moins un produit.');
+      showError('Produits', 'Ajoutez au moins un produit.');
       return;
     }
     if (total <= 0) {
-      Alert.alert('Total', 'Le total doit être supérieur à 0.');
+      showError('Total', 'Le total doit être supérieur à 0.');
       return;
     }
 
@@ -622,14 +634,14 @@ export default function AchatScreen() {
 
       const prix = parseIntFromDigits(line.prixUnit);
       if (prix <= 0) {
-        Alert.alert('Prix', `Prix invalide pour ${line.designation}`);
+        showError('Prix', `Prix invalide pour ${line.designation}`);
         return;
       }
 
       if (line.achatParConditionnement) {
         const cartons = parseIntFromDigits(line.quantiteConditionnement);
         if (cartons <= 0) {
-          Alert.alert('Quantité', `Quantité carton invalide pour ${line.designation}`);
+          showError('Quantité', `Quantité carton invalide pour ${line.designation}`);
           return;
         }
         produitsSelectionnes.push({
@@ -641,7 +653,7 @@ export default function AchatScreen() {
       } else {
         const qty = parseIntFromDigits(line.quantite);
         if (qty <= 0) {
-          Alert.alert('Quantité', `Quantité invalide pour ${line.designation}`);
+          showError('Quantité', `Quantité invalide pour ${line.designation}`);
           return;
         }
         produitsSelectionnes.push({ id_stock: line.stockId, quantite: qty, prix });
@@ -659,22 +671,33 @@ export default function AchatScreen() {
     setSubmitting(true);
     try {
       await createCommandeFournisseur(payload, token);
-      Alert.alert('Succès', 'Commande fournisseur créée.');
+      showSuccess('Commande créée', payload.reference);
       setCart([]);
       setSelectedFournisseur(null);
       setReference(buildReference());
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || 'Création impossible');
+      showError('Erreur', e?.message || 'Création impossible');
     } finally {
       setSubmitting(false);
     }
-  }, [token, selectedFournisseur, cart, total, stockById, reference]);
+  }, [token, access.achatsCreate, selectedFournisseur, cart, total, stockById, reference]);
 
   if (!token) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background, padding: 16 }}>
         <Text style={{ fontSize: 18, fontWeight: '800', color: theme.text }}>Achat</Text>
         <Text style={{ marginTop: 8, color: theme.muted, textAlign: 'center' }}>Connectez-vous pour gérer les achats.</Text>
+      </View>
+    );
+  }
+
+  if (token && !access.achatsCreate) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background, padding: 16 }}>
+        <Text style={{ fontSize: 18, fontWeight: '800', color: theme.text }}>Achat</Text>
+        <Text style={{ marginTop: 8, color: theme.muted, textAlign: 'center' }}>
+          Vous n'avez pas la permission de créer une commande fournisseur.
+        </Text>
       </View>
     );
   }
@@ -723,9 +746,9 @@ export default function AchatScreen() {
             });
             setSelectedFournisseur(created);
             setShowCreateFournisseur(false);
-            Alert.alert('Succès', 'Fournisseur créé et associé.');
+            showSuccess('Fournisseur créé', fournisseurLabel(created));
           } catch (e: any) {
-            Alert.alert('Erreur', e?.message || 'Création fournisseur impossible');
+            showError('Erreur', e?.message || 'Création fournisseur impossible');
           } finally {
             setCreatingFournisseur(false);
           }

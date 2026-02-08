@@ -4,18 +4,16 @@ import DashboardScreen from '../screens/DashboardScreen';
 import ProduitsStack from './ProduitsStack';
 import AchatStack from './AchatStack';
 import CommandeClientScreen from '../screens/CommandeClientScreen';
-import StockInventaireScreen from '../screens/StockInventaireScreen';
-import CaisseScreen from '../screens/CaisseScreen';
-import ProfilScreen from '../screens/ProfilScreen';
+import UtilisationPertesScreen from '../screens/UtilisationPertesScreen';
+import DepensesScreen from '../screens/DepensesScreen';
 
 export type MainTabParamList = {
   Dashboard: undefined;
   Produits: undefined;
   Achat: undefined;
   CommandeClient: undefined;
-  StockInventaire: undefined;
-  Caisse: undefined;
-  Profil: undefined;
+  UtilisationPertes: undefined;
+  Depenses: undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -25,13 +23,33 @@ import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import { useApp } from '../store/AppContext';
+import { useAccess } from '../utils/access';
 
 export default function MainTabs() {
   const theme = useTheme();
   const { profile } = useApp();
+  const access = useAccess();
   const topBarKey = profile?.photoUrl || profile?.photo || profile?.avatar || 'no-avatar';
+
+  const initialRouteName = access.dashboard
+    ? 'Dashboard'
+    : access.produits
+      ? 'Produits'
+      : access.achats
+        ? 'Achat'
+        : access.commandes
+          ? 'CommandeClient'
+          : access.utilisationPertes
+            ? 'UtilisationPertes'
+            : access.depenses
+              ? 'Depenses'
+              : 'Dashboard';
+
+  const hideTab = (show: boolean) => (show ? undefined : () => null);
+
   return (
     <Tab.Navigator
+      initialRouteName={initialRouteName as any}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: theme.primary,
@@ -53,30 +71,71 @@ export default function MainTabs() {
             const name = focused ? 'clipboard-list' : 'clipboard-list-outline';
             return <MaterialCommunityIcons name={name} size={size} color={color} />;
           }
-          if (route.name === 'StockInventaire') {
-            const name = focused ? 'warehouse' : 'warehouse';
-            return <MaterialCommunityIcons name={name} size={size} color={color} />;
+          if (route.name === 'UtilisationPertes') {
+            return <MaterialCommunityIcons name={'clipboard-minus'} size={size} color={color} />;
           }
-          if (route.name === 'Caisse') {
-            const name = focused ? 'cash' : 'cash';
-            return <MaterialCommunityIcons name={name} size={size} color={color} />;
-          }
-          if (route.name === 'Profil') {
-            const name = focused ? 'person' : 'person-outline';
-            return <Ionicons name={name} size={size} color={color} />;
+          if (route.name === 'Depenses') {
+            return <MaterialCommunityIcons name={'cash-minus'} size={size} color={color} />;
           }
           return null;
         },
         tabBarShowLabel: true,
       })}
     >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: true, header: () => <TopBar key={topBarKey} showBack={false} /> }} />
-        <Tab.Screen name="Produits" component={ProduitsStack} />
-      <Tab.Screen name="Achat" component={AchatStack} options={{ title: 'Achat' }} />
-      <Tab.Screen name="CommandeClient" component={CommandeClientScreen} options={{ title: 'Commande', headerShown: true, header: () => <TopBar key={topBarKey} showBack={false} /> }} />
-      <Tab.Screen name="StockInventaire" component={StockInventaireScreen} options={{ title: 'Stock', headerShown: true, header: () => <TopBar key={topBarKey} showBack={false} /> }} />
-      <Tab.Screen name="Caisse" component={CaisseScreen} options={{ headerShown: true, header: () => <TopBar key={topBarKey} showBack={false} /> }} />
-      <Tab.Screen name="Profil" component={ProfilScreen} options={{ headerShown: true, header: () => <TopBar key={topBarKey} showBack={false} /> }} />
+      <Tab.Screen
+        name="Dashboard"
+        component={DashboardScreen}
+        options={{
+          headerShown: true,
+          header: () => <TopBar key={topBarKey} showBack={false} />,
+          tabBarButton: hideTab(access.dashboard),
+        }}
+      />
+      <Tab.Screen
+        name="Produits"
+        component={ProduitsStack}
+        options={{
+          tabBarButton: hideTab(access.produits),
+        }}
+      />
+      <Tab.Screen
+        name="Achat"
+        component={AchatStack}
+        options={{
+          title: 'Achat',
+          tabBarButton: hideTab(access.achats),
+        }}
+      />
+      <Tab.Screen
+        name="CommandeClient"
+        component={CommandeClientScreen}
+        options={{
+          title: 'Commande',
+          headerShown: true,
+          header: () => <TopBar key={topBarKey} showBack={false} />,
+          tabBarButton: hideTab(access.commandes),
+        }}
+      />
+      <Tab.Screen
+        name="UtilisationPertes"
+        component={UtilisationPertesScreen}
+        options={{
+          title: 'Utilisation',
+          headerShown: true,
+          header: () => <TopBar key={topBarKey} showBack={false} />,
+          tabBarButton: hideTab(access.utilisationPertes),
+        }}
+      />
+      <Tab.Screen
+        name="Depenses"
+        component={DepensesScreen}
+        options={{
+          title: 'Dépenses',
+          headerShown: true,
+          header: () => <TopBar key={topBarKey} showBack={false} />,
+          tabBarButton: hideTab(access.depenses),
+        }}
+      />
     </Tab.Navigator>
   );
 }

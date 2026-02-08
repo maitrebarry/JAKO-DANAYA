@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -17,6 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import { useApp } from '../store/AppContext';
 import { createVenteEspece, fetchBoutiqueStocks, PriceMode } from '../services/venteEspece';
+import { showError, showInfo, showSuccess } from '../utils/notify';
+import { useAccess } from '../utils/access';
+import { useNavigation } from '@react-navigation/native';
 
 type StockItem = any;
 
@@ -351,6 +353,8 @@ const CartLineItem = React.memo(function CartLineItem({
 export default function VenteEspeceScreen() {
   const theme = useTheme();
   const { token } = useApp();
+  const access = useAccess();
+  const navigation = useNavigation<any>();
 
   const [stocks, setStocks] = useState<StockItem[]>([]);
   const [loadingStocks, setLoadingStocks] = useState(false);
@@ -366,16 +370,21 @@ export default function VenteEspeceScreen() {
 
   const reloadStocks = useCallback(async () => {
     if (!token) return;
+    if (!access.ventesCreate) {
+      setStocks([]);
+      setLoadingStocks(false);
+      return;
+    }
     setLoadingStocks(true);
     try {
       const boutiqueOnly = await fetchBoutiqueStocks(token);
       setStocks(boutiqueOnly);
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || 'Erreur chargement stocks');
+      showError('Erreur', e?.message || 'Erreur chargement stocks');
     } finally {
       setLoadingStocks(false);
     }
-  }, [token]);
+  }, [token, access.ventesCreate]);
 
   useEffect(() => {
     reloadStocks();
@@ -406,7 +415,7 @@ export default function VenteEspeceScreen() {
       if (!id) return;
       setLines((prev) => {
         if (prev.some((l) => l.stockId === id)) {
-          Alert.alert('Attention', 'Ce produit est déjà dans le panier.');
+          showInfo('Panier', 'Ce produit est déjà dans le panier.');
           return prev;
         }
         const prod = s?.produit || {};
@@ -510,11 +519,15 @@ export default function VenteEspeceScreen() {
 
   const onSubmit = useCallback(async () => {
     if (!token) {
-      Alert.alert('Connexion requise', 'Veuillez vous reconnecter.');
+      showError('Connexion requise', 'Veuillez vous reconnecter.');
+      return;
+    }
+    if (!access.ventesCreate) {
+      showError('Permission', "Vous n'avez pas la permission d'enregistrer une vente.");
       return;
     }
     if (!canSubmit) {
-      Alert.alert('Vérification', submissionErrors[0] || 'Vérifiez les champs.');
+      showError('Vérification', submissionErrors[0] || 'Vérifiez les champs.');
       return;
     }
 
@@ -547,18 +560,43 @@ export default function VenteEspeceScreen() {
       };
 
       await createVenteEspece(payload as any, token);
-      Alert.alert('Succès', 'Vente en espèces enregistrée.');
+      showSuccess('Vente enregistrée', String(payload.reference || '').trim());
       setLines([]);
       setRemiseText('');
       setMontantRecuText('');
       setNomClient('Clients divers');
       await reloadStocks();
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || 'Erreur lors de la création de la vente');
+      showError('Erreur', e?.message || 'Erreur lors de la création de la vente');
     } finally {
       setSubmitting(false);
     }
-  }, [token, canSubmit, submissionErrors, nomClient, totalNet, montantRecu, monnaie, remise, lines, stockById, reloadStocks]);
+  }, [token, access.ventesCreate, canSubmit, submissionErrors, nomClient, totalNet, montantRecu, monnaie, remise, lines, stockById, reloadStocks]);
+
+  if (!token) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background, padding: 16 }}>
+        <Text style={{ color: theme.text, fontWeight: '900' }}>Authentification requise</Text>
+      </View>
+    );
+  }
+
+  if (token && !access.ventesCreate) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background, padding: 16 }}>
+        <Text style={{ color: theme.text, fontWeight: '900' }}>Permission requise</Text>
+        <Text style={{ marginTop: 8, color: theme.muted, textAlign: 'center' }}>
+          Vous n'avez pas la permission d'enregistrer une vente.
+        </Text>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={{ marginTop: 12, backgroundColor: theme.surface, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: theme.isDark ? '#1f2937' : '#e5e7eb' }}
+        >
+          <Text style={{ color: theme.text, fontWeight: '900' }}>Retour</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>

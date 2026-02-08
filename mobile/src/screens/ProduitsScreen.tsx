@@ -5,10 +5,13 @@ import { fetchProduits } from '../services/produit';
 import { useTheme } from '../theme';
 import { resolveMediaUrl } from '../utils/urls';
 import { Ionicons } from '@expo/vector-icons';
+import { useAccess } from '../utils/access';
+import { showError, showInfo } from '../utils/notify';
 
 export default function ProduitsScreen({ navigation, route }: any) {
   const { token } = useApp();
   const theme = useTheme();
+  const access = useAccess();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [q, setQ] = useState(route.params?.q || '');
@@ -19,6 +22,13 @@ export default function ProduitsScreen({ navigation, route }: any) {
   const [createMissingUnitsImport, setCreateMissingUnitsImport] = useState<boolean>(true);
 
   const load = useCallback(async () => {
+    if (!access.produits) {
+      setItems([]);
+      setFiltered([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     try {
       setLoading(true);
       const res = await fetchProduits(token as string);
@@ -30,7 +40,7 @@ export default function ProduitsScreen({ navigation, route }: any) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [token]);
+  }, [token, access.produits]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -59,17 +69,43 @@ export default function ProduitsScreen({ navigation, route }: any) {
 
   const onRefresh = () => { setRefreshing(true); load(); };
 
+  if (!access.produits) {
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+        <Text style={{ color: theme.text, fontSize: 18, fontWeight: '800' }}>Produits</Text>
+        <Text style={{ color: theme.muted, marginTop: 8, textAlign: 'center' }}>
+          Vous n'avez pas la permission de voir les produits.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <View style={{ padding: 12, gap: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Ionicons name="search" size={20} color={theme.muted} />
           <TextInput placeholder="Rechercher produit" placeholderTextColor={theme.muted} style={{ flex: 1, color: theme.text }} value={q} onChangeText={setQ} />
-          <Pressable onPress={() => navigation.navigate('ProductForm', { mode: 'create' })} style={{ marginLeft: 8, padding: 8, backgroundColor: theme.primary, borderRadius: 8 }}>
-            <Text style={{ color: '#fff' }}>Ajouter</Text>
-          </Pressable>
-        <Pressable onPress={() => { console.log('BARCODE_PRESS'); navigation.navigate('BarcodeScanner'); }} style={{ marginLeft: 8, padding: 8, backgroundColor: theme.primary, borderRadius: 8, alignItems: 'center', justifyContent: 'center', width: 40, height: 40 }} hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }} accessibilityRole="button" accessibilityLabel="Scanner code-barres">
-          <Ionicons name="barcode" size={20} color="#fff" />
+          {access.produitsCreate ? (
+            <Pressable onPress={() => navigation.navigate('ProductForm', { mode: 'create' })} style={{ marginLeft: 8, padding: 8, backgroundColor: theme.primary, borderRadius: 8 }}>
+              <Text style={{ color: '#fff' }}>Ajouter</Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={() => {
+              if (!access.produits && !access.produitsCreate) {
+                showInfo('Permission', "Vous n'avez pas accès aux produits.");
+                return;
+              }
+              console.log('BARCODE_PRESS');
+              navigation.navigate('BarcodeScanner');
+            }}
+            style={{ marginLeft: 8, padding: 8, backgroundColor: theme.primary, borderRadius: 8, alignItems: 'center', justifyContent: 'center', width: 40, height: 40 }}
+            hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Scanner code-barres"
+          >
+            <Ionicons name="barcode" size={20} color="#fff" />
           </Pressable>
         </View>
 
@@ -91,25 +127,30 @@ export default function ProduitsScreen({ navigation, route }: any) {
 
       <View style={{ paddingHorizontal: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Pressable onPress={() => setCreateMissingUnitsImport((s: boolean) => !s)} style={{ padding: 8, backgroundColor: createMissingUnitsImport ? '#10b981' : theme.surface, borderRadius: 8 }}>
-            <Text style={{ color: createMissingUnitsImport ? '#fff' : theme.text }}>{createMissingUnitsImport ? 'Créer unités manquantes: Oui' : 'Créer unités manquantes: Non'}</Text>
-          </Pressable>
-          <Pressable onPress={async () => {
-            try {
-              // dynamic import document picker
-              const dp = require('expo-document-picker');
-              const res = await dp.getDocumentAsync({ type: '*/*' });
-              if (res.type === 'success') {
-                const blob = await fetch(res.uri).then(r => r.blob());
-                const file = new File([blob], res.name);
-                const job = await require('../services/produit').importProduitsAsync(file, token as string, createMissingUnitsImport);
-                console.log('IMPORT_JOB', job);
-                alert('Import lancé: job ' + (job.jobId || 'unknown'));
-              }
-            } catch (e:any) { alert('Import impossible: ' + (e.message || e)); }
-          }} style={{ padding: 10, borderRadius: 8, backgroundColor: '#f59e0b', alignItems: 'center', marginBottom: 8 }}>
-            <Text style={{ color: '#fff', fontWeight: '700' }}>Importer depuis Excel</Text>
-          </Pressable>
+          {access.produitsCreate ? (
+            <>
+              <Pressable onPress={() => setCreateMissingUnitsImport((s: boolean) => !s)} style={{ padding: 8, backgroundColor: createMissingUnitsImport ? '#10b981' : theme.surface, borderRadius: 8 }}>
+                <Text style={{ color: createMissingUnitsImport ? '#fff' : theme.text }}>{createMissingUnitsImport ? 'Créer unités manquantes: Oui' : 'Créer unités manquantes: Non'}</Text>
+              </Pressable>
+              <Pressable onPress={async () => {
+                try {
+                  const dp = require('expo-document-picker');
+                  const res = await dp.getDocumentAsync({ type: '*/*' });
+                  if (res.type === 'success') {
+                    const blob = await fetch(res.uri).then(r => r.blob());
+                    const file = new File([blob], res.name);
+                    const job = await require('../services/produit').importProduitsAsync(file, token as string, createMissingUnitsImport);
+                    console.log('IMPORT_JOB', job);
+                    alert('Import lancé: job ' + (job.jobId || 'unknown'));
+                  }
+                } catch (e:any) {
+                  showError('Import', e?.message || 'Import impossible');
+                }
+              }} style={{ padding: 10, borderRadius: 8, backgroundColor: '#f59e0b', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={{ color: '#fff', fontWeight: '700' }}>Importer depuis Excel</Text>
+              </Pressable>
+            </>
+          ) : null}
         </View>
       </View>
 

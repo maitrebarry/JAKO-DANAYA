@@ -3,9 +3,12 @@ import { View, Text, Button, Alert } from 'react-native';
 // dynamic import for expo-barcode-scanner to avoid crash when not installed
 let BarCodeScanner: any = null;
 import { useTheme } from '../theme';
+import { useAccess } from '../utils/access';
+import { showError } from '../utils/notify';
 
 export default function BarcodeScannerScreen({ navigation }: any) {
   const theme = useTheme();
+  const access = useAccess();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
 
@@ -25,7 +28,26 @@ export default function BarcodeScannerScreen({ navigation }: any) {
   const handleBarCodeScanned = (ev: any) => {
     const { data } = ev;
     setScanned(true);
-    Alert.alert('Code scanné', String(data), [{ text: 'Rechercher', onPress: () => navigation.navigate('Produits', { q: data }) }, { text: 'Créer', onPress: () => navigation.navigate('Main', { screen: 'Produits', params: { screen: 'ProductForm', params: { mode: 'create', initialCode: data } } }) }, { text: 'OK', style: 'cancel' }]);
+    const actions: any[] = [];
+    if (access.produits) {
+      actions.push({ text: 'Rechercher', onPress: () => navigation.navigate('Produits', { q: data }) });
+    }
+    if (access.produitsCreate) {
+      actions.push({
+        text: 'Créer',
+        onPress: () =>
+          navigation.navigate('Main', {
+            screen: 'Produits',
+            params: { screen: 'ProductForm', params: { mode: 'create', initialCode: data } },
+          }),
+      });
+    }
+    actions.push({ text: 'OK', style: 'cancel' });
+    if (!access.produits && !access.produitsCreate) {
+      showError('Permission', "Vous n'avez pas accès aux produits.");
+      return;
+    }
+    Alert.alert('Code scanné', String(data), actions);
   };
 
   if (hasPermission === null) return (

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, FlatList } from 'react-native';
-import { fetchBoutiques } from '../services/auth';
+import { fetchBoutiques, fetchCurrentUser } from '../services/auth';
 import { useApp } from '../store/AppContext';
 
 export default function BoutiqueSelectScreen() {
@@ -23,6 +23,23 @@ export default function BoutiqueSelectScreen() {
         }
       } catch (e: any) {
         if (!mounted) return;
+        // Fallback for roles that cannot list boutiques: infer current boutique from /api/auth/me
+        try {
+          const me = await fetchCurrentUser(token);
+          const inferred =
+            me?.currentBoutique?.id ??
+            me?.boutique?.id ??
+            me?.user?.currentBoutique?.id ??
+            me?.user?.boutique?.id ??
+            null;
+          if (inferred != null) {
+            setBoutiqueId(Number(inferred));
+            return;
+          }
+        } catch {
+          // ignore
+        }
+
         setError(e.message || 'Erreur');
       } finally {
         if (mounted) setLoading(false);

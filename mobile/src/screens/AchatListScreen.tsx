@@ -19,9 +19,12 @@ import {
   fetchCommandesFournisseurs,
   type CommandeFournisseurDTO,
 } from '../services/achat';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AchatStackParamList } from '../navigation/achatTypes';
+import { showError, showInfo, showSuccess } from '../utils/notify';
+import { useAccess } from '../utils/access';
+import { hasPermission, isSuperAdmin } from '../utils/permissions';
 
 function digitsOnly(input: string) {
   return (input || '').replace(/\D+/g, '');
@@ -55,6 +58,9 @@ const ActionsModal = React.memo(function ActionsModal({
   onPay,
   onReceive,
   onDelete,
+  canPay,
+  canReceive,
+  canDelete,
   theme,
   deleting,
 }: {
@@ -65,6 +71,9 @@ const ActionsModal = React.memo(function ActionsModal({
   onPay: () => void;
   onReceive: () => void;
   onDelete: () => void;
+  canPay: boolean;
+  canReceive: boolean;
+  canDelete: boolean;
   theme: ReturnType<typeof useTheme>;
   deleting: boolean;
 }) {
@@ -122,32 +131,38 @@ const ActionsModal = React.memo(function ActionsModal({
               <Text style={{ color: theme.text, marginLeft: 10, fontWeight: '800' }}>Voir détails</Text>
             </Pressable>
             <View style={{ height: 1, backgroundColor: theme.isDark ? '#1f2937' : '#e5e7eb' }} />
-            <Pressable
-              onPress={onPay}
-              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12 }}
-            >
-              <Ionicons name="card-outline" size={20} color={theme.text} />
-              <Text style={{ color: theme.text, marginLeft: 10, fontWeight: '800' }}>Paiement</Text>
-            </Pressable>
-            <View style={{ height: 1, backgroundColor: theme.isDark ? '#1f2937' : '#e5e7eb' }} />
-            <Pressable
-              onPress={onReceive}
-              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12 }}
-            >
-              <Ionicons name="cube-outline" size={20} color={theme.text} />
-              <Text style={{ color: theme.text, marginLeft: 10, fontWeight: '800' }}>Réception</Text>
-            </Pressable>
-            <View style={{ height: 1, backgroundColor: theme.isDark ? '#1f2937' : '#e5e7eb' }} />
-            <Pressable
-              onPress={onDelete}
-              disabled={deleting}
-              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, opacity: deleting ? 0.6 : 1 }}
-            >
-              <Ionicons name="trash-outline" size={20} color={theme.danger} />
-              <Text style={{ color: theme.danger, marginLeft: 10, fontWeight: '900' }}>
-                {deleting ? 'Suppression...' : 'Supprimer'}
-              </Text>
-            </Pressable>
+            {canPay ? (
+              <>
+                <Pressable onPress={onPay} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12 }}>
+                  <Ionicons name="card-outline" size={20} color={theme.text} />
+                  <Text style={{ color: theme.text, marginLeft: 10, fontWeight: '800' }}>Paiement</Text>
+                </Pressable>
+                <View style={{ height: 1, backgroundColor: theme.isDark ? '#1f2937' : '#e5e7eb' }} />
+              </>
+            ) : null}
+
+            {canReceive ? (
+              <>
+                <Pressable onPress={onReceive} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12 }}>
+                  <Ionicons name="cube-outline" size={20} color={theme.text} />
+                  <Text style={{ color: theme.text, marginLeft: 10, fontWeight: '800' }}>Réception</Text>
+                </Pressable>
+                <View style={{ height: 1, backgroundColor: theme.isDark ? '#1f2937' : '#e5e7eb' }} />
+              </>
+            ) : null}
+
+            {canDelete ? (
+              <Pressable
+                onPress={onDelete}
+                disabled={deleting}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, opacity: deleting ? 0.6 : 1 }}
+              >
+                <Ionicons name="trash-outline" size={20} color={theme.danger} />
+                <Text style={{ color: theme.danger, marginLeft: 10, fontWeight: '900' }}>
+                  {deleting ? 'Suppression...' : 'Supprimer'}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         </Pressable>
       </Pressable>
@@ -157,8 +172,19 @@ const ActionsModal = React.memo(function ActionsModal({
 
 export default function AchatListScreen() {
   const theme = useTheme();
-  const { token } = useApp();
+  const { token, profile } = useApp();
+  const access = useAccess();
   const navigation = useNavigation<NativeStackNavigationProp<AchatStackParamList>>();
+
+  const canPay = React.useMemo(() => {
+    if (!profile) return false;
+    return isSuperAdmin(profile) || hasPermission(profile, 'PAIEMENT_CREER');
+  }, [profile]);
+
+  const canDelete = React.useMemo(() => {
+    if (!profile) return false;
+    return isSuperAdmin(profile) || hasPermission(profile, 'COMMANDE_SUPPRIMER');
+  }, [profile]);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -174,6 +200,11 @@ export default function AchatListScreen() {
       setLoading(false);
       return;
     }
+    if (!access.achats) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const data = await fetchCommandesFournisseurs(token);
@@ -182,15 +213,22 @@ export default function AchatListScreen() {
       list.sort((a: any, b: any) => (Number(b?.id) || 0) - (Number(a?.id) || 0));
       setItems(list);
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || 'Impossible de charger les commandes');
+      showError('Erreur', e?.message || 'Impossible de charger les commandes');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, access.achats]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Refresh after returning from detail/paiement/réception
+      load();
+    }, [load])
+  );
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
@@ -211,6 +249,11 @@ export default function AchatListScreen() {
 
   const onRefresh = useCallback(async () => {
     if (!token) return;
+    if (!access.achats) {
+      setItems([]);
+      setRefreshing(false);
+      return;
+    }
     setRefreshing(true);
     try {
       const data = await fetchCommandesFournisseurs(token);
@@ -218,11 +261,11 @@ export default function AchatListScreen() {
       list.sort((a: any, b: any) => (Number(b?.id) || 0) - (Number(a?.id) || 0));
       setItems(list);
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || 'Rafraîchissement impossible');
+      showError('Erreur', e?.message || 'Rafraîchissement impossible');
     } finally {
       setRefreshing(false);
     }
-  }, [token]);
+  }, [token, access.achats]);
 
   const openActions = useCallback((cmd: CommandeFournisseurDTO) => {
     setSelected(cmd);
@@ -235,6 +278,10 @@ export default function AchatListScreen() {
 
   const handleDelete = useCallback(async () => {
     if (!token || !selected) return;
+    if (!canDelete) {
+      showError('Permission', "Vous n'avez pas la permission de supprimer une commande.");
+      return;
+    }
     Alert.alert('Suppression', 'Supprimer cette commande ?', [
       { text: 'Annuler', style: 'cancel' },
       {
@@ -246,16 +293,27 @@ export default function AchatListScreen() {
             await deleteCommandeFournisseur(selected.id, token);
             setItems((prev) => (prev || []).filter((c) => c.id !== selected.id));
             setShowActions(false);
-            Alert.alert('OK', 'Commande supprimée.');
+            showSuccess('Commande supprimée', 'La commande fournisseur a été supprimée.');
           } catch (e: any) {
-            Alert.alert('Erreur', e?.message || 'Suppression impossible');
+            showError('Erreur', e?.message || 'Suppression impossible');
           } finally {
             setDeleting(false);
           }
         },
       },
     ]);
-  }, [token, selected]);
+  }, [token, selected, canDelete]);
+
+  if (token && !access.achats) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background, padding: 16 }}>
+        <Text style={{ fontSize: 18, fontWeight: '800', color: theme.text }}>Achats</Text>
+        <Text style={{ marginTop: 8, color: theme.muted, textAlign: 'center' }}>
+          Vous n'avez pas la permission de voir les commandes fournisseur.
+        </Text>
+      </View>
+    );
+  }
 
   if (!token) {
     return (
@@ -274,6 +332,9 @@ export default function AchatListScreen() {
         cmd={selected}
         theme={theme}
         deleting={deleting}
+        canPay={canPay}
+        canReceive={access.achats}
+        canDelete={canDelete}
         onView={() => {
           if (!selected) return;
           setShowActions(false);
@@ -281,8 +342,17 @@ export default function AchatListScreen() {
         }}
         onPay={() => {
           if (!selected) return;
+          if (!canPay) {
+            showError('Permission', "Vous n'avez pas la permission d'enregistrer un paiement.");
+            return;
+          }
           setShowActions(false);
-          navigation.navigate('AchatPaiement', { id: selected.id, reference: selected.reference });
+          navigation.navigate('AchatPaiement', {
+            id: selected.id,
+            reference: selected.reference,
+            total: Number(selected.total) || 0,
+            montantPaye: Number(selected.montantPaye) || 0,
+          });
         }}
         onReceive={() => {
           if (!selected) return;
@@ -295,13 +365,23 @@ export default function AchatListScreen() {
       <View style={{ padding: 16 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={{ color: theme.text, fontSize: 18, fontWeight: '900' }}>Commandes fournisseur</Text>
-          <Pressable
-            onPress={() => navigation.navigate('AchatCreate')}
-            style={{ backgroundColor: theme.primary, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, flexDirection: 'row', alignItems: 'center' }}
-          >
-            <Ionicons name="add" size={18} color="white" />
-            <Text style={{ color: 'white', fontWeight: '900', marginLeft: 6 }}>Nouveau</Text>
-          </Pressable>
+          {access.achatsCreate ? (
+            <Pressable
+              onPress={() => navigation.navigate('AchatCreate')}
+              style={{ backgroundColor: theme.primary, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, flexDirection: 'row', alignItems: 'center' }}
+            >
+              <Ionicons name="add" size={18} color="white" />
+              <Text style={{ color: 'white', fontWeight: '900', marginLeft: 6 }}>Nouveau</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={() => showInfo('Permission', "Vous n'avez pas la permission de créer une commande.")}
+              style={{ backgroundColor: theme.surface, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.isDark ? '#374151' : '#d1d5db' }}
+            >
+              <Ionicons name="lock-closed-outline" size={18} color={theme.muted} />
+              <Text style={{ color: theme.muted, fontWeight: '900', marginLeft: 6 }}>Nouveau</Text>
+            </Pressable>
+          )}
         </View>
 
         <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface, borderRadius: 12, borderWidth: 1, borderColor: theme.isDark ? '#1f2937' : '#e5e7eb', paddingHorizontal: 10 }}>
