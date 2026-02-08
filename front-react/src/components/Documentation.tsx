@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 // Lightweight documentation viewer with PDF / Word download (client-side)
 const Documentation: React.FC = () => {
@@ -56,6 +56,31 @@ const Documentation: React.FC = () => {
       setTimeout(() => { w.print(); }, 500);
     }
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const dl = (params.get('download') || '').toLowerCase();
+    if (dl !== 'pdf' && dl !== 'word') return;
+
+    // Ensure ref content is rendered before attempting to export
+    const t = window.setTimeout(async () => {
+      try {
+        if (dl === 'pdf') await downloadPdf();
+        if (dl === 'word') downloadWord();
+      } finally {
+        // Remove the query param so reloading doesn't re-trigger
+        try {
+          const next = window.location.pathname;
+          window.history.replaceState({}, document.title, next);
+        } catch {
+          // ignore
+        }
+      }
+    }, 250);
+
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div>

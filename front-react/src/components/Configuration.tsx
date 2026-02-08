@@ -136,7 +136,7 @@ const ListeUtilisateurs = () => {
   const canToggleUser = useHasPermission('UTILISATEUR_ACTIVER_DESACTIVER');
   const [togglingUserId, setTogglingUserId] = useState<number | null>(null);
 
-  const { roles: sessionRoles, currentBoutique } = useUser();
+  const { roles: sessionRoles, currentBoutique, user: currentUser } = useUser();
   const normalizedRoles = sessionRoles.map(r => (r || '').replace(/^ROLE_/i, '').toUpperCase());
   const isAdminOrProprio = normalizedRoles.some(r => ['ADMINISTRATEUR', 'PROPRIETAIRE', 'SUPERADMIN'].includes(r));
 
@@ -322,6 +322,10 @@ const ListeUtilisateurs = () => {
     }
     
     const isEdit = !!formData.id;
+    if (isEdit && currentUser?.id != null && Number(formData.id) === Number(currentUser.id)) {
+      await Swal.fire('Action interdite', "Vous ne pouvez pas modifier vos informations ici. Utilisez plutôt votre Profil.", 'warning');
+      return;
+    }
     if (isEdit && !canModifyUser) { 
       Swal.fire('Erreur', "Vous n'avez pas la permission de modifier des utilisateurs", 'error');
       return; 
@@ -423,6 +427,10 @@ const ListeUtilisateurs = () => {
   };
 
   const handleToggleStatus = async (user: any) => {
+    if (currentUser?.id != null && user?.id === currentUser.id) {
+      await Swal.fire('Action interdite', "Vous ne pouvez pas activer/désactiver votre propre compte.", 'warning');
+      return;
+    }
     const target = user.statut === 'ACTIF' ? 'INACTIF' : 'ACTIF';
     const result = await Swal.fire({
       title: `${target === 'ACTIF' ? 'Activer' : 'Désactiver'} l'utilisateur ?`,
@@ -471,6 +479,10 @@ const ListeUtilisateurs = () => {
   };
 
   const handleEdit = (user: any) => {
+    if (currentUser?.id != null && user?.id === currentUser.id) {
+      Swal.fire('Action interdite', "Vous ne pouvez pas modifier vos informations ici. Utilisez plutôt votre Profil.", 'warning');
+      return;
+    }
     setFormData({
       id: user.id,
       nom: user.nom || '',
@@ -619,7 +631,7 @@ const ListeUtilisateurs = () => {
                           <span className={`badge ${user.statut === 'ACTIF' ? 'bg-success' : 'bg-danger'}`}>
                             {user.statut}
                           </span>
-                          {canToggleUser && (
+                          {canToggleUser && currentUser?.id !== user.id && (
                             <button
                               className="btn btn-sm btn-outline-secondary ms-2"
                               title={user.statut === 'ACTIF' ? 'Désactiver' : 'Activer'}
@@ -638,7 +650,7 @@ const ListeUtilisateurs = () => {
                       </td>
                       <td>
                         <div className="btn-group" role="group">
-                          {canModifyUser && (
+                          {canModifyUser && currentUser?.id !== user.id && (
                             <button 
                               className="btn btn-sm btn-outline-warning" 
                               title="Modifier" 
