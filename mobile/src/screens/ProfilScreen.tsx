@@ -6,9 +6,11 @@ import * as ImagePicker from 'expo-image-picker';
 import { resolveMediaUrl } from '../utils/urls';
 import { useRoute } from '@react-navigation/native';
 import { showSuccess, showError } from '../utils/notify';
+import { useTheme } from '../theme';
 
 export default function ProfilScreen() {
   const { token, setToken, setBoutiqueId, profile: ctxProfile, setProfile, themePref, setThemePref } = useApp();
+  const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [profile, setLocalProfile] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +98,7 @@ export default function ProfilScreen() {
 
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [confirmAvatar, setConfirmAvatar] = useState(false);
 
   const pickAvatar = async () => {
     if (!token) { showError('Erreur', 'Session invalide. Veuillez vous reconnecter.'); return; }
@@ -108,45 +111,54 @@ export default function ProfilScreen() {
 
       // show preview immediately
       setAvatarPreview(uri);
-      setUploadProgress(0);
-      setAvatarUploading(true);
-
-      // build a file object compatible with React Native FormData
-      const asset = (res.assets && res.assets[0]) || {};
-      const name = asset.fileName || uri.split('/').pop() || 'avatar.jpg';
-      const ext = (name.split('.').pop() || 'jpg').toLowerCase();
-      const type = asset.type ? `${asset.type}/${ext}` : `image/${ext}`;
-
-      const file: any = { uri, name, type };
-
-      const { promise, abort } = uploadAvatarWithProgress(file, token, (p) => {
-        setUploadProgress(p);
-      });
-
-      try {
-        const uploaded = await promise;
-        if (uploaded && uploaded.avatar) {
-          const avatarPath = uploaded.avatar;
-          // Add a timestamp to bust client image cache so the TopBar shows the updated image immediately
-          const avatarUrlBase = resolveMediaUrl(avatarPath);
-          const avatarUrl = avatarUrlBase + (avatarUrlBase.includes('?') ? '&' : '?') + 'ts=' + Date.now();
-          // keep both legacy keys (`photo`, `photoUrl`) and `avatar` in sync so TopBar and other screens update immediately
-          setLocalProfile((p:any)=> ({ ...p, avatar: avatarPath, photo: avatarPath, photoUrl: avatarUrl }));
-          setProfile((p:any)=> ({ ...p, avatar: avatarPath, photo: avatarPath, photoUrl: avatarUrl }));
-          setSuccessMsg('Avatar mis à jour');
-          setTimeout(() => setSuccessMsg(null), 1400);
-        }
-      } catch (e:any) {
-        showError('Erreur', e.message || 'Impossible d\'uploader');
-      } finally {
-        setUploadProgress(null);
-        setAvatarUploading(false);
-      }
+      setConfirmAvatar(true);
 
     } catch (e:any) {
       showError('Erreur', e.message || 'Impossible d\'uploader');
       setAvatarUploading(false);
       setUploadProgress(null);
+      setAvatarPreview(null);
+      setConfirmAvatar(false);
+    }
+  };
+
+  const confirmAvatarUpload = async () => {
+    if (!token || !avatarPreview) return;
+    setUploadProgress(0);
+    setAvatarUploading(true);
+    setConfirmAvatar(false);
+
+    // build a file object compatible with React Native FormData
+    const uri = avatarPreview;
+    const asset = {}; // since we have uri, we can assume
+    const name = uri.split('/').pop() || 'avatar.jpg';
+    const ext = (name.split('.').pop() || 'jpg').toLowerCase();
+    const type = `image/${ext}`;
+
+    const file: any = { uri, name, type };
+
+    const { promise, abort } = uploadAvatarWithProgress(file, token, (p) => {
+      setUploadProgress(p);
+    });
+
+    try {
+      const uploaded = await promise;
+      if (uploaded && uploaded.avatar) {
+        const avatarPath = uploaded.avatar;
+        // Add a timestamp to bust client image cache so the TopBar shows the updated image immediately
+        const avatarUrlBase = resolveMediaUrl(avatarPath);
+        const avatarUrl = avatarUrlBase + (avatarUrlBase.includes('?') ? '&' : '?') + 'ts=' + Date.now();
+        // keep both legacy keys (`photo`, `photoUrl`) and `avatar` in sync so TopBar and other screens update immediately
+        setLocalProfile((p:any)=> ({ ...p, avatar: avatarPath, photo: avatarPath, photoUrl: avatarUrl }));
+        setProfile((p:any)=> ({ ...p, avatar: avatarPath, photo: avatarPath, photoUrl: avatarUrl }));
+        setSuccessMsg('Avatar mis à jour');
+        setTimeout(() => setSuccessMsg(null), 1400);
+      }
+    } catch (e:any) {
+      showError('Erreur', e.message || 'Impossible d\'uploader');
+    } finally {
+      setUploadProgress(null);
+      setAvatarUploading(false);
       setAvatarPreview(null);
     }
   };
@@ -160,13 +172,13 @@ export default function ProfilScreen() {
   const avatarUri = avatarPreview || (profile?.avatar ? resolveMediaUrl(profile.avatar) : null);
 
   return (
-    <ScrollView style={{ flex: 1, padding: 24 }}>
-      <Text style={{ fontSize: 22, fontWeight: '700', marginBottom: 12 }}>Profil</Text>
+    <ScrollView style={{ flex: 1, padding: 24, backgroundColor: theme.background }}>
+      <Text style={{ fontSize: 22, fontWeight: '700', marginBottom: 12, color: theme.text }}>Profil</Text>
 
       {loading && <ActivityIndicator />}
-      {error ? <Text style={{ color: '#c0392b', marginBottom: 12 }}>{error}</Text> : null}
+      {error ? <Text style={{ color: theme.danger, marginBottom: 12 }}>{error}</Text> : null}
 
-      {successMsg ? <View style={{ backgroundColor: '#10b981', padding: 8, borderRadius: 8, marginBottom: 12 }}><Text style={{ color: '#fff', fontWeight: '700' }}>{successMsg}</Text></View> : null}
+      {successMsg ? <View style={{ backgroundColor: theme.primary, padding: 8, borderRadius: 8, marginBottom: 12 }}><Text style={{ color: theme.text, fontWeight: '700' }}>{successMsg}</Text></View> : null}
 
       {!loading && profile && (
         <View>
@@ -185,61 +197,64 @@ export default function ProfilScreen() {
             ) : null}
 
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Pressable onPress={pickAvatar} style={{ padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#ccc' }}>{avatarUploading ? <ActivityIndicator /> : <Text>Changer avatar</Text>}</Pressable>
-              {avatarPreview && !avatarUploading ? (
-                <Pressable onPress={() => { setAvatarPreview(null); setUploadProgress(null); }} style={{ padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#ccc' }}><Text>Annuler</Text></Pressable>
+              <Pressable onPress={pickAvatar} style={{ padding: 8, borderRadius: 8, borderWidth: 1, borderColor: theme.muted, backgroundColor: theme.surface }}>{avatarUploading ? <ActivityIndicator /> : <Text style={{ color: theme.text }}>Changer avatar</Text>}</Pressable>
+              {confirmAvatar && !avatarUploading ? (
+                <>
+                  <Pressable onPress={confirmAvatarUpload} style={{ padding: 8, borderRadius: 8, backgroundColor: theme.primary }}><Text style={{ color: theme.text }}>Valider</Text></Pressable>
+                  <Pressable onPress={() => { setAvatarPreview(null); setConfirmAvatar(false); }} style={{ padding: 8, borderRadius: 8, borderWidth: 1, borderColor: theme.muted, backgroundColor: theme.surface }}><Text style={{ color: theme.text }}>Annuler</Text></Pressable>
+                </>
               ) : null}
             </View>
           </View>
 
-          <Text style={{ fontWeight: '600' }}>{profile.prenom} {profile.nom}</Text>
-          <Text style={{ color: '#666', marginBottom: 12 }}>{profile.email}</Text>
+          <Text style={{ fontWeight: '600', color: theme.text }}>{profile.prenom} {profile.nom}</Text>
+          <Text style={{ color: theme.muted, marginBottom: 12 }}>{profile.email}</Text>
 
           <View style={{ marginBottom: 12 }}>
-            <Text style={{ color: '#666', marginBottom: 6 }}>Rôles: {(profile.roles || []).join(', ')}</Text>
-            <Text style={{ color: '#666' }}>Dernière activité: {profile.lastSeenAt ? String(profile.lastSeenAt) : '—'}</Text>
+            <Text style={{ color: theme.muted, marginBottom: 6 }}>Rôles: {(profile.roles || []).join(', ')}</Text>
+            <Text style={{ color: theme.muted }}>Dernière activité: {profile.lastSeenAt ? String(profile.lastSeenAt) : '—'}</Text>
           </View>
 
           {editing ? (
             <View>
-              <TextInput placeholder="Prénom" value={profile.prenom} onChangeText={(v)=> setLocalProfile((p:any)=>({...p, prenom: v}))} style={{ backgroundColor: '#fff', padding: 10, borderRadius: 6, marginBottom: 8 }} />
-              <TextInput placeholder="Nom" value={profile.nom} onChangeText={(v)=> setLocalProfile((p:any)=>({...p, nom: v}))} style={{ backgroundColor: '#fff', padding: 10, borderRadius: 6, marginBottom: 8 }} />
-              <TextInput placeholder="Contact" value={profile.contact} onChangeText={(v)=> setLocalProfile((p:any)=>({...p, contact: v}))} style={{ backgroundColor: '#fff', padding: 10, borderRadius: 6, marginBottom: 8 }} />
-              <TextInput placeholder="Adresse" value={profile.adresse} onChangeText={(v)=> setLocalProfile((p:any)=>({...p, adresse: v}))} style={{ backgroundColor: '#fff', padding: 10, borderRadius: 6, marginBottom: 8 }} />
+              <TextInput placeholder="Prénom" value={profile.prenom} onChangeText={(v)=> setLocalProfile((p:any)=>({...p, prenom: v}))} style={{ backgroundColor: theme.surface, padding: 10, borderRadius: 6, marginBottom: 8, color: theme.text }} />
+              <TextInput placeholder="Nom" value={profile.nom} onChangeText={(v)=> setLocalProfile((p:any)=>({...p, nom: v}))} style={{ backgroundColor: theme.surface, padding: 10, borderRadius: 6, marginBottom: 8, color: theme.text }} />
+              <TextInput placeholder="Contact" value={profile.contact} onChangeText={(v)=> setLocalProfile((p:any)=>({...p, contact: v}))} style={{ backgroundColor: theme.surface, padding: 10, borderRadius: 6, marginBottom: 8, color: theme.text }} />
+              <TextInput placeholder="Adresse" value={profile.adresse} onChangeText={(v)=> setLocalProfile((p:any)=>({...p, adresse: v}))} style={{ backgroundColor: theme.surface, padding: 10, borderRadius: 6, marginBottom: 8, color: theme.text }} />
 
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                <Pressable onPress={() => { setEditing(false); setLocalProfile(profile); }} style={{ padding: 12, backgroundColor: '#999', borderRadius: 8 }}><Text style={{ color: '#fff' }}>Annuler</Text></Pressable>
-                <Pressable onPress={saveProfile} disabled={saving} style={{ padding: 12, backgroundColor: saving ? '#94a3b8' : '#10b981', borderRadius: 8 }}><Text style={{ color: '#fff' }}>{saving ? 'Enregistrement...' : 'Enregistrer'}</Text></Pressable>
+                <Pressable onPress={() => { setEditing(false); setLocalProfile(profile); }} style={{ padding: 12, backgroundColor: theme.muted, borderRadius: 8 }}><Text style={{ color: theme.text }}>Annuler</Text></Pressable>
+                <Pressable onPress={saveProfile} disabled={saving} style={{ padding: 12, backgroundColor: saving ? theme.muted : theme.primary, borderRadius: 8 }}><Text style={{ color: theme.text }}>{saving ? 'Enregistrement...' : 'Enregistrer'}</Text></Pressable>
               </View>
             </View>
           ) : (
             <View style={{ marginBottom: 12 }}>
-              <Pressable onPress={() => setEditing(true)} style={{ padding: 10, backgroundColor: '#e2e8f0', borderRadius: 8, marginBottom: 8 }}><Text>Modifier profil</Text></Pressable>
-              <Pressable onPress={() => setPwdModal(true)} style={{ padding: 10, backgroundColor: '#e2e8f0', borderRadius: 8, marginBottom: 8 }}><Text>Changer mot de passe</Text></Pressable>
+              <Pressable onPress={() => setEditing(true)} style={{ padding: 10, backgroundColor: theme.surface, borderRadius: 8, marginBottom: 8 }}><Text style={{ color: theme.text }}>Modifier profil</Text></Pressable>
+              <Pressable onPress={() => setPwdModal(true)} style={{ padding: 10, backgroundColor: theme.surface, borderRadius: 8, marginBottom: 8 }}><Text style={{ color: theme.text }}>Changer mot de passe</Text></Pressable>
             </View>
           )}
 
           <View style={{ marginTop: 8 }}>
-            <Text style={{ color: '#666', marginBottom: 8 }}>Boutique</Text>
+            <Text style={{ color: theme.muted, marginBottom: 8 }}>Boutique</Text>
             {boutiques.map(b => (
-              <Pressable key={b.id} onPress={() => switchBoutique(b.id)} style={{ padding: 10, backgroundColor: '#fff', borderRadius: 8, marginBottom: 8 }}>
-                <Text style={{ color: '#111' }}>{b.nom}</Text>
+              <Pressable key={b.id} onPress={() => switchBoutique(b.id)} style={{ padding: 10, backgroundColor: theme.card, borderRadius: 8, marginBottom: 8 }}>
+                <Text style={{ color: theme.text }}>{b.nom}</Text>
               </Pressable>
             ))}
           </View>
 
           <View style={{ marginTop: 12 }}>
-            <Text style={{ color: '#666', marginBottom: 8 }}>Thème</Text>
+            <Text style={{ color: theme.muted, marginBottom: 8 }}>Thème</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Pressable onPress={() => setThemePref('system')} style={{ padding: 8, borderRadius: 6, backgroundColor: themePref === 'system' ? '#1f2937' : '#fff' }}><Text style={{ color: themePref === 'system' ? '#fff' : '#111' }}>Système</Text></Pressable>
-              <Pressable onPress={() => setThemePref('light')} style={{ padding: 8, borderRadius: 6, backgroundColor: themePref === 'light' ? '#1f2937' : '#fff' }}><Text style={{ color: themePref === 'light' ? '#fff' : '#111' }}>Clair</Text></Pressable>
-              <Pressable onPress={() => setThemePref('dark')} style={{ padding: 8, borderRadius: 6, backgroundColor: themePref === 'dark' ? '#1f2937' : '#fff' }}><Text style={{ color: themePref === 'dark' ? '#fff' : '#111' }}>Sombre</Text></Pressable>
+              <Pressable onPress={() => setThemePref('system')} style={{ padding: 8, borderRadius: 6, backgroundColor: themePref === 'system' ? theme.primary : theme.surface }}><Text style={{ color: themePref === 'system' ? theme.text : theme.text }}>Système</Text></Pressable>
+              <Pressable onPress={() => setThemePref('light')} style={{ padding: 8, borderRadius: 6, backgroundColor: themePref === 'light' ? theme.primary : theme.surface }}><Text style={{ color: themePref === 'light' ? theme.text : theme.text }}>Clair</Text></Pressable>
+              <Pressable onPress={() => setThemePref('dark')} style={{ padding: 8, borderRadius: 6, backgroundColor: themePref === 'dark' ? theme.primary : theme.surface }}><Text style={{ color: themePref === 'dark' ? theme.text : theme.text }}>Sombre</Text></Pressable>
             </View>
           </View>
 
           <View style={{ marginTop: 20 }}>
-            <Pressable onPress={logout} style={{ backgroundColor: '#ef4444', padding: 12, borderRadius: 8, alignItems: 'center' }}>
-              <Text style={{ color: '#fff', fontWeight: '600' }}>Déconnexion</Text>
+            <Pressable onPress={logout} style={{ backgroundColor: theme.danger, padding: 12, borderRadius: 8, alignItems: 'center' }}>
+              <Text style={{ color: theme.text, fontWeight: '600' }}>Déconnexion</Text>
             </Pressable>
           </View>
         </View>
@@ -248,13 +263,13 @@ export default function ProfilScreen() {
       {/* Change password modal */}
       <Modal visible={pwdModal} transparent animationType="slide" onRequestClose={() => setPwdModal(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' }}>
-          <View style={{ width: '86%', backgroundColor: '#fff', padding: 16, borderRadius: 10 }}>
-            <Text style={{ fontWeight: '800', marginBottom: 8 }}>Changer le mot de passe</Text>
-            <TextInput placeholder="Mot de passe actuel" secureTextEntry value={oldPwd} onChangeText={setOldPwd} style={{ backgroundColor: '#f3f4f6', padding: 10, borderRadius: 6, marginBottom: 8 }} />
-            <TextInput placeholder="Nouveau mot de passe" secureTextEntry value={newPwd} onChangeText={setNewPwd} style={{ backgroundColor: '#f3f4f6', padding: 10, borderRadius: 6, marginBottom: 8 }} />
+          <View style={{ width: '86%', backgroundColor: theme.surface, padding: 16, borderRadius: 10 }}>
+            <Text style={{ fontWeight: '800', marginBottom: 8, color: theme.text }}>Changer le mot de passe</Text>
+            <TextInput placeholder="Mot de passe actuel" secureTextEntry value={oldPwd} onChangeText={setOldPwd} style={{ backgroundColor: theme.card, padding: 10, borderRadius: 6, marginBottom: 8, color: theme.text }} />
+            <TextInput placeholder="Nouveau mot de passe" secureTextEntry value={newPwd} onChangeText={setNewPwd} style={{ backgroundColor: theme.card, padding: 10, borderRadius: 6, marginBottom: 8, color: theme.text }} />
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
-              <Pressable onPress={() => setPwdModal(false)} style={{ padding: 10 }}><Text>Annuler</Text></Pressable>
-              <Pressable onPress={doChangePassword} style={{ padding: 10, backgroundColor: '#10b981', borderRadius: 6 }}><Text style={{ color: '#fff' }}>Valider</Text></Pressable>
+              <Pressable onPress={() => setPwdModal(false)} style={{ padding: 10 }}><Text style={{ color: theme.text }}>Annuler</Text></Pressable>
+              <Pressable onPress={doChangePassword} style={{ padding: 10, backgroundColor: theme.primary, borderRadius: 6 }}><Text style={{ color: theme.text }}>Valider</Text></Pressable>
             </View>
           </View>
         </View>

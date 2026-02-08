@@ -2,12 +2,17 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, ActivityIndicator, ImageBackground } from 'react-native';
 import { login, fetchCurrentUser } from '../services/auth';
 import { useApp } from '../store/AppContext';
+import * as WebBrowser from 'expo-web-browser';
+import { API_BASE_URL, OAUTH_REDIRECT_URL } from '../utils/env';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const { setToken, setBoutiqueId } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const onLogin = async () => {
@@ -37,6 +42,58 @@ export default function LoginScreen() {
       setError(e.message || 'Erreur de connexion');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const onGoogleLogin = async () => {
+    if (googleLoading) return;
+    setError(null);
+    try {
+      setGoogleLoading(true);
+      const base = String(API_BASE_URL || '').replace(/\/$/, '');
+      const authUrl = base + '/oauth2/authorization/google';
+      const returnUrl = OAUTH_REDIRECT_URL;
+
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, returnUrl);
+      if (result.type !== 'success' || !('url' in result) || !result.url) {
+        // cancelled/dismissed
+        return;
+      }
+
+      const redirectedUrl = result.url;
+      const params = new URL(redirectedUrl).searchParams;
+      const oauthError = params.get('error');
+      const token = params.get('token');
+
+      if (oauthError) {
+        const msg =
+          oauthError === 'not_authorized' ? 'Compte non autorisé' :
+          oauthError === 'account_disabled' ? 'Compte désactivé' :
+          oauthError === 'missing_email' ? 'Email Google manquant' :
+          'Connexion Google échouée';
+        setError(msg);
+        return;
+      }
+
+      if (!token) {
+        setError('Token manquant (OAuth2)');
+        return;
+      }
+
+      setToken(token);
+
+      try {
+        const profile = await fetchCurrentUser(token);
+        if (profile && profile.boutique && profile.boutique.id) {
+          setBoutiqueId(Number(profile.boutique.id));
+        }
+      } catch (e) {
+        // ignore
+      }
+    } catch (e: any) {
+      setError(e?.message || 'Erreur connexion Google');
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -82,9 +139,20 @@ export default function LoginScreen() {
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '600' }}>Se connecter</Text>}
           </Pressable>
 
-          <Text style={{ marginTop: 12, color: '#666', fontSize: 12, textAlign: 'center' }}>
-            Google OAuth sera ajouté à l’étape suivante.
-          </Text>
+          <View style={{ marginTop: 12, alignItems: 'center' }}>
+            <Text style={{ color: '#666', marginBottom: 8 }}>ou</Text>
+            <Pressable
+              onPress={onGoogleLogin}
+              disabled={googleLoading}
+              style={{ borderWidth: 1, borderColor: '#ddd', padding: 14, borderRadius: 8, alignItems: 'center', width: '100%' }}
+            >
+              {googleLoading ? (
+                <ActivityIndicator />
+              ) : (
+                <Text style={{ fontWeight: '600' }}>Se connecter avec Google</Text>
+              )}
+            </Pressable>
+          </View>
         </View>
       </View>
     </ImageBackground>

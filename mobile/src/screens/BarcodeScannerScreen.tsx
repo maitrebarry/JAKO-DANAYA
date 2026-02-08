@@ -25,7 +25,7 @@ export default function BarcodeScannerScreen({ navigation }: any) {
   const handleBarCodeScanned = (ev: any) => {
     const { data } = ev;
     setScanned(true);
-    Alert.alert('Code scanné', String(data), [{ text: 'Rechercher', onPress: () => navigation.navigate('Produits', { q: data }) }, { text: 'Créer', onPress: () => navigation.navigate('ProductForm', { mode: 'create', initialCode: data }) }, { text: 'OK', style: 'cancel' }]);
+    Alert.alert('Code scanné', String(data), [{ text: 'Rechercher', onPress: () => navigation.navigate('Produits', { q: data }) }, { text: 'Créer', onPress: () => navigation.navigate('Main', { screen: 'Produits', params: { screen: 'ProductForm', params: { mode: 'create', initialCode: data } } }) }, { text: 'OK', style: 'cancel' }]);
   };
 
   if (hasPermission === null) return (

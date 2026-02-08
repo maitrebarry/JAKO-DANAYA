@@ -5,8 +5,9 @@ import { useApp } from '../store/AppContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { API_BASE_URL } from '../utils/env';
+import { resolveMediaUrl } from '../utils/urls';
 
-export default function TopBar() {
+export default function TopBar({ showBack = false }: { showBack?: boolean }) {
   const { profile, token, boutiqueId, themePref, setThemePref } = useApp();
   const navigation = useNavigation<any>();
   const theme = useTheme();
@@ -52,12 +53,25 @@ export default function TopBar() {
   // debug helper
   useEffect(() => { try { console.log('TOPBAR PROFILE', { profile, boutiqueId, boutiqueName, unread }); } catch (e) {} }, [profile, boutiqueId, boutiqueName, unread]);
 
+  const rawAvatar = profile?.photoUrl || profile?.photo || profile?.avatar || null;
+  const avatarUri = rawAvatar ? resolveMediaUrl(rawAvatar) : '';
+  const avatarSource = avatarUri ? ({ uri: avatarUri } as any) : require('../assets/logo.png');
+
   return (
     <SafeAreaView style={{ backgroundColor: bg }}>
       <View style={{ padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderColor: isDark ? '#1f2937' : '#eee', backgroundColor: 'transparent' }}>
-        <View>
-          <Text style={{ fontWeight: '800', fontSize: 18, color: textColor }}>{boutiqueName || profile?.boutique?.nom || 'Boutique'}</Text>
-          <Text style={{ color: subText, marginTop: 4 }}>Bonjour {profile?.prenom || profile?.nom || 'Utilisateur'}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {showBack && (
+            <Pressable onPress={() => navigation.goBack()} style={{ marginRight: 12 }} hitSlop={{ top: 10, left: 10, right: 10, bottom: 10 }}>
+              <Ionicons name="arrow-back" size={24} color={textColor} />
+            </Pressable>
+          )}
+          {!showBack && (
+            <View>
+              <Text style={{ fontWeight: '800', fontSize: 18, color: textColor }}>{boutiqueName || profile?.boutique?.nom || 'Boutique'}</Text>
+              <Text style={{ color: subText, marginTop: 4 }}>Bonjour {profile?.prenom || profile?.nom || 'Utilisateur'}</Text>
+            </View>
+          )}
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -84,7 +98,11 @@ export default function TopBar() {
           </Pressable>
 
           <Pressable onPress={() => navigation.navigate('Profil', { openAvatarPicker: true }) }>
-            <Image source={ profile?.photoUrl || profile?.photo ? { uri: profile.photoUrl || profile.photo } : require('../assets/logo.png') } style={{ width: 40, height: 40, borderRadius: 20 }} />
+            <Image
+              key={avatarUri || 'logo'}
+              source={avatarSource}
+              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#e5e7eb' }}
+            />
           </Pressable>
         </View>
       </View>

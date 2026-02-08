@@ -96,7 +96,7 @@ export default function ProductDetailScreen({ route, navigation }: any) {
       </View>
 
       <View style={{ flexDirection: 'row', marginTop: 18, gap: 8 }}>
-        <Pressable onPress={() => navigation.navigate('ProductForm', { mode: 'edit', id })} style={{ padding: 12, backgroundColor: theme.primary, borderRadius: 8 }}>
+        <Pressable onPress={() => navigation.navigate('Main', { screen: 'Produits', params: { screen: 'ProductForm', params: { mode: 'edit', id } } })} style={{ padding: 12, backgroundColor: theme.primary, borderRadius: 8 }}>
           <Text style={{ color: '#fff', fontWeight: '700' }}>Modifier</Text>
         </Pressable>
         <Pressable onPress={onDelete} style={{ padding: 12, backgroundColor: '#ef4444', borderRadius: 8 }}>
