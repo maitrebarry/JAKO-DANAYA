@@ -151,7 +151,7 @@ public class ProduitController {
                 Files.createDirectories(uploadPath);
             }
             Files.write(uploadPath.resolve(fileName), imageFile.getBytes());
-            produit.setProductImage(fileName);
+            produit.setProductImage("/uploads/products/" + fileName);
             org.slf4j.LoggerFactory.getLogger(ProduitController.class).info("Saved product image {} -> {}", fileName, uploadPath.resolve(fileName).toAbsolutePath().toString());
         } else if (productImage != null && !productImage.trim().isEmpty()) {
             produit.setProductImage(productImage);
@@ -337,7 +337,7 @@ public class ProduitController {
                             }
                             Files.write(uploadPath.resolve(fileName), imageFile.getBytes());
                             org.slf4j.LoggerFactory.getLogger(ProduitController.class).info("Saved product image {} -> {}", fileName, uploadPath.resolve(fileName).toAbsolutePath().toString());
-                            produit.setProductImage(fileName);
+                            produit.setProductImage("/uploads/products/" + fileName);
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
@@ -526,8 +526,8 @@ public class ProduitController {
             return;
         }
 
-        if (produit.getProductImage() != null && !produit.getProductImage().startsWith("http")) {
-            produit.setProductImage(uploadsBase() + produit.getProductImage());
+        if (produit.getProductImage() != null && !produit.getProductImage().startsWith("http") && !produit.getProductImage().startsWith("/")) {
+            produit.setProductImage("/uploads/products/" + produit.getProductImage());
         }
 
         if (produit.getStocks() != null && !produit.getStocks().isEmpty()) {

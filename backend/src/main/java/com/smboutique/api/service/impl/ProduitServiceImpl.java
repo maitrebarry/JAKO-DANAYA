@@ -338,7 +338,7 @@ public class ProduitServiceImpl implements ProduitService {
                                 try (java.io.InputStream in = conn.getInputStream()) {
                                     java.nio.file.Files.copy(in, filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                                 }
-                                produit.setProductImage(fileName);
+                                produit.setProductImage("/uploads/products/" + fileName);
                             } else {
                                 // Not a URL - treat as existing filename or relative path
                                 produit.setProductImage(productImageUrl);

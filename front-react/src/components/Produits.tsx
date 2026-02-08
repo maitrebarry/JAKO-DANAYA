@@ -5,7 +5,7 @@ import { useUser } from '../contexts/UserContext';
 import useHasPermission from '../contexts/useHasPermission';
 import RequirePermission from './RequirePermission';
 import { useFormatMoney } from '../utils/currency';
-import { withApi, API } from '../config/api';
+import { withApi, API, API_BASE } from '../config/api';
 import '../assets/css/style_produit.css';
 
 const Produits: React.FC = () => {
@@ -246,12 +246,11 @@ const Produits: React.FC = () => {
     const s = String(p);
     if (s.startsWith('http://') || s.startsWith('https://')) return s;
     if (s.startsWith('/uploads') || s.startsWith('uploads')) {
-      // ensure requests go through backend by using /api prefix
       const clean = s.startsWith('/') ? s : ('/' + s);
-      return `${API}${clean}`;
+      return `${API_BASE}${clean}`;
     }
-    // Bare filename or other path -> assume filename and map to API endpoint
-    return `${API}/uploads/products/${s}`;
+    // Bare filename -> assume it's in uploads/products
+    return `${API_BASE}/uploads/products/${s}`;
   };
 
   const handleShowDetail = async (produit: any) => {

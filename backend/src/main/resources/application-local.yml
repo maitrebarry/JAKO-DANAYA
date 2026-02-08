@@ -11,7 +11,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: true
 
   security:
@@ -28,3 +28,4 @@ spring:
 app:
   frontend:
     base-url: http://localhost:5173
+  reset-db: false

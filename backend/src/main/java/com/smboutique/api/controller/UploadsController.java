@@ -65,7 +65,7 @@ public class UploadsController {
         }
     }
 
-    @GetMapping("/api/uploads/products/{filename:.+}")
+    @GetMapping("/uploads/products/{filename:.+}")
     public ResponseEntity<Resource> serveProductImage(@PathVariable String filename) {
         if (!StringUtils.hasText(filename)) {
             return ResponseEntity.notFound().build();

@@ -9,6 +9,24 @@ import com.smboutique.api.repository.MagasinRepository;
 import com.smboutique.api.repository.ProduitRepository;
 import com.smboutique.api.repository.StockRepository;
 import com.smboutique.api.repository.UniteRepository;
+import com.smboutique.api.repository.VenteRepository;
+import com.smboutique.api.repository.CaisseRepository;
+import com.smboutique.api.repository.DepenseRepository;
+import com.smboutique.api.repository.FournisseurRepository;
+import com.smboutique.api.repository.ConfigurationMargeRepository;
+import com.smboutique.api.repository.CommandeClientRepository;
+import com.smboutique.api.repository.LivraisonRepository;
+import com.smboutique.api.repository.ReceptionRepository;
+import com.smboutique.api.repository.LigneVenteRepository;
+import com.smboutique.api.repository.LigneLivraisonRepository;
+import com.smboutique.api.repository.LigneReceptionRepository;
+import com.smboutique.api.repository.ReceptionRepository;
+import com.smboutique.api.repository.LigneReceptionRepository;
+import com.smboutique.api.repository.MouvementRepository;
+import com.smboutique.api.repository.TransferRepository;
+import com.smboutique.api.repository.PaiementClientRepository;
+import com.smboutique.api.repository.LigneInventaireRepository;
+import com.smboutique.api.repository.InventaireRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -59,6 +77,54 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired
     private com.smboutique.api.repository.VenteRepository venteRepository;
 
+    @Autowired
+    private com.smboutique.api.repository.CaisseRepository caisseRepository;
+
+    @Autowired
+    private com.smboutique.api.repository.DepenseRepository depenseRepository;
+
+    @Autowired
+    private com.smboutique.api.repository.CommandeFournisseurRepository commandeFournisseurRepository;
+
+    @Autowired
+    private FournisseurRepository fournisseurRepository;
+
+    @Autowired
+    private ConfigurationMargeRepository configurationMargeRepository;
+
+    @Autowired
+    private com.smboutique.api.repository.CommandeClientRepository commandeClientRepository;
+
+    @Autowired
+    private com.smboutique.api.repository.LivraisonRepository livraisonRepository;
+
+    @Autowired
+    private com.smboutique.api.repository.ReceptionRepository receptionRepository;
+
+    @Autowired
+    private com.smboutique.api.repository.LigneVenteRepository ligneVenteRepository;
+
+    @Autowired
+    private com.smboutique.api.repository.LigneLivraisonRepository ligneLivraisonRepository;
+
+    @Autowired
+    private com.smboutique.api.repository.LigneReceptionRepository ligneReceptionRepository;
+
+    @Autowired
+    private com.smboutique.api.repository.MouvementRepository mouvementRepository;
+
+    @Autowired
+    private com.smboutique.api.repository.TransferRepository transferRepository;
+
+    @Autowired
+    private com.smboutique.api.repository.PaiementClientRepository paiementClientRepository;
+
+    @Autowired
+    private com.smboutique.api.repository.LigneInventaireRepository ligneInventaireRepository;
+
+    @Autowired
+    private com.smboutique.api.repository.InventaireRepository inventaireRepository;
+
     @Value("${app.reset-db:false}")
     private boolean resetDb;
 
@@ -104,10 +170,32 @@ public class DataInitializer implements CommandLineRunner {
     private void resetDatabase() {
         logger.warn("app.reset-db=true -> Resetting database content (deleting all rows)...");
         try {
-            // Delete in FK-safe order: users -> roles -> permissions -> boutiques -> pays
+            // Delete in FK-safe order
+            // First, child entities
+            mouvementRepository.deleteAll();
+            transferRepository.deleteAll();
+            ligneLivraisonRepository.deleteAll();
+            ligneReceptionRepository.deleteAll();
+            ligneVenteRepository.deleteAll();
+            livraisonRepository.deleteAll();
+            receptionRepository.deleteAll();
+            paiementClientRepository.deleteAll();
+            commandeFournisseurRepository.deleteAll();
+            fournisseurRepository.deleteAll();
+            commandeClientRepository.deleteAll();
+            venteRepository.deleteAll();
+            stockRepository.deleteAll();
+            ligneInventaireRepository.deleteAll();
+            inventaireRepository.deleteAll();
+            produitRepository.deleteAll();
+            uniteRepository.deleteAll();
+            magasinRepository.deleteAll();
+            caisseRepository.deleteAll();
+            depenseRepository.deleteAll();
             utilisateurRepository.deleteAll();
             roleRepository.deleteAll();
             permissionRepository.deleteAll();
+            configurationMargeRepository.deleteAll();
             boutiqueRepository.deleteAll();
             paysRepository.deleteAll();
             logger.warn("Database reset done. Tables will be re-seeded.");
