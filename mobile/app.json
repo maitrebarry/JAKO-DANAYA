@@ -16,14 +16,20 @@
       "fallbackToCacheTimeout": 0
     },
     "android": {
-      "package": "com.jagodanana.mobile"
+      "package": "com.jagodanana.mobile",
+      "permissions": [
+        "CAMERA"
+      ]
     },
     "ios": {
-      "bundleIdentifier": "com.jagodanana.mobile"
+      "bundleIdentifier": "com.jagodanana.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "JÀGO DÁNAYA a besoin d'accéder à la caméra pour scanner les codes-barres."
+      }
     },
     "plugins": [
       "expo-secure-store",
-      "expo-barcode-scanner",
+      "expo-camera",
       "expo-web-browser"
     ]
   }

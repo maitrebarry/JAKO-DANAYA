@@ -113,7 +113,7 @@ export default function LoginScreen() {
     >
       <View style={{ flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(255,255,255,0.78)' }}>
         <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 3 }}>
-          <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 6, textAlign: 'center' }}>JAKO DANAYA</Text>
+          <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 6, textAlign: 'center' }}>JAGO DANAYA</Text>
           <Text style={{ marginBottom: 16, color: '#666', textAlign: 'center' }}>Connexion</Text>
 
           <Text style={{ marginBottom: 6 }}>Email</Text>

@@ -24,7 +24,13 @@ export type BoutiqueDTO = {
   adresse?: string | null;
   indicatif?: string | null;
   logo?: string | null;
-  pays?: { id?: number; codeIso?: string | null; indicatif?: string | null } | null;
+  pays?: {
+    id?: number;
+    codeIso?: string | null;
+    indicatif?: string | null;
+    deviseSymbole?: string | null;
+    deviseCode?: string | null;
+  } | null;
 };
 
 export async function listBoutiques(token: string): Promise<BoutiqueDTO[]> {

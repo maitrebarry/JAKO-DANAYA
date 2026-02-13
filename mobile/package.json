@@ -17,7 +17,7 @@
     "@react-navigation/native": "^6.1.9",
     "@react-navigation/native-stack": "^6.9.17",
     "expo": "^54.0.33",
-    "expo-barcode-scanner": "^13.0.1",
+    "expo-camera": "~17.0.8",
     "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.21",
     "expo-image-picker": "~17.0.10",

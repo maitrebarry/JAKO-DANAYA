@@ -5,10 +5,12 @@ import { showError, showSuccess } from '../utils/notify';
 import { fetchProduit, deleteProduit } from '../services/produit';
 import { useTheme } from '../theme';
 import { resolveMediaUrl } from '../utils/urls';
+import { useFormatMoney } from '../utils/currency';
 
 export default function ProductDetailScreen({ route, navigation }: any) {
   const { token } = useApp();
   const theme = useTheme();
+  const fmtMoney = useFormatMoney();
   const id = route.params?.id;
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<any>(null);
@@ -81,7 +83,7 @@ export default function ProductDetailScreen({ route, navigation }: any) {
 
       <View style={{ marginTop: 14 }}>
         <Text style={{ color: theme.muted }}>Prix détail</Text>
-        <Text style={{ color: theme.text, fontWeight: '700' }}>{product?.prixDetail ?? '—'} FCFA</Text>
+        <Text style={{ color: theme.text, fontWeight: '700' }}>{fmtMoney(product?.prixDetail)}</Text>
       </View>
 
       <View style={{ marginTop: 12 }}>

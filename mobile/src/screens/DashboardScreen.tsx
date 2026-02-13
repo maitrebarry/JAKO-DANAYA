@@ -8,6 +8,7 @@ import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-ic
 import { useTheme } from '../theme';
 import { useAccess } from '../utils/access';
 import { mergeAuthMeResponse } from '../utils/profile';
+import { useFormatMoney } from '../utils/currency';
 
 export default function DashboardScreen({ navigation }: any) {
   const { token, boutiqueId, profile, setProfile } = useApp();
@@ -173,7 +174,7 @@ export default function DashboardScreen({ navigation }: any) {
   }
 
   const fmt = (n: number | null | undefined) => n == null ? '—' : new Intl.NumberFormat('fr-FR').format(n);
-  const fmtMoney = (n: number | null | undefined) => n == null ? '—' : new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
+  const fmtMoney = useFormatMoney();
 
   const formatMovementDate = (d: any) => {
     if (!d) return '';

@@ -16,17 +16,12 @@ import { useTheme } from '../theme';
 import { useApp } from '../store/AppContext';
 import { useAccess } from '../utils/access';
 import { showError } from '../utils/notify';
+import { useFormatMoney } from '../utils/currency';
 import {
   fetchHistoriqueVentesEspeces,
   type HistoriqueVenteEspeceItem,
 } from '../services/ventesEspeces';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-
-function fmtMoney(n: any) {
-  const v = Number(n);
-  if (!Number.isFinite(v)) return '—';
-  return `${new Intl.NumberFormat('fr-FR').format(v)} FCFA`;
-}
 
 function formatDateShort(d: any) {
   if (!d) return '';
@@ -46,6 +41,7 @@ export default function VentesEspecesListScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { token, boutiqueId } = useApp();
   const access = useAccess();
+  const fmtMoney = useFormatMoney();
 
   const [items, setItems] = useState<HistoriqueVenteEspeceItem[]>([]);
   const [loading, setLoading] = useState(false);

@@ -33,11 +33,6 @@ function formatThousands(n: number) {
   return s.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
 
-function fmtMoney(n: number | null | undefined) {
-  if (n == null) return '—';
-  return `${formatThousands(Number(n) || 0)} FCFA`;
-}
-
 function clientLabel(cmd: CommandeClientDTO) {
   const c: any = (cmd as any)?.client;
   if (!c) return '';

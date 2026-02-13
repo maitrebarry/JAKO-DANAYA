@@ -6,12 +6,14 @@ import { useTheme } from '../theme';
 import { resolveMediaUrl } from '../utils/urls';
 import { Ionicons } from '@expo/vector-icons';
 import { useAccess } from '../utils/access';
-import { showError, showInfo } from '../utils/notify';
+import { showInfo } from '../utils/notify';
+import { useFormatMoney } from '../utils/currency';
 
 export default function ProduitsScreen({ navigation, route }: any) {
   const { token } = useApp();
   const theme = useTheme();
   const access = useAccess();
+  const fmtMoney = useFormatMoney();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [q, setQ] = useState(route.params?.q || '');
@@ -19,7 +21,6 @@ export default function ProduitsScreen({ navigation, route }: any) {
   const [filtered, setFiltered] = useState<any[]>([]);
   const [sortBy, setSortBy] = useState<'name'|'stock'|'price'>('name');
   const [lowStockOnly, setLowStockOnly] = useState(false);
-  const [createMissingUnitsImport, setCreateMissingUnitsImport] = useState<boolean>(true);
 
   const load = useCallback(async () => {
     if (!access.produits) {
@@ -100,12 +101,25 @@ export default function ProduitsScreen({ navigation, route }: any) {
               console.log('BARCODE_PRESS');
               navigation.navigate('BarcodeScanner');
             }}
-            style={{ marginLeft: 8, padding: 8, backgroundColor: theme.primary, borderRadius: 8, alignItems: 'center', justifyContent: 'center', width: 40, height: 40 }}
+            style={{
+              marginLeft: 8,
+              paddingHorizontal: 10,
+              paddingVertical: 8,
+              backgroundColor: theme.surface,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: theme.primary,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+            }}
             hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
             accessibilityRole="button"
             accessibilityLabel="Scanner code-barres"
           >
-            <Ionicons name="barcode" size={20} color="#fff" />
+            <Ionicons name="barcode" size={18} color={theme.primary} />
+            <Text style={{ color: theme.primary, fontWeight: '800' }}>Scanner</Text>
           </Pressable>
         </View>
 
@@ -125,35 +139,6 @@ export default function ProduitsScreen({ navigation, route }: any) {
         </View>
       </View>
 
-      <View style={{ paddingHorizontal: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {access.produitsCreate ? (
-            <>
-              <Pressable onPress={() => setCreateMissingUnitsImport((s: boolean) => !s)} style={{ padding: 8, backgroundColor: createMissingUnitsImport ? '#10b981' : theme.surface, borderRadius: 8 }}>
-                <Text style={{ color: createMissingUnitsImport ? '#fff' : theme.text }}>{createMissingUnitsImport ? 'Créer unités manquantes: Oui' : 'Créer unités manquantes: Non'}</Text>
-              </Pressable>
-              <Pressable onPress={async () => {
-                try {
-                  const dp = require('expo-document-picker');
-                  const res = await dp.getDocumentAsync({ type: '*/*' });
-                  if (res.type === 'success') {
-                    const blob = await fetch(res.uri).then(r => r.blob());
-                    const file = new File([blob], res.name);
-                    const job = await require('../services/produit').importProduitsAsync(file, token as string, createMissingUnitsImport);
-                    console.log('IMPORT_JOB', job);
-                    alert('Import lancé: job ' + (job.jobId || 'unknown'));
-                  }
-                } catch (e:any) {
-                  showError('Import', e?.message || 'Import impossible');
-                }
-              }} style={{ padding: 10, borderRadius: 8, backgroundColor: '#f59e0b', alignItems: 'center', marginBottom: 8 }}>
-                <Text style={{ color: '#fff', fontWeight: '700' }}>Importer depuis Excel</Text>
-              </Pressable>
-            </>
-          ) : null}
-        </View>
-      </View>
-
       {loading ? <ActivityIndicator style={{ marginTop: 20 }} color={theme.primary} /> : (
         <FlatList
           data={filtered}
@@ -170,7 +155,7 @@ export default function ProduitsScreen({ navigation, route }: any) {
               ) : <View style={{ width: 64, height: 64, borderRadius: 6, backgroundColor: theme.background, marginRight: 12 }} />}
               <View style={{ flex: 1 }}>
                 <Text style={{ color: theme.text, fontWeight: '700' }}>{item.nomProduit}</Text>
-                <Text style={{ color: theme.muted, marginTop: 6 }}>{item.prixDetail ? `${item.prixDetail} FCFA` : ''}</Text>
+                <Text style={{ color: theme.muted, marginTop: 6 }}>{item.prixDetail != null ? fmtMoney(item.prixDetail) : ''}</Text>
               </View>
               <View>
                 <Text style={{ color: theme.muted }}>{item.quantiteInitialeConditionnements ?? '—'}</Text>

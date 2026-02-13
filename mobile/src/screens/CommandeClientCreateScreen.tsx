@@ -16,6 +16,7 @@ import { useTheme } from '../theme';
 import { useApp } from '../store/AppContext';
 import { useAccess } from '../utils/access';
 import { showError, showSuccess } from '../utils/notify';
+import { useCurrencySymbol } from '../utils/currency';
 import { fetchStocks } from '../services/vente';
 import {
   createCommandeClient,
@@ -515,6 +516,7 @@ export default function CommandeClientCreateScreen() {
   const access = useAccess();
   const navigation = useNavigation<any>();
   const { token } = useApp();
+  const currencySymbol = useCurrencySymbol();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -1153,7 +1155,7 @@ export default function CommandeClientCreateScreen() {
 
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
                     <Text style={{ color: theme.muted }}>Montant ligne</Text>
-                    <Text style={{ color: theme.text, fontWeight: '900' }}>{formatThousandsFromDigits(String(montant))} FCFA</Text>
+                    <Text style={{ color: theme.text, fontWeight: '900' }}>{formatThousandsFromDigits(String(montant))} {currencySymbol}</Text>
                   </View>
                 </View>
               );
@@ -1173,7 +1175,7 @@ export default function CommandeClientCreateScreen() {
         >
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text style={{ color: theme.muted, fontWeight: '800' }}>Total</Text>
-            <Text style={{ color: theme.text, fontWeight: '900' }}>{formatThousandsFromDigits(String(total))} FCFA</Text>
+            <Text style={{ color: theme.text, fontWeight: '900' }}>{formatThousandsFromDigits(String(total))} {currencySymbol}</Text>
           </View>
 
           <Pressable

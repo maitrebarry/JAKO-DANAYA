@@ -16,12 +16,7 @@ import { useAccess } from '../utils/access';
 import { showError, showInfo } from '../utils/notify';
 import { downloadAndSharePdf } from '../services/pdf';
 import { fetchVenteById, fetchVenteLignes, type LigneVenteDTO, type VenteDTO } from '../services/ventesEspeces';
-
-function fmtMoney(n: any) {
-  const v = Number(n);
-  if (!Number.isFinite(v)) return '—';
-  return `${new Intl.NumberFormat('fr-FR').format(v)} FCFA`;
-}
+import { useFormatMoney } from '../utils/currency';
 
 function formatDateLong(d: any) {
   if (!d) return '—';
@@ -48,6 +43,7 @@ export default function VenteEspeceDetailScreen() {
 
   const { token } = useApp();
   const access = useAccess();
+  const fmtMoney = useFormatMoney();
 
   const [vente, setVente] = useState<VenteDTO | null>(null);
   const [lignes, setLignes] = useState<LigneVenteDTO[]>([]);

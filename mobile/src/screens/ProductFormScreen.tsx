@@ -90,7 +90,6 @@ export default function ProductFormScreen({ route, navigation }: any) {
   const [selectedUniteId, setSelectedUniteId] = useState<number | null>(null);
   const [nombreUnitesParConditionnement, setNombreUnitesParConditionnement] = useState<string>('1');
   const [showUnitsModal, setShowUnitsModal] = useState(false);
-  const [createMissingUnitsImport, setCreateMissingUnitsImport] = useState(true);
 
   const fetchUnits = async () => {
     try {
@@ -124,8 +123,9 @@ export default function ProductFormScreen({ route, navigation }: any) {
     // load margin config on mount or when boutiqueId/token change
     loadMargeConfig();
 
-    if (route.params?.initialCode && !nom) {
-      setNom(String(route.params.initialCode || ''));
+    // If we come from the barcode scanner with a resolved product name (external lookup), prefill it.
+    if (mode === 'create' && route.params?.initialNomProduit && !nom) {
+      setNom(String(route.params.initialNomProduit || ''));
     }
     if (mode === 'edit' && id) {
       (async () => {
