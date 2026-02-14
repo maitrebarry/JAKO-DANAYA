@@ -2,9 +2,12 @@ package com.smboutique.api.repository;
 
 import com.smboutique.api.model.Stock;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import jakarta.persistence.LockModeType;
 
 import java.util.List;
 import java.util.Optional;
@@ -17,6 +20,11 @@ public interface StockRepository extends JpaRepository<Stock, Long> {
     List<Stock> findByMagasinId(Long magasinId);
 
     Optional<Stock> findByProduitIdAndMagasinId(Long produitId, Long magasinId);
+
+    // Pessimistic lock helper to avoid lost updates on quantiteDisponible/CMP
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM Stock s WHERE s.id = :id")
+    Optional<Stock> findByIdForUpdate(@Param("id") Long id);
 
     @Query("SELECT s FROM Stock s LEFT JOIN FETCH s.produit LEFT JOIN FETCH s.magasin WHERE (:produitId IS NULL OR s.produit.id = :produitId) AND (s.boutique.id = :boutiqueId OR (s.magasin IS NOT NULL AND s.magasin.boutique.id = :boutiqueId))")
     List<Stock> findByProduitIdAndBoutiqueId(@Param("produitId") Long produitId, @Param("boutiqueId") Long boutiqueId);

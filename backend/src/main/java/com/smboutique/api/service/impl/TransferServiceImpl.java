@@ -31,8 +31,19 @@ public class TransferServiceImpl implements TransferService {
             throw new IllegalArgumentException("Source et destination doivent être différentes");
         }
 
-        Stock src = stockRepository.findById(sourceStockId).orElseThrow(() -> new RuntimeException("Stock source introuvable"));
-        Stock dst = stockRepository.findById(destStockId).orElseThrow(() -> new RuntimeException("Stock destination introuvable"));
+        // Lock both stocks in a deterministic order to avoid deadlocks
+        Long firstId = sourceStockId;
+        Long secondId = destStockId;
+        if (firstId != null && secondId != null && firstId > secondId) {
+            firstId = destStockId;
+            secondId = sourceStockId;
+        }
+
+        Stock first = stockRepository.findByIdForUpdate(firstId).orElseThrow(() -> new RuntimeException("Stock introuvable"));
+        Stock second = stockRepository.findByIdForUpdate(secondId).orElseThrow(() -> new RuntimeException("Stock introuvable"));
+
+        Stock src = Objects.equals(firstId, sourceStockId) ? first : second;
+        Stock dst = Objects.equals(firstId, destStockId) ? first : second;
 
         // Source must be a magasin stock
         if (src.getMagasin() == null) {

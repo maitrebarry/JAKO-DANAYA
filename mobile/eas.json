@@ -1,0 +1,24 @@
+{
+  "cli": {
+    "version": ">= 18.0.1",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_ENV": "prod",
+        "EXPO_PUBLIC_API_BASE_URL_PROD": "https://jako-danaya.onrender.com",
+        "EXPO_PUBLIC_FRONTEND_BASE_URL_PROD": "https://jako-danaya.onrender.com"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "simulator": false
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

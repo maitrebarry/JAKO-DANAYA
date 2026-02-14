@@ -4,6 +4,7 @@ import com.smboutique.api.model.Caisse;
 import com.smboutique.api.service.CaisseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -119,12 +120,13 @@ public class CaisseController {
     }
 
     @PutMapping("/{id}")
+    @Transactional
     public ResponseEntity<Caisse> updateCaisse(@PathVariable Long id, @RequestBody Caisse caisseDetails) {
         com.smboutique.api.model.Utilisateur current = getCurrentUser();
         if (!isSuperAdmin(current) && !utilisateurService.hasPermission(current, "CAISSE_GERER")) {
             return ResponseEntity.status(403).build();
         }
-        return caisseService.findById(id)
+        return caisseRepository.findByIdForUpdate(id)
                 .map(caisse -> {
                     caisse.setDateCaisse(caisseDetails.getDateCaisse());
                     caisse.setMontantInitial(caisseDetails.getMontantInitial());

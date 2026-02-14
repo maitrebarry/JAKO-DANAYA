@@ -457,7 +457,14 @@ public class CommandeClientController {
             if (cmd.getBoutique() == null || caisseByRef.getBoutique() == null || !caisseByRef.getBoutique().getId().equals(cmd.getBoutique().getId())) {
                 return ResponseEntity.status(403).body(java.util.Map.of("error", "La caisse sélectionnée n'appartient pas à la boutique de la commande."));
             }
-            String sRef = caisseByRef.getStatut() == null ? "" : caisseByRef.getStatut().toUpperCase();
+
+            // Lock caisse before reading/updating montantTotal to avoid lost updates
+            com.smboutique.api.model.Caisse caisseByRefLocked = caisseByRef;
+            if (caisseByRef.getId() != null) {
+                caisseByRefLocked = caisseRepository.findByIdForUpdate(caisseByRef.getId()).orElse(caisseByRef);
+            }
+
+            String sRef = caisseByRefLocked.getStatut() == null ? "" : caisseByRefLocked.getStatut().toUpperCase();
             if (!(sRef.contains("OUVERTE") || sRef.contains("OPEN") || sRef.contains("ACT"))) {
                 return ResponseEntity.badRequest().body(java.util.Map.of("error", "La caisse sélectionnée n'est pas ouverte. Ouvrez la caisse avant d'enregistrer des paiements."));
             }
@@ -469,7 +476,7 @@ public class CommandeClientController {
             com.smboutique.api.model.PaiementClient savedPaiement = paiementClientService.save(paiement);
 
             // Update caisse montantTotal and create a transaction CREDIT using the provided reference
-            com.smboutique.api.model.Caisse caisse = caisseByRef;
+            com.smboutique.api.model.Caisse caisse = caisseByRefLocked;
             Integer cur = caisse.getMontantTotal() != null ? caisse.getMontantTotal() : 0;
             Integer before = cur;
             caisse.setMontantTotal(cur + montant);
@@ -561,6 +568,7 @@ public class CommandeClientController {
     }
 
     @DeleteMapping("/{id}")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<Void> deleteCommandeClient(@PathVariable Long id) {
         return commandeClientService.findById(id)
                 .map(commandeClient -> {
@@ -602,8 +610,9 @@ public class CommandeClientController {
                                 String refC = p.getReferenceCaisse();
                                 if (refC != null && !refC.trim().isEmpty()) {
                                     java.util.Optional<com.smboutique.api.model.Caisse> maybeC = caisseRepository.findByReference(refC);
-                                    if (maybeC.isPresent()) {
-                                        com.smboutique.api.model.Caisse caisse = maybeC.get();
+                                    java.util.Optional<com.smboutique.api.model.Caisse> locked = maybeC.flatMap(c -> c.getId() != null ? caisseRepository.findByIdForUpdate(c.getId()) : java.util.Optional.empty());
+                                    if (locked.isPresent()) {
+                                        com.smboutique.api.model.Caisse caisse = locked.get();
                                         Integer cur = caisse.getMontantTotal() != null ? caisse.getMontantTotal() : 0;
                                         Integer before = cur;
                                         caisse.setMontantTotal(Math.max(0, cur - montant));

@@ -5,6 +5,7 @@ import com.smboutique.api.model.Produit;
 import com.smboutique.api.model.Stock;
 import com.smboutique.api.model.Magasin;
 import com.smboutique.api.repository.MouvementRepository;
+import com.smboutique.api.repository.StockRepository;
 import com.smboutique.api.service.MouvementService;
 import com.smboutique.api.service.ProduitService;
 import com.smboutique.api.service.StockService;
@@ -43,6 +44,9 @@ public class MouvementServiceImpl implements MouvementService {
     private StockService stockService;
 
     @Autowired
+    private StockRepository stockRepository;
+
+    @Autowired
     private MagasinService magasinService;
 
     @Autowired
@@ -73,6 +77,7 @@ public class MouvementServiceImpl implements MouvementService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public void deleteById(Long id) {
         java.util.Optional<Mouvement> opt = mouvementRepository.findById(id);
         if (opt.isPresent()) {
@@ -81,6 +86,9 @@ public class MouvementServiceImpl implements MouvementService {
             if ("UTILISATION".equalsIgnoreCase(m.getTypeMouvement()) && m.getStock() != null && m.getQuantite() != null) {
                 try {
                     Stock s = m.getStock();
+                    if (s.getId() != null) {
+                        s = stockRepository.findByIdForUpdate(s.getId()).orElse(s);
+                    }
                     Integer qDisp = s.getQuantiteDisponible() == null ? 0 : s.getQuantiteDisponible();
                     s.setQuantiteDisponible(qDisp + m.getQuantite());
                     stockService.saveStock(s);
@@ -302,6 +310,7 @@ public class MouvementServiceImpl implements MouvementService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public com.smboutique.api.model.Mouvement createUtilisation(com.smboutique.api.dto.UtilisationRequest req, com.smboutique.api.model.Utilisateur currentUser) {
         if (req == null) throw new IllegalArgumentException("Request required");
         if (req.quantite == null || req.quantite <= 0) throw new IllegalArgumentException("Quantité doit être > 0");
@@ -321,6 +330,15 @@ public class MouvementServiceImpl implements MouvementService {
             java.util.List<Stock> stocks = stockService.getStocksByProduitAndBoutique(req.produitId, currentUser.getBoutique().getId());
             if (stocks == null || stocks.isEmpty()) throw new IllegalArgumentException("Stock introuvable pour ce produit et boutique");
             stock = stocks.get(0);
+        }
+
+        if (stock.getQuantiteDisponible() == null || stock.getQuantiteDisponible() < req.quantite) {
+            throw new IllegalArgumentException("Quantité insuffisante en stock");
+        }
+
+        // Lock stock before decrement to avoid lost updates
+        if (stock.getId() != null) {
+            stock = stockRepository.findByIdForUpdate(stock.getId()).orElse(stock);
         }
 
         if (stock.getQuantiteDisponible() == null || stock.getQuantiteDisponible() < req.quantite) {
@@ -398,6 +416,26 @@ public class MouvementServiceImpl implements MouvementService {
             }
         }
         if (targetStock == null) throw new IllegalArgumentException("Stock cible introuvable pour la mise à jour");
+
+        // Lock involved stocks in deterministic order to reduce deadlocks
+        if (oldStock != null && oldStock.getId() != null && targetStock.getId() != null && !oldStock.getId().equals(targetStock.getId())) {
+            Long oldId = oldStock.getId();
+            Long newId = targetStock.getId();
+            if (oldId < newId) {
+                oldStock = stockRepository.findByIdForUpdate(oldId).orElse(oldStock);
+                targetStock = stockRepository.findByIdForUpdate(newId).orElse(targetStock);
+            } else {
+                targetStock = stockRepository.findByIdForUpdate(newId).orElse(targetStock);
+                oldStock = stockRepository.findByIdForUpdate(oldId).orElse(oldStock);
+            }
+        } else {
+            if (oldStock != null && oldStock.getId() != null) {
+                oldStock = stockRepository.findByIdForUpdate(oldStock.getId()).orElse(oldStock);
+            }
+            if (targetStock.getId() != null) {
+                targetStock = stockRepository.findByIdForUpdate(targetStock.getId()).orElse(targetStock);
+            }
+        }
 
         Integer newQty = mouvementDetails.getQuantite() == null ? 0 : mouvementDetails.getQuantite();
         if (newQty <= 0) throw new IllegalArgumentException("Quantité doit être > 0");
@@ -484,6 +522,15 @@ public class MouvementServiceImpl implements MouvementService {
             java.util.List<Stock> stocks = stockService.getStocksByProduitAndBoutique(up.getProduit().getId(), boutiqueId);
             if (stocks == null || stocks.isEmpty()) throw new IllegalArgumentException("Stock introuvable pour ce produit et boutique");
             stock = stocks.get(0);
+        }
+
+        if (stock.getQuantiteDisponible() == null || stock.getQuantiteDisponible() < up.getQuantite()) {
+            throw new IllegalArgumentException("Quantité insuffisante en stock");
+        }
+
+        // Lock stock before decrement to avoid lost updates
+        if (stock.getId() != null) {
+            stock = stockRepository.findByIdForUpdate(stock.getId()).orElse(stock);
         }
 
         if (stock.getQuantiteDisponible() == null || stock.getQuantiteDisponible() < up.getQuantite()) {

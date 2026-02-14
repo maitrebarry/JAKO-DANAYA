@@ -1,11 +1,13 @@
 package com.smboutique.api.controller;
 
 import com.smboutique.api.model.Livraison;
+import com.smboutique.api.repository.StockRepository;
 import com.smboutique.api.service.LivraisonService;
 import com.smboutique.api.service.LigneLivraisonService;
 import com.smboutique.api.service.LigneCommandeClientService;
 import com.smboutique.api.service.StockService;import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -25,6 +27,9 @@ public class LivraisonController {
 
     @Autowired
     private StockService stockService;
+
+    @Autowired
+    private StockRepository stockRepository;
 
     @Autowired
     private com.smboutique.api.service.UtilisateurService utilisateurService;
@@ -85,6 +90,7 @@ public class LivraisonController {
     }
 
     @PostMapping("/{id}/cancel")
+    @Transactional
     public ResponseEntity<Object> cancelLivraison(@PathVariable Long id, @RequestBody(required = false) java.util.Map<String, String> body) {
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -111,6 +117,9 @@ public class LivraisonController {
                     java.util.Optional<com.smboutique.api.model.Stock> sOpt = stockService.getAllStocks().stream().filter(s -> s.getProduit() != null && s.getProduit().getId() != null && s.getProduit().getId().equals(ll.getProduit().getId())).findFirst();
                     if (sOpt.isPresent()) {
                         com.smboutique.api.model.Stock s = sOpt.get();
+                        if (s.getId() != null) {
+                            s = stockRepository.findByIdForUpdate(s.getId()).orElse(s);
+                        }
                         Integer cur = s.getQuantiteDisponible() != null ? s.getQuantiteDisponible() : 0;
                         s.setQuantiteDisponible(cur + ll.getQuantiteRecu());
                         stockService.saveStock(s);

@@ -289,7 +289,7 @@ export default function DashboardScreen({ navigation }: any) {
                 <Text style={{ fontSize: 20, fontWeight: '800', color: theme.text }}>{fmtMoney(overview?.salesToday)}</Text>
                 {/* show number of commandes when resume_caisse exists in dashboard payload */}
                 {dashPayload && dashPayload.widgets && dashPayload.widgets['resume_caisse'] && (dashPayload.widgets['resume_caisse'].total_commandes != null || dashPayload.widgets['resume_caisse'].totalCommandes != null) ? (
-                  <Text style={{ color: theme.muted, marginTop: 6, fontSize: 13 }}>{String(dashPayload.widgets['resume_caisse'].total_commandes || dashPayload.widgets['resume_caisse'].totalCommandes)} ventes</Text>
+                  <Text style={{ color: theme.muted, marginTop: 6, fontSize: 13 }}>{String(dashPayload.widgets['resume_caisse'].total_commandes ?? dashPayload.widgets['resume_caisse'].totalCommandes ?? 0)} ventes</Text>
                 ) : null}
                 <Text style={{ color: theme.muted, marginTop: 6, fontSize: 12 }}>Montant total des ventes enregistrées aujourd'hui</Text>
               </View>

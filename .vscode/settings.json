@@ -3,5 +3,18 @@
     "java.compile.nullAnalysis.mode": "automatic",
     "java.debug.settings.onBuildFailureProceed": true,
     "typescript.tsdk": "node_modules/typescript/lib",
-    "typescript.enablePromptUseWorkspaceTsdk": true
+    "typescript.enablePromptUseWorkspaceTsdk": true,
+    "files.exclude": {
+        "**/node_modules": true,
+        "**/.expo": true,
+        "**/dist": true,
+        "**/build": true
+    },
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/.expo": true,
+        "**/dist": true,
+        "**/build": true
+    },
+    "typescript.tsserver.experimental.enableProjectDiagnostics": false
 }

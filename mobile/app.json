@@ -3,6 +3,12 @@
     "name": "JÀGO DÁNAYA",
     "slug": "jago-danaya-mobile",
     "version": "0.1.0",
+    "icon": "./src/assets/logo.png",
+    "splash": {
+      "image": "./src/assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "orientation": "portrait",
     "platforms": [
       "android",
@@ -17,12 +23,20 @@
     },
     "android": {
       "package": "com.jagodanana.mobile",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/logo.png",
+        "backgroundColor": "#ffffff"
+      },
       "permissions": [
-        "CAMERA"
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "ios": {
       "bundleIdentifier": "com.jagodanana.mobile",
+      "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "JÀGO DÁNAYA a besoin d'accéder à la caméra pour scanner les codes-barres."
       }
@@ -31,6 +45,12 @@
       "expo-secure-store",
       "expo-camera",
       "expo-web-browser"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ade94f67-96c3-412d-8e1d-f4a215a55528"
+      }
+    },
+    "owner": "maitrebarry"
   }
 }

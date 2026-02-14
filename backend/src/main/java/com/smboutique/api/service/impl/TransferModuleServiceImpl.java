@@ -101,6 +101,28 @@ public class TransferModuleServiceImpl implements TransferModuleService {
                 }
             }
 
+            // Lock stocks before applying read-modify-write updates (deterministic order)
+            Long srcId = src != null ? src.getId() : null;
+            Long destStockId = dest != null ? dest.getId() : null;
+            if (srcId != null && destStockId != null && !srcId.equals(destStockId)) {
+                if (srcId < destStockId) {
+                    src = stockRepository.findByIdForUpdate(srcId).orElse(src);
+                    dest = stockRepository.findByIdForUpdate(destStockId).orElse(dest);
+                } else {
+                    dest = stockRepository.findByIdForUpdate(destStockId).orElse(dest);
+                    src = stockRepository.findByIdForUpdate(srcId).orElse(src);
+                }
+            } else {
+                if (srcId != null) src = stockRepository.findByIdForUpdate(srcId).orElse(src);
+                if (destStockId != null) dest = stockRepository.findByIdForUpdate(destStockId).orElse(dest);
+            }
+
+            if (src == null) throw new IllegalArgumentException("Stock source introuvable pour produit " + it.produitId);
+            if (dest == null) throw new IllegalArgumentException("Stock destination introuvable pour produit " + it.produitId);
+            if (src.getQuantiteDisponible() == null || it.quantite > src.getQuantiteDisponible()) {
+                throw new IllegalArgumentException("Stock source insuffisant pour produit " + it.produitId);
+            }
+
             // perform quantity changes
             int q = it.quantite;
             src.setQuantiteDisponible(src.getQuantiteDisponible() - q);

@@ -1,6 +1,7 @@
 package com.smboutique.api.controller;
 
 import com.smboutique.api.model.*;
+import com.smboutique.api.repository.StockRepository;
 import com.smboutique.api.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +25,9 @@ public class VenteLivraisonController {
 
     @Autowired
     private StockService stockService;
+
+    @Autowired
+    private StockRepository stockRepository;
 
     @Autowired
     private LivraisonService livraisonService;
@@ -152,8 +156,12 @@ public class VenteLivraisonController {
                     qtyUnits = lr.quantiteConditionnement * mul;
                 }
 
-                // decrement stock
+                // decrement stock (under lock to avoid lost updates)
+                if (stock.getId() != null) {
+                    stock = stockRepository.findByIdForUpdate(stock.getId()).orElse(stock);
+                }
                 Integer available = stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0;
+                if (available < qtyUnits) throw new RuntimeException("Stock insuffisant");
                 stock.setQuantiteDisponible(available - qtyUnits);
                 stockService.saveStock(stock);
 

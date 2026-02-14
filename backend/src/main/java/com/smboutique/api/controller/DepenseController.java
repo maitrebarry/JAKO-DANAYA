@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/depenses")
@@ -231,6 +230,10 @@ public class DepenseController {
                 return ResponseEntity.badRequest().body(java.util.Map.of("error", "Caisse introuvable pour la référence fournie"));
             }
             com.smboutique.api.model.Caisse caisse = maybe.get();
+            // Lock caisse row to prevent lost updates on montantTotal
+            if (caisse.getId() != null) {
+                caisse = caisseRepository.findByIdForUpdate(caisse.getId()).orElse(caisse);
+            }
             String sRef = caisse.getStatut() == null ? "" : caisse.getStatut().toUpperCase();
             if (!(sRef.contains("OUVERTE") || sRef.contains("OPEN") || sRef.contains("ACT"))) {
                 return ResponseEntity.badRequest().body(java.util.Map.of("error", "La caisse sélectionnée n'est pas ouverte"));
@@ -364,6 +367,10 @@ public class DepenseController {
             java.util.Optional<com.smboutique.api.model.Caisse> maybe = caisseRepository.findFirstByReferenceAndBoutiqueIdOrderByIdDesc(refC, bId);
             if (maybe.isEmpty()) return ResponseEntity.badRequest().body(java.util.Map.of("error", "Caisse introuvable pour la référence"));
             com.smboutique.api.model.Caisse caisse = maybe.get();
+            // Lock caisse row to prevent lost updates on montantTotal
+            if (caisse.getId() != null) {
+                caisse = caisseRepository.findByIdForUpdate(caisse.getId()).orElse(caisse);
+            }
 
             // increment caisse
             Integer cur = caisse.getMontantTotal() != null ? caisse.getMontantTotal() : 0;

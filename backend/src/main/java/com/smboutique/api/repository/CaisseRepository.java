@@ -2,9 +2,12 @@ package com.smboutique.api.repository;
 
 import com.smboutique.api.model.Caisse;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import jakarta.persistence.LockModeType;
 import java.util.Optional;
 
 @Repository
@@ -24,4 +27,9 @@ public interface CaisseRepository extends JpaRepository<Caisse, Long> {
     // Get the max numero for a boutique
     @Query("SELECT MAX(c.numero) FROM Caisse c WHERE c.boutique.id = :boutiqueId")
     Integer findMaxNumeroByBoutiqueId(@Param("boutiqueId") Long boutiqueId);
+
+    // Pessimistic lock helper to avoid lost updates on montantTotal
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Caisse c WHERE c.id = :id")
+    Optional<Caisse> findByIdForUpdate(@Param("id") Long id);
 }

@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
@@ -404,6 +405,7 @@ public class CommandeFournisseurController {
     }
 
     @PostMapping("/{id}/reception")
+    @Transactional
     public ResponseEntity<CommandeFournisseur> enregistrerReception(@PathVariable Long id, @RequestBody ReceptionRequest request, @RequestParam Long boutiqueId) {
         return commandeFournisseurService.findByIdAndBoutiqueId(id, boutiqueId)
                 .map(cmd -> {
@@ -439,7 +441,7 @@ public class CommandeFournisseurController {
                                     if (delta > 0 && existing.getStock() != null && existing.getStock().getId() != null) {
                                         Long stockId = existing.getStock().getId();
                                         if (stockId != null) {
-                                            stockRepository.findById(stockId).ifPresent(stock -> {
+                                            stockRepository.findByIdForUpdate(stockId).ifPresent(stock -> {
                                                 Integer currentQty = stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0;
 
                                                 // Ensure costAverage is initialized when adding stock

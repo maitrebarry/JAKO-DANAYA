@@ -5,6 +5,7 @@ import com.smboutique.api.model.CommandeFournisseur;
 import com.smboutique.api.service.PaiementService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -107,6 +108,7 @@ public class PaiementController {
     }
 
     @PostMapping("/{id}/cancel")
+    @Transactional
     public ResponseEntity<Object> cancelPaiement(@PathVariable Long id, @RequestBody(required = false) java.util.Map<String, String> body) {
         // Basic permission check: require a user with 'PAIEMENT_SUPPRESSION' or 'PAIEMENT_ANNULATION'
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
@@ -138,8 +140,9 @@ public class PaiementController {
                 String refC = paiement.getReferenceCaisse();
                 if (refC != null && !refC.trim().isEmpty()) {
                     java.util.Optional<com.smboutique.api.model.Caisse> maybeC = caisseRepository.findByReference(refC);
-                    if (maybeC.isPresent()) {
-                        com.smboutique.api.model.Caisse caisse = maybeC.get();
+                    java.util.Optional<com.smboutique.api.model.Caisse> locked = maybeC.flatMap(c -> c.getId() != null ? caisseRepository.findByIdForUpdate(c.getId()) : java.util.Optional.empty());
+                    if (locked.isPresent()) {
+                        com.smboutique.api.model.Caisse caisse = locked.get();
                         Integer cur = caisse.getMontantTotal() != null ? caisse.getMontantTotal() : 0;
                         Integer before = cur;
                         caisse.setMontantTotal(Math.max(0, cur - montant));

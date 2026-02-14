@@ -17,6 +17,7 @@ import com.smboutique.api.service.StockService;
 import com.smboutique.api.service.ProduitService;
 import com.smboutique.api.service.UtilisateurService;
 import com.smboutique.api.repository.LigneCommandeRepository;
+import com.smboutique.api.repository.StockRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,7 +29,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -56,6 +56,9 @@ public class ReceptionController {
 
     @Autowired
     private StockService stockService;
+
+    @Autowired
+    private StockRepository stockRepository;
 
     @Autowired
     private ProduitService produitService;
@@ -488,6 +491,9 @@ public class ReceptionController {
                     stock = null;
                 }
                 if (stock != null) {
+                    if (stock.getId() != null) {
+                        stock = stockRepository.findByIdForUpdate(stock.getId()).orElse(stock);
+                    }
                     if (lr.getBeforeStockQuantite() != null) stock.setQuantiteDisponible(lr.getBeforeStockQuantite());
                     if (lr.getBeforeStockCostAverage() != null) stock.setCostAverage(lr.getBeforeStockCostAverage());
                     if (lr.getBeforeProduitPrixAchat() != null && stock.getProduit() != null) stock.getProduit().setPrixAchat(lr.getBeforeProduitPrixAchat());
@@ -784,6 +790,11 @@ public class ReceptionController {
         if (ligneCommande == null || receptionQty <= 0) return java.math.BigDecimal.ZERO;
         Stock stock = ligneCommande.getStock();
         if (stock == null) return java.math.BigDecimal.ZERO;
+
+        // Lock stock row during CMP and quantity update to avoid lost updates
+        if (stock.getId() != null) {
+            stock = stockRepository.findByIdForUpdate(stock.getId()).orElse(stock);
+        }
 
         // receptionQty is expected to be expressed in UNITS (base units). Older code multiplied by multiplicateur
         // (conditionnement) which caused double multiplication when front-end already provided unit counts.

@@ -5,10 +5,19 @@
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
+    "start:local": "EXPO_PUBLIC_ENV=local expo start",
+    "start:prod": "EXPO_PUBLIC_ENV=prod expo start",
     "dev": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "eas:whoami": "eas whoami",
+    "eas:login": "eas login",
+    "eas:init": "eas init",
+    "build:android": "eas build --platform android --profile production",
+    "build:ios": "eas build --platform ios --profile production",
+    "submit:android": "eas submit --platform android --profile production",
+    "submit:ios": "eas submit --platform ios --profile production",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },
@@ -40,6 +49,7 @@
     "@babel/core": "^7.23.7",
     "@types/react": "~19.1.10",
     "@types/react-native": "~0.73.0",
+    "eas-cli": "^18.0.1",
     "typescript": "~5.9.2"
   }
 }

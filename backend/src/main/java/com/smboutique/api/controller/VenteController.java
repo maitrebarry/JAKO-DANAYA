@@ -307,6 +307,8 @@ public class VenteController {
             java.util.Optional<com.smboutique.api.model.Caisse> maybeCaisse = caisseRepository.findFirstByBoutiqueIdOrderByIdDesc(boutiqueId);
             if (maybeCaisse.isEmpty()) return ResponseEntity.badRequest().body(java.util.Map.of("error", "Aucune caisse active pour la boutique"));
             com.smboutique.api.model.Caisse caisse = maybeCaisse.get();
+            // Lock caisse row to prevent lost updates on montantTotal
+            caisse = caisseRepository.findByIdForUpdate(caisse.getId()).orElse(caisse);
             // Accept several representations of an "open" status (front historically uses 'OUVERTE')
             String statut = caisse.getStatut();
             boolean isOpen = false;
@@ -394,7 +396,8 @@ public class VenteController {
 
             // For each line create LigneVente, decrement stock and create Mouvement
             for (CashLineRequest pl : request.produitsSelectionnes) {
-                com.smboutique.api.model.Stock s = stockRepository.findById(pl.id_stock).orElseThrow();
+                // Lock stock row to avoid concurrent lost updates on quantiteDisponible
+                com.smboutique.api.model.Stock s = stockRepository.findByIdForUpdate(pl.id_stock).orElseThrow();
 
                 // Business rule: forbid selling from a magasin-level stock
                 if (s.getMagasin() != null) {
@@ -425,6 +428,9 @@ public class VenteController {
                 // Compute remainder after sale for 'open carton' semantics and save on line for history
                 Integer mul = s.getProduit().getNombreUnitesParConditionnement() == null ? 1 : s.getProduit().getNombreUnitesParConditionnement();
                 Integer cur = s.getQuantiteDisponible() == null ? 0 : s.getQuantiteDisponible();
+                if (cur < quantiteReelle) {
+                    throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Stock insuffisant pour produit " + s.getProduit().getNomProduit());
+                }
                 int after = cur - quantiteReelle;
                 if (mul != null && mul > 1) {
                     int remAfter = ((after % mul) + mul) % mul; // normalize

@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,6 +27,9 @@ public class StockController {
 
     @Autowired
     private StockService stockService;
+
+    @Autowired
+    private com.smboutique.api.repository.StockRepository stockRepository;
 
     @Autowired
     private ProduitService produitService;
@@ -203,12 +207,13 @@ public class StockController {
     }
 
     @PutMapping("/{id}")
+    @Transactional
     public ResponseEntity<Stock> updateStock(@PathVariable Long id, @RequestBody Stock stockDetails) {
         Utilisateur current = getCurrentUser();
         if (!hasPermission(current, "INVENTAIRE_MODIFIER")) {
             return ResponseEntity.status(403).build();
         }
-        Optional<Stock> stockOpt = stockService.getStockById(id);
+        Optional<Stock> stockOpt = stockRepository.findByIdForUpdate(id);
 
         return stockOpt
                 .map(stock -> {
