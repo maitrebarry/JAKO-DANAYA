@@ -39,13 +39,89 @@ import Documents from './components/Documents';
 import Rapports from './components/Rapports';
 import SubscriptionPayments from './components/SubscriptionPayments';
 import { UserProvider } from './contexts/UserContext';
+import { API } from './config/api';
 const UtilisationsPage = React.lazy(() => import('./components/UtilisationsPage'));
 
 
 // Composant pour protéger les routes
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const token = localStorage.getItem('smb_token');
-  return token ? <>{children}</> : <Navigate to="/" />;
+  const [checking, setChecking] = React.useState<boolean>(true);
+  const [allowed, setAllowed] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    let mounted = true;
+
+    const normalizeRoleName = (value?: string | null) =>
+      (value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/^ROLE_/i, '')
+        .trim()
+        .toUpperCase();
+
+    const isBypassRole = () => {
+      try {
+        const raw = localStorage.getItem('smb_user_data');
+        if (!raw) return false;
+        const data = JSON.parse(raw);
+        const roles = Array.isArray(data?.roles) ? data.roles.map((r: any) => normalizeRoleName(String(r))) : [];
+        const userType = normalizeRoleName(data?.user?.typeUtilisateur);
+        return roles.includes('SUPERADMIN') || roles.includes('DEVELOPPEUR') || userType === 'SUPERADMIN' || userType === 'DEVELOPPEUR';
+      } catch {
+        return false;
+      }
+    };
+
+    const run = async () => {
+      if (!token) {
+        if (mounted) {
+          setAllowed(false);
+          setChecking(false);
+        }
+        return;
+      }
+
+      if (isBypassRole()) {
+        localStorage.removeItem('smb_sub_blocked');
+        if (mounted) {
+          setAllowed(true);
+          setChecking(false);
+        }
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API}/subscription/current`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const sub = res.ok ? await res.json() : null;
+        const blocked = !!sub?.blocked;
+        if (blocked) {
+          localStorage.setItem('smb_sub_blocked', '1');
+        } else {
+          localStorage.removeItem('smb_sub_blocked');
+        }
+
+        if (mounted) {
+          setAllowed(!blocked);
+          setChecking(false);
+        }
+      } catch {
+        const blocked = localStorage.getItem('smb_sub_blocked') === '1';
+        if (mounted) {
+          setAllowed(!blocked);
+          setChecking(false);
+        }
+      }
+    };
+
+    void run();
+    return () => { mounted = false; };
+  }, [token]);
+
+  if (checking) return <div className="p-3 text-muted">Vérification abonnement...</div>;
+  return token && allowed ? <>{children}</> : <Navigate to="/" replace />;
 };
 
 function App() {

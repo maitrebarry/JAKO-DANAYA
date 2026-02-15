@@ -3,6 +3,9 @@ package com.smboutique.api.controller;
 import com.smboutique.api.model.Utilisateur;
 import com.smboutique.api.repository.UtilisateurRepository;
 import com.smboutique.api.service.SubscriptionPaymentService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -21,6 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -33,10 +37,14 @@ import java.util.UUID;
 @RequestMapping("/api/subscription")
 public class SubscriptionController {
 
+    private static final Logger logger = LoggerFactory.getLogger(SubscriptionController.class);
+
     private final JdbcTemplate jdbcTemplate;
     private final UtilisateurRepository utilisateurRepository;
     private final SubscriptionPaymentService subscriptionPaymentService;
-    private static final String RECEIPT_UPLOAD_DIR = "uploads/subscription_receipts/";
+
+    @Value("${app.upload.dir:./uploads/}")
+    private String uploadDir;
 
     public SubscriptionController(JdbcTemplate jdbcTemplate,
                                   UtilisateurRepository utilisateurRepository,
@@ -212,11 +220,38 @@ public class SubscriptionController {
             }
 
             String originalName = receipt.getOriginalFilename() == null ? "receipt.jpg" : receipt.getOriginalFilename();
-            String ext = originalName.contains(".") ? originalName.substring(originalName.lastIndexOf('.')) : ".jpg";
+            String ext = originalName.contains(".") ? originalName.substring(originalName.lastIndexOf('.')).toLowerCase() : ".jpg";
+            if (!List.of(".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic", ".heif").contains(ext)) {
+                ext = ".jpg";
+            }
             String fileName = "sub_receipt_" + UUID.randomUUID() + ext;
-            Path uploadPath = Paths.get(RECEIPT_UPLOAD_DIR);
+
+            Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize().resolve("subscription_receipts");
             Files.createDirectories(uploadPath);
-            Files.write(uploadPath.resolve(fileName), receipt.getBytes());
+            Path destination = uploadPath.resolve(fileName).normalize();
+
+            if (!destination.startsWith(uploadPath)) {
+                logger.warn("Rejected suspicious receipt path for user {}: {}", u.getId(), destination);
+                return ResponseEntity.badRequest().body(Map.of("message", "Nom de fichier invalide"));
+            }
+
+            try (var in = receipt.getInputStream()) {
+                Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            // Render fallback mount path if primary write unexpectedly fails later in runtime changes
+            if (!Files.exists(destination) || !Files.isReadable(destination)) {
+                Path fallbackPath = Paths.get("/app/uploads/subscription_receipts").toAbsolutePath().normalize();
+                Files.createDirectories(fallbackPath);
+                Path fallbackDest = fallbackPath.resolve(fileName).normalize();
+                try (var in = receipt.getInputStream()) {
+                    Files.copy(in, fallbackDest, StandardCopyOption.REPLACE_EXISTING);
+                }
+                logger.info("Saved subscription receipt via fallback path for user {} -> {}", u.getId(), fallbackDest);
+            } else {
+                logger.info("Saved subscription receipt for user {} -> {}", u.getId(), destination);
+            }
+
             String preuveUrl = "/uploads/subscription_receipts/" + fileName;
 
             return ResponseEntity.ok(
@@ -232,6 +267,7 @@ public class SubscriptionController {
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         } catch (Exception ex) {
+            logger.error("manual-submit failed for user {}: {}", u.getId(), ex.getMessage(), ex);
             return ResponseEntity.status(500).body(Map.of("message", "Impossible de soumettre la preuve de paiement"));
         }
     }

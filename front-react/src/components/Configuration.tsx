@@ -3205,7 +3205,7 @@ const ConfigurationAbonnementTarifs = () => {
 
   return (
     <div className="card">
-      <div className="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+      <div className="card-header d-flex justify-content-between align-items-center" style={{ backgroundColor: '#007bff', color: 'white' }}>
         <h6 className="mb-0">Configuration des tarifs d'abonnement</h6>
         <button className="btn btn-sm btn-light" onClick={loadPlans}>
           <i className="bi bi-arrow-clockwise me-1"></i>Rafraîchir

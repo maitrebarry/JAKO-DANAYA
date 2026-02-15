@@ -113,6 +113,54 @@ public class UploadsController {
         }
     }
 
+    @GetMapping("/uploads/subscription_receipts/{filename:.+}")
+    public ResponseEntity<Resource> serveSubscriptionReceipt(@PathVariable String filename) {
+        if (!StringUtils.hasText(filename)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        try {
+            Path dir = Paths.get(uploadDir).toAbsolutePath().normalize().resolve("subscription_receipts");
+            Path file = dir.resolve(filename).normalize();
+
+            if (!file.startsWith(dir) || !Files.exists(file) || !Files.isReadable(file)) {
+                // Fallback: try mounted path /app/uploads/subscription_receipts (Render disk mount)
+                try {
+                    Path fallbackDir = Paths.get("/app/uploads/subscription_receipts").toAbsolutePath().normalize();
+                    Path fb = fallbackDir.resolve(filename).normalize();
+                    if (Files.exists(fb) && Files.isReadable(fb)) {
+                        logger.info("Subscription receipt served from fallback path: {}", fb.toString());
+                        UrlResource resource = new UrlResource(fb.toUri());
+                        Optional<MediaType> mt = MediaTypeFactory.getMediaType(filename);
+                        return ResponseEntity.ok()
+                                .contentType(mt.orElse(MediaType.APPLICATION_OCTET_STREAM))
+                                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                                .body(resource);
+                    }
+                } catch (Exception ex) {
+                    logger.warn("Fallback receipt check failed: {}", ex.getMessage());
+                }
+
+                logger.debug("Subscription receipt not found - requested: {} (resolved: {})", filename, file.toString());
+                return ResponseEntity.notFound().build();
+            }
+
+            UrlResource resource = new UrlResource(file.toUri());
+            Optional<MediaType> mt = MediaTypeFactory.getMediaType(filename);
+            return ResponseEntity.ok()
+                    .contentType(mt.orElse(MediaType.APPLICATION_OCTET_STREAM))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                    .body(resource);
+
+        } catch (MalformedURLException e) {
+            logger.warn("Malformed URL while serving subscription receipt {}: {}", filename, e.getMessage());
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            logger.error("Error while serving subscription receipt {}: {}", filename, e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     private ResponseEntity<Resource> serveDefaultAvatar() {
         try {
             Resource defaultRes = new ClassPathResource("static/assets/images/avatar.svg");

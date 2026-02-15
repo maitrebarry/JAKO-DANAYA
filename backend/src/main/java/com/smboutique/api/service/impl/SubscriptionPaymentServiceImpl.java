@@ -4,6 +4,7 @@ import com.smboutique.api.model.Utilisateur;
 import com.smboutique.api.repository.UtilisateurRepository;
 import com.smboutique.api.service.NotificationService;
 import com.smboutique.api.service.SubscriptionPaymentService;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -139,21 +140,52 @@ public class SubscriptionPaymentServiceImpl implements SubscriptionPaymentServic
         Number montantN = (Number) plans.get(0).get("prix");
         String devise = String.valueOf(plans.get(0).get("devise"));
 
-        Number paymentIdN = jdbcTemplate.queryForObject(
-                "INSERT INTO abonnement_paiement (abonnement_id, reference, provider, mode_paiement, plan_code, transaction_ref, owner_note, preuve_url, montant, devise, statut, paid_at, created_at) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', NULL, now()) RETURNING id",
-                Number.class,
-                abonnementAnchorId,
-                reference,
-                normalizedMode,
-                normalizedMode,
-                normalizedPlanCode,
-                (transactionRef == null || transactionRef.isBlank()) ? null : transactionRef.trim(),
-                (ownerNote == null || ownerNote.isBlank()) ? null : ownerNote.trim(),
-                preuveUrl,
-                montantN,
-                devise
-        );
+        Number paymentIdN;
+        try {
+            paymentIdN = jdbcTemplate.queryForObject(
+                    "INSERT INTO abonnement_paiement (abonnement_id, reference, provider, mode_paiement, plan_code, transaction_ref, owner_note, preuve_url, montant, devise, statut, paid_at, created_at) " +
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', NULL, now()) RETURNING id",
+                    Number.class,
+                    abonnementAnchorId,
+                    reference,
+                    normalizedMode,
+                    normalizedMode,
+                    normalizedPlanCode,
+                    (transactionRef == null || transactionRef.isBlank()) ? null : transactionRef.trim(),
+                    (ownerNote == null || ownerNote.isBlank()) ? null : ownerNote.trim(),
+                    preuveUrl,
+                    montantN,
+                    devise
+            );
+        } catch (DataAccessException ex) {
+            // Backward compatibility for production environments where optional columns
+            // (transaction_ref, owner_note, preuve_url, etc.) may not yet exist.
+            paymentIdN = jdbcTemplate.queryForObject(
+                    "INSERT INTO abonnement_paiement (abonnement_id, reference, provider, mode_paiement, plan_code, montant, devise, statut, paid_at, created_at) " +
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', NULL, now()) RETURNING id",
+                    Number.class,
+                    abonnementAnchorId,
+                    reference,
+                    normalizedMode,
+                    normalizedMode,
+                    normalizedPlanCode,
+                    montantN,
+                    devise
+            );
+
+            // Try to persist optional metadata if columns exist; ignore if not available.
+            try {
+                jdbcTemplate.update(
+                        "UPDATE abonnement_paiement SET transaction_ref = ?, owner_note = ?, preuve_url = ? WHERE id = ?",
+                        (transactionRef == null || transactionRef.isBlank()) ? null : transactionRef.trim(),
+                        (ownerNote == null || ownerNote.isBlank()) ? null : ownerNote.trim(),
+                        preuveUrl,
+                        paymentIdN != null ? paymentIdN.longValue() : null
+                );
+            } catch (Exception ignored) {
+                // Optional fields unavailable in legacy schema.
+            }
+        }
 
         if (paymentIdN == null) throw new IllegalStateException("Création du paiement impossible");
 

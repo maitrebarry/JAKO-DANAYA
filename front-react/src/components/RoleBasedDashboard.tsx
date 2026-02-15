@@ -266,10 +266,11 @@ const RoleBasedDashboard: React.FC = () => {
 
   const paymentStatusLabel = (s?: string | null) => {
     switch ((s || '').toUpperCase()) {
-      case 'PENDING': return 'En attente';
+      case 'PENDING': return 'En attente de validation';
       case 'PAID': return 'Payé';
-      case 'FAILED': return 'Échoué';
+      case 'FAILED': return 'Échec';
       case 'CANCELED': return 'Annulé';
+      case 'CANCELLED': return 'Annulé';
       case 'REFUNDED': return 'Remboursé';
       default: return s || '—';
     }
