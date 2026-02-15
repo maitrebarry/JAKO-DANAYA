@@ -37,6 +37,7 @@ import InventaireCreate from './components/InventaireCreate';
 import Profile from './components/Profile';
 import Documents from './components/Documents';
 import Rapports from './components/Rapports';
+import SubscriptionPayments from './components/SubscriptionPayments';
 import { UserProvider } from './contexts/UserContext';
 const UtilisationsPage = React.lazy(() => import('./components/UtilisationsPage'));
 
@@ -259,6 +260,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Layout><Rapports /></Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/abonnement"
+            element={
+              <PrivateRoute>
+                <Layout><SubscriptionPayments /></Layout>
               </PrivateRoute>
             }
           />

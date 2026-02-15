@@ -8,11 +8,12 @@ import com.smboutique.api.security.UserDetailsImpl;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.mail.SimpleMailMessage;
@@ -26,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.sql.Timestamp;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -51,6 +53,45 @@ public class AuthController {
 
     @Autowired(required = false)
     private com.smboutique.api.service.MouvementService mouvementService;
+
+    @Autowired(required = false)
+    private JdbcTemplate jdbcTemplate;
+
+    private boolean isSuperAdmin(Utilisateur u) {
+        return u != null && u.getRoles() != null && u.getRoles().stream()
+                .anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()) || "ROLE_SUPERADMIN".equalsIgnoreCase(r.getName()));
+    }
+
+    private boolean isSubscriptionBlocked(Utilisateur u) {
+        if (u == null || u.getBoutique() == null || jdbcTemplate == null) return false;
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT statut, date_fin, grace_end_at FROM abonnement_boutique WHERE boutique_id = ? ORDER BY id DESC LIMIT 1",
+                    u.getBoutique().getId()
+            );
+            if (rows.isEmpty()) return false; // backward-compatible if no subscription row yet
+
+            Map<String, Object> row = rows.get(0);
+            String statut = row.get("statut") != null ? String.valueOf(row.get("statut")) : null;
+            Timestamp dateFinTs = (Timestamp) row.get("date_fin");
+            Timestamp graceEndTs = (Timestamp) row.get("grace_end_at");
+
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime dateFin = dateFinTs != null ? dateFinTs.toLocalDateTime() : null;
+            LocalDateTime graceEnd = graceEndTs != null ? graceEndTs.toLocalDateTime() : null;
+
+            boolean hardStatusBlocked = "EXPIRED".equalsIgnoreCase(statut)
+                    || "PAST_DUE".equalsIgnoreCase(statut)
+                    || "CANCELED".equalsIgnoreCase(statut);
+            boolean dateBlocked = dateFin != null && now.isAfter(dateFin)
+                    && (graceEnd == null || now.isAfter(graceEnd));
+
+            return hardStatusBlocked || dateBlocked;
+        } catch (DataAccessException ex) {
+            // Tables not initialized => do not block legacy login flow.
+            return false;
+        }
+    }
 
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
@@ -81,6 +122,9 @@ public class AuthController {
                 return ResponseEntity.status(403).body(body);
             }
 
+            Utilisateur u = utilisateurRepository.findById(userDetails.getId()).orElse(null);
+            boolean subscriptionBlocked = !isSuperAdmin(u) && isSubscriptionBlocked(u);
+
             String jwt = jwtUtils.generateJwtToken(authentication);
 
             List<String> roles = userDetails.getAuthorities().stream()
@@ -88,12 +132,12 @@ public class AuthController {
                     .collect(Collectors.toList());
 
             try {
-                Utilisateur u = utilisateurRepository.findById(userDetails.getId()).orElse(null);
-                if (u != null) {
+                Utilisateur u2 = utilisateurRepository.findById(userDetails.getId()).orElse(null);
+                if (u2 != null) {
                     LocalDateTime now = LocalDateTime.now();
-                    u.setLastLoginAt(now);
-                    u.setLastSeenAt(now);
-                    utilisateurRepository.save(u);
+                    u2.setLastLoginAt(now);
+                    u2.setLastSeenAt(now);
+                    utilisateurRepository.save(u2);
                 }
             } catch (Exception ignored) {}
 
@@ -101,16 +145,18 @@ public class AuthController {
                 // audit connexion (if mouvementService is available)
                 if (mouvementService != null) {
                     Long uid = userDetails.getId();
-                    com.smboutique.api.model.Utilisateur u = utilisateurRepository.findById(uid).orElse(null);
-                    Long boutiqueId = u != null && u.getBoutique() != null ? u.getBoutique().getId() : null;
+                    com.smboutique.api.model.Utilisateur ua = utilisateurRepository.findById(uid).orElse(null);
+                    Long boutiqueId = ua != null && ua.getBoutique() != null ? ua.getBoutique().getId() : null;
                     mouvementService.log("AUTH", "CONNEXION", "Connexion réussie", null, boutiqueId, null, uid, null);
                 }
             } catch (Exception e) { }
 
-            return ResponseEntity.ok(new JwtResponse(jwt,
+                return ResponseEntity.ok(new JwtResponse(jwt,
                     userDetails.getId(),
                     userDetails.getUsername(),
-                    roles));
+                    roles,
+                    subscriptionBlocked,
+                    subscriptionBlocked ? "Votre abonnement a expiré. Veuillez vous réabonner pour accéder à l'application." : null));
 
         } catch (org.springframework.security.authentication.BadCredentialsException ex) {
             logger.warn("Bad credentials for email={}", loginRequest != null ? loginRequest.getEmail() : null);
@@ -405,12 +451,25 @@ public class AuthController {
         private Long id;
         private String email;
         private List<String> roles;
+        private boolean subscriptionBlocked;
+        private String subscriptionMessage;
 
         public JwtResponse(String accessToken, Long id, String email, List<String> roles) {
             this.token = accessToken;
             this.id = id;
             this.email = email;
             this.roles = roles;
+            this.subscriptionBlocked = false;
+            this.subscriptionMessage = null;
+        }
+
+        public JwtResponse(String accessToken, Long id, String email, List<String> roles, boolean subscriptionBlocked, String subscriptionMessage) {
+            this.token = accessToken;
+            this.id = id;
+            this.email = email;
+            this.roles = roles;
+            this.subscriptionBlocked = subscriptionBlocked;
+            this.subscriptionMessage = subscriptionMessage;
         }
 
         public String getToken() {
@@ -451,6 +510,22 @@ public class AuthController {
 
         public void setRoles(List<String> roles) {
             this.roles = roles;
+        }
+
+        public boolean isSubscriptionBlocked() {
+            return subscriptionBlocked;
+        }
+
+        public void setSubscriptionBlocked(boolean subscriptionBlocked) {
+            this.subscriptionBlocked = subscriptionBlocked;
+        }
+
+        public String getSubscriptionMessage() {
+            return subscriptionMessage;
+        }
+
+        public void setSubscriptionMessage(String subscriptionMessage) {
+            this.subscriptionMessage = subscriptionMessage;
         }
     }
 }

@@ -20,6 +20,22 @@ import {
   Magasin
 } from '../api/dashboardClient';
 import { API } from '../config/api';
+import Swal from 'sweetalert2';
+import {
+  fetchSubscriptionPlans,
+  fetchBoutiqueSubscriptions,
+  activateBoutiqueSubscription,
+  suspendBoutiqueSubscription,
+  updateBoutiqueSubscriptionDates,
+  fetchCurrentSubscriptionStatus,
+  fetchAdminSubscriptionPayments,
+  approveAdminSubscriptionPayment,
+  rejectAdminSubscriptionPayment,
+  type SubscriptionPlanDTO,
+  type BoutiqueSubscriptionDTO,
+  type SubscriptionPaymentAdminDTO,
+} from '../api/admin';
+import { submitManualSubscriptionPayment, fetchSubscriptionPlansForOwner } from '../api/subscription';
 
 ChartJS.register(
   CategoryScale,
@@ -237,6 +253,28 @@ const SubordinateDashboardCard = ({ role, name, widgets, shopName }: any) => {
 };
 
 const RoleBasedDashboard: React.FC = () => {
+  const subscriptionStatusLabel = (s?: string | null) => {
+    switch ((s || '').toUpperCase()) {
+      case 'ACTIVE': return 'Actif';
+      case 'EXPIRED': return 'Expiré';
+      case 'PAST_DUE': return 'Impayé';
+      case 'CANCELED': return 'Annulé';
+      case 'TRIAL': return 'Essai';
+      default: return s || '—';
+    }
+  };
+
+  const paymentStatusLabel = (s?: string | null) => {
+    switch ((s || '').toUpperCase()) {
+      case 'PENDING': return 'En attente';
+      case 'PAID': return 'Payé';
+      case 'FAILED': return 'Échoué';
+      case 'CANCELED': return 'Annulé';
+      case 'REFUNDED': return 'Remboursé';
+      default: return s || '—';
+    }
+  };
+
   const [loading, setLoading] = useState(true);
   const [payload, setPayload] = useState<DashboardPayload | null>(null);
   const [subordinates, setSubordinates] = useState<any[]>([]);
@@ -248,8 +286,214 @@ const RoleBasedDashboard: React.FC = () => {
   const [selectedBoutiqueId, setSelectedBoutiqueId] = useState<number | null>(null);
   const [selectedMagasinId, setSelectedMagasinId] = useState<number | null>(null);
   const [superAdminUsers, setSuperAdminUsers] = useState<any[]>([]);
+  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlanDTO[]>([]);
+  const [boutiqueSubscriptions, setBoutiqueSubscriptions] = useState<BoutiqueSubscriptionDTO[]>([]);
+  const [subscriptionsLoading, setSubscriptionsLoading] = useState(false);
+  const [subscriptionsError, setSubscriptionsError] = useState<string | null>(null);
+  const [planSelectionByBoutique, setPlanSelectionByBoutique] = useState<Record<number, string>>({});
+  const [subscriptionModalKey, setSubscriptionModalKey] = useState<string | null>(null);
+  const [subscriptionPayments, setSubscriptionPayments] = useState<SubscriptionPaymentAdminDTO[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
   const navigate = useNavigate();
   const fmt = useFormatMoney();
+
+  const maybeShowOwnerSubscriptionModal = async () => {
+    const sub = await fetchCurrentSubscriptionStatus();
+    if (!sub || !sub.configured) return;
+
+    const renewNow = async () => {
+      try {
+        const currentPlanCode = (sub.planCode || 'MENSUEL').toUpperCase();
+        const plans = await fetchSubscriptionPlansForOwner().catch(() => [] as any[]);
+        const planList = Array.isArray(plans) ? plans : [];
+        const defaultPlanCode = (planList.find((p: any) => String(p?.code || '').toUpperCase() === currentPlanCode)?.code || planList[0]?.code || currentPlanCode || 'MENSUEL') as string;
+        const amountFor = (code: string) => {
+          const p = planList.find((x: any) => String(x?.code || '').toUpperCase() === String(code || '').toUpperCase());
+          const price = p?.prix != null ? Number(p.prix) : null;
+          const currency = p?.devise || 'XOF';
+          return price != null ? `${price} ${currency}` : 'Voir plan actif';
+        };
+        const planSelectOptions = planList.map((p: any) => {
+          const code = String(p?.code || '');
+          const label = String(p?.libelle || code || 'Plan');
+          return `<option value="${code}" ${String(code).toUpperCase() === String(defaultPlanCode).toUpperCase() ? 'selected' : ''}>${label} (${code})</option>`;
+        }).join('');
+        const nums = {
+          ORANGE_MONEY: '74745669',
+          WAVE: '74745669',
+          MOBICASH: '67205736',
+        };
+        let capturedFile: File | null = null;
+        let stream: MediaStream | null = null;
+
+        const stopCamera = () => {
+          if (stream) {
+            stream.getTracks().forEach((t) => t.stop());
+            stream = null;
+          }
+        };
+
+        const ask = await Swal.fire({
+          title: '',
+          html: `
+            <div class="text-start">
+              <div class="bg-primary text-white px-3 py-2 rounded-top">
+                <strong>Se réabonner (manuel)</strong>
+              </div>
+              <div class="border border-top-0 rounded-bottom p-3">
+                <label class="form-label mt-1">Formule d'abonnement</label>
+                <select id="swal-sub-plan" class="swal2-input" style="margin:0 0 10px 0;width:100%">
+                  ${planSelectOptions || `<option value="${defaultPlanCode}" selected>${defaultPlanCode}</option>`}
+                </select>
+                <div class="mb-2"><strong>Montant à payer</strong>: <span id="swal-sub-amount">${amountFor(defaultPlanCode)}</span></div>
+                <div class="mb-2"><strong>Numéros Mobile Money du service</strong></div>
+                <div>Orange Money: ${nums.ORANGE_MONEY}</div>
+                <div>Wave: ${nums.WAVE}</div>
+                <div>MobiCash: ${nums.MOBICASH}</div>
+                <hr />
+                <label class="form-label mt-1">Canal utilisé</label>
+                <select id="swal-sub-mode" class="swal2-input" style="margin:0 0 10px 0;width:100%">
+                  <option value="ORANGE_MONEY">Orange Money</option>
+                  <option value="WAVE">Wave</option>
+                  <option value="MOBICASH">MobiCash</option>
+                </select>
+                <label class="form-label">Référence transfert (optionnel)</label>
+                <input id="swal-sub-ref" class="swal2-input" style="margin:0 0 10px 0;width:100%" placeholder="Ex: OM123456" />
+                <label class="form-label">Photo reçu / message de transfert</label>
+                <button id="swal-open-camera" type="button" class="swal2-confirm swal2-styled" style="display:inline-block;margin:0 8px 10px 0">Ouvrir caméra</button>
+                <input id="swal-sub-proof" type="file" accept="image/*" capture="environment" class="swal2-file" style="display:block;width:100%;margin:0 0 10px 0" />
+                <div id="swal-camera-wrap" style="display:none;border:1px solid #dbe2ea;border-radius:8px;padding:8px;margin:0 0 10px 0">
+                  <video id="swal-camera-video" style="width:100%;max-height:220px;background:#111;border-radius:6px" autoplay playsinline muted></video>
+                  <canvas id="swal-camera-canvas" style="display:none"></canvas>
+                  <img id="swal-camera-preview" alt="Aperçu capture" style="display:none;width:100%;max-height:220px;object-fit:contain;border-radius:6px;margin-top:8px" />
+                  <div style="margin-top:8px">
+                    <button id="swal-camera-shot" type="button" class="swal2-confirm swal2-styled" style="display:inline-block;margin-right:8px">Capturer</button>
+                  </div>
+                </div>
+                <small class="text-muted d-block mb-2">Sur téléphone: ouverture caméra directe. Sur ordinateur: cliquer sur "Ouvrir caméra".</small>
+                <label class="form-label">Note (optionnel)</label>
+                <input id="swal-sub-note" class="swal2-input" style="margin:0;width:100%" placeholder="Infos utiles" />
+              </div>
+            </div>
+          `,
+          showCancelButton: true,
+          confirmButtonText: 'Soumettre',
+          cancelButtonText: 'Annuler',
+          didOpen: () => {
+            const planEl = document.getElementById('swal-sub-plan') as HTMLSelectElement | null;
+            const amountEl = document.getElementById('swal-sub-amount') as HTMLSpanElement | null;
+            const refreshAmount = () => {
+              if (amountEl) amountEl.textContent = amountFor(planEl?.value || defaultPlanCode);
+            };
+            planEl?.addEventListener('change', refreshAmount);
+            refreshAmount();
+
+            const openBtn = document.getElementById('swal-open-camera') as HTMLButtonElement | null;
+            const shotBtn = document.getElementById('swal-camera-shot') as HTMLButtonElement | null;
+            const wrap = document.getElementById('swal-camera-wrap') as HTMLDivElement | null;
+            const video = document.getElementById('swal-camera-video') as HTMLVideoElement | null;
+            const canvas = document.getElementById('swal-camera-canvas') as HTMLCanvasElement | null;
+            const preview = document.getElementById('swal-camera-preview') as HTMLImageElement | null;
+
+            openBtn?.addEventListener('click', async () => {
+              try {
+                if (!navigator.mediaDevices?.getUserMedia) {
+                  Swal.showValidationMessage('Caméra non supportée sur ce navigateur. Utilisez la sélection de fichier.');
+                  return;
+                }
+                stopCamera();
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                if (wrap) wrap.style.display = 'block';
+                if (video) {
+                  video.srcObject = stream;
+                  await video.play().catch(() => null);
+                }
+              } catch {
+                Swal.showValidationMessage('Impossible d’ouvrir la caméra. Vérifiez les permissions puis réessayez.');
+              }
+            });
+
+            shotBtn?.addEventListener('click', () => {
+              if (!video || !canvas) return;
+              const width = video.videoWidth || 1280;
+              const height = video.videoHeight || 720;
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              if (!ctx) return;
+              ctx.drawImage(video, 0, 0, width, height);
+              canvas.toBlob((blob) => {
+                if (!blob) return;
+                capturedFile = new File([blob], `recu-${Date.now()}.jpg`, { type: 'image/jpeg' });
+                if (preview) {
+                  preview.src = URL.createObjectURL(capturedFile);
+                  preview.style.display = 'block';
+                }
+                stopCamera();
+              }, 'image/jpeg', 0.92);
+            });
+          },
+          willClose: () => {
+            stopCamera();
+          },
+          preConfirm: () => {
+            const selectedPlanCode = (document.getElementById('swal-sub-plan') as HTMLSelectElement | null)?.value;
+            const mode = (document.getElementById('swal-sub-mode') as HTMLSelectElement | null)?.value as 'ORANGE_MONEY' | 'WAVE' | 'MOBICASH' | undefined;
+            const ref = (document.getElementById('swal-sub-ref') as HTMLInputElement | null)?.value;
+            const note = (document.getElementById('swal-sub-note') as HTMLInputElement | null)?.value;
+            const fileFromInput = (document.getElementById('swal-sub-proof') as HTMLInputElement | null)?.files?.[0];
+            const file = capturedFile || fileFromInput;
+            if (!selectedPlanCode) {
+              Swal.showValidationMessage('Veuillez choisir la formule');
+              return null;
+            }
+            if (!mode) {
+              Swal.showValidationMessage('Veuillez choisir le canal de paiement');
+              return null;
+            }
+            if (!file) {
+              Swal.showValidationMessage('Veuillez joindre la photo du reçu/message');
+              return null;
+            }
+            return { selectedPlanCode, mode, ref: ref || '', note: note || '', file };
+          },
+        });
+
+        if (!ask.isConfirmed || !ask.value) return;
+
+        const res = await submitManualSubscriptionPayment(ask.value.selectedPlanCode, ask.value.mode, ask.value.file, ask.value.ref, ask.value.note);
+        await Swal.fire({
+          icon: 'success',
+          title: 'Demande envoyée',
+          text: `Référence: ${res?.reference || 'N/A'} (en attente de validation SuperAdmin)`
+        });
+      } catch (e: any) {
+        await Swal.fire({ icon: 'error', title: 'Erreur', text: e?.message || 'Impossible de créer la demande de paiement.' });
+      }
+    };
+
+    if (sub.blocked) {
+      // Le rappel + action de réabonnement sont désormais gérés via le bandeau global (Layout)
+      return;
+    }
+
+    if (sub.shouldShowModal) {
+      const key = `sub-warning-${sub.boutiqueId}-${sub.dateFin}`;
+      if (subscriptionModalKey === key) return;
+      setSubscriptionModalKey(key);
+      const r = await Swal.fire({
+        icon: 'warning',
+        title: 'Abonnement bientôt expiré',
+        text: sub.message || `Votre abonnement arrive à échéance dans ${sub.daysRemaining ?? '?'} jour(s).`,
+        confirmButtonText: 'Renouveler abonnement',
+        showCancelButton: true,
+        cancelButtonText: 'Plus tard',
+      });
+      if (r.isConfirmed) {
+        await renewNow();
+      }
+    }
+  };
 
   const load = async (shopId?: number, magasinId?: number) => {
     console.log('🔄 Starting dashboard load for shopId:', shopId, 'magasinId:', magasinId);
@@ -276,6 +520,11 @@ const RoleBasedDashboard: React.FC = () => {
 
       if (p.role === 'SUPERADMIN') {
         await loadSuperAdminUsers();
+        await Promise.all([loadSubscriptions(), loadSubscriptionPayments(true)]);
+      }
+
+      if (p.role === 'PROPRIETAIRE' || p.role === 'GERANT' || p.role === 'GÉRANT') {
+        await maybeShowOwnerSubscriptionModal();
       }
 
       // Si c'est un ADMIN, charger les dashboards des subalternes
@@ -348,6 +597,195 @@ const RoleBasedDashboard: React.FC = () => {
     }
   }
 
+  async function loadSubscriptions() {
+    setSubscriptionsLoading(true);
+    setSubscriptionsError(null);
+    try {
+      const [plans, subs] = await Promise.all([
+        fetchSubscriptionPlans(),
+        fetchBoutiqueSubscriptions(),
+      ]);
+      setSubscriptionPlans(plans);
+      setBoutiqueSubscriptions(subs);
+      const nextSelection: Record<number, string> = {};
+      subs.forEach((s) => {
+        if (s?.boutique_id) {
+          nextSelection[s.boutique_id] = (s.plan_code || plans[0]?.code || 'MENSUEL') as string;
+        }
+      });
+      setPlanSelectionByBoutique((prev) => ({ ...nextSelection, ...prev }));
+    } catch (e: any) {
+      setSubscriptionsError(e?.message || 'Erreur chargement abonnements');
+    } finally {
+      setSubscriptionsLoading(false);
+    }
+  }
+
+  const buildUploadUrl = (p?: string | null) => {
+    if (!p) return '';
+    if (p.startsWith('http')) return p;
+    const base = API.replace(/\/api$/i, '');
+    return `${base}${p.startsWith('/') ? p : `/${p}`}`;
+  };
+
+  async function maybeShowSuperAdminPendingPaymentModal(rows: SubscriptionPaymentAdminDTO[]) {
+    if (!rows || rows.length === 0) return;
+    const first = rows[0] as any;
+    const img = buildUploadUrl(first?.preuve_url);
+    const r = await Swal.fire({
+      icon: 'info',
+      title: `${rows.length} demande(s) d'abonnement en attente`,
+      html: `
+        <div class="text-start">
+          <div><strong>Boutique:</strong> ${first?.boutique_nom || '—'}</div>
+          <div><strong>Canal:</strong> ${first?.mode_paiement || first?.provider || '—'}</div>
+          <div><strong>Référence transfert:</strong> ${first?.transaction_ref || '—'}</div>
+          ${img ? `<div class="mt-2"><img src="${img}" alt="preuve" style="max-width:100%;max-height:260px;border:1px solid #ddd;border-radius:6px" /></div>` : '<div class="mt-2 text-muted">Aucune preuve image</div>'}
+          <small class="d-block mt-2">Vérifiez votre numéro, puis validez ou rejetez.</small>
+        </div>
+      `,
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: 'Valider',
+      denyButtonText: 'Rejeter',
+      cancelButtonText: 'Plus tard',
+    });
+
+    if (r.isConfirmed) {
+      await onApprovePayment(first.id);
+    } else if (r.isDenied) {
+      await onRejectPayment(first.id);
+    }
+  }
+
+  async function loadSubscriptionPayments(showConfirmModal = false) {
+    setPaymentsLoading(true);
+    try {
+      const rows = await fetchAdminSubscriptionPayments();
+      setSubscriptionPayments(rows);
+      if (showConfirmModal) {
+        const pendingRows = rows.filter((r) => String((r as any)?.statut || '').toUpperCase() === 'PENDING');
+        await maybeShowSuperAdminPendingPaymentModal(pendingRows);
+      }
+      return rows;
+    } catch (e: any) {
+      setSubscriptionsError(e?.message || 'Erreur chargement paiements abonnement');
+      return [];
+    } finally {
+      setPaymentsLoading(false);
+    }
+  }
+
+  const onActivateSubscription = async (boutiqueId: number) => {
+    setSubscriptionsError(null);
+    try {
+      const planCode = planSelectionByBoutique[boutiqueId] || subscriptionPlans[0]?.code || 'MENSUEL';
+      await activateBoutiqueSubscription(boutiqueId, planCode);
+      await loadSubscriptions();
+    } catch (e: any) {
+      setSubscriptionsError(e?.message || 'Erreur activation abonnement');
+    }
+  };
+
+  const onSuspendSubscription = async (boutiqueId: number) => {
+    setSubscriptionsError(null);
+    try {
+      await suspendBoutiqueSubscription(boutiqueId);
+      await loadSubscriptions();
+    } catch (e: any) {
+      setSubscriptionsError(e?.message || 'Erreur suspension abonnement');
+    }
+  };
+
+  const onApprovePayment = async (paymentId: number) => {
+    setSubscriptionsError(null);
+    try {
+      await approveAdminSubscriptionPayment(paymentId);
+      await Promise.all([loadSubscriptionPayments(), loadSubscriptions()]);
+      await Swal.fire({ icon: 'success', title: 'Paiement validé', timer: 1200, showConfirmButton: false });
+    } catch (e: any) {
+      setSubscriptionsError(e?.message || 'Erreur validation paiement');
+    }
+  };
+
+  const onRejectPayment = async (paymentId: number) => {
+    const result = await Swal.fire({
+      title: 'Rejeter le paiement ? ',
+      input: 'text',
+      inputLabel: 'Motif (optionnel)',
+      inputPlaceholder: 'Ex: montant incorrect',
+      showCancelButton: true,
+      confirmButtonText: 'Rejeter',
+      cancelButtonText: 'Annuler',
+      confirmButtonColor: '#d33',
+    });
+    if (!result.isConfirmed) return;
+
+    setSubscriptionsError(null);
+    try {
+      await rejectAdminSubscriptionPayment(paymentId, result.value || undefined);
+      await loadSubscriptionPayments();
+      await Swal.fire({ icon: 'success', title: 'Paiement rejeté', timer: 1200, showConfirmButton: false });
+    } catch (e: any) {
+      setSubscriptionsError(e?.message || 'Erreur rejet paiement');
+    }
+  };
+
+  const toDateTimeLocalValue = (raw?: string | null) => {
+    if (!raw) return '';
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const onEditSubscriptionDates = async (row: BoutiqueSubscriptionDTO) => {
+    setSubscriptionsError(null);
+    const startDefault = toDateTimeLocalValue(row.date_debut);
+    const endDefault = toDateTimeLocalValue(row.date_fin);
+
+    const result = await Swal.fire({
+      title: `Modifier les dates — ${row.boutique_nom}`,
+      html: `
+        <div class="text-start">
+          <label for="swal-date-debut" class="form-label">Date début</label>
+          <input id="swal-date-debut" type="datetime-local" class="swal2-input" value="${startDefault}" style="margin:0 0 12px 0;width:100%" />
+          <label for="swal-date-fin" class="form-label">Date fin</label>
+          <input id="swal-date-fin" type="datetime-local" class="swal2-input" value="${endDefault}" style="margin:0;width:100%" />
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Enregistrer',
+      cancelButtonText: 'Annuler',
+      focusConfirm: false,
+      preConfirm: () => {
+        const debut = (document.getElementById('swal-date-debut') as HTMLInputElement | null)?.value;
+        const fin = (document.getElementById('swal-date-fin') as HTMLInputElement | null)?.value;
+        if (!debut || !fin) {
+          Swal.showValidationMessage('Les deux dates sont obligatoires');
+          return null;
+        }
+        if (new Date(fin).getTime() <= new Date(debut).getTime()) {
+          Swal.showValidationMessage('La date de fin doit être après la date de début');
+          return null;
+        }
+        return { debut, fin };
+      },
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    try {
+      await updateBoutiqueSubscriptionDates(row.boutique_id, result.value.debut, result.value.fin);
+      await loadSubscriptions();
+      await Swal.fire({ icon: 'success', title: 'Dates mises à jour', timer: 1200, showConfirmButton: false });
+    } catch (e: any) {
+      const msg = e?.message || 'Erreur mise à jour des dates';
+      setSubscriptionsError(msg);
+      await Swal.fire({ icon: 'error', title: 'Échec modification dates', text: msg });
+    }
+  };
+
   const handleLocationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
     if (value.startsWith('boutique-')) {
@@ -408,6 +846,8 @@ const RoleBasedDashboard: React.FC = () => {
   useEffect(() => {
     if (payload?.role === 'SUPERADMIN') {
       loadSuperAdminUsers();
+      loadSubscriptions();
+      loadSubscriptionPayments();
     }
   }, [payload?.role]);
 
@@ -907,6 +1347,195 @@ const RoleBasedDashboard: React.FC = () => {
                       </div>
                     ))}
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {role === 'SUPERADMIN' && (
+          <div className="row g-4 mt-3">
+            <div className="col-12">
+              <div className="card">
+                <div className="card-header d-flex align-items-center justify-content-between">
+                  <h6 className="mb-0">Gestion des abonnements</h6>
+                  <button className="btn btn-sm btn-outline-primary" onClick={loadSubscriptions}>
+                    <i className="bi bi-arrow-clockwise me-1"></i>Rafraîchir
+                  </button>
+                </div>
+                <div className="card-body">
+                  {subscriptionsError && (
+                    <div className="alert alert-warning py-2">{subscriptionsError}</div>
+                  )}
+
+                  {subscriptionsLoading ? (
+                    <div className="text-muted">Chargement abonnements...</div>
+                  ) : (
+                    <div className="table-responsive">
+                      <table className="table table-sm align-middle">
+                        <thead>
+                          <tr>
+                            <th>Boutique</th>
+                            <th>Plan</th>
+                            <th>Statut</th>
+                            <th>Début</th>
+                            <th>Fin</th>
+                            <th style={{ width: 280 }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {boutiqueSubscriptions.map((row) => (
+                            <tr key={`sub-${row.boutique_id}`}>
+                              <td>{row.boutique_nom}</td>
+                              <td>{row.plan_libelle || '—'}</td>
+                              <td>
+                                <span className={`badge ${row.statut === 'ACTIVE' ? 'bg-success' : row.statut === 'CANCELED' ? 'bg-secondary' : 'bg-warning text-dark'}`}>
+                                  {subscriptionStatusLabel(row.statut)}
+                                </span>
+                              </td>
+                              <td>{row.date_debut ? new Date(row.date_debut).toLocaleDateString('fr-FR') : '—'}</td>
+                              <td>{row.date_fin ? new Date(row.date_fin).toLocaleDateString('fr-FR') : '—'}</td>
+                              <td>
+                                <div className="d-flex align-items-center gap-2 flex-nowrap">
+                                  <select
+                                    className="form-select form-select-sm"
+                                    style={{ minWidth: 170 }}
+                                    value={planSelectionByBoutique[row.boutique_id] || row.plan_code || subscriptionPlans[0]?.code || 'MENSUEL'}
+                                    onChange={(e) => setPlanSelectionByBoutique((prev) => ({ ...prev, [row.boutique_id]: e.target.value }))}
+                                  >
+                                    {subscriptionPlans.map((p) => (
+                                      <option key={p.code} value={p.code}>{p.libelle} ({p.duree_mois}m)</option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    className="btn btn-sm btn-success"
+                                    title="Activer le plan"
+                                    aria-label="Activer le plan"
+                                    onClick={() => onActivateSubscription(row.boutique_id)}
+                                  >
+                                    <i className="bi bi-check2-circle"></i>
+                                  </button>
+                                  <button
+                                    className="btn btn-sm btn-outline-danger"
+                                    title="Suspendre l'abonnement"
+                                    aria-label="Suspendre l'abonnement"
+                                    onClick={() => onSuspendSubscription(row.boutique_id)}
+                                  >
+                                    <i className="bi bi-pause-circle"></i>
+                                  </button>
+                                  <button
+                                    className="btn btn-sm btn-outline-primary"
+                                    title="Modifier les dates"
+                                    aria-label="Modifier les dates"
+                                    onClick={() => onEditSubscriptionDates(row)}
+                                  >
+                                    <i className="bi bi-pencil-square"></i>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {boutiqueSubscriptions.length === 0 && (
+                            <tr>
+                              <td colSpan={6} className="text-muted text-center py-3">Aucune donnée abonnement</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {role === 'SUPERADMIN' && (
+          <div className="row g-4 mt-3">
+            <div className="col-12">
+              <div className="card">
+                <div className="card-header d-flex align-items-center justify-content-between">
+                  <h6 className="mb-0">Paiements abonnement (manuel)</h6>
+                  <button className="btn btn-sm btn-outline-primary" onClick={() => { void loadSubscriptionPayments(); }}>
+                    <i className="bi bi-arrow-clockwise me-1"></i>Rafraîchir
+                  </button>
+                </div>
+                <div className="card-body">
+                  {paymentsLoading ? (
+                    <div className="text-muted">Chargement paiements...</div>
+                  ) : (
+                    <div className="table-responsive">
+                      <table className="table table-sm align-middle">
+                        <thead>
+                          <tr>
+                            <th>N°</th>
+                            <th>Boutique</th>
+                            <th>Référence</th>
+                            <th>Réf. transfert</th>
+                            <th>Plan</th>
+                            <th>Montant</th>
+                            <th>Statut</th>
+                            <th>Provider</th>
+                            <th>Mode</th>
+                            <th>Preuve</th>
+                            <th>Créé le</th>
+                            <th style={{ width: 180 }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {subscriptionPayments.map((p, index) => (
+                            <tr key={`pay-${p.id}`}>
+                              <td>{index + 1}</td>
+                              <td>{p.boutique_nom || '—'}</td>
+                              <td>{p.reference}</td>
+                              <td>{p.transaction_ref || '—'}</td>
+                              <td>{p.plan_code || '—'}</td>
+                              <td>{p.montant} {p.devise}</td>
+                              <td>
+                                <span className={`badge ${String(p.statut).toUpperCase() === 'PENDING' ? 'bg-warning text-dark' : String(p.statut).toUpperCase() === 'PAID' ? 'bg-success' : 'bg-secondary'}`}>
+                                  {paymentStatusLabel(p.statut as any)}
+                                </span>
+                              </td>
+                              <td>{p.provider}</td>
+                              <td>{p.mode_paiement || '—'}</td>
+                              <td>
+                                {(p as any).preuve_url ? (
+                                  <button
+                                    className="btn btn-sm btn-outline-secondary"
+                                    onClick={() => Swal.fire({
+                                      title: `Preuve ${p.reference || ''}`.trim(),
+                                      imageUrl: buildUploadUrl((p as any).preuve_url),
+                                      imageAlt: 'Preuve de paiement',
+                                      showCloseButton: true,
+                                      confirmButtonText: 'Fermer',
+                                    })}
+                                  >
+                                    <i className="bi bi-image"></i>
+                                  </button>
+                                ) : '—'}
+                              </td>
+                              <td>{p.created_at ? new Date(p.created_at).toLocaleString('fr-FR') : '—'}</td>
+                              <td>
+                                <div className="d-flex gap-2">
+                                  <button className="btn btn-sm btn-success" disabled={String(p.statut).toUpperCase() !== 'PENDING'} onClick={() => onApprovePayment(p.id)} title="Valider paiement">
+                                    <i className="bi bi-check2-circle"></i>
+                                  </button>
+                                  <button className="btn btn-sm btn-outline-danger" disabled={String(p.statut).toUpperCase() !== 'PENDING'} onClick={() => onRejectPayment(p.id)} title="Rejeter paiement">
+                                    <i className="bi bi-x-circle"></i>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {subscriptionPayments.length === 0 && (
+                            <tr>
+                              <td colSpan={12} className="text-muted text-center py-3">Aucun paiement</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

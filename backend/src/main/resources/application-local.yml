@@ -26,6 +26,8 @@ spring:
 
 # Frontend base for local dev
 app:
+  subscription:
+    enforcement-enabled: true
   frontend:
     base-url: http://localhost:5173
   reset-db: false

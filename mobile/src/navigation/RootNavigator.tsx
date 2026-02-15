@@ -7,6 +7,8 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import { useApp } from '../store/AppContext';
 import { View, ActivityIndicator } from 'react-native';
 import TopBar from '../components/TopBar';
+import { getRoleNames } from '../utils/permissions';
+import SubscriptionRenewScreen from '../screens/SubscriptionRenewScreen';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -38,14 +40,23 @@ export type RootStackParamList = {
   ConfigurationPermissions: undefined;
   ConfigurationAssignPermissions: undefined;
   ConfigurationMarges: undefined;
+  SubscriptionRenew: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootNavigator() {
-  const { token, boutiqueId, ready } = useApp();
-  const { profile } = useApp();
+  const { token, boutiqueId, ready, profile, subscriptionStatus } = useApp();
   const topBarKey = profile?.photoUrl || profile?.photo || profile?.avatar || 'no-avatar';
+
+  const roles = getRoleNames(profile);
+  const isSubscriptionManagedRole =
+    roles.includes('PROPRIETAIRE') ||
+    roles.includes('OWNER') ||
+    roles.includes('GERANT') ||
+    roles.includes('GERANT_BOUTIQUE') ||
+    roles.includes('MANAGER');
+  const isSubscriptionBlocked = isSubscriptionManagedRole && !!subscriptionStatus?.blocked;
 
   if (!ready) {
     return (
@@ -59,6 +70,8 @@ export default function RootNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!token ? (
         <Stack.Screen name="Login" component={LoginScreen} />
+      ) : isSubscriptionBlocked ? (
+        <Stack.Screen name="SubscriptionRenew" component={SubscriptionRenewScreen} />
       ) : !boutiqueId ? (
         <Stack.Screen name="BoutiqueSelect" component={BoutiqueSelectScreen} />
       ) : (

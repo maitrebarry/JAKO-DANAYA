@@ -4,6 +4,9 @@ import { useUser } from '../contexts/UserContext';
 import 'flag-icons/css/flag-icons.min.css';
 import StockNotifications from './StockNotifications';
 import { API_BASE, API } from '../config/api';
+import Swal from 'sweetalert2';
+import { fetchCurrentSubscriptionStatus } from '../api/admin';
+import { fetchSubscriptionPlansForOwner, submitManualSubscriptionPayment } from '../api/subscription';
 
 // responsive layout styles (mobile overlay, transitions)
 import '../styles/layout-responsive.css';
@@ -36,7 +39,218 @@ const Layout = ({ children }: LayoutProps) => {
   const closeSidebar = () => setSidebarOpen(false);
   const toggleSidebar = () => setSidebarOpen(s => !s);
 
-  const { user } = useUser();
+  const { user, roles = [] } = useUser();
+
+  const normalizeRoleName = (value?: string | null) =>
+    (value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/^ROLE_/i, '')
+      .trim()
+      .toUpperCase();
+  const normalizedRoles = roles.map(r => normalizeRoleName(r));
+  const userType = normalizeRoleName(user?.typeUtilisateur);
+  const isSuperAdmin = normalizedRoles.includes('SUPERADMIN') || userType === 'SUPERADMIN';
+  const isOwner = userType === 'PROPRIETAIRE' || normalizedRoles.includes('PROPRIETAIRE');
+  const isManager = userType === 'GERANT' || normalizedRoles.includes('GERANT');
+  const isAdmin = userType === 'ADMIN' || userType === 'ADMINISTRATEUR' || normalizedRoles.includes('ADMIN') || normalizedRoles.includes('ADMINISTRATEUR');
+  const shouldCheckSubscriptionWarning = !isSuperAdmin && (isOwner || isManager || isAdmin);
+  const [subscriptionWarning, setSubscriptionWarning] = React.useState<any | null>(null);
+
+  const openRenewSubscriptionModal = React.useCallback(async () => {
+    try {
+      const sub = await fetchCurrentSubscriptionStatus();
+      if (!sub || !sub.configured) return;
+      const currentPlanCode = (sub.planCode || 'MENSUEL').toUpperCase();
+      let capturedFile: File | null = null;
+      let stream: MediaStream | null = null;
+
+      const stopCamera = () => {
+        if (stream) {
+          stream.getTracks().forEach((t) => t.stop());
+          stream = null;
+        }
+      };
+
+      const plans = await fetchSubscriptionPlansForOwner().catch(() => [] as any[]);
+      const planList = Array.isArray(plans) ? plans : [];
+      const defaultPlanCode = (planList.find((p: any) => String(p?.code || '').toUpperCase() === currentPlanCode)?.code || planList[0]?.code || currentPlanCode || 'MENSUEL') as string;
+      const amountFor = (code: string) => {
+        const p = planList.find((x: any) => String(x?.code || '').toUpperCase() === String(code || '').toUpperCase());
+        const price = p?.prix != null ? Number(p.prix) : null;
+        const currency = p?.devise || 'XOF';
+        return price != null ? `${price} ${currency}` : 'Voir plan actif';
+      };
+      const planSelectOptions = planList.map((p: any) => {
+        const code = String(p?.code || '');
+        const label = String(p?.libelle || code || 'Plan');
+        return `<option value="${code}" ${String(code).toUpperCase() === String(defaultPlanCode).toUpperCase() ? 'selected' : ''}>${label} (${code})</option>`;
+      }).join('');
+
+      const nums = {
+        ORANGE_MONEY: '74745669',
+        WAVE: '74745669',
+        MOBICASH: '67205736',
+      };
+
+      const ask = await Swal.fire({
+        title: '',
+        html: `
+          <div class="text-start">
+            <div class="bg-primary text-white px-3 py-2 rounded-top">
+              <strong>Se réabonner (manuel)</strong>
+            </div>
+            <div class="border border-top-0 rounded-bottom p-3">
+              <label class="form-label mt-1">Formule d'abonnement</label>
+              <select id="swal-sub-plan" class="swal2-input" style="margin:0 0 10px 0;width:100%">
+                ${planSelectOptions || `<option value="${defaultPlanCode}" selected>${defaultPlanCode}</option>`}
+              </select>
+              <div class="mb-2"><strong>Montant à payer</strong>: <span id="swal-sub-amount">${amountFor(defaultPlanCode)}</span></div>
+              <div class="mb-2"><strong>Numéros Mobile Money du service</strong></div>
+              <div>Orange Money: ${nums.ORANGE_MONEY}</div>
+              <div>Wave: ${nums.WAVE}</div>
+              <div>MobiCash: ${nums.MOBICASH}</div>
+              <hr />
+              <label class="form-label mt-1">Canal utilisé</label>
+              <select id="swal-sub-mode" class="swal2-input" style="margin:0 0 10px 0;width:100%">
+                <option value="ORANGE_MONEY">Orange Money</option>
+                <option value="WAVE">Wave</option>
+                <option value="MOBICASH">MobiCash</option>
+              </select>
+              <label class="form-label">Référence transfert (optionnel)</label>
+              <input id="swal-sub-ref" class="swal2-input" style="margin:0 0 10px 0;width:100%" placeholder="Ex: OM123456" />
+              <label class="form-label">Photo reçu / message de transfert</label>
+              <button id="swal-open-camera" type="button" class="swal2-confirm swal2-styled" style="display:inline-block;margin:0 8px 10px 0">Ouvrir caméra</button>
+              <input id="swal-sub-proof" type="file" accept="image/*" capture="environment" class="swal2-file" style="display:block;width:100%;margin:0 0 10px 0" />
+              <div id="swal-camera-wrap" style="display:none;border:1px solid #dbe2ea;border-radius:8px;padding:8px;margin:0 0 10px 0">
+                <video id="swal-camera-video" style="width:100%;max-height:220px;background:#111;border-radius:6px" autoplay playsinline muted></video>
+                <canvas id="swal-camera-canvas" style="display:none"></canvas>
+                <img id="swal-camera-preview" alt="Aperçu capture" style="display:none;width:100%;max-height:220px;object-fit:contain;border-radius:6px;margin-top:8px" />
+                <div style="margin-top:8px">
+                  <button id="swal-camera-shot" type="button" class="swal2-confirm swal2-styled" style="display:inline-block;margin-right:8px">Capturer</button>
+                </div>
+              </div>
+              <label class="form-label">Note (optionnel)</label>
+              <input id="swal-sub-note" class="swal2-input" style="margin:0;width:100%" placeholder="Infos utiles" />
+            </div>
+          </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Soumettre',
+        cancelButtonText: 'Annuler',
+        didOpen: () => {
+          const planEl = document.getElementById('swal-sub-plan') as HTMLSelectElement | null;
+          const amountEl = document.getElementById('swal-sub-amount') as HTMLSpanElement | null;
+          const refreshAmount = () => {
+            if (amountEl) amountEl.textContent = amountFor(planEl?.value || defaultPlanCode);
+          };
+          planEl?.addEventListener('change', refreshAmount);
+          refreshAmount();
+
+          const openBtn = document.getElementById('swal-open-camera') as HTMLButtonElement | null;
+          const shotBtn = document.getElementById('swal-camera-shot') as HTMLButtonElement | null;
+          const wrap = document.getElementById('swal-camera-wrap') as HTMLDivElement | null;
+          const video = document.getElementById('swal-camera-video') as HTMLVideoElement | null;
+          const canvas = document.getElementById('swal-camera-canvas') as HTMLCanvasElement | null;
+          const preview = document.getElementById('swal-camera-preview') as HTMLImageElement | null;
+
+          openBtn?.addEventListener('click', async () => {
+            try {
+              if (!navigator.mediaDevices?.getUserMedia) {
+                Swal.showValidationMessage('Caméra non supportée sur ce navigateur. Utilisez la sélection de fichier.');
+                return;
+              }
+              stopCamera();
+              stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+              if (wrap) wrap.style.display = 'block';
+              if (video) {
+                video.srcObject = stream;
+                await video.play().catch(() => null);
+              }
+            } catch {
+              Swal.showValidationMessage('Impossible d’ouvrir la caméra. Vérifiez les permissions puis réessayez.');
+            }
+          });
+
+          shotBtn?.addEventListener('click', () => {
+            if (!video || !canvas) return;
+            const width = video.videoWidth || 1280;
+            const height = video.videoHeight || 720;
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            ctx.drawImage(video, 0, 0, width, height);
+            canvas.toBlob((blob) => {
+              if (!blob) return;
+              capturedFile = new File([blob], `recu-${Date.now()}.jpg`, { type: 'image/jpeg' });
+              if (preview) {
+                preview.src = URL.createObjectURL(capturedFile);
+                preview.style.display = 'block';
+              }
+              stopCamera();
+            }, 'image/jpeg', 0.92);
+          });
+        },
+        willClose: () => {
+          stopCamera();
+        },
+        preConfirm: () => {
+          const selectedPlanCode = (document.getElementById('swal-sub-plan') as HTMLSelectElement | null)?.value;
+          const mode = (document.getElementById('swal-sub-mode') as HTMLSelectElement | null)?.value as 'ORANGE_MONEY' | 'WAVE' | 'MOBICASH' | undefined;
+          const ref = (document.getElementById('swal-sub-ref') as HTMLInputElement | null)?.value;
+          const note = (document.getElementById('swal-sub-note') as HTMLInputElement | null)?.value;
+          const fileFromInput = (document.getElementById('swal-sub-proof') as HTMLInputElement | null)?.files?.[0];
+          const file = capturedFile || fileFromInput;
+          if (!selectedPlanCode) {
+            Swal.showValidationMessage('Veuillez choisir la formule');
+            return null;
+          }
+          if (!mode) {
+            Swal.showValidationMessage('Veuillez choisir le canal de paiement');
+            return null;
+          }
+          if (!file) {
+            Swal.showValidationMessage('Veuillez joindre la photo du reçu/message');
+            return null;
+          }
+          return { selectedPlanCode, mode, ref: ref || '', note: note || '', file };
+        },
+      });
+
+      if (!ask.isConfirmed || !ask.value) return;
+      const res = await submitManualSubscriptionPayment(ask.value.selectedPlanCode, ask.value.mode, ask.value.file, ask.value.ref, ask.value.note);
+      await Swal.fire({
+        icon: 'success',
+        title: 'Demande envoyée',
+        text: `Référence: ${res?.reference || 'N/A'} (en attente de validation SuperAdmin)`
+      });
+    } catch (e: any) {
+      await Swal.fire({ icon: 'error', title: 'Erreur', text: e?.message || 'Impossible de créer la demande de paiement.' });
+    }
+  }, []);
+
+  React.useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      try {
+        const token = localStorage.getItem('smb_token');
+        if (!token) return;
+        if (!shouldCheckSubscriptionWarning) return;
+        const sub = await fetchCurrentSubscriptionStatus();
+        if (!mounted) return;
+        if (sub?.blocked) {
+          setSubscriptionWarning(sub);
+        } else {
+          setSubscriptionWarning(null);
+        }
+      } catch {
+        if (mounted) setSubscriptionWarning(null);
+      }
+    };
+    run();
+    return () => { mounted = false; };
+  }, [shouldCheckSubscriptionWarning, user?.id]);
 
   // Heartbeat to keep user presence updated
   React.useEffect(() => {
@@ -112,11 +326,21 @@ const Layout = ({ children }: LayoutProps) => {
     <div className="wrapper">
       <Sidebar isOpen={sidebarOpen} isMobile={isMobile} closeSidebar={closeSidebar} />
       <Topbar toggleSidebar={toggleSidebar} isMobile={isMobile} sidebarOpen={sidebarOpen} />
-      {user && user.typeUtilisateur === 'PROPRIETAIRE' && <StockNotifications />}
+      {user && isOwner && <StockNotifications />}
 
       <div className="content-page">
         <div className="content">
           <div className="container-fluid" style={{ paddingBottom: '80px' }}>
+            {subscriptionWarning && (
+              <div className="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mt-2" role="alert">
+                <div>
+                  <strong>Abonnement expiré.</strong> {subscriptionWarning?.message || 'Votre abonnement a expiré. Veuillez vous réabonner pour accéder à l\'application.'}
+                </div>
+                <button className="btn btn-sm btn-primary" onClick={() => { void openRenewSubscriptionModal(); }}>
+                  Cliquer pour se réabonner
+                </button>
+              </div>
+            )}
             {children}
           </div>
         </div>
@@ -262,8 +486,12 @@ const Topbar = ({ toggleSidebar, isMobile, sidebarOpen }: { toggleSidebar?: () =
       const notifApi = await import('../api/notification');
       await notifApi.default.markRead(n.id);
       setNotifications(prev => prev.filter(x => x.id !== n.id));
-      // navigate to depenses
-      navigate('/depenses');
+      const type = (n?.type || '').toString().trim().toUpperCase();
+      if (type.startsWith('ABONNEMENT')) {
+        navigate('/abonnement');
+      } else {
+        navigate('/depenses');
+      }
     } catch (err) {
       console.warn('Failed to mark notification read', err);
     }
@@ -383,8 +611,16 @@ const Sidebar = ({ isOpen = true, isMobile = false, closeSidebar = () => {} }: {
     return codes.some(code => normalizedPermissions.includes(code.toUpperCase()));
   };
 
-  const isOwner = user && user.typeUtilisateur === 'PROPRIETAIRE';
-  const isSuperAdmin = roles.some(r => r.toUpperCase() === 'SUPERADMIN');
+  const normalizeRoleName = (value?: string | null) =>
+    (value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/^ROLE_/i, '')
+      .trim()
+      .toUpperCase();
+  const normalizedRoles = roles.map(r => normalizeRoleName(r));
+  const isOwner = normalizeRoleName(user?.typeUtilisateur) === 'PROPRIETAIRE' || normalizedRoles.includes('PROPRIETAIRE');
+  const isSuperAdmin = normalizedRoles.includes('SUPERADMIN');
 
   const can = {
     dashboard: hasAnyPermission(['TABLEAU_DE_BORD_VOIR', 'TABLEAU_DE_BORD_LECTURE']),
@@ -651,6 +887,7 @@ const Sidebar = ({ isOpen = true, isMobile = false, closeSidebar = () => {} }: {
             </a>
           </li>
           )}
+        
           <li className="side-nav-item">
             <Link to="/documentation" className="side-nav-link">
               <span className="menu-icon"><i className="ti ti-book"></i></span>

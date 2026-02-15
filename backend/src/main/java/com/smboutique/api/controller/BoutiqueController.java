@@ -4,7 +4,6 @@ import com.smboutique.api.model.Boutique;
 import com.smboutique.api.model.Utilisateur;
 import com.smboutique.api.service.BoutiqueService;
 import com.smboutique.api.service.UtilisateurService;
-import com.smboutique.api.model.Pays;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -12,11 +11,14 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,7 +36,86 @@ public class BoutiqueController {
     @Autowired
     private com.smboutique.api.repository.PaysRepository paysRepository;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     private static final String UPLOAD_DIR = "uploads/logos/";
+
+    private void ensureDefaultSubscriptionPlansIfMissing() {
+        jdbcTemplate.update(
+            "INSERT INTO abonnement_plan (code, libelle, duree_mois, prix, devise, actif, created_at) " +
+            "SELECT 'MENSUEL','Mensuel',1,0,'XOF',TRUE,now() " +
+            "WHERE NOT EXISTS (SELECT 1 FROM abonnement_plan WHERE code = 'MENSUEL')"
+        );
+        jdbcTemplate.update(
+            "INSERT INTO abonnement_plan (code, libelle, duree_mois, prix, devise, actif, created_at) " +
+            "SELECT 'TRIMESTRIEL','Trimestriel',3,0,'XOF',TRUE,now() " +
+            "WHERE NOT EXISTS (SELECT 1 FROM abonnement_plan WHERE code = 'TRIMESTRIEL')"
+        );
+        jdbcTemplate.update(
+            "INSERT INTO abonnement_plan (code, libelle, duree_mois, prix, devise, actif, created_at) " +
+            "SELECT 'SEMESTRIEL','Semestriel',6,0,'XOF',TRUE,now() " +
+            "WHERE NOT EXISTS (SELECT 1 FROM abonnement_plan WHERE code = 'SEMESTRIEL')"
+        );
+        jdbcTemplate.update(
+            "INSERT INTO abonnement_plan (code, libelle, duree_mois, prix, devise, actif, created_at) " +
+            "SELECT 'ANNUEL','Annuel',12,0,'XOF',TRUE,now() " +
+            "WHERE NOT EXISTS (SELECT 1 FROM abonnement_plan WHERE code = 'ANNUEL')"
+        );
+    }
+
+    private void createInitialSubscriptionIfPossible(Long boutiqueId, String requestedPlanCode) {
+        try {
+            ensureDefaultSubscriptionPlansIfMissing();
+            String planCode = (requestedPlanCode == null || requestedPlanCode.isBlank()) ? "MENSUEL" : requestedPlanCode.trim().toUpperCase();
+            var plans = jdbcTemplate.queryForList(
+                "SELECT id, duree_mois FROM abonnement_plan WHERE code = ? AND actif = TRUE LIMIT 1",
+                planCode
+            );
+            if (plans.isEmpty()) {
+            plans = jdbcTemplate.queryForList(
+                "SELECT id, duree_mois FROM abonnement_plan WHERE actif = TRUE ORDER BY duree_mois ASC LIMIT 1"
+            );
+            }
+            if (plans.isEmpty()) {
+                org.slf4j.LoggerFactory.getLogger(BoutiqueController.class)
+                    .warn("No active subscription plan found for boutiqueId={} (requestedPlanCode={})", boutiqueId, planCode);
+                return;
+            }
+
+            Number planIdN = (Number) plans.get(0).get("id");
+            Number dureeN = (Number) plans.get(0).get("duree_mois");
+            if (planIdN == null || dureeN == null) return;
+
+            Long planId = planIdN.longValue();
+            int dureeMois = dureeN.intValue();
+
+            var existing = jdbcTemplate.queryForList(
+                "SELECT id FROM abonnement_boutique WHERE boutique_id = ? LIMIT 1",
+                boutiqueId
+            );
+            if (!existing.isEmpty()) return;
+
+            LocalDateTime startAt = LocalDateTime.now();
+            LocalDateTime endAt = startAt.plusMonths(dureeMois);
+
+            int inserted = jdbcTemplate.update(
+                "INSERT INTO abonnement_boutique (boutique_id, plan_id, statut, date_debut, date_fin, grace_end_at, auto_renew, created_at, updated_at) VALUES (?, ?, 'ACTIVE', ?, ?, NULL, FALSE, now(), now())",
+                boutiqueId,
+                planId,
+                Timestamp.valueOf(startAt),
+                Timestamp.valueOf(endAt)
+            );
+            if (inserted > 0) {
+                org.slf4j.LoggerFactory.getLogger(BoutiqueController.class)
+                    .info("Initial subscription created for boutiqueId={} with planCode={}", boutiqueId, planCode);
+            }
+        } catch (Exception ex) {
+            // Keep boutique creation backward-compatible even if subscription tables are absent.
+            org.slf4j.LoggerFactory.getLogger(BoutiqueController.class)
+                .warn("Initial subscription creation skipped for boutiqueId={}: {}", boutiqueId, ex.getMessage());
+        }
+    }
 
     private Utilisateur getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -81,9 +162,6 @@ public class BoutiqueController {
     }
 
     @Autowired
-    private com.smboutique.api.service.PhoneService phoneService;
-
-    @Autowired
     private com.smboutique.api.service.PaysSyncService paysSyncService;
 
     @PostMapping
@@ -93,6 +171,7 @@ public class BoutiqueController {
                                    @RequestParam(value = "adresse", required = false) String adresse,
                                    @RequestParam(value = "indicatif", required = false) String indicatif,
                                    @RequestParam(value = "codePays", required = false) String codePays,
+                                   @RequestParam(value = "planCode", required = false) String planCode,
                                    @RequestParam(value = "logo", required = false) MultipartFile logo) throws IOException {
         // Ensure minimal required fields are present
         if (nom == null || nom.trim().isEmpty() || adresse == null || adresse.trim().isEmpty()) {
@@ -103,9 +182,6 @@ public class BoutiqueController {
         boutique.setNom(nom);
         boutique.setQuartier(quartier);
         boutique.setAdresse(adresse);
-
-        // Normalize phone using provided codePays or default ML
-        String cp = (codePays != null && !codePays.isEmpty()) ? codePays.toUpperCase() : (paysRepository.findByCodeIso("ML").map(p -> p.getCodeIso()).orElse("ML"));
 
         // Set indicatif if provided
         if (indicatif != null && !indicatif.trim().isEmpty()) {
@@ -130,18 +206,21 @@ public class BoutiqueController {
             boutique.setPays(p);
         }
 
-        return ResponseEntity.ok(boutiqueService.save(boutique));
+        Boutique saved = boutiqueService.save(boutique);
+        createInitialSubscriptionIfPossible(saved.getId(), planCode);
+        return ResponseEntity.ok(saved);
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('SUPERADMIN')")
     public ResponseEntity<?> updateBoutique(@PathVariable Long id,
-                                                   @RequestParam("nom") String nom,
-                                                   @RequestParam("quartier") String quartier,
-                                                   @RequestParam("adresse") String adresse,
-                                                   @RequestParam(value = "indicatif", required = false) String indicatif,
-                                                   @RequestParam(value = "codePays", required = false) String codePays,
-                                                   @RequestParam(value = "logo", required = false) MultipartFile logo) throws IOException {
+    @RequestParam("nom") String nom,
+    @RequestParam("quartier") String quartier,
+    @RequestParam("adresse") String adresse,
+    @RequestParam(value = "indicatif", required = false) String indicatif,
+    @RequestParam(value = "codePays", required = false) String codePays,
+    @RequestParam(value = "planCode", required = false) String planCode,
+    @RequestParam(value = "logo", required = false) MultipartFile logo) throws IOException {
         return boutiqueService.findById(id)
                 .map(boutique -> {
                     boutique.setNom(nom);
@@ -185,7 +264,10 @@ public class BoutiqueController {
                         boutique.setIndicatif(indClean.startsWith("+") ? indClean : "+" + indClean);
                     }
 
-                    return ResponseEntity.ok(boutiqueService.save(boutique));
+                    Boutique saved = boutiqueService.save(boutique);
+                    // On update, auto-attach a subscription if missing (for legacy boutiques created before subscription module).
+                    createInitialSubscriptionIfPossible(saved.getId(), planCode);
+                    return ResponseEntity.ok(saved);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

@@ -29,6 +29,8 @@ const Configuration = () => {
         return <AssignerPermissions />;
       case 'marges':
         return <ConfigurationMarges />;
+      case 'abonnement-tarifs':
+        return <ConfigurationAbonnementTarifs />;
       default:
         return <ListeUtilisateurs />;
     }
@@ -106,6 +108,16 @@ const Configuration = () => {
               >
                 Marges (configuration)
               </a>
+              {isSuperAdmin && (
+                <a
+                  href="#"
+                  className={`list-group-item list-group-item-action ${selectedSub === 'abonnement-tarifs' ? 'active' : ''}`}
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => { e.preventDefault(); setSelectedSub('abonnement-tarifs'); }}
+                >
+                  Tarifs abonnement
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -917,6 +929,8 @@ const Boutique = () => {
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState('');
   const [search, setSearch] = useState('');
+  const [selectedPlanCode, setSelectedPlanCode] = useState<'MENSUEL' | 'TRIMESTRIEL' | 'SEMESTRIEL' | 'ANNUEL'>('MENSUEL');
+  const [initialPlanCodeForEdit, setInitialPlanCodeForEdit] = useState<string | null>(null);
 
   // Load countries for boutique creation (flags + symbole monnaie). If backend has few seeds, enrich from restcountries.com
   const fetchPays = async () => {
@@ -1034,6 +1048,9 @@ const Boutique = () => {
       if (boutiqueCodePays) {
         formData.append('codePays', boutiqueCodePays);
       }
+      if (!isEdit) {
+        formData.append('planCode', selectedPlanCode);
+      }
       if (newBoutique.logo) {
         formData.append('logo', newBoutique.logo);
       }
@@ -1053,8 +1070,34 @@ const Boutique = () => {
 
       // parse created/updated boutique
       const savedBoutique = await res.json().catch(() => null);
+
+      // If editing and plan changed, rotate/activate a new subscription period with selected plan.
+      if (isEdit && savedBoutique?.id && selectedPlanCode && selectedPlanCode !== (initialPlanCodeForEdit || '')) {
+        try {
+          const subRes = await fetch(`${API}/admin/subscriptions/boutiques/${savedBoutique.id}/activate`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ planCode: selectedPlanCode }),
+          });
+          if (!subRes.ok) {
+            const txt = await subRes.text().catch(() => '');
+            console.warn('Plan abonnement non mis à jour:', txt || subRes.status);
+            const details = (txt || '').trim();
+            await Swal.fire(
+              'Attention',
+              `Boutique modifiée, mais le plan d'abonnement n'a pas pu être mis à jour.${details ? `\n\nDétail: ${details}` : ''}`,
+              'warning'
+            );
+          }
+        } catch (e) {
+          console.warn('Erreur mise à jour abonnement:', e);
+        }
+      }
+
       setShowModal(false);
       setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null });
+      setSelectedPlanCode('MENSUEL');
+      setInitialPlanCodeForEdit(null);
       await Swal.fire('Succès', `Boutique ${isEdit ? 'modifiée' : 'créée'} avec succès !`, 'success');
 
       // If this boutique is the current boutique in the user context, refresh it so currentBoutique has full pays info
@@ -1137,7 +1180,28 @@ const Boutique = () => {
       logo: null
     });
     setBoutiqueCodePays(boutique?.pays?.codeIso || 'ML');
+    setSelectedPlanCode('MENSUEL');
+    setInitialPlanCodeForEdit(null);
     setShowModal(true);
+
+    // Load current plan for this boutique (best effort)
+    (async () => {
+      try {
+        const token = localStorage.getItem('smb_token');
+        const r = await fetch(`${API}/admin/subscriptions/boutiques/${boutique.id}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (!r.ok) return;
+        const d = await r.json();
+        const code = (d?.plan_code || 'MENSUEL').toUpperCase();
+        if (['MENSUEL','TRIMESTRIEL','SEMESTRIEL','ANNUEL'].includes(code)) {
+          setSelectedPlanCode(code as any);
+          setInitialPlanCodeForEdit(code);
+        }
+      } catch {
+        // ignore
+      }
+    })();
   };
 
   const filteredBoutiques = useMemo(() => {
@@ -1178,6 +1242,8 @@ const Boutique = () => {
               onClick={() => { 
                 setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null }); 
                 setBoutiqueCodePays('ML'); // default country
+                setSelectedPlanCode('MENSUEL');
+                setInitialPlanCodeForEdit(null);
                 setShowModal(true); 
               }}
             >
@@ -1269,6 +1335,8 @@ const Boutique = () => {
                     onClick={() => { 
                       setShowModal(false); 
                       setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null }); 
+                      setSelectedPlanCode('MENSUEL');
+                      setInitialPlanCodeForEdit(null);
                     }}
                   ></button>
                 </div>
@@ -1342,6 +1410,25 @@ const Boutique = () => {
                       Formats acceptés: JPG, PNG, GIF. Max 5MB.
                     </small>
                   </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Plan d'abonnement {newBoutique.id ? '(modification)' : 'initial'}</label>
+                    <select
+                      className="form-select"
+                      value={selectedPlanCode}
+                      onChange={(e) => setSelectedPlanCode(e.target.value as any)}
+                    >
+                      <option value="MENSUEL">Mensuel</option>
+                      <option value="TRIMESTRIEL">Trimestriel</option>
+                      <option value="SEMESTRIEL">Semestriel</option>
+                      <option value="ANNUEL">Annuel</option>
+                    </select>
+                    <small className="text-muted">
+                      {newBoutique.id
+                        ? 'Si vous changez ce plan, un nouvel abonnement actif sera appliqué à cette boutique.'
+                        : 'Ce plan sera activé automatiquement à la création de la boutique.'}
+                    </small>
+                  </div>
                 </div>
                 
                 <div className="modal-footer">
@@ -1351,6 +1438,8 @@ const Boutique = () => {
                     onClick={() => { 
                       setShowModal(false); 
                       setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null }); 
+                      setSelectedPlanCode('MENSUEL');
+                      setInitialPlanCodeForEdit(null);
                     }}
                   >
                     Annuler
@@ -2923,6 +3012,351 @@ const Permissions = () => {
         </>
       )}
     </>
+  );
+};
+
+const ConfigurationAbonnementTarifs = () => {
+  const { roles } = useUser();
+  const normalizedRoles = roles.map(r => (r || '').replace(/^ROLE_/i, '').toUpperCase());
+  const isSuperAdmin = normalizedRoles.includes('SUPERADMIN');
+
+  const [plans, setPlans] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [savingCode, setSavingCode] = useState<string | null>(null);
+  const [message, setMessage] = useState<string>('');
+  const [error, setError] = useState<string>('');
+  const [edits, setEdits] = useState<Record<string, { libelle: string; dureeMois: string; prix: string; devise: string; actif: boolean }>>({});
+  const [newPlan, setNewPlan] = useState<{ code: string; libelle: string; dureeMois: string; prix: string; devise: string; actif: boolean }>({
+    code: '', libelle: '', dureeMois: '1', prix: '', devise: 'XOF', actif: true
+  });
+
+  const loadPlans = async () => {
+    const token = localStorage.getItem('smb_token');
+    if (!token) {
+      setError('Authentification requise');
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await fetch(`${API}/admin/subscriptions/plans`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const rows = await res.json();
+      const data = Array.isArray(rows) ? rows : [];
+      setPlans(data);
+
+      const nextEdits: Record<string, { libelle: string; dureeMois: string; prix: string; devise: string; actif: boolean }> = {};
+      data.forEach((p: any) => {
+        const code = String(p?.code || '');
+        if (!code) return;
+        nextEdits[code] = {
+          libelle: p?.libelle != null ? String(p.libelle) : '',
+          dureeMois: p?.duree_mois != null ? String(p.duree_mois) : '',
+          prix: p?.prix != null ? String(p.prix) : '',
+          devise: p?.devise != null ? String(p.devise) : 'XOF',
+          actif: Boolean(p?.actif ?? true),
+        };
+      });
+      setEdits(nextEdits);
+    } catch (e: any) {
+      setError(e?.message || 'Erreur chargement des tarifs abonnement');
+      setPlans([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPlans();
+  }, []);
+
+  const onSave = async (code: string) => {
+    const token = localStorage.getItem('smb_token');
+    if (!token) return;
+    const current = edits[code];
+    if (!current) return;
+
+    const prixNum = Number(current.prix);
+    const dureeNum = Number(current.dureeMois);
+    if (!current.libelle.trim()) {
+      setError('Le libellé est obligatoire');
+      return;
+    }
+    if (!Number.isFinite(dureeNum) || dureeNum <= 0) {
+      setError('La durée (mois) doit être un nombre positif');
+      return;
+    }
+    if (!Number.isFinite(prixNum) || prixNum <= 0) {
+      setError('Le prix doit être un nombre positif');
+      return;
+    }
+
+    setSavingCode(code);
+    setError('');
+    setMessage('');
+    try {
+      const res = await fetch(`${API}/admin/subscriptions/plans/${encodeURIComponent(code)}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          libelle: current.libelle.trim(),
+          dureeMois: dureeNum,
+          prix: prixNum,
+          devise: (current.devise || 'XOF').trim().toUpperCase(),
+          actif: current.actif,
+        })
+      });
+      if (!res.ok) throw new Error(await res.text());
+
+      setMessage(`Tarif ${code} mis à jour avec succès.`);
+      await loadPlans();
+    } catch (e: any) {
+      setError(e?.message || `Erreur mise à jour du tarif ${code}`);
+    } finally {
+      setSavingCode(null);
+    }
+  };
+
+  const onCreate = async () => {
+    const token = localStorage.getItem('smb_token');
+    if (!token) return;
+    const code = newPlan.code.trim().toUpperCase();
+    const libelle = newPlan.libelle.trim();
+    const dureeNum = Number(newPlan.dureeMois);
+    const prixNum = Number(newPlan.prix);
+
+    if (!code) return setError('Le code est obligatoire');
+    if (!libelle) return setError('Le libellé est obligatoire');
+    if (!Number.isFinite(dureeNum) || dureeNum <= 0) return setError('Durée invalide');
+    if (!Number.isFinite(prixNum) || prixNum <= 0) return setError('Prix invalide');
+
+    setError('');
+    setMessage('');
+    try {
+      const res = await fetch(`${API}/admin/subscriptions/plans`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          code,
+          libelle,
+          dureeMois: dureeNum,
+          prix: prixNum,
+          devise: (newPlan.devise || 'XOF').trim().toUpperCase(),
+          actif: newPlan.actif,
+        })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setMessage(`Plan ${code} créé avec succès.`);
+      setNewPlan({ code: '', libelle: '', dureeMois: '1', prix: '', devise: 'XOF', actif: true });
+      await loadPlans();
+    } catch (e: any) {
+      setError(e?.message || 'Erreur création du plan');
+    }
+  };
+
+  const onDelete = async (code: string) => {
+    const token = localStorage.getItem('smb_token');
+    if (!token) return;
+    const confirm = await Swal.fire({
+      icon: 'warning',
+      title: `Supprimer le plan ${code} ?`,
+      text: 'Si ce plan a déjà été utilisé, il sera désactivé automatiquement.',
+      showCancelButton: true,
+      confirmButtonText: 'Oui, continuer',
+      cancelButtonText: 'Annuler',
+    });
+    if (!confirm.isConfirmed) return;
+
+    setError('');
+    setMessage('');
+    try {
+      const res = await fetch(`${API}/admin/subscriptions/plans/${encodeURIComponent(code)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const out = await res.json().catch(() => ({}));
+      setMessage(out?.disabled ? `Plan ${code} désactivé (historique conservé).` : `Plan ${code} supprimé.`);
+      await loadPlans();
+    } catch (e: any) {
+      setError(e?.message || `Erreur suppression du plan ${code}`);
+    }
+  };
+
+  if (!isSuperAdmin) {
+    return (
+      <div className="card">
+        <div className="card-body">
+          <div className="alert alert-warning mb-0">Accès réservé au superadmin.</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card">
+      <div className="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+        <h6 className="mb-0">Configuration des tarifs d'abonnement</h6>
+        <button className="btn btn-sm btn-light" onClick={loadPlans}>
+          <i className="bi bi-arrow-clockwise me-1"></i>Rafraîchir
+        </button>
+      </div>
+      <div className="card-body">
+        {message && <div className="alert alert-success py-2">{message}</div>}
+        {error && <div className="alert alert-danger py-2">{error}</div>}
+
+        <div className="border rounded p-3 mb-3">
+          <h6 className="mb-3">Créer un plan d'abonnement</h6>
+          <div className="row g-2">
+            <div className="col-md-2">
+              <input className="form-control form-control-sm" placeholder="Code" value={newPlan.code} onChange={(e) => setNewPlan(prev => ({ ...prev, code: e.target.value }))} />
+            </div>
+            <div className="col-md-3">
+              <input className="form-control form-control-sm" placeholder="Libellé" value={newPlan.libelle} onChange={(e) => setNewPlan(prev => ({ ...prev, libelle: e.target.value }))} />
+            </div>
+            <div className="col-md-2">
+              <input type="number" min={1} className="form-control form-control-sm" placeholder="Durée" value={newPlan.dureeMois} onChange={(e) => setNewPlan(prev => ({ ...prev, dureeMois: e.target.value }))} />
+            </div>
+            <div className="col-md-2">
+              <input type="number" min={1} className="form-control form-control-sm" placeholder="Montant" value={newPlan.prix} onChange={(e) => setNewPlan(prev => ({ ...prev, prix: e.target.value }))} />
+            </div>
+            <div className="col-md-1">
+              <input className="form-control form-control-sm" placeholder="Devise" value={newPlan.devise} onChange={(e) => setNewPlan(prev => ({ ...prev, devise: e.target.value }))} />
+            </div>
+            <div className="col-md-1 d-flex align-items-center">
+              <div className="form-check form-switch m-0">
+                <input className="form-check-input" type="checkbox" checked={newPlan.actif} onChange={(e) => setNewPlan(prev => ({ ...prev, actif: e.target.checked }))} />
+              </div>
+            </div>
+            <div className="col-md-1">
+              <button className="btn btn-sm btn-primary w-100" onClick={onCreate}>Créer</button>
+            </div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="text-muted">Chargement des plans...</div>
+        ) : (
+          <div className="table-responsive">
+            <table className="table table-sm align-middle">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Libellé</th>
+                  <th>Durée (mois)</th>
+                  <th>Montant</th>
+                  <th>Devise</th>
+                  <th>Actif</th>
+                  <th style={{ width: 120 }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {plans.map((p: any) => {
+                  const code = String(p?.code || '');
+                  const row = edits[code] || { libelle: '', dureeMois: '', prix: '', devise: 'XOF', actif: true };
+                  return (
+                    <tr key={`sub-plan-${code}`}>
+                      <td><strong>{code}</strong></td>
+                      <td>
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          value={row.libelle}
+                          onChange={(e) => setEdits(prev => ({
+                            ...prev,
+                            [code]: { ...row, libelle: e.target.value }
+                          }))}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min={1}
+                          step="1"
+                          className="form-control form-control-sm"
+                          value={row.dureeMois}
+                          onChange={(e) => setEdits(prev => ({
+                            ...prev,
+                            [code]: { ...row, dureeMois: e.target.value }
+                          }))}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min={1}
+                          step="1"
+                          className="form-control form-control-sm"
+                          value={row.prix}
+                          onChange={(e) => setEdits(prev => ({
+                            ...prev,
+                            [code]: { ...row, prix: e.target.value }
+                          }))}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          value={row.devise}
+                          maxLength={8}
+                          onChange={(e) => setEdits(prev => ({
+                            ...prev,
+                            [code]: { ...row, devise: e.target.value }
+                          }))}
+                        />
+                      </td>
+                      <td>
+                        <div className="form-check form-switch m-0">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            checked={row.actif}
+                            onChange={(e) => setEdits(prev => ({
+                              ...prev,
+                              [code]: { ...row, actif: e.target.checked }
+                            }))}
+                          />
+                        </div>
+                      </td>
+                      <td>
+                        <div className="d-flex gap-2">
+                          <button
+                            className="btn btn-sm btn-success"
+                            onClick={() => onSave(code)}
+                            disabled={savingCode === code}
+                          >
+                            {savingCode === code ? '...' : 'Enregistrer'}
+                          </button>
+                          <button className="btn btn-sm btn-outline-danger" onClick={() => onDelete(code)}>
+                            Supprimer
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {plans.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="text-muted text-center py-3">Aucun plan trouvé</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 

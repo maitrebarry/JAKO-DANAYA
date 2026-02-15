@@ -3,8 +3,10 @@ import React, { createContext, useContext, useMemo, useState, useEffect } from '
 import { fetchCurrentUser } from '../services/auth';
 import { getBoutiqueById, type BoutiqueDTO } from '../services/boutiques';
 import { fetchAllPays } from '../services/pays';
+import { fetchCurrentSubscriptionStatus, type CurrentSubscriptionDTO } from '../services/subscription';
 import { getItem, setItem, removeItem } from '../utils/storage';
 import { mergeAuthMeResponse } from '../utils/profile';
+import { getRoleNames } from '../utils/permissions';
 
 type AppState = {
   token: string | null;
@@ -18,6 +20,8 @@ type AppState = {
   ready: boolean;
   themePref: 'system'|'light'|'dark';
   setThemePref: (p: 'system'|'light'|'dark') => void;
+  subscriptionStatus: CurrentSubscriptionDTO | null;
+  refreshSubscriptionStatus: () => Promise<void>;
 };
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -29,6 +33,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [profile, setProfile] = useState<any | null>(null);
   const [ready, setReady] = useState(false);
   const [themePref, setThemePref] = useState<'system'|'light'|'dark'>('system');
+  const [subscriptionStatus, setSubscriptionStatus] = useState<CurrentSubscriptionDTO | null>(null);
+
+  const canBeSubscriptionBlocked = (profileLike: any): boolean => {
+    const roles = getRoleNames(profileLike);
+    return roles.includes('PROPRIETAIRE') || roles.includes('OWNER') || roles.includes('GERANT') || roles.includes('GERANT_BOUTIQUE') || roles.includes('MANAGER');
+  };
+
+  const refreshSubscriptionStatus = async () => {
+    if (!token) {
+      setSubscriptionStatus(null);
+      return;
+    }
+    try {
+      const s = await fetchCurrentSubscriptionStatus(token);
+      const shouldTrack = canBeSubscriptionBlocked(profile);
+      if (!shouldTrack) {
+        setSubscriptionStatus(null);
+        return;
+      }
+      setSubscriptionStatus(s || null);
+    } catch (e) {
+      setSubscriptionStatus(null);
+    }
+  };
 
   const extractBoutiqueId = (payload: any): number | null => {
     const p = payload || null;
@@ -68,7 +96,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     let mounted = true;
     const loadProfile = async () => {
-      if (!token) { setProfile(null); return; }
+      if (!token) {
+        setProfile(null);
+        setSubscriptionStatus(null);
+        return;
+      }
       try {
         const p = await fetchCurrentUser(token).catch(() => null);
         if (!mounted) return;
@@ -80,13 +112,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (inferred != null) {
           setBoutiqueId((prev) => (prev != null ? prev : inferred));
         }
+
+        if (canBeSubscriptionBlocked(merged)) {
+          const s = await fetchCurrentSubscriptionStatus(token).catch(() => null);
+          if (mounted) setSubscriptionStatus(s || null);
+        } else {
+          if (mounted) setSubscriptionStatus(null);
+        }
       } catch (e) {
         setProfile(null);
+        setSubscriptionStatus(null);
       }
     };
     loadProfile();
     return () => { mounted = false; };
   }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    refreshSubscriptionStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, boutiqueId, profile?.id]);
 
   // When token/boutique changes, load current boutique details (including pays/devise)
   useEffect(() => {
@@ -147,8 +193,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [boutiqueId, ready]);
 
   const value = useMemo(
-    () => ({ token, setToken, boutiqueId, setBoutiqueId, currentBoutique, setCurrentBoutique, profile, setProfile, ready, themePref, setThemePref }),
-    [token, boutiqueId, currentBoutique, profile, ready, themePref]
+    () => ({ token, setToken, boutiqueId, setBoutiqueId, currentBoutique, setCurrentBoutique, profile, setProfile, ready, themePref, setThemePref, subscriptionStatus, refreshSubscriptionStatus }),
+    [token, boutiqueId, currentBoutique, profile, ready, themePref, subscriptionStatus]
   );
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };

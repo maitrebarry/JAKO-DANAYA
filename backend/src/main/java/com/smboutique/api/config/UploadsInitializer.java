@@ -26,7 +26,7 @@ public class UploadsInitializer {
         try {
             Path base = Paths.get(uploadDir).toAbsolutePath().normalize();
             Files.createDirectories(base);
-            List<String> subs = List.of("user_photo", "products", "logos", "model_photo");
+            List<String> subs = List.of("user_photo", "products", "logos", "model_photo", "subscription_receipts");
             for (String s : subs) {
                 Path p = base.resolve(s);
                 if (!Files.exists(p)) {
