@@ -239,6 +239,15 @@ export default function TopBar({ showBack = false }: { showBack?: boolean }) {
               })}
 
               {menuItem({
+                label: 'Abonnement',
+                icon: 'card-outline',
+                onPress: () => {
+                  closeMenu();
+                  navigation.navigate('Subscription');
+                },
+              })}
+
+              {menuItem({
                 label: 'Profil',
                 icon: 'person-outline',
                 onPress: () => {

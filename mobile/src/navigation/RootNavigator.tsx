@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LoginScreen from '../screens/LoginScreen';
 import BoutiqueSelectScreen from '../screens/BoutiqueSelectScreen';
 import MainTabs from './MainTabs';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import { useApp } from '../store/AppContext';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Alert } from 'react-native';
 import TopBar from '../components/TopBar';
-import { getRoleNames } from '../utils/permissions';
+import { getRoleNames, isSuperAdmin } from '../utils/permissions';
 import SubscriptionRenewScreen from '../screens/SubscriptionRenewScreen';
+import SubscriptionScreen from '../screens/SubscriptionScreen';
+import { approveAdminSubscriptionPayment, fetchAdminSubscriptionPayments, rejectAdminSubscriptionPayment } from '../services/admin';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -41,24 +43,83 @@ export type RootStackParamList = {
   ConfigurationAssignPermissions: undefined;
   ConfigurationMarges: undefined;
   SubscriptionRenew: undefined;
+  Subscription: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootNavigator() {
-  const { token, boutiqueId, ready, profile, subscriptionStatus } = useApp();
+  const { token, boutiqueId, ready, profile, subscriptionStatus, subscriptionChecked } = useApp();
   const topBarKey = profile?.photoUrl || profile?.photo || profile?.avatar || 'no-avatar';
+  const [lastPromptPaymentId, setLastPromptPaymentId] = useState<number | null>(null);
 
   const roles = getRoleNames(profile);
-  const isSubscriptionManagedRole =
-    roles.includes('PROPRIETAIRE') ||
-    roles.includes('OWNER') ||
-    roles.includes('GERANT') ||
-    roles.includes('GERANT_BOUTIQUE') ||
-    roles.includes('MANAGER');
-  const isSubscriptionBlocked = isSubscriptionManagedRole && !!subscriptionStatus?.blocked;
+  const isSubscriptionManagedRole = !!token;
+  const status = String(subscriptionStatus?.status || '').toUpperCase();
+  const isAllowedStatus = status === 'ACTIVE' || status === 'TRIAL';
+  const isSubscriptionBlocked = !!subscriptionStatus?.blocked || (subscriptionStatus?.configured && !isAllowedStatus);
+
+  useEffect(() => {
+    if (!token) return;
+    if (!subscriptionChecked) return;
+    if (!isSuperAdmin(profile)) return;
+
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const rows = await fetchAdminSubscriptionPayments(token, 'PENDING');
+        if (cancelled) return;
+        const first = Array.isArray(rows) ? rows[0] : null;
+        if (!first || !first.id) return;
+        if (lastPromptPaymentId === first.id) return;
+
+        setLastPromptPaymentId(first.id);
+        Alert.alert(
+          'Paiement abonnement en attente',
+          `Boutique: ${first.boutique_nom || '—'}\nRéf: ${first.reference || '—'}\nMontant: ${first.montant || 0} ${first.devise || ''}`,
+          [
+            { text: 'Plus tard', style: 'cancel' },
+            {
+              text: 'Rejeter',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  await rejectAdminSubscriptionPayment(token, first.id);
+                } catch (e: any) {
+                  Alert.alert('Erreur', e?.message || 'Rejet impossible');
+                }
+              },
+            },
+            {
+              text: 'Valider',
+              onPress: async () => {
+                try {
+                  await approveAdminSubscriptionPayment(token, first.id);
+                } catch (e: any) {
+                  Alert.alert('Erreur', e?.message || 'Validation impossible');
+                }
+              },
+            },
+          ]
+        );
+      } catch {
+        // ignore
+      }
+    };
+
+    run();
+    return () => { cancelled = true; };
+  }, [token, subscriptionChecked, profile?.id, lastPromptPaymentId]);
 
   if (!ready) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
+  if (token && isSubscriptionManagedRole && !subscriptionChecked) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator />
@@ -194,6 +255,11 @@ export default function RootNavigator() {
           <Stack.Screen
             name="ConfigurationMarges"
             component={require('../screens/ConfigurationMargesScreen').default}
+            options={{ headerShown: true, header: () => <TopBar key={topBarKey} showBack={true} /> }}
+          />
+          <Stack.Screen
+            name="Subscription"
+            component={SubscriptionScreen}
             options={{ headerShown: true, header: () => <TopBar key={topBarKey} showBack={true} /> }}
           />
         </>

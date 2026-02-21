@@ -1631,7 +1631,7 @@ const RoleBasedDashboard: React.FC = () => {
                       <p>Ventes annuelles</p>
                       <i className="bi bi-camera"></i>
                       <p><span className="text-primary">Vente totale</span></p>
-                      <p>{fmt(payload.widgets.bilan_ventes.annualTotal || 0)}</p>
+                      <p>{fmt((Number(payload.widgets.bilan_ventes.annualCash || 0) + Number(payload.widgets.bilan_ventes.annualCredit || 0)) || 0)}</p>
                       <p><span className="text-primary">Créance totale</span></p>
                       <p>{fmt(payload.widgets.bilan_ventes.annualCredit || 0)}</p>
                       <p><span className="text-primary">Montant en caisse</span></p>

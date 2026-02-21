@@ -176,6 +176,21 @@ export default function DashboardScreen({ navigation }: any) {
   const fmt = (n: number | null | undefined) => n == null ? '—' : new Intl.NumberFormat('fr-FR').format(n);
   const fmtMoney = useFormatMoney();
 
+  const annualTurnover = (() => {
+    const bv = dashPayload?.widgets?.bilan_ventes || null;
+    if (bv) {
+      const annualTotal = Number((bv as any).annualTotal ?? (bv as any).annual_total ?? NaN);
+      const annualCash = Number((bv as any).annualCash ?? (bv as any).annual_cash ?? 0);
+      const annualCredit = Number((bv as any).annualCredit ?? (bv as any).annual_credit ?? 0);
+      if (Number.isFinite(annualTotal)) return annualTotal;
+      const cash = Number.isFinite(annualCash) ? annualCash : 0;
+      const credit = Number.isFinite(annualCredit) ? annualCredit : 0;
+      return cash + credit;
+    }
+    const fallback = Number(overview?.salesTotal ?? NaN);
+    return Number.isFinite(fallback) ? fallback : null;
+  })();
+
   const formatMovementDate = (d: any) => {
     if (!d) return '';
     let dt = new Date(d);
@@ -253,8 +268,8 @@ export default function DashboardScreen({ navigation }: any) {
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons name="bar-chart" size={28} color={theme.primary} />
               <View style={{ marginLeft: 10 }}>
-                <Text style={{ color: theme.primary }}>Chiffre d'affaires du jour</Text>
-                <Text style={{ fontSize: 20, fontWeight: '800', color: theme.text }}>{fmtMoney(overview?.salesToday)}</Text>
+                <Text style={{ color: theme.primary }}>Chiffre d'affaires annuel</Text>
+                <Text style={{ fontSize: 20, fontWeight: '800', color: theme.text }}>{fmtMoney(annualTurnover)}</Text>
               </View>
             </View>
             {/* Mini sparkline for last 7d */}

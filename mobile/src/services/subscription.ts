@@ -23,6 +23,18 @@ export type SubscriptionPlanDTO = {
   devise: string;
 };
 
+export type SubscriptionPaymentDTO = {
+  id: number;
+  reference?: string;
+  provider?: string;
+  plan_code?: string;
+  montant?: number;
+  devise?: string;
+  statut?: string;
+  created_at?: string;
+  paid_at?: string;
+};
+
 type ReceiptFile = {
   uri: string;
   name?: string;
@@ -48,6 +60,18 @@ export async function fetchSubscriptionPlans(token: string): Promise<Subscriptio
   const data = await res.json().catch(() => []);
   if (!res.ok) {
     const msg = data?.message || data?.error || 'Erreur chargement plans abonnement';
+    throw new Error(msg);
+  }
+  return Array.isArray(data) ? data : [];
+}
+
+export async function fetchMySubscriptionPayments(token: string): Promise<SubscriptionPaymentDTO[]> {
+  const res = await fetch(`${API_BASE_URL}/api/subscription/payments`, {
+    headers: authHeader(token),
+  });
+  const data = await res.json().catch(() => []);
+  if (!res.ok) {
+    const msg = data?.message || data?.error || 'Erreur chargement paiements abonnement';
     throw new Error(msg);
   }
   return Array.isArray(data) ? data : [];

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useUser } from '../contexts/UserContext';
 import { useFormatMoney } from '../utils/currency';
@@ -33,6 +33,7 @@ interface CommandeData {
 
 const ListeCommandes: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentBoutique, logout } = useUser();
   const fmt = useFormatMoney();
   const [commandes, setCommandes] = useState<CommandeData[]>([]);
@@ -43,8 +44,8 @@ const ListeCommandes: React.FC = () => {
   const [selectedCommande, setSelectedCommande] = useState<CommandeData | null>(null);
 
   // Detect if we are in 'ventes' context by checking the current path or query param ?mode=vente
-  const urlParams = new URLSearchParams(window.location.search || '');
-  const isVenteMode = urlParams.get('mode') === 'vente' || (window.location.pathname && window.location.pathname.includes('/ventes'));
+  const urlParams = new URLSearchParams(location.search || '');
+  const isVenteMode = urlParams.get('mode') === 'vente' || (location.pathname && location.pathname.includes('/ventes'));
 
   // Permissions
   const canModifyCommande = useHasPermission('COMMANDE_MODIFIER');
@@ -60,7 +61,7 @@ const ListeCommandes: React.FC = () => {
     }
     fetchCommandes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentBoutique?.id]);
+  }, [currentBoutique?.id, isVenteMode]);
 
   useEffect(() => {
     if (searchQuery.trim() === '') {
@@ -160,6 +161,7 @@ const ListeCommandes: React.FC = () => {
     const viewLabel = ((selectedCommande as any).isVente === true) ? 'Voir la commande (Vente)' : 'Voir la commande (Fournisseur)';
     const printLabel = ((selectedCommande as any).isVente === true) ? 'Imprimer (Vente)' : 'Imprimer (Fournisseur)';
     const paymentLabel = ((selectedCommande as any).isVente === true) ? 'Paiement (Vente)' : 'Paiement (Fournisseur)';
+    const paymentStarted = (selectedCommande.pourcentage_paye ?? 0) > 0 || (selectedCommande.paie ?? 0) > 0;
 
     Swal.fire({
       title: `Actions pour ${selectedCommande.reference}`,
@@ -177,14 +179,14 @@ const ListeCommandes: React.FC = () => {
           <button class="btn btn-warning w-100 my-2 ${!canReception ? 'disabled' : ''}" onclick="window.handleActionFromSwal('reception')" ${!canReception ? 'disabled' : ''}>
             <i class="bx bx-box me-2"></i> ${receptionLabel}
           </button>
-          <button class="btn btn-success w-100 my-2 ${selectedCommande.pourcentage_recu > 0 || !canModifyCommande ? 'disabled' : ''}" 
+            <button class="btn btn-success w-100 my-2 ${selectedCommande.pourcentage_recu > 0 || paymentStarted || !canModifyCommande ? 'disabled' : ''}" 
                   onclick="window.handleActionFromSwal('modify')" 
-                  ${selectedCommande.pourcentage_recu > 0 || !canModifyCommande ? 'disabled' : ''}>
+              ${selectedCommande.pourcentage_recu > 0 || paymentStarted || !canModifyCommande ? 'disabled' : ''}>
             <i class="bx bx-edit me-2"></i> Modification
           </button>
-          <button class="btn btn-danger w-100 my-2 ${selectedCommande.pourcentage_recu > 0 || !canDeleteCommande ? 'disabled' : ''}" 
+            <button class="btn btn-danger w-100 my-2 ${selectedCommande.pourcentage_recu > 0 || paymentStarted || !canDeleteCommande ? 'disabled' : ''}" 
                   onclick="window.handleActionFromSwal('delete')" 
-                  ${selectedCommande.pourcentage_recu > 0 || !canDeleteCommande ? 'disabled' : ''}>
+              ${selectedCommande.pourcentage_recu > 0 || paymentStarted || !canDeleteCommande ? 'disabled' : ''}>
             <i class="bx bx-trash me-2"></i> Supprimer
           </button>
         </div>
@@ -209,6 +211,7 @@ const ListeCommandes: React.FC = () => {
     if (!selectedCommande) return;
 
     const isVenteItem = (selectedCommande as any).isVente === true;
+    const paymentStarted = (selectedCommande.pourcentage_paye ?? 0) > 0 || (selectedCommande.paie ?? 0) > 0;
 
     switch (action) {
       case 'view':
@@ -234,6 +237,10 @@ const ListeCommandes: React.FC = () => {
         break;
       case 'modify':
         if (!canModifyCommande) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de modifier les commandes', 'error'); return; }
+        if (paymentStarted) {
+          Swal.fire('Erreur', 'Impossible de modifier une commande avec paiement déjà déclenché', 'error');
+          return;
+        }
         if (selectedCommande.pourcentage_recu > 0) {
           Swal.fire('Erreur', 'Impossible de modifier une commande déjà réceptionnée', 'error');
         } else {
@@ -243,6 +250,10 @@ const ListeCommandes: React.FC = () => {
         break;
       case 'delete':
         if (!canDeleteCommande) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de supprimer les commandes', 'error'); return; }
+        if (paymentStarted) {
+          Swal.fire('Erreur', 'Impossible de supprimer une commande avec paiement déjà déclenché', 'error');
+          return;
+        }
         if (selectedCommande.pourcentage_recu > 0) {
           Swal.fire('Erreur', 'Impossible de supprimer une commande déjà réceptionnée', 'error');
         } else {

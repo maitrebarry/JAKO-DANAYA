@@ -793,6 +793,11 @@ const Sidebar = ({ isOpen = true, isMobile = false, closeSidebar = () => {} }: {
                 </Link>
               </li>
               <li>
+                <Link to="/liste-commandes" className="side-nav-link" style={{ paddingLeft: '40px', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                  <span>Liste commandes fournisseurs</span>
+                </Link>
+              </li>
+              <li>
                 <Link to="/historique" title="Historique (Réceptions & Paiements)" className="side-nav-link" style={{ paddingLeft: '40px', whiteSpace: 'normal', wordBreak: 'break-word' }}>
                   <span>Historique</span>
                 </Link>
@@ -845,6 +850,11 @@ const Sidebar = ({ isOpen = true, isMobile = false, closeSidebar = () => {} }: {
               <li>
                 <Link to="/ventes" className="side-nav-link" style={{ paddingLeft: '5px' }}>
                   <span>Ajouter Vente</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/liste-commandes?mode=vente" className="side-nav-link" style={{ paddingLeft: '5px', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                  <span>Liste commandes clients</span>
                 </Link>
               </li>
               <li>

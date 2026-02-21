@@ -219,13 +219,6 @@ export default function ConfigurationBoutiqueScreen() {
           ) : null}
         </View>
 
-        {!canEdit ? (
-          <View style={{ backgroundColor: theme.surface, borderRadius: 16, padding: 12, borderWidth: 1, borderColor, marginBottom: 12 }}>
-            <Text style={{ color: theme.text, fontWeight: '900' }}>Lecture seule</Text>
-            <Text style={{ color: theme.muted, marginTop: 6 }}>La modification de la boutique est réservée au SUPERADMIN.</Text>
-          </View>
-        ) : null}
-
         {loading ? (
           <ActivityIndicator />
         ) : !selected && !creatingNew ? (

@@ -10,6 +10,12 @@ import {
 import { fetchCurrentSubscriptionStatus } from '../api/admin';
 
 const SubscriptionPayments: React.FC = () => {
+  const defaultManualNumbers = {
+    ORANGE_MONEY: '74745669',
+    WAVE: '74745669',
+    MOBICASH: '67205736',
+  } as const;
+
   const paymentStatusLabel = (s?: string | null) => {
     switch ((s || '').toUpperCase()) {
       case 'PENDING': return 'En attente de validation';
@@ -183,14 +189,12 @@ const SubscriptionPayments: React.FC = () => {
           <small className="text-muted d-block mt-2">
             Flux manuel: vous envoyez une demande, puis le superadmin valide ou rejette.
           </small>
-          {manualNumbers && (
-            <div className="alert alert-info mt-3 mb-0">
-              <div className="fw-semibold mb-1">Numéros Mobile Money du service</div>
-              <div>Orange Money: {manualNumbers.ORANGE_MONEY || manualNumbers.ORANGE || '—'}</div>
-              <div>Wave: {manualNumbers.WAVE || '—'}</div>
-              <div>MobiCash: {manualNumbers.MOBICASH || manualNumbers.MTN || '—'}</div>
-            </div>
-          )}
+          <div className="alert alert-info mt-3 mb-0">
+            <div className="fw-semibold mb-1">Numéros Mobile Money du service</div>
+            <div>Orange Money: {(manualNumbers?.ORANGE_MONEY || (manualNumbers as any)?.ORANGE || defaultManualNumbers.ORANGE_MONEY) || '—'}</div>
+            <div>Wave: {(manualNumbers?.WAVE || defaultManualNumbers.WAVE) || '—'}</div>
+            <div>MobiCash: {(manualNumbers?.MOBICASH || (manualNumbers as any)?.MTN || defaultManualNumbers.MOBICASH) || '—'}</div>
+          </div>
         </div>
       </div>
 

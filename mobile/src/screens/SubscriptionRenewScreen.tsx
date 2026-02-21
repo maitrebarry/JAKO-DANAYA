@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, Alert, TextInput, ScrollView, Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../store/AppContext';
+import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import {
   fetchCurrentSubscriptionStatus,
   fetchSubscriptionPlans,
@@ -18,7 +20,8 @@ const MOBILE_NUMBERS = {
 type ModePaiement = 'ORANGE_MONEY' | 'WAVE' | 'MOBICASH';
 
 export default function SubscriptionRenewScreen() {
-  const { token, refreshSubscriptionStatus } = useApp();
+  const { token, refreshSubscriptionStatus, setToken, setBoutiqueId } = useApp();
+  const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
   const [subMessage, setSubMessage] = useState<string>('Votre abonnement a expiré. Veuillez vous réabonner pour accéder à l\'application.');
   const [plans, setPlans] = useState<SubscriptionPlanDTO[]>([]);
@@ -136,6 +139,20 @@ export default function SubscriptionRenewScreen() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+        <Pressable
+          onPress={() => {
+            setToken(null);
+            setBoutiqueId(null);
+            navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+          }}
+          style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#fff' }}
+        >
+          <Ionicons name="arrow-back" size={18} color="#2563eb" />
+          <Text style={{ marginLeft: 6, color: '#2563eb', fontWeight: '700' }}>Retour au login</Text>
+        </Pressable>
+      </View>
+
       <View style={{ backgroundColor: '#fff3cd', borderColor: '#ffe69c', borderWidth: 1, borderRadius: 10, padding: 12 }}>
         <Text style={{ fontWeight: '700', color: '#664d03', marginBottom: 4 }}>Abonnement expiré</Text>
         <Text style={{ color: '#664d03' }}>{subMessage}</Text>
