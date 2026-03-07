@@ -17,6 +17,7 @@ interface VenteLine {
   quantiteLivreeNow?: number;
   // conditionnement support
   quantiteConditionnement?: number;
+  orderedInConditionnement?: boolean;
   // Informations dépôt et stock (comme pour la réception)
   depot?: string;
   stock?: number;
@@ -107,6 +108,17 @@ const VenteLivraison: React.FC = () => {
   const [refLivraison] = useState(generateRefLivraison());
   const [dateLivraisonIso] = useState(new Date().toISOString());
   const [serverError, setServerError] = useState<{ message: string; details?: any } | null>(null);
+
+  const getDepotLabel = (line: VenteLine, stockInfo?: any) => {
+    return (
+      line.depot ||
+      stockInfo?.boutique?.nom ||
+      stockInfo?.magasin?.nom ||
+      stockInfo?.boutique?.adresse ||
+      stockInfo?.magasin?.adresse ||
+      '-'
+    );
+  };
 
 
 
@@ -297,6 +309,8 @@ const VenteLivraison: React.FC = () => {
           productId: l.produit?.id || l.id_produit || l.idProduit || null,
           designation: l.produit?.nomProduit || l.designation || '',
           quantite: l.quantite,
+          quantiteConditionnement: l.quantiteConditionnement,
+          orderedInConditionnement: l.quantiteConditionnement !== null && l.quantiteConditionnement !== undefined && Number(l.quantiteConditionnement) > 0,
           quantiteLivre: l.quantiteLivre || l.qte_livre || 0,
           id_stock: l.stockId || l.id_stock || null,
           depot: l.depot || null,
@@ -329,6 +343,8 @@ const VenteLivraison: React.FC = () => {
           id_stock: l.stockId || l.id_stock || l.id_stock || null,
           produit: l.produit || null,
           designation: l.designation || (l.produit && l.produit.nomProduit) || 'Produit',
+          quantiteConditionnement: l.quantiteConditionnement,
+          orderedInConditionnement: l.quantiteConditionnement !== null && l.quantiteConditionnement !== undefined && Number(l.quantiteConditionnement) > 0,
           quantiteCommande: qCommande,
           quantiteLivre: qLivre,
           quantiteLivreeNow: qRemaining,
@@ -361,7 +377,7 @@ const VenteLivraison: React.FC = () => {
         // Lignes de debug pour vérifier le mapping pendant les tests
         console.debug('enrich ligne', { baseId: base.id, productId, baseIdStock: base.id_stock, foundStock: stockInfo });
 
-        base.depot = base.depot || (stockInfo && stockInfo.magasin ? stockInfo.magasin.nom : (stockInfo && (stockInfo.produit || stockInfo.id_produit) ? 'Dépôt inconnu' : null));
+        base.depot = base.depot || stockInfo?.boutique?.nom || stockInfo?.magasin?.nom || null;
         base.stock = (base.stock !== undefined && base.stock !== null) ? base.stock : (stockInfo ? stockInfo.quantiteDisponible : null);
         return base;
       });
@@ -369,10 +385,14 @@ const VenteLivraison: React.FC = () => {
       // Pré-remplir la suggestion de livraison en unités lorsque la commande a une fraction de carton
       try {
         enriched.forEach((l) => {
+          if (!(l.orderedInConditionnement && (l.quantiteConditionnement || 0) > 0)) {
+            (l as any).quantiteLivreeNow = Math.max((l.quantiteCommande || 0) - (l.quantiteLivre || 0), 0);
+            return;
+          }
           const stockInfo = (stocks || []).find(s => s.id === l.id_stock);
           const multiplicateur = stockInfo?.produit?.nombreUnitesParConditionnement ?? 1;
           const qCommande = l.quantiteCommande || 0;
-          const condFromField = (l as any).quantiteConditionnement && (l as any).quantiteConditionnement > 0 ? (l as any).quantiteConditionnement : Math.floor(qCommande / multiplicateur);
+          const condFromField = (l as any).quantiteConditionnement && (l as any).quantiteConditionnement > 0 ? (l as any).quantiteConditionnement : 0;
           const remainder = qCommande - (condFromField * multiplicateur);
           (l as any).quantiteLivreeNow = remainder > 0 ? remainder : 0;
         });
@@ -404,7 +424,7 @@ const VenteLivraison: React.FC = () => {
       setIsClientCommande(true);
 
       // Map lines from ligne_commande_client structure
-      const lines = (data.lignes || []).map((l: any) => ({ id: l.id, produit: l.produit, designation: l.produit?.nomProduit || l.designation || '', quantite: l.quantite, quantiteLivre: l.quantiteLivre || 0, id_stock: l.stockId || l.id_stock || null, depot: l.depot || null, stock: l.stock !== undefined ? l.stock : null }));
+      const lines = (data.lignes || []).map((l: any) => ({ id: l.id, produit: l.produit, designation: l.produit?.nomProduit || l.designation || '', quantite: l.quantite, quantiteConditionnement: l.quantiteConditionnement, orderedInConditionnement: l.quantiteConditionnement !== null && l.quantiteConditionnement !== undefined && Number(l.quantiteConditionnement) > 0, quantiteLivre: l.quantiteLivre || 0, id_stock: l.stockId || l.id_stock || null, depot: l.depot || null, stock: l.stock !== undefined ? l.stock : null }));
 
       const mapped: VenteLine[] = (lines || []).map((l: any) => {
         const qCommande = l.quantite || l.quantiteCommande || 0;
@@ -415,6 +435,8 @@ const VenteLivraison: React.FC = () => {
           id_stock: l.stockId || l.id_stock || null,
           produit: l.produit || null,
           designation: l.designation || (l.produit && l.produit.nomProduit) || 'Produit',
+          quantiteConditionnement: l.quantiteConditionnement,
+          orderedInConditionnement: l.orderedInConditionnement || (l.quantiteConditionnement !== null && l.quantiteConditionnement !== undefined && Number(l.quantiteConditionnement) > 0),
           quantiteCommande: qCommande,
           quantiteLivre: qLivre,
           quantiteLivreeNow: qRemaining,
@@ -436,7 +458,7 @@ const VenteLivraison: React.FC = () => {
           if (!base.id_stock) base.id_stock = ps.id;
           console.debug('enrich commande ligne: using produit.stocks fallback', { baseId: base.id, produitStock: ps });
         }
-        base.depot = base.depot || (stockInfo && stockInfo.magasin ? stockInfo.magasin.nom : (stockInfo && stockInfo.produit ? 'Dépôt inconnu' : null));
+        base.depot = base.depot || stockInfo?.boutique?.nom || stockInfo?.magasin?.nom || null;
         base.stock = (base.stock !== undefined && base.stock !== null) ? base.stock : (stockInfo ? stockInfo.quantiteDisponible : null);
         return base;
       });
@@ -627,6 +649,17 @@ const VenteLivraison: React.FC = () => {
                 <div className="d-flex">
                   <select className="form-select me-2" value={selectedVenteId || ''} onChange={(e) => handleSelectVente(e.target.value || null)}>
                     <option value="">-- Sélectionner une commande --</option>
+                    {(ventes || []).filter((v: any) => v.type === 'vente').map((v: any) => {
+                      const totalDelivered = (v.lignes || []).reduce((acc: number, ln: any) => acc + (ln.quantiteLivre || ln.qte_livre || 0), 0);
+                      const totalOrdered = (v.lignes || []).reduce((acc: number, ln: any) => acc + (ln.quantite || ln.quantiteCommande || 0), 0) || 1;
+                      const deliveredPct = ((totalDelivered / totalOrdered) * 100).toFixed(1);
+                      const refLabel = v.referenceCaisse || v.reference || `Vente ${v.id}`;
+                      return (
+                        <option key={`vente-${v.id}`} value={v.id}>
+                          {refLabel} - {v.nomClient || '-'} - Vente en espèces - {deliveredPct}% livré
+                        </option>
+                      );
+                    })}
                     {(ventes || []).filter((v: any) => v.type === 'commande-client').map((v: any) => {
                       const totalReceived = (v.lignes || []).reduce((acc: number, ln: any) => acc + (ln.quantiteLivre || ln.qte_livre || 0), 0);
                       const totalOrdered = (v.lignes || []).reduce((acc: number, ln: any) => acc + (ln.quantite || ln.quantiteCommande || 0), 0) || 1;
@@ -670,51 +703,47 @@ const VenteLivraison: React.FC = () => {
                 {lignes.map((l, i) => {
                   const stockInfo = stocks.find(s => s.id === l.id_stock);
                   const remaining = (l.quantiteCommande || 0) - (l.quantiteLivre || 0);
+                  const isCond = !!(l.orderedInConditionnement && (l.quantiteConditionnement || 0) > 0);
+                  const condLabel = stockInfo?.produit?.unite?.libelle || 'Carton';
+                  const unitLabel = 'U';
+                  const nombreUnites = stockInfo?.produit?.nombreUnitesParConditionnement ?? null;
                   return (
                     <tr key={l.id || i}>
-                      <td><span className="badge bg-info text-white">{stockInfo?.magasin?.nom || (stockInfo?.produit?.nomProduit ? 'Dépôt inconnu' : '-')}</span></td>
+                      <td><span className="badge bg-info text-white">{getDepotLabel(l, stockInfo)}</span></td>
                       <td>{l.designation}{stockInfo?.produit?.unite?.libelle ? ` (${stockInfo.produit.unite.libelle})` : ''}</td>
                       <td>{stockInfo?.quantiteDisponible ?? '-'}</td>
                       <td>
-                        {(() => {
-                          const unit = stockInfo?.produit?.unite?.libelle || 'u';
-                          const nombreUnites = stockInfo?.produit?.nombreUnitesParConditionnement ?? null;
-                          if (l.quantiteConditionnement && l.quantiteConditionnement > 0) {
-                            return (<>
-                              <div>{l.quantiteConditionnement} {unit}</div>
-                              <div style={{fontSize: '0.8em'}}>(≈ {l.quantiteCommande || 0} u — 1 {unit} = {nombreUnites ?? 0} u)</div>
-                            </>);
-                          }
-                          return (<span>{l.quantiteCommande || 0} {unit}</span>);
-                        })()}
+                        {isCond ? (
+                          <>
+                            <div>{l.quantiteConditionnement || 0} {condLabel}</div>
+                            <div style={{fontSize: '0.8em'}}>(≈ {l.quantiteCommande || 0} {unitLabel}{nombreUnites ? ` — 1 ${condLabel} = ${nombreUnites} ${unitLabel}` : ''})</div>
+                          </>
+                        ) : (
+                          <span>{l.quantiteCommande || 0} {unitLabel}</span>
+                        )}
                       </td>
                       <td>
-                        {(() => {
-                          const unit = stockInfo?.produit?.unite?.libelle || 'u';
-                          const nombreUnites = stockInfo?.produit?.nombreUnitesParConditionnement ?? null;
-                          if (l.quantiteConditionnement && l.quantiteConditionnement > 0) {
-                            // show delivered in conditionnement if possible
-                            const deliveredUnits = l.quantiteLivre || 0;
-                            const deliveredCond = nombreUnites ? Math.floor(deliveredUnits / nombreUnites) : 0;
+                        {isCond ? (() => {
+                          const deliveredUnits = l.quantiteLivre || 0;
+                          const deliveredCond = (nombreUnites && deliveredUnits % nombreUnites === 0) ? (deliveredUnits / nombreUnites) : null;
+                          if (deliveredCond !== null) {
                             return (<>
-                              <div>{deliveredCond} {unit}</div>
-                              <div style={{fontSize: '0.8em'}}>(≈ {deliveredUnits} u)</div>
+                              <div>{deliveredCond} {condLabel}</div>
+                              <div style={{fontSize: '0.8em'}}>(≈ {deliveredUnits} {unitLabel})</div>
                             </>);
                           }
-                          return (<span>{l.quantiteLivre || 0} {unit}</span>);
-                        })()}
+                          return <span>{deliveredUnits} {unitLabel}</span>;
+                        })() : <span>{l.quantiteLivre || 0} {unitLabel}</span>}
                       </td>
                       <td>
-                        {(() => {
-                          const unit = stockInfo?.produit?.unite?.libelle || 'u';
-                          const nombreUnites = stockInfo?.produit?.nombreUnitesParConditionnement ?? null;
-                          if (l.quantiteConditionnement && l.quantiteConditionnement > 0) {
-                            const deliveredUnits = l.quantiteLivre || 0;
-                            const deliveredCond = nombreUnites ? Math.floor(deliveredUnits / nombreUnites) : 0;
-                            return (<span>{Math.max((l.quantiteConditionnement || 0) - deliveredCond, 0)} {unit}</span>);
+                        {isCond ? (() => {
+                          const deliveredUnits = l.quantiteLivre || 0;
+                          const deliveredCond = (nombreUnites && deliveredUnits % nombreUnites === 0) ? (deliveredUnits / nombreUnites) : null;
+                          if (deliveredCond !== null) {
+                            return <span>{Math.max((l.quantiteConditionnement || 0) - deliveredCond, 0)} {condLabel}</span>;
                           }
-                          return (<span>{remaining} {unit}</span>);
-                        })()}
+                          return <span>{remaining} {unitLabel}</span>;
+                        })() : <span>{remaining} {unitLabel}</span>}
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: 8, flexDirection: 'column' }}>
@@ -748,7 +777,7 @@ const VenteLivraison: React.FC = () => {
                             }}>Livrer tout</button>
                           </div>
 
-                          <small className="text-muted">{`Réel: ${l.quantiteLivreeNow || 0}${stockInfo?.produit?.unite?.libelle ? ` ${stockInfo.produit.unite.libelle}` : ''}`}</small>
+                          <small className="text-muted">{`Réel: ${l.quantiteLivreeNow || 0} ${unitLabel}`}</small>
                         </div>
                       </td>
                     </tr>

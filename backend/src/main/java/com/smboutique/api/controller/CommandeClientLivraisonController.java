@@ -93,6 +93,7 @@ public class CommandeClientLivraisonController {
                 if ((lr.quantite == null || lr.quantite <= 0) && (lr.quantiteConditionnement == null || lr.quantiteConditionnement <= 0)) continue;
                 LigneCommandeClient lcc = ligneCommandeClientService.findById(lr.ligneCommandeId).orElseThrow(() -> new RuntimeException("LigneCommandeClient introuvable"));
                 if (lcc.getCommandeClient() == null || !lcc.getCommandeClient().getId().equals(commandeId)) throw new RuntimeException("LigneCommandeClient ne correspond pas à la commande");
+                boolean orderedInConditionnement = lcc.getQuantiteConditionnement() != null && lcc.getQuantiteConditionnement() > 0;
                 Stock stock = stockService.getStockById(lr.stockId).orElseThrow(() -> new RuntimeException("Stock introuvable"));
                 // Business rule: delivery must use boutique-level stock
                 if (stock.getMagasin() != null) throw new RuntimeException("Livraison depuis un stock magasin interdite. Utilisez le stock boutique.");
@@ -101,6 +102,9 @@ public class CommandeClientLivraisonController {
                 int requestedUnits = 0;
                 if (lr.quantite != null && lr.quantite > 0) requestedUnits = lr.quantite;
                 else if (lr.quantiteConditionnement != null && lr.quantiteConditionnement > 0) {
+                    if (!orderedInConditionnement) {
+                        throw new RuntimeException("La ligne '" + (lcc.getProduit() != null ? lcc.getProduit().getNomProduit() : "") + "' a été commandée en unité (U). Veuillez livrer en U.");
+                    }
                     int mul = lcc.getProduit() != null && lcc.getProduit().getNombreUnitesParConditionnement() != null ? lcc.getProduit().getNombreUnitesParConditionnement() : 1;
                     requestedUnits = lr.quantiteConditionnement * mul;
                 }
@@ -117,12 +121,16 @@ public class CommandeClientLivraisonController {
             for (LivraisonLineRequest lr : request.lignes) {
                 if ((lr.quantite == null || lr.quantite <= 0) && (lr.quantiteConditionnement == null || lr.quantiteConditionnement <= 0)) continue;
                 LigneCommandeClient lcc = ligneCommandeClientService.findById(lr.ligneCommandeId).orElseThrow(() -> new RuntimeException("LigneCommandeClient introuvable"));
+                boolean orderedInConditionnement = lcc.getQuantiteConditionnement() != null && lcc.getQuantiteConditionnement() > 0;
                 Stock stock = stockService.getStockById(lr.stockId).orElseThrow(() -> new RuntimeException("Stock introuvable"));
 
                 // compute quantity in units
                 int qtyUnits = 0;
                 if (lr.quantite != null && lr.quantite > 0) qtyUnits = lr.quantite;
                 else if (lr.quantiteConditionnement != null && lr.quantiteConditionnement > 0) {
+                    if (!orderedInConditionnement) {
+                        throw new RuntimeException("La ligne '" + (lcc.getProduit() != null ? lcc.getProduit().getNomProduit() : "") + "' a été commandée en unité (U). Veuillez livrer en U.");
+                    }
                     int mul = lcc.getProduit() != null && lcc.getProduit().getNombreUnitesParConditionnement() != null ? lcc.getProduit().getNombreUnitesParConditionnement() : 1;
                     qtyUnits = lr.quantiteConditionnement * mul;
                 }

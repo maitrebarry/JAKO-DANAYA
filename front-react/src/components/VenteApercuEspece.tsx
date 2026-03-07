@@ -51,17 +51,7 @@ const VenteApercuEspece: React.FC = () => {
               qLabel = `${qCond} ${unitLabel ?? 'carton'}`;
             } else {
               const qty = lv.quantite ?? 0;
-              if (qty === 1) {
-                qLabel = `1 ${unitLabel ?? 'U'}`;
-              } else if (mul && mul > 1 && qty >= mul) {
-                const boxes = Math.floor(qty / mul);
-                const rem = qty % mul;
-                if (boxes > 0 && rem > 0) qLabel = `${boxes} ${unitLabel ?? 'carton'} + ${rem} U`;
-                else if (boxes > 0) qLabel = `${boxes} ${unitLabel ?? 'carton'}`;
-                else qLabel = `${rem} U`;
-              } else {
-                qLabel = `${qty} U`;
-              }
+              qLabel = `${qty} U`;
             }
 
             return {

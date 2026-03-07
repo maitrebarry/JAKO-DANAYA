@@ -1505,23 +1505,29 @@ public class PdfServiceImpl implements PdfService {
                         try { if (lv.getProduit() != null) mul = lv.getProduit().getNombreUnitesParConditionnement(); } catch (Exception ex) {}
                         try { if (lv.getProduit() != null && lv.getProduit().getUnite() != null) unitLabel = lv.getProduit().getUnite().getLibelle(); } catch (Exception ex) {}
 
+                        boolean isPureConditionnement = false;
+                        try {
+                            isPureConditionnement = qCond != null && qCond > 0 && mul != null && mul > 1 && q != null && q.equals(qCond * mul);
+                        } catch (Exception ex) { isPureConditionnement = false; }
+
                         String qteLabel;
-                        if (qCond != null) {
+                        if (qCond != null && isPureConditionnement) {
                             qteLabel = String.format("%d %s", qCond, unitLabel != null ? unitLabel : "carton");
-                        } else if (q == 1) {
-                            qteLabel = String.format("1 %s", unitLabel != null ? unitLabel : "U");
-                        } else if (mul != null && mul > 1 && q >= mul) {
-                            int boxes = q / mul;
-                            int rem = q % mul;
-                            if (boxes > 0 && rem > 0) qteLabel = String.format("%d %s + %d U", boxes, (unitLabel != null ? unitLabel : "carton"), rem);
-                            else if (boxes > 0) qteLabel = String.format("%d %s", boxes, (unitLabel != null ? unitLabel : "carton"));
-                            else qteLabel = String.format("%d U", rem);
                         } else {
                             qteLabel = String.format("%d U", q);
                         }
 
                         m.put("quantite", q);
                         m.put("quantiteConditionnement", qCond);
+                        m.put("showConditionnementInfo", qCond != null && qCond > 0 && mul != null && mul > 1);
+                        if (qCond != null && qCond > 0 && mul != null && mul > 1) {
+                            String uLbl = unitLabel != null ? unitLabel : "carton";
+                            if (isPureConditionnement) {
+                                m.put("conditionnementInfoLabel", String.format("%d %s (= %d unités)", qCond, uLbl, q));
+                            } else {
+                                m.put("conditionnementInfoLabel", String.format("Vendu: %d U (issu de %d %s)", q, qCond, uLbl));
+                            }
+                        }
 
                         // Ensure numeric defaults for prices to avoid nulls in templates
                         long priceVal = 0L;
@@ -1647,8 +1653,12 @@ public class PdfServiceImpl implements PdfService {
                                         if (mv instanceof Number) mulForLabel = ((Number)mv).intValue();
                                     }
                                 } catch (Exception __e) { mulForLabel = null; }
-                                if (qCondForLabel != null && mulForLabel != null && mulForLabel > 1) {
-                                    long displayPrice = priceL * (long) mulForLabel;
+                                Integer qtyForLabel = null;
+                                try { if (m.get("quantite") instanceof Number) qtyForLabel = ((Number)m.get("quantite")).intValue(); } catch (Exception __e) { qtyForLabel = null; }
+                                boolean pureCondForPrice = qCondForLabel != null && qCondForLabel > 0 && mulForLabel != null && mulForLabel > 1 && qtyForLabel != null && qtyForLabel.equals(qCondForLabel * mulForLabel);
+                                if (pureCondForPrice) {
+                                    int mulForPrice = mulForLabel != null ? mulForLabel : 1;
+                                    long displayPrice = priceL * (long) mulForPrice;
                                     String unitLbl = null;
                                     try { Object um = ((java.util.Map<?,?>)m.get("produit")).get("unite"); if (um instanceof java.util.Map) unitLbl = (String) ((java.util.Map<?,?>)um).get("libelle"); } catch (Exception __e) { unitLbl = null; }
                                     m.put("prixLabel", nf.format(displayPrice) + " " + labelSuffix + " / " + (unitLbl != null ? unitLbl : "carton"));
@@ -2084,6 +2094,7 @@ public class PdfServiceImpl implements PdfService {
                     m.put("designation", ll.getProduit() != null ? ll.getProduit().getNomProduit() : "Produit");
                     // try to include original ordered quantity if possible
                     Integer qteCommande = 0;
+                    Integer qteCommandeCond = null;
                     String uniteLibelle = null;
                     Integer nombreUnitesParConditionnement = null;
                     try {
@@ -2091,6 +2102,7 @@ public class PdfServiceImpl implements PdfService {
                             for (com.smboutique.api.model.LigneCommandeClient lcc : livraison.getCommandeClient().getLignes()) {
                                 if (lcc.getProduit() != null && ll.getProduit() != null && lcc.getProduit().getId() != null && lcc.getProduit().getId().equals(ll.getProduit().getId())) {
                                     qteCommande = lcc.getQuantite() != null ? lcc.getQuantite() : 0;
+                                    qteCommandeCond = lcc.getQuantiteConditionnement();
                                     // if product info is richer on the commande side, use it to extract unit libelle and multiplicateur
                                     try {
                                         if (lcc.getProduit() != null && lcc.getProduit().getUnite() != null) {
@@ -2137,13 +2149,31 @@ public class PdfServiceImpl implements PdfService {
                     m.put("uniteLibelle", uniteLibelle);
                     m.put("nombreUnitesParConditionnement", nombreUnitesParConditionnement);
                     // Prepare formatted labels to avoid template fallback inconsistencies
-                    String unitLabelToUse = uniteLibelle != null ? uniteLibelle : "u";
+                    String unitLabelToUse = uniteLibelle != null ? uniteLibelle : "carton";
+                    boolean orderedInConditionnement = qteCommandeCond != null && qteCommandeCond > 0;
                     try {
-                        m.put("qteCommandeLabel", String.format("%d %s", qteCommande, unitLabelToUse));
-                    } catch (Exception ex) { m.put("qteCommandeLabel", String.format("%d %s", qteCommande, unitLabelToUse)); }
+                        if (orderedInConditionnement) {
+                            m.put("qteCommandeLabel", String.format("%d %s", qteCommandeCond, unitLabelToUse));
+                        } else {
+                            m.put("qteCommandeLabel", String.format("%d U", qteCommande));
+                        }
+                    } catch (Exception ex) {
+                        if (orderedInConditionnement) m.put("qteCommandeLabel", String.format("%d %s", qteCommandeCond, unitLabelToUse));
+                        else m.put("qteCommandeLabel", String.format("%d U", qteCommande));
+                    }
                     try {
-                        m.put("qteLivreeLabel", String.format("%d %s", qteLivree, unitLabelToUse));
-                    } catch (Exception ex) { m.put("qteLivreeLabel", String.format("%d %s", qteLivree, unitLabelToUse)); }
+                        if (orderedInConditionnement && nombreUnitesParConditionnement != null && nombreUnitesParConditionnement > 0 && (qteLivree % nombreUnitesParConditionnement == 0)) {
+                            m.put("qteLivreeLabel", String.format("%d %s", (qteLivree / nombreUnitesParConditionnement), unitLabelToUse));
+                        } else {
+                            m.put("qteLivreeLabel", String.format("%d U", qteLivree));
+                        }
+                    } catch (Exception ex) {
+                        if (orderedInConditionnement && nombreUnitesParConditionnement != null && nombreUnitesParConditionnement > 0 && (qteLivree % nombreUnitesParConditionnement == 0)) {
+                            m.put("qteLivreeLabel", String.format("%d %s", (qteLivree / nombreUnitesParConditionnement), unitLabelToUse));
+                        } else {
+                            m.put("qteLivreeLabel", String.format("%d U", qteLivree));
+                        }
+                    }
                     // ensure a stock->produit->unite.libelle path is available for template fallbacks
                     try {
                         java.util.Map<String,Object> prodMap = new java.util.HashMap<>();

@@ -60,9 +60,8 @@
         <tr>
             <td>
                 <div th:text="${lv.produit != null ? lv.produit.nomProduit : (lv.designation != null ? lv.designation : 'Produit inconnu')}"></div>
-                <div class="small" th:if="${lv.quantiteConditionnement != null and lv.produit != null and lv.produit.nombreUnitesParConditionnement != null}">
-                    <span th:text="${lv.quantiteConditionnement}"></span> <span th:text="${lv.produit.uniteConditionnement != null ? lv.produit.uniteConditionnement : 'emballage'}"></span>
-                    (=<span th:text="${lv.produit.nombreUnitesParConditionnement}"></span> unités)
+                <div class="small" th:if="${lv.showConditionnementInfo != null and lv.showConditionnementInfo and lv.conditionnementInfoLabel != null}">
+                    <span th:text="${lv.conditionnementInfoLabel}"></span>
                 </div>
                 <div class="small" th:if="${lv.resteUnitesDansCartonApresVente != null}">Carton ouvert — reste <span th:text="${lv.resteUnitesDansCartonApresVente}"></span> unité<span th:if="${lv.resteUnitesDansCartonApresVente > 1}">s</span></div>
             </td>

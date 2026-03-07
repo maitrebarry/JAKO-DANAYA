@@ -95,9 +95,10 @@ public class VenteLivraisonController {
         try {
             // First pass: validate all lines without saving anything to ensure atomicity
             for (LivraisonLineRequest lr : request.lignes) {
-                if (lr.quantite == null || lr.quantite <= 0) continue;
+                if ((lr.quantite == null || lr.quantite <= 0) && (lr.quantiteConditionnement == null || lr.quantiteConditionnement <= 0)) continue;
                 LigneVente lc = ligneVenteService.findById(lr.ligneVenteId).orElseThrow(() -> new RuntimeException("LigneVente introuvable"));
                 if (lc.getVente() == null || !lc.getVente().getId().equals(venteId)) throw new RuntimeException("LigneVente ne correspond pas à la vente");
+                boolean soldInConditionnement = lc.getQuantiteConditionnement() != null && lc.getQuantiteConditionnement() > 0;
 
                 Stock requested = stockService.getStockById(lr.stockId).orElseThrow(() -> new RuntimeException("Stock introuvable"));
                 // Ensure requested stock belongs to the user's boutique if it's a magasin stock
@@ -117,7 +118,16 @@ public class VenteLivraisonController {
                 }
 
                 Integer available = stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0;
-                if (available < lr.quantite) {
+                int requestedUnits = 0;
+                if (lr.quantite != null && lr.quantite > 0) requestedUnits = lr.quantite;
+                else if (lr.quantiteConditionnement != null && lr.quantiteConditionnement > 0) {
+                    if (!soldInConditionnement) {
+                        throw new RuntimeException("La ligne '" + (lc.getProduit() != null ? lc.getProduit().getNomProduit() : "") + "' a été vendue en unités (U). Veuillez livrer en U.");
+                    }
+                    Integer mul = lc.getProduit() != null && lc.getProduit().getNombreUnitesParConditionnement() != null ? lc.getProduit().getNombreUnitesParConditionnement() : 1;
+                    requestedUnits = lr.quantiteConditionnement * mul;
+                }
+                if (available < requestedUnits) {
                     throw new RuntimeException("Stock insuffisant pour le produit " + lc.getProduit().getId());
                 }
             }
@@ -129,8 +139,9 @@ public class VenteLivraisonController {
             Livraison savedLiv = livraisonService.save(liv);
 
             for (LivraisonLineRequest lr : request.lignes) {
-                if (lr.quantite == null || lr.quantite <= 0) continue;
+                if ((lr.quantite == null || lr.quantite <= 0) && (lr.quantiteConditionnement == null || lr.quantiteConditionnement <= 0)) continue;
                 LigneVente lc = ligneVenteService.findById(lr.ligneVenteId).orElseThrow(() -> new RuntimeException("LigneVente introuvable"));
+                boolean soldInConditionnement = lc.getQuantiteConditionnement() != null && lc.getQuantiteConditionnement() > 0;
 
                 Stock requested = stockService.getStockById(lr.stockId).orElseThrow(() -> new RuntimeException("Stock introuvable"));
                 // Ensure requested stock belongs to the user's boutique if it's a magasin stock
@@ -152,6 +163,9 @@ public class VenteLivraisonController {
                 int qtyUnits = 0;
                 if (lr.quantite != null && lr.quantite > 0) qtyUnits = lr.quantite;
                 else if (lr.quantiteConditionnement != null && lr.quantiteConditionnement > 0) {
+                    if (!soldInConditionnement) {
+                        throw new RuntimeException("La ligne '" + (lc.getProduit() != null ? lc.getProduit().getNomProduit() : "") + "' a été vendue en unités (U). Veuillez livrer en U.");
+                    }
                     Integer mul = lc.getProduit() != null && lc.getProduit().getNombreUnitesParConditionnement() != null ? lc.getProduit().getNombreUnitesParConditionnement() : 1;
                     qtyUnits = lr.quantiteConditionnement * mul;
                 }
