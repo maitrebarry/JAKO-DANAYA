@@ -12,6 +12,8 @@ import com.smboutique.api.service.UniteService;
 import com.smboutique.api.service.UtilisateurService;
 import com.smboutique.api.dto.ProduitCreateDTO;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import org.springframework.security.core.Authentication;
@@ -21,6 +23,8 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -31,6 +35,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 @RestController
 @RequestMapping("/api/produits")
@@ -106,6 +112,49 @@ public class ProduitController {
             enrichProduitResponse(produit);
         }
         return produits;
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<?> exportProduits(@RequestParam(value = "boutiqueId", required = false) Long boutiqueId) {
+        Utilisateur user = getCurrentUser();
+        if (!hasPermission(user, "PRODUIT_LECTURE") && !isSuperAdmin(user)) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("error", "Permission manquante : PRODUIT_LECTURE");
+            return ResponseEntity.status(403).body(err);
+        }
+
+        Long targetBoutiqueId = boutiqueId;
+        if (!isSuperAdmin(user)) {
+            if (user.getBoutique() == null) {
+                Map<String, Object> err = new HashMap<>();
+                err.put("error", "Aucune boutique associée à l'utilisateur courant");
+                return ResponseEntity.badRequest().body(err);
+            }
+            targetBoutiqueId = user.getBoutique().getId();
+        }
+
+        if (targetBoutiqueId == null) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("error", "Paramètre boutiqueId requis");
+            return ResponseEntity.badRequest().body(err);
+        }
+
+        try {
+            byte[] payload = produitService.exportProduitsToExcel(targetBoutiqueId);
+            String timestamp = DateTimeFormatter.ofPattern("yyyyMMdd_HHmm").format(LocalDateTime.now());
+            String fileName = "produits_boutique_" + targetBoutiqueId + "_" + timestamp + ".xlsx";
+            String encodedName = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replace("+", "%20");
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+            headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"; filename*=UTF-8''" + encodedName);
+            headers.setContentLength(payload.length);
+            return ResponseEntity.ok().headers(headers).body(payload);
+        } catch (Exception e) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("error", e.getMessage() != null ? e.getMessage() : "Erreur lors de l'export");
+            return ResponseEntity.status(500).body(err);
+        }
     }
 
     @GetMapping("/{id}")

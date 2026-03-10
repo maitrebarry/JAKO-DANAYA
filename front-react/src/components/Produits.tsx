@@ -55,6 +55,7 @@ const Produits: React.FC = () => {
   const [importProgress, setImportProgress] = useState<number>(0);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState<boolean>(false);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
   const [createMissingUnits, setCreateMissingUnits] = useState<boolean>(true);
   const [detailProduit, setDetailProduit] = useState<any>(null);
   const [newProduit, setNewProduit] = useState({
@@ -233,6 +234,65 @@ const Produits: React.FC = () => {
       console.error('fetchMargeConfig', err);
       setMargeConfig(null);
     } finally {
+    }
+  };
+
+  const handleExportProduits = async () => {
+    if (isExporting) return;
+    if (!currentBoutique?.id) {
+      setMessage('Aucune boutique sélectionnée pour exporter les produits.');
+      return;
+    }
+    try {
+      setIsExporting(true);
+      const token = localStorage.getItem('smb_token');
+      if (!token) {
+        navigate('/');
+        return;
+      }
+      const params = new URLSearchParams({ boutiqueId: currentBoutique.id.toString() });
+      const res = await fetch(`${API}/produits/export?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.status === 401) {
+        navigate('/');
+        return;
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Impossible de générer le fichier Excel.');
+      }
+
+      const blob = await res.blob();
+      const disposition = res.headers.get('Content-Disposition') || res.headers.get('content-disposition') || '';
+      let filename = `produits_${currentBoutique.nom || 'boutique'}.xlsx`;
+      const match = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+      if (match) {
+        const candidate = match[1] || match[2];
+        if (candidate) {
+          try {
+            filename = decodeURIComponent(candidate);
+          } catch (_) {
+            filename = candidate;
+          }
+        }
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      setMessage('Export Excel généré avec succès.');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err: any) {
+      setMessage(err.message || 'Erreur lors de l\'export des produits.');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -597,6 +657,26 @@ const Produits: React.FC = () => {
                     <RequirePermission permission="PRODUIT_CREER">
                       <button className="btn btn-outline-primary mb-3 mb-lg-0" onClick={() => setShowImportModal(true)}>
                         <i className='bx bx-import'></i> Import Excel
+                      </button>
+                    </RequirePermission>
+                  </div>
+                  <div className="me-3">
+                    <RequirePermission permission="PRODUIT_LECTURE">
+                      <button
+                        className="btn btn-outline-secondary mb-3 mb-lg-0"
+                        onClick={handleExportProduits}
+                        disabled={isExporting}
+                      >
+                        {isExporting ? (
+                          <>
+                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            Export en cours
+                          </>
+                        ) : (
+                          <>
+                            <i className='bx bx-export'></i> Export Excel
+                          </>
+                        )}
                       </button>
                     </RequirePermission>
                   </div>

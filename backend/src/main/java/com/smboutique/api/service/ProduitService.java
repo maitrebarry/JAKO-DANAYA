@@ -23,4 +23,6 @@ public interface ProduitService {
     com.smboutique.api.dto.ImportJobStatus getImportJobStatus(String jobId);
 
     com.smboutique.api.dto.ImportResult getImportJobReport(String jobId);
+
+    byte[] exportProduitsToExcel(Long boutiqueId);
 }

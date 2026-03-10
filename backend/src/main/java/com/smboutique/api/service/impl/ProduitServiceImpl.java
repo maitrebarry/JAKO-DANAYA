@@ -19,8 +19,12 @@ import org.springframework.stereotype.Service;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class ProduitServiceImpl implements ProduitService {
@@ -612,5 +616,98 @@ public class ProduitServiceImpl implements ProduitService {
             throw new IllegalStateException("Job not completed");
         }
         return new com.smboutique.api.dto.ImportResult(s.getProcessedCount(), s.getErrors());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] exportProduitsToExcel(Long boutiqueId) {
+        if (boutiqueId == null) {
+            throw new IllegalArgumentException("boutiqueId requis");
+        }
+
+        List<Produit> produits = produitRepository.findByBoutiqueIdWithStocks(boutiqueId);
+        if (produits == null) {
+            produits = Collections.emptyList();
+        }
+
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Produits");
+
+            CellStyle headerStyle = workbook.createCellStyle();
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerStyle.setFont(headerFont);
+
+            String[] headers = new String[] {
+                    "ID",
+                    "Nom",
+                    "Unité",
+                    "Unités/cond.",
+                    "Prix achat",
+                    "Prix gros",
+                    "Prix détail",
+                    "Stock total (u.)",
+                    "Stock boutique (u.)",
+                    "Stocks magasins",
+                    "Alerte stock"
+            };
+
+            Row header = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = header.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            int rowIdx = 1;
+            for (Produit produit : produits) {
+                Row row = sheet.createRow(rowIdx++);
+
+                List<Stock> scopedStocks = (produit.getStocks() == null)
+                        ? Collections.emptyList()
+                        : produit.getStocks().stream()
+                        .filter(stock -> stock != null
+                                && stock.getBoutique() != null
+                                && boutiqueId.equals(stock.getBoutique().getId()))
+                        .collect(Collectors.toList());
+
+                int totalStock = scopedStocks.stream()
+                        .mapToInt(stock -> stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0)
+                        .sum();
+                int boutiqueStock = scopedStocks.stream()
+                        .filter(stock -> stock.getMagasin() == null)
+                        .mapToInt(stock -> stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0)
+                        .sum();
+                String magasinDetails = scopedStocks.stream()
+                        .filter(stock -> stock.getMagasin() != null)
+                        .map(stock -> {
+                            String magasinName = stock.getMagasin().getNom() != null ? stock.getMagasin().getNom() : ("Magasin #" + stock.getMagasin().getId());
+                            int qty = stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0;
+                            return magasinName + ": " + qty;
+                        })
+                        .collect(Collectors.joining(" | "));
+
+                row.createCell(0).setCellValue(produit.getId() != null ? produit.getId() : 0);
+                row.createCell(1).setCellValue(produit.getNomProduit() != null ? produit.getNomProduit() : "");
+                row.createCell(2).setCellValue(produit.getUnite() != null && produit.getUnite().getLibelle() != null ? produit.getUnite().getLibelle() : "");
+                row.createCell(3).setCellValue(produit.getNombreUnitesParConditionnement() != null ? produit.getNombreUnitesParConditionnement() : 0);
+                row.createCell(4).setCellValue(produit.getPrixAchat() != null ? produit.getPrixAchat() : 0);
+                row.createCell(5).setCellValue(produit.getPrixEnGros() != null ? produit.getPrixEnGros() : 0);
+                row.createCell(6).setCellValue(produit.getPrixDetail() != null ? produit.getPrixDetail() : 0);
+                row.createCell(7).setCellValue(totalStock);
+                row.createCell(8).setCellValue(boutiqueStock);
+                row.createCell(9).setCellValue(magasinDetails);
+                row.createCell(10).setCellValue(produit.getAlerteStock() != null ? produit.getAlerteStock() : 0);
+            }
+
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            workbook.write(out);
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new RuntimeException("Erreur lors de la génération du fichier Excel", e);
+        }
     }
 }
