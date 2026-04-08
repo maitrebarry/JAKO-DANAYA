@@ -34,6 +34,9 @@ public class UtilisateurController {
     @Autowired
     private com.smboutique.api.service.PhoneService phoneService;
 
+    @Autowired
+    private com.smboutique.api.repository.UtilisateurRepository utilisateurRepository;
+
     private Utilisateur getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -187,6 +190,9 @@ public class UtilisateurController {
             }
             try {
                 String normalized = phoneService.validateAndNormalize(utilisateur.getContact(), utilisateur.getCodePays());
+                if (utilisateurRepository.existsByContact(normalized)) {
+                    return ResponseEntity.status(400).body(java.util.Collections.singletonMap("message", "Ce numéro de téléphone est déjà utilisé"));
+                }
                 utilisateur.setContact(normalized);
             } catch (IllegalArgumentException e) {
                 return ResponseEntity.status(400).body(java.util.Collections.singletonMap("message", e.getMessage()));
@@ -227,6 +233,10 @@ public class UtilisateurController {
             }
             try {
                 String normalized = phoneService.validateAndNormalize(utilisateurDetails.getContact(), utilisateurDetails.getCodePays());
+                com.smboutique.api.model.Utilisateur dup = utilisateurRepository.findByContact(normalized).orElse(null);
+                if (dup != null && dup.getId() != null && !dup.getId().equals(existing.getId())) {
+                    return ResponseEntity.status(400).body(java.util.Collections.singletonMap("message", "Ce numéro de téléphone est déjà utilisé"));
+                }
                 existing.setContact(normalized);
             } catch (IllegalArgumentException e) {
                 return ResponseEntity.status(400).body(java.util.Collections.singletonMap("message", e.getMessage()));

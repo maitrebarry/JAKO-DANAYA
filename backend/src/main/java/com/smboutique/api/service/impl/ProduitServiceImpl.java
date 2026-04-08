@@ -2,10 +2,8 @@ package com.smboutique.api.service.impl;
 
 import com.smboutique.api.model.Produit;
 import com.smboutique.api.model.Unite;
-import com.smboutique.api.model.Magasin;
 import com.smboutique.api.model.Stock;
 import com.smboutique.api.repository.UniteRepository;
-import com.smboutique.api.repository.MagasinRepository;
 import com.smboutique.api.repository.ProduitRepository;
 import com.smboutique.api.service.ProduitService;
 import com.smboutique.api.dto.ImportResult;
@@ -21,6 +19,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -36,8 +35,6 @@ public class ProduitServiceImpl implements ProduitService {
 
     @Autowired
     private com.smboutique.api.service.UniteService uniteService;
-    @Autowired
-    private MagasinRepository magasinRepository;
     @Autowired
     private com.smboutique.api.service.StockService stockService;
 
@@ -70,6 +67,16 @@ public class ProduitServiceImpl implements ProduitService {
     @Override
     public Produit save(Produit produit) {
         return produitRepository.save(produit);
+    }
+
+    private void initializeStockValuationFromProduct(Stock stock, Produit produit) {
+        Integer quantity = stock.getQuantiteDisponible();
+        if (quantity == null || quantity <= 0 || produit == null || produit.getPrixAchat() == null) {
+            return;
+        }
+        BigDecimal purchasePrice = BigDecimal.valueOf(produit.getPrixAchat());
+        stock.setCostAverage(purchasePrice);
+        stock.setLastPurchasePrice(purchasePrice);
     }
 
     @Override
@@ -203,9 +210,7 @@ public class ProduitServiceImpl implements ProduitService {
         com.smboutique.api.model.Boutique b = boutiqueRepository.findById(boutiqueId).orElse(null);
         boutiqueStock.setBoutique(b);
         boutiqueStock.setQuantiteDisponible(stockReel);
-        // CMP / last purchase intentionally left null until first reception
-        boutiqueStock.setCostAverage(null);
-        boutiqueStock.setLastPurchasePrice(null);
+        initializeStockValuationFromProduct(boutiqueStock, savedProduit);
         stockService.saveStock(boutiqueStock);
 
 
@@ -450,10 +455,9 @@ public class ProduitServiceImpl implements ProduitService {
                     Stock boutiqueStock = new Stock();
                     boutiqueStock.setProduit(saved);
                     boutiqueStock.setMagasin(null);
-                    boutiqueStock.setBoutique(currentUser.getBoutique());
+                    boutiqueStock.setBoutique(currentUser != null ? currentUser.getBoutique() : null);
                     boutiqueStock.setQuantiteDisponible(quantiteReel);
-                    boutiqueStock.setCostAverage(null);
-                    boutiqueStock.setLastPurchasePrice(null);
+                    initializeStockValuationFromProduct(boutiqueStock, saved);
                     stockService.saveStock(boutiqueStock);
 
                     processed++;

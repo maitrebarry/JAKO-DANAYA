@@ -23,8 +23,13 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        Utilisateur utilisateur = utilisateurRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé avec l'email: " + email));
+        String id = email == null ? null : email.trim();
+        if (id == null || id.isEmpty()) {
+            throw new UsernameNotFoundException("Email manquant");
+        }
+
+        Utilisateur utilisateur = utilisateurRepository.findByEmailIgnoreCase(id)
+                .orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé avec l'email: " + id));
 
         Set<GrantedAuthority> authorities = new HashSet<>();
 
@@ -54,12 +59,13 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
         String s = utilisateur.getStatut();
         boolean enabled = s != null && ("ACTIF".equalsIgnoreCase(s) || "ON".equalsIgnoreCase(s) || "ACTIVE".equalsIgnoreCase(s) || "TRUE".equalsIgnoreCase(s) || "1".equals(s));
+        // Keep principal username as email for compatibility across the codebase.
         return new UserDetailsImpl(
-                utilisateur.getId(),
-                utilisateur.getEmail(),
-                utilisateur.getEmail(),
-                utilisateur.getMotDePasse(),
-                authorities,
-                enabled);
+            utilisateur.getId(),
+            utilisateur.getEmail(),
+            utilisateur.getEmail(),
+            utilisateur.getMotDePasse(),
+            authorities,
+            enabled);
     }
 }

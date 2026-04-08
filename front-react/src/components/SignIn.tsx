@@ -327,7 +327,7 @@ const SignIn = () => {
           <div className="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5 col-xxl-4 me-lg-4 me-xl-5">
             <div className="card">
               <div className="card-header pt-4 pb-4 text-center bg-primary">
-                <span className="fw-bold text-white" style={{
+                <span className="fw-bold text-white brand-title" style={{
                   background: 'linear-gradient(45deg, #007bff, #6610f2)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
@@ -344,13 +344,22 @@ const SignIn = () => {
               <div className="card-body p-4">
                 <div className="text-center w-75 m-auto">
                   <h4 className="text-dark-50 text-center pb-0 fw-bold">Connexion</h4>
-                  <p className="text-muted mb-4">Entrez votre adresse email et mot de passe pour accéder à JÀGO DÁNAYA.</p>
+                  <p className="text-muted mb-4">Entrez votre email et mot de passe pour accéder à JÀGO DÁNAYA.</p>
                 </div>
                 {error && <div className="alert alert-danger">{error}</div>}
                 <form onSubmit={handleSubmit}>
                   <div className="mb-3">
                     <label htmlFor="emailaddress" className="form-label">Adresse email</label>
-                    <input className="form-control form-control-lg" type="email" id="emailaddress" value={email} onChange={e => setEmail(e.target.value)} placeholder="Entrez votre email" required />
+                    <input
+                      className="form-control form-control-lg"
+                      type="email"
+                      id="emailaddress"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="Entrez votre email"
+                      autoComplete="username"
+                      required
+                    />
                   </div>
                   <div className="mb-3">
                     <label htmlFor="password" className="form-label">Mot de passe</label>

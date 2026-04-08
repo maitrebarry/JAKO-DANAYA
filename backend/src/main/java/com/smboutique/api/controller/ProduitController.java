@@ -23,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -55,6 +56,16 @@ public class ProduitController {
     private String uploadsBase() {
         String base = (appBaseUrl == null) ? "http://localhost:8085" : appBaseUrl;
         return base.replaceAll("/+$","") + "/" + UPLOAD_DIR;
+    }
+
+    private void initializeStockValuationFromProduct(Stock stock, Produit produit) {
+        Integer quantity = stock.getQuantiteDisponible();
+        if (quantity == null || quantity <= 0 || produit == null || produit.getPrixAchat() == null) {
+            return;
+        }
+        BigDecimal purchasePrice = BigDecimal.valueOf(produit.getPrixAchat());
+        stock.setCostAverage(purchasePrice);
+        stock.setLastPurchasePrice(purchasePrice);
     }
 
     @Autowired
@@ -321,8 +332,7 @@ public class ProduitController {
         // set boutique owner and create with the initial stock (converted to units)
         boutiqueStock.setBoutique(current.getBoutique());
         boutiqueStock.setQuantiteDisponible(stockReel);
-        boutiqueStock.setCostAverage(null);
-        boutiqueStock.setLastPurchasePrice(null);
+        initializeStockValuationFromProduct(boutiqueStock, savedProduit);
         stockService.saveStock(boutiqueStock);
         // If client provided magasinIds, ignore here and advise to use stock assignation endpoint.
         if (magasinIds != null && !magasinIds.isEmpty()) {

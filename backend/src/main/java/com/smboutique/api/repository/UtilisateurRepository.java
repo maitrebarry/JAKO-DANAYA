@@ -12,6 +12,8 @@ import org.springframework.data.repository.query.Param;
 public interface UtilisateurRepository extends JpaRepository<Utilisateur, Long> {
     Optional<Utilisateur> findByPseudo(String pseudo);
     Optional<Utilisateur> findByEmailIgnoreCase(String email);
+    Optional<Utilisateur> findByContact(String contact);
+    boolean existsByContact(String contact);
     Optional<Utilisateur> findByResetToken(String resetToken);
     List<Utilisateur> findByBoutiqueId(Long boutiqueId);
 

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.math.BigDecimal;
 
 @Service
 public class StockServiceImpl implements StockService {
@@ -29,6 +30,20 @@ public class StockServiceImpl implements StockService {
     public Stock saveStock(Stock stock) {
         if (stock.getBoutique() == null) {
             throw new IllegalArgumentException("Stock must be associated to a boutique");
+        }
+        Integer quantity = stock.getQuantiteDisponible();
+        if (quantity != null && quantity > 0 && stock.getCostAverage() == null) {
+            BigDecimal fallbackCost = stock.getLastPurchasePrice();
+            if (fallbackCost == null && stock.getProduit() != null && stock.getProduit().getPrixAchat() != null) {
+                fallbackCost = BigDecimal.valueOf(stock.getProduit().getPrixAchat());
+            }
+            if (fallbackCost == null) {
+                throw new IllegalArgumentException("Impossible d'enregistrer un stock positif sans cout moyen. Renseignez un prix d'achat.");
+            }
+            stock.setCostAverage(fallbackCost);
+            if (stock.getLastPurchasePrice() == null) {
+                stock.setLastPurchasePrice(fallbackCost);
+            }
         }
         // Safety guard: do not allow reassigning an existing boutique-level stock (magasin == null)
         // to a magasin by updating the same stock row. Enforce creation of a new magasin-level stock instead.
