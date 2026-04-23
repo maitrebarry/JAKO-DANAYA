@@ -38,6 +38,12 @@ import java.util.HashSet;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.datasource.init.ScriptUtils;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import javax.sql.DataSource;
+import java.sql.Connection;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -128,9 +134,16 @@ public class DataInitializer implements CommandLineRunner {
     @Value("${app.reset-db:false}")
     private boolean resetDb;
 
+    @Autowired
+    private DataSource dataSource;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @Override
     public void run(String... args) throws Exception {
         logger.info("Starting data initialization...");
+        ensureSubscriptionTables();
         if (resetDb) {
             resetDatabase();
         }
@@ -578,6 +591,25 @@ public class DataInitializer implements CommandLineRunner {
                     logger.info("Superadmin user already has all permissions");
                 }
             });
+        }
+    }
+
+    /**
+     * Ensure subscription tables exist; if not, execute bundled SQL migration.
+     */
+    private void ensureSubscriptionTables() {
+        try {
+            jdbcTemplate.queryForList("SELECT 1 FROM abonnement_plan LIMIT 1");
+            logger.info("Subscription tables already present.");
+        } catch (Exception ex) {
+            logger.warn("Subscription tables missing, attempting to create them: {}", ex.getMessage());
+            try (Connection conn = dataSource.getConnection()) {
+                ClassPathResource resource = new ClassPathResource("db/migration/20260214_add_abonnement_tables.sql");
+                ScriptUtils.executeSqlScript(conn, resource);
+                logger.info("Subscription tables created from migration script.");
+            } catch (Exception e) {
+                logger.error("Failed to create subscription tables automatically: {}", e.getMessage(), e);
+            }
         }
     }
 
