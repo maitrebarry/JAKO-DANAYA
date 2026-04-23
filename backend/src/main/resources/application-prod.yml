@@ -1,23 +1,75 @@
+# spring:
+#   config:
+#     activate:
+#       on-profile: prod
+
+#   datasource:
+#     url: ${SPRING_DATASOURCE_URL}
+#     username: ${SPRING_DATASOURCE_USERNAME}
+#     password: ${SPRING_DATASOURCE_PASSWORD}
+#     driver-class-name: org.postgresql.Driver
+
+#   jpa:
+#     database-platform: org.hibernate.dialect.PostgreSQLDialect
+#     hibernate:
+#       ddl-auto: update
+#     show-sql: false
+#     properties:
+#       hibernate:
+#         jdbc:
+#           time_zone: UTC
+
+#   security:
+#     oauth2:
+#       client:
+#         registration:
+#           google:
+#             client-id: ${GOOGLE_CLIENT_ID}
+#             client-secret: ${GOOGLE_CLIENT_SECRET}
+#             scope: openid,profile,email
+#             redirect-uri: https://jako-danaya.onrender.com/login/oauth2/code/google
+
+# # Server config for proxy handling
+# server:
+#   forward-headers-strategy: framework
+
+# # Frontend base for production
+# app:
+#   frontend:
+#     base-url: ${APP_FRONTEND_BASE_URL:https://jakodanaya.onrender.com}
+
+# management:
+#   endpoints:
+#     web:
+#       exposure:
+#         include: health,info
+
 spring:
   config:
     activate:
       on-profile: prod
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL}
+    url: ${SPRING_DATASOURCE_URL}?currentSchema=public
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      schema: public
+      connection-init-sql: CREATE SCHEMA IF NOT EXISTS public
 
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
-    show-sql: false
+    show-sql: true  # Mettre à false en production après test
     properties:
       hibernate:
         jdbc:
           time_zone: UTC
+        default_schema: public
+        format_sql: true
+    generate-ddl: true
 
   security:
     oauth2:
@@ -29,11 +81,9 @@ spring:
             scope: openid,profile,email
             redirect-uri: https://jako-danaya.onrender.com/login/oauth2/code/google
 
-# Server config for proxy handling
 server:
   forward-headers-strategy: framework
 
-# Frontend base for production
 app:
   frontend:
     base-url: ${APP_FRONTEND_BASE_URL:https://jakodanaya.onrender.com}
