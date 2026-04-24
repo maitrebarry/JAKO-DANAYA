@@ -54,6 +54,11 @@ export default function ProductFormScreen({ route, navigation }: any) {
       const cfg = await fetchConfigurationMarge(boutiqueId, token as string);
       console.log('FETCH_MARGE_RESULT', cfg);
       setMargeConfig(cfg);
+      // If configuration is MANUEL, disable automatic margin computation by default
+      try {
+        const t = (cfg && cfg.typeMarge) ? String(cfg.typeMarge).toUpperCase() : null;
+        if (t === 'MANUEL') setComputeMargins(false);
+      } catch (e) { /* ignore parsing errors */ }
     } catch (e:any) {
       console.warn('FETCH_MARGE_FAILED', e);
       setMargeConfig(null);
@@ -186,6 +191,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
   const computeSuggested = (prixAchatVal: number | null, cfg: any | null) => {
     if (!cfg || prixAchatVal == null) return { prixEnGros: null, prixDetail: null };
     const type = (cfg.typeMarge || 'FIXE').toUpperCase();
+    if (type === 'MANUEL') return { prixEnGros: null, prixDetail: null };
     let gros = 0, detail = 0;
     if (type === 'FIXE') {
       gros = prixAchatVal + (Number(cfg.valeurGros || 0) || 0);

@@ -32,7 +32,7 @@ public final class MargeCalculator {
             margD = valD.max(minD);
             prixGrosBD = prixAchat.add(margG);
             prixDetailBD = prixAchat.add(margD);
-        } else {
+        } else if (cfg.getTypeMarge() == ConfigurationMarge.TypeMarge.POURCENTAGE) {
             // POURCENTAGE
             BigDecimal compG = prixAchat.multiply(valG).divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
             BigDecimal compD = prixAchat.multiply(valD).divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
@@ -40,6 +40,9 @@ public final class MargeCalculator {
             margD = compD.max(minD);
             prixGrosBD = prixAchat.add(margG);
             prixDetailBD = prixAchat.add(margD);
+        } else {
+            // MANUEL: do not modify product prices/margins
+            return;
         }
 
         p.setPrixEnGros(prixGrosBD.setScale(0, RoundingMode.HALF_UP).intValue());

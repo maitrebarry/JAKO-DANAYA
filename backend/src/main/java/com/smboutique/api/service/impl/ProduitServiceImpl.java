@@ -118,6 +118,7 @@ public class ProduitServiceImpl implements ProduitService {
                     int prixGrosComputed = prixAchatVal;
                     int prixDetailComputed = prixAchatVal;
 
+                    // Only compute margins for FIXE or POURCENTAGE. If MANUEL, skip automatic computation.
                     if (cfg.getTypeMarge() == com.smboutique.api.model.ConfigurationMarge.TypeMarge.FIXE) {
                         double vG = cfg.getValeurGros() != null ? cfg.getValeurGros().doubleValue() : 0.0;
                         double vD = cfg.getValeurDetail() != null ? cfg.getValeurDetail().doubleValue() : 0.0;
@@ -127,7 +128,7 @@ public class ProduitServiceImpl implements ProduitService {
                         double margD = Math.max(vD, minD);
                         prixGrosComputed = (int)Math.round(prixAchatVal + margG);
                         prixDetailComputed = (int)Math.round(prixAchatVal + margD);
-                    } else {
+                    } else if (cfg.getTypeMarge() == com.smboutique.api.model.ConfigurationMarge.TypeMarge.POURCENTAGE) {
                         double vgPct = cfg.getValeurGros() != null ? cfg.getValeurGros().doubleValue() : 0.0;
                         double vdPct = cfg.getValeurDetail() != null ? cfg.getValeurDetail().doubleValue() : 0.0;
                         double compG = Math.round(prixAchatVal * vgPct / 100.0);
@@ -138,6 +139,8 @@ public class ProduitServiceImpl implements ProduitService {
                         double margD = Math.max(compD, minD);
                         prixGrosComputed = (int)Math.round(prixAchatVal + margG);
                         prixDetailComputed = (int)Math.round(prixAchatVal + margD);
+                    } else {
+                        // MANUEL: do not auto-compute; frontend is expected to provide prices manually.
                     }
 
                     org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).warn("Computed marges in service for boutique {}: gros={}, detail={}, margG={}, margD={}", boutiqueId, prixGrosComputed, prixDetailComputed, prixGrosComputed - prixAchatVal, prixDetailComputed - prixAchatVal);
@@ -172,7 +175,7 @@ public class ProduitServiceImpl implements ProduitService {
                         double margD = Math.max(vD, minD);
                         prixGrosComputed = (int)Math.round(prixAchatVal + margG);
                         prixDetailComputed = (int)Math.round(prixAchatVal + margD);
-                    } else {
+                    } else if (cfg2.getTypeMarge() == com.smboutique.api.model.ConfigurationMarge.TypeMarge.POURCENTAGE) {
                         double vgPct = cfg2.getValeurGros() != null ? cfg2.getValeurGros().doubleValue() : 0.0;
                         double vdPct = cfg2.getValeurDetail() != null ? cfg2.getValeurDetail().doubleValue() : 0.0;
                         double compG = Math.round(prixAchatVal * vgPct / 100.0);
@@ -183,6 +186,8 @@ public class ProduitServiceImpl implements ProduitService {
                         double margD = Math.max(compD, minD);
                         prixGrosComputed = (int)Math.round(prixAchatVal + margG);
                         prixDetailComputed = (int)Math.round(prixAchatVal + margD);
+                    } else {
+                        // MANUEL: do not compute post-save either
                     }
                     org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).warn("Post-save computed marges for boutique {}: gros={}, detail={}", boutiqueId, prixGrosComputed, prixDetailComputed);
                     // Use a native update to guarantee persistence even in complex JPA state situations

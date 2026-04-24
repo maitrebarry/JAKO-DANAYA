@@ -36,6 +36,7 @@ public class ConfigurationMarge {
 
     public enum TypeMarge {
         FIXE,
-        POURCENTAGE
+        POURCENTAGE,
+        MANUEL
     }
 }

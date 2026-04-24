@@ -48,6 +48,7 @@ const ConfigurationMarges: React.FC = () => {
         return;
       }
       setConfig(data);
+      setShowRecompute((data && data.typeMarge && data.typeMarge !== 'MANUEL') ? true : false);
       setForm({
         typeMarge: data.typeMarge || 'FIXE',
         valeurDetail: data.valeurDetail ?? '',
@@ -92,6 +93,8 @@ const ConfigurationMarges: React.FC = () => {
       const savedCfg = data && data.saved ? data.saved : data;
       const returnedJobId = data && data.jobId ? data.jobId : null;
       setConfig(savedCfg);
+      // Only allow recompute button when the saved configuration is not MANUEL
+      const allowRecompute = savedCfg && savedCfg.typeMarge && savedCfg.typeMarge !== 'MANUEL';
       if (returnedJobId) {
         setMessage('Configuration enregistrée. Recalcul automatique lancé.');
         setJobId(returnedJobId);
@@ -101,7 +104,7 @@ const ConfigurationMarges: React.FC = () => {
       } else {
         // Only show the recompute button after a successful modification (PUT)
         if (method === 'PUT') {
-          setShowRecompute(true);
+          setShowRecompute(allowRecompute);
           setMessage('Modification enregistrée. Vous pouvez cliquer sur "Recalculer maintenant" pour appliquer les changements.');
         } else {
           // creation: do not show recompute button automatically
@@ -222,6 +225,7 @@ const ConfigurationMarges: React.FC = () => {
             <li>Le <em>Type de marge</em> peut être <strong>FIXE</strong> (montant ajouté au CMP) ou <strong>POURCENTAGE</strong> (pourcentage appliqué au CMP).</li>
             <li><strong>Valeur détail</strong> et <strong>Valeur gros</strong> déterminent le prix final en détail et en gros.</li>
             <li><strong>Marge minimale</strong> (fixe) : si la marge calculée est inférieure à cette valeur, le système applique la marge minimale.</li>
+            <li>Le type <strong>MANUEL</strong> permet d'indiquer les prix de gros et détail manuellement lors de la création/édition d'un produit — le système n'appliquera pas de calcul automatique.</li>
             {/* <li>Pour modifier ces réglages, vous devez avoir la permission <code>CONFIG_MARGE_ECRITURE</code>. Si vous n'avez pas cette permission, demandez à un administrateur via <em>Configuration → Assigner des permissions</em>.</li>
             <li>Les modifications s'appliquent à la boutique sélectionnée et impactent automatiquement le calcul des prix lors des réceptions.</li> */}
           </ul>
@@ -275,24 +279,31 @@ const ConfigurationMarges: React.FC = () => {
                   <select className="form-control" value={form.typeMarge} onChange={(e) => setForm({ ...form, typeMarge: e.target.value })}>
                     <option value="FIXE">FIXE</option>
                     <option value="POURCENTAGE">POURCENTAGE</option>
+                    <option value="MANUEL">MANUEL (saisie manuelle des prix)</option>
                   </select>
                 </div>
-                <div className="mb-3">
-                  <label className="form-label">Valeur détail ({form.typeMarge === 'POURCENTAGE' ? '%' : 'montant'})</label>
-                  <input type="number" className="form-control" value={form.valeurDetail} onChange={(e) => setForm({ ...form, valeurDetail: e.target.value })} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Valeur gros ({form.typeMarge === 'POURCENTAGE' ? '%' : 'montant'})</label>
-                  <input type="number" className="form-control" value={form.valeurGros} onChange={(e) => setForm({ ...form, valeurGros: e.target.value })} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Marge minimale détail (fixe)</label>
-                  <input type="number" className="form-control" value={form.margeMinimaleDetail} onChange={(e) => setForm({ ...form, margeMinimaleDetail: e.target.value })} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Marge minimale gros (fixe)</label>
-                  <input type="number" className="form-control" value={form.margeMinimaleGros} onChange={(e) => setForm({ ...form, margeMinimaleGros: e.target.value })} />
-                </div>
+                {form.typeMarge !== 'MANUEL' ? (
+                  <>
+                    <div className="mb-3">
+                      <label className="form-label">Valeur détail ({form.typeMarge === 'POURCENTAGE' ? '%' : 'montant'})</label>
+                      <input type="number" className="form-control" value={form.valeurDetail} onChange={(e) => setForm({ ...form, valeurDetail: e.target.value })} />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Valeur gros ({form.typeMarge === 'POURCENTAGE' ? '%' : 'montant'})</label>
+                      <input type="number" className="form-control" value={form.valeurGros} onChange={(e) => setForm({ ...form, valeurGros: e.target.value })} />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Marge minimale détail (fixe)</label>
+                      <input type="number" className="form-control" value={form.margeMinimaleDetail} onChange={(e) => setForm({ ...form, margeMinimaleDetail: e.target.value })} />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Marge minimale gros (fixe)</label>
+                      <input type="number" className="form-control" value={form.margeMinimaleGros} onChange={(e) => setForm({ ...form, margeMinimaleGros: e.target.value })} />
+                    </div>
+                  </>
+                ) : (
+                  <div className="alert alert-info">Mode <strong>MANUEL</strong> activé — les prix `prixEnGros` et `prixDetail` seront saisis directement lors de l'ajout/modification d'un produit.</div>
+                )}
                 {isAllowed ? (
                   <div>
                     <button className="btn btn-primary me-2" onClick={handleSave}>Enregistrer</button>
