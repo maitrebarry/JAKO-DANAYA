@@ -41,12 +41,33 @@ public final class MargeCalculator {
             prixGrosBD = prixAchat.add(margG);
             prixDetailBD = prixAchat.add(margD);
         } else {
-            // MANUEL: do not modify product prices/margins
-            return;
+            // MANUEL: if the user provided prices, accept them and compute margins from them
+            // Do not overwrite user-provided prices; just compute and store the corresponding margins.
+            if (p.getPrixEnGros() != null) {
+                prixGrosBD = BigDecimal.valueOf(p.getPrixEnGros());
+                margG = prixGrosBD.subtract(prixAchat);
+            } else {
+                prixGrosBD = null;
+                margG = null;
+            }
+
+            if (p.getPrixDetail() != null) {
+                prixDetailBD = BigDecimal.valueOf(p.getPrixDetail());
+                margD = prixDetailBD.subtract(prixAchat);
+            } else {
+                prixDetailBD = null;
+                margD = null;
+            }
         }
 
-        p.setPrixEnGros(prixGrosBD.setScale(0, RoundingMode.HALF_UP).intValue());
-        p.setPrixDetail(prixDetailBD.setScale(0, RoundingMode.HALF_UP).intValue());
+        if (prixGrosBD != null) {
+            p.setPrixEnGros(prixGrosBD.setScale(0, RoundingMode.HALF_UP).intValue());
+        }
+
+        if (prixDetailBD != null) {
+            p.setPrixDetail(prixDetailBD.setScale(0, RoundingMode.HALF_UP).intValue());
+        }
+
         p.setMargeGros(margG);
         p.setMargeDetail(margD);
     }

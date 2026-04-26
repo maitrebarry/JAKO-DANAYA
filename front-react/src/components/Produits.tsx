@@ -363,6 +363,15 @@ const Produits: React.FC = () => {
         </div>
       );
     }
+    // If configuration exists and is MANUEL, inform the user that provided prices will be used
+    const type = (margeConfig.typeMarge || '').toString().toUpperCase();
+    if (type === 'MANUEL') {
+      return (
+        <div className="alert alert-info" role="alert" style={{ marginTop: 8 }}>
+          La configuration de marge est en mode <strong>MANUEL</strong> — les prix fournis manuellement dans le formulaire ou le fichier d'import seront utilisés tels quels.
+        </div>
+      );
+    }
     return null;
   };
 
@@ -370,6 +379,9 @@ const Produits: React.FC = () => {
     // When a marge config exists, compute prices automatically from CMP (prixAchat).
     // Apply also during editing **unless** the user manually modified the prix fields in this session.
     if (!margeConfig) return;
+    const type = (margeConfig.typeMarge || '').toString().toUpperCase();
+    // Do not auto-compute prices when configuration is MANUEL
+    if (type === 'MANUEL') return;
     const prixAchatVal = Number(newProduit.prixAchat) || 0;
     let prixGros = prixAchatVal;
     let prixDetail = prixAchatVal;
@@ -1193,9 +1205,10 @@ const Produits: React.FC = () => {
                     className={`form-control ${formErrors.some(e => e.includes('prix en gros')) ? 'is-invalid' : ''}`}
                     value={newProduit.prixEnGros}
                     onChange={(e) => { setPrixEnGrosTouched(true); setNewProduit({ ...newProduit, prixEnGros: e.target.value }); }}
-                    disabled={!editing && !!margeConfig}
+                    disabled={!editing && !!margeConfig && ((margeConfig.typeMarge || '').toString().toUpperCase() !== 'MANUEL')}
                   />
-                  {!editing && margeConfig && <small className="text-muted">Calculé automatiquement selon la configuration de marge ({margeConfig.typeMarge}).</small>}
+                  {!editing && margeConfig && ((margeConfig.typeMarge || '').toString().toUpperCase() === 'MANUEL') && <small className="text-muted">Saisir manuellement les prix (configuration MANUEL).</small>}
+                  {!editing && margeConfig && ((margeConfig.typeMarge || '').toString().toUpperCase() !== 'MANUEL') && <small className="text-muted">Calculé automatiquement selon la configuration de marge ({margeConfig.typeMarge}).</small>}
                 </div>
                 <div className="col-md-6">
                   <label className="form-label">Prix détail</label>
@@ -1204,9 +1217,10 @@ const Produits: React.FC = () => {
                     className={`form-control ${formErrors.some(e => e.includes('prix détail')) ? 'is-invalid' : ''}`}
                     value={newProduit.prixDetail}
                     onChange={(e) => { setPrixDetailTouched(true); setNewProduit({ ...newProduit, prixDetail: e.target.value }); }}
-                    disabled={!editing && !!margeConfig}
+                    disabled={!editing && !!margeConfig && ((margeConfig.typeMarge || '').toString().toUpperCase() !== 'MANUEL')}
                   />
-                  {!editing && margeConfig && <small className="text-muted">Calculé automatiquement selon la configuration de marge ({margeConfig.typeMarge}).</small>}
+                  {!editing && margeConfig && ((margeConfig.typeMarge || '').toString().toUpperCase() === 'MANUEL') && <small className="text-muted">Saisir manuellement les prix (configuration MANUEL).</small>}
+                  {!editing && margeConfig && ((margeConfig.typeMarge || '').toString().toUpperCase() !== 'MANUEL') && <small className="text-muted">Calculé automatiquement selon la configuration de marge ({margeConfig.typeMarge}).</small>}
                 </div>
                 <div className="col-md-6">
                   <label className="form-label">Alerte stock</label>
