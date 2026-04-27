@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
+import { registerServiceWorker } from './registerServiceWorker'
 
 // Global handlers to surface unhandled errors/rejections in development
 window.addEventListener('error', (ev) => {
@@ -18,3 +19,6 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 )
+
+// Register PWA service worker (non-blocking)
+registerServiceWorker();
