@@ -8,6 +8,7 @@ import com.smboutique.api.service.CommandeClientService;
 import com.smboutique.api.service.CommandeFournisseurService;
 import com.smboutique.api.service.ClientGrossisteService;
 import com.smboutique.api.service.FournisseurService;
+import com.smboutique.api.service.LigneVenteService;
 import com.smboutique.api.service.ProduitService;
 import com.smboutique.api.service.StockService;
 import com.smboutique.api.service.dto.DashboardPayload;
@@ -37,6 +38,8 @@ public class DashboardServiceImplTest {
     @Mock
     CommandeFournisseurService commandeFournisseurService;
     @Mock
+    LigneVenteService ligneVenteService;
+    @Mock
     StockService stockService;
     @Mock
     com.smboutique.api.service.InventaireService inventaireService;
@@ -47,7 +50,9 @@ public class DashboardServiceImplTest {
 
     @BeforeEach
     void setup() {
-        service = new DashboardServiceImpl(produitService, clientGrossisteService, fournisseurService, commandeClientService, commandeFournisseurService, stockService, inventaireService, venteService);
+        org.mockito.Mockito.lenient().when(ligneVenteService.findAll()).thenReturn(java.util.Collections.emptyList());
+        org.mockito.Mockito.lenient().when(venteService.findAll()).thenReturn(java.util.Collections.emptyList());
+        service = new DashboardServiceImpl(produitService, clientGrossisteService, fournisseurService, commandeClientService, commandeFournisseurService, stockService, inventaireService, ligneVenteService, venteService);
     }
 
     @Test

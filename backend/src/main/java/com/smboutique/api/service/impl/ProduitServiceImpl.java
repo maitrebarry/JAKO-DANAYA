@@ -8,6 +8,7 @@ import com.smboutique.api.repository.ProduitRepository;
 import com.smboutique.api.service.ProduitService;
 import com.smboutique.api.dto.ImportResult;
 import com.smboutique.api.dto.ProduitCreateDTO;
+import com.smboutique.api.service.impl.MargeCalculator;
 import org.springframework.transaction.annotation.Transactional;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -20,8 +21,12 @@ import jakarta.persistence.PersistenceContext;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -107,18 +112,22 @@ public class ProduitServiceImpl implements ProduitService {
 
         // Avant sauvegarde: si le front n'a pas fourni les prix calculés, tenter un calcul automatique
         try {
-            if (produit.getPrixAchat() != null && (produit.getPrixEnGros() == null || produit.getPrixDetail() == null)) {
+            com.smboutique.api.model.ConfigurationMarge cfg = configurationMargeService.findByBoutiqueId(boutiqueId).orElse(null);
+            if (cfg == null) {
+                org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).info("No configuration marge found in service for boutique {}", boutiqueId);
+            }
+            if (cfg != null && cfg.getTypeMarge() == com.smboutique.api.model.ConfigurationMarge.TypeMarge.MANUEL
+                    && produit.getPrixAchat() != null
+                    && (produit.getPrixEnGros() != null || produit.getPrixDetail() != null)) {
+                MargeCalculator.apply(cfg, produit);
+            } else if (produit.getPrixAchat() != null && (produit.getPrixEnGros() == null || produit.getPrixDetail() == null)) {
                 org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).warn("Attempt margin compute in service: boutiqueId={}, prixAchat={}, prixEnGros={}, prixDetail={}", boutiqueId, produit.getPrixAchat(), produit.getPrixEnGros(), produit.getPrixDetail());
-                com.smboutique.api.model.ConfigurationMarge cfg = configurationMargeService.findByBoutiqueId(boutiqueId).orElse(null);
-                if (cfg == null) {
-                    org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).info("No configuration marge found in service for boutique {}", boutiqueId);
-                }
                 if (cfg != null) {
                     int prixAchatVal = produit.getPrixAchat();
                     int prixGrosComputed = prixAchatVal;
                     int prixDetailComputed = prixAchatVal;
 
-                    // Only compute margins for FIXE or POURCENTAGE. If MANUEL, skip automatic computation.
+                    // Ne calculer les marges que pour FIXE ou POURCENTAGE. Si MANUEL, ignorer le calcul automatique.
                     if (cfg.getTypeMarge() == com.smboutique.api.model.ConfigurationMarge.TypeMarge.FIXE) {
                         double vG = cfg.getValeurGros() != null ? cfg.getValeurGros().doubleValue() : 0.0;
                         double vD = cfg.getValeurDetail() != null ? cfg.getValeurDetail().doubleValue() : 0.0;
@@ -139,8 +148,6 @@ public class ProduitServiceImpl implements ProduitService {
                         double margD = Math.max(compD, minD);
                         prixGrosComputed = (int)Math.round(prixAchatVal + margG);
                         prixDetailComputed = (int)Math.round(prixAchatVal + margD);
-                    } else {
-                        // MANUEL: do not auto-compute; frontend is expected to provide prices manually.
                     }
 
                     org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).warn("Computed marges in service for boutique {}: gros={}, detail={}, margG={}, margD={}", boutiqueId, prixGrosComputed, prixDetailComputed, prixGrosComputed - prixAchatVal, prixDetailComputed - prixAchatVal);
@@ -158,11 +165,11 @@ public class ProduitServiceImpl implements ProduitService {
         // Sauvegarder le produit d'abord
         Produit savedProduit = produitRepository.save(produit);
 
-        // If after save the computed prices are still null, compute and persist them (defensive)
+        // Si après la sauvegarde les prix calculés sont toujours nuls, les calculer et les persister (défensif)
         try {
             if ((savedProduit.getPrixEnGros() == null || savedProduit.getPrixDetail() == null) && savedProduit.getPrixAchat() != null) {
                 com.smboutique.api.model.ConfigurationMarge cfg2 = configurationMargeService.findByBoutiqueId(boutiqueId).orElse(null);
-                if (cfg2 != null) {
+                if (cfg2 != null && cfg2.getTypeMarge() != com.smboutique.api.model.ConfigurationMarge.TypeMarge.MANUEL) {
                     int prixAchatVal = savedProduit.getPrixAchat();
                     int prixGrosComputed = prixAchatVal;
                     int prixDetailComputed = prixAchatVal;
@@ -186,11 +193,9 @@ public class ProduitServiceImpl implements ProduitService {
                         double margD = Math.max(compD, minD);
                         prixGrosComputed = (int)Math.round(prixAchatVal + margG);
                         prixDetailComputed = (int)Math.round(prixAchatVal + margD);
-                    } else {
-                        // MANUEL: do not compute post-save either
                     }
                     org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).warn("Post-save computed marges for boutique {}: gros={}, detail={}", boutiqueId, prixGrosComputed, prixDetailComputed);
-                    // Use a native update to guarantee persistence even in complex JPA state situations
+                    // Utiliser une mise à jour native pour garantir la persistance même dans des cas complexes de l'état JPA
                     int updated = em.createNativeQuery("UPDATE tbl_product SET prix_en_gros = :peg, prix_detail = :pd, marge_gros = :mg, marge_detail = :md WHERE id_produit = :id")
                             .setParameter("peg", prixGrosComputed)
                             .setParameter("pd", prixDetailComputed)
@@ -199,7 +204,7 @@ public class ProduitServiceImpl implements ProduitService {
                             .setParameter("id", savedProduit.getId())
                             .executeUpdate();
                     org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).warn("Post-save margin update executed, rowsAffected={}", updated);
-                    // refresh entity
+                    // actualiser l'entité
                     em.refresh(savedProduit);
                 }
             }
@@ -235,7 +240,7 @@ public class ProduitServiceImpl implements ProduitService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ImportResult importFromExcel(MultipartFile file, com.smboutique.api.model.Utilisateur currentUser) throws Exception {
-        // Backward-compatible default: do NOT create missing units unless the client explicitly requests it.
+        // Valeur par défaut compatible rétroactivement : ne PAS créer les unités manquantes sauf si le client le demande explicitement.
         return importFromExcel(file, currentUser, false);
     }
 
@@ -254,7 +259,7 @@ public class ProduitServiceImpl implements ProduitService {
             throw new IllegalArgumentException("Fichier vide");
         }
 
-        // If this execution is associated with a job, initialize job status
+        // Si cette exécution est associée à un job, initialiser le statut
         if (jobId != null) {
             com.smboutique.api.dto.ImportJobStatus s = importJobs.get(jobId);
             if (s != null) {
@@ -268,24 +273,33 @@ public class ProduitServiceImpl implements ProduitService {
             Sheet sheet = workbook.getSheetAt(0);
             if (sheet == null) throw new IllegalArgumentException("Aucune feuille trouvée dans le fichier Excel");
 
-            // Header row mapping
+            // Correspondance de la ligne d'en-tête
             Row header = sheet.getRow(0);
-            java.util.Map<String, Integer> colIndex = new java.util.HashMap<>();
+            Map<String, Integer> colIndex = new HashMap<>();
             for (Cell c : header) {
-                colIndex.put(c.getStringCellValue().trim(), c.getColumnIndex());
+                String cellValue = getHeaderCellValue(c);
+                String canonicalHeader = canonicalHeader(cellValue);
+                if (!canonicalHeader.isEmpty() && !colIndex.containsKey(canonicalHeader)) {
+                    colIndex.put(canonicalHeader, c.getColumnIndex());
+                }
             }
 
             Integer totalRows = sheet.getLastRowNum() > 0 ? sheet.getLastRowNum() : null;
+            Long importBoutiqueId = currentUser != null && currentUser.getBoutique() != null ? currentUser.getBoutique().getId() : null;
+            com.smboutique.api.model.ConfigurationMarge importMargeCfg = importBoutiqueId != null ? configurationMargeService.findByBoutiqueId(importBoutiqueId).orElse(null) : null;
             if (jobId != null) {
                 com.smboutique.api.dto.ImportJobStatus s = importJobs.get(jobId);
                 if (s != null) s.setTotalRows(totalRows);
             }
 
+            // Détecter si c'est un fichier exporté (contient colonne ID) pour ajuster la validation
+            boolean isExportedFile = colIndex.containsKey("id");
+
             for (int r = 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
                 if (row == null) continue;
                 try {
-                    // update parsing progress
+                    // mettre à jour la progression du parsing
                     if (jobId != null) {
                         com.smboutique.api.dto.ImportJobStatus s = importJobs.get(jobId);
                         if (s != null && totalRows != null && totalRows > 0) {
@@ -295,7 +309,7 @@ public class ProduitServiceImpl implements ProduitService {
                         }
                     }
 
-                    // Read values by header names: example headers
+                    // Lire les valeurs par nom de colonne : en-têtes d'exemple
                     String nomProduit = getStringCell(row, colIndex.getOrDefault("nomProduit", -1));
                     if (nomProduit == null || nomProduit.trim().isEmpty()) {
                         errors.add("Ligne " + (r+1) + ": nomProduit requis");
@@ -308,6 +322,15 @@ public class ProduitServiceImpl implements ProduitService {
                     Integer nombreUnitesParConditionnement = getIntegerCell(row, colIndex.getOrDefault("nombreUnitesParConditionnement", -1));
                     Integer quantiteInitiale = getIntegerCell(row, colIndex.getOrDefault("quantiteInitiale", -1));
 
+                    // Pour les fichiers exportés, définir des valeurs par défaut si les colonnes sont manquantes
+                    if (isExportedFile) {
+                        if (quantiteInitiale == null) quantiteInitiale = 0; // Pas de stock initial pour les exports
+                        if (nombreUnitesParConditionnement == null) {
+                            nombreUnitesParConditionnement = getIntegerCell(row, colIndex.getOrDefault("nombreUnitesParConditionnement", -1));
+                            if (nombreUnitesParConditionnement == null) nombreUnitesParConditionnement = 1; // Défaut
+                        }
+                    }
+
                     // Create produit
                     Produit produit = new Produit();
                     produit.setNomProduit(nomProduit);
@@ -317,7 +340,7 @@ public class ProduitServiceImpl implements ProduitService {
                         produit.setCaracteristique(caracteristique);
                     }
                     if (productImageUrl != null && !productImageUrl.isEmpty()) {
-                        // If value is an HTTP URL, attempt to download and save the image
+                        // Si la valeur est une URL HTTP, tenter de télécharger et sauvegarder l'image
                         try {
                             if (productImageUrl.startsWith("http://") || productImageUrl.startsWith("https://")) {
                                 String uploadDir = "uploads/products/";
@@ -338,7 +361,7 @@ public class ProduitServiceImpl implements ProduitService {
                                     else if (contentType.equalsIgnoreCase("image/webp")) extension = ".webp";
                                 }
                                 if (extension == null) {
-                                    // try to locate an extension from URL path
+                                    // essayer de localiser une extension à partir du chemin de l'URL
                                     String path = url.getPath();
                                     int idx = path.lastIndexOf('.');
                                     if (idx > 0) {
@@ -354,7 +377,7 @@ public class ProduitServiceImpl implements ProduitService {
                                 }
                                 produit.setProductImage("/uploads/products/" + fileName);
                             } else {
-                                // Not a URL - treat as existing filename or relative path
+                                // Pas une URL - traiter comme un nom de fichier existant ou un chemin relatif
                                 produit.setProductImage(productImageUrl);
                             }
                         } catch (Exception ex) {
@@ -369,13 +392,20 @@ public class ProduitServiceImpl implements ProduitService {
                     produit.setPrixDetail(prixDetail);
                     produit.setPrixEnGros(prixEnGros);
                     // Validate price constraints for import row: prixAchat < prixEnGros < prixDetail
-                    if (prixAchat != null && prixEnGros != null && prixAchat >= prixEnGros) {
-                        errors.add("Ligne " + (r+1) + ": le prix d'achat doit être inférieur au prix en gros");
-                        throw new com.smboutique.api.exception.ImportValidationException(errors);
+                    // Pour les fichiers exportés, être moins strict sur les contraintes de prix
+                    if (!isExportedFile) {
+                        if (prixAchat != null && prixEnGros != null && prixAchat >= prixEnGros) {
+                            errors.add("Ligne " + (r+1) + ": le prix d'achat doit être inférieur au prix en gros");
+                            throw new com.smboutique.api.exception.ImportValidationException(errors);
+                        }
+                        if (prixEnGros != null && prixDetail != null && prixEnGros >= prixDetail) {
+                            errors.add("Ligne " + (r+1) + ": le prix en gros doit être inférieur au prix détail");
+                            throw new com.smboutique.api.exception.ImportValidationException(errors);
+                        }
                     }
-                    if (prixEnGros != null && prixDetail != null && prixEnGros >= prixDetail) {
-                        errors.add("Ligne " + (r+1) + ": le prix en gros doit être inférieur au prix détail");
-                        throw new com.smboutique.api.exception.ImportValidationException(errors);
+                    if (importMargeCfg != null && importMargeCfg.getTypeMarge() == com.smboutique.api.model.ConfigurationMarge.TypeMarge.MANUEL
+                            && prixAchat != null && (prixEnGros != null || prixDetail != null)) {
+                        MargeCalculator.apply(importMargeCfg, produit);
                     }
                     produit.setAlerteStock(alerteStock);
 
@@ -384,6 +414,11 @@ public class ProduitServiceImpl implements ProduitService {
                     String uniteCode = getStringCell(row, colIndex.getOrDefault("unite_code", -1));
                     String uniteSymbole = getStringCell(row, colIndex.getOrDefault("symbole", -1));
                     String uniteName = getStringCell(row, colIndex.getOrDefault("unite_name", -1));
+
+                    // Pour les fichiers exportés, essayer aussi la colonne "Unité"
+                    if (isExportedFile && uniteName == null) {
+                        uniteName = getStringCell(row, colIndex.getOrDefault("unite_name", -1));
+                    }
 
                     if (uniteId != null) {
                         Optional<Unite> uniteOpt = uniteRepository.findById(uniteId);
@@ -409,13 +444,13 @@ public class ProduitServiceImpl implements ProduitService {
                             throw new com.smboutique.api.exception.ImportValidationException(errors);
                         }
                     } else {
-                        // Try resolve by symbole/code -> name (scoped to boutique)
+                        // Essayer de résoudre par symbole/code -> nom (scopé à la boutique)
                         com.smboutique.api.model.Unite resolved = null;
                         Long boutiqueId = currentUser != null && currentUser.getBoutique() != null ? currentUser.getBoutique().getId() : null;
-                        // prefer `symbole` (new column name), fall back to legacy `unite_code`
+                        // préférer `symbole` (nouveau nom de colonne), revenir à l'ancien `unite_code` si nécessaire
                         String incomingSymbolOrCode = (uniteSymbole != null && !uniteSymbole.trim().isEmpty()) ? uniteSymbole.trim() : (uniteCode != null ? uniteCode.trim() : null);
                         if (incomingSymbolOrCode != null && !incomingSymbolOrCode.isEmpty()) {
-                            // existing repository method searches by code field in DB — treat `symbole` as an alias for that
+                            // la méthode du repository existant recherche par champ code dans la BD — traiter `symbole` comme un alias de cela
                             resolved = uniteService.findByBoutiqueIdAndCode(boutiqueId, incomingSymbolOrCode).orElse(null);
                         }
                         if (resolved == null && uniteName != null && !uniteName.trim().isEmpty()) {
@@ -423,11 +458,12 @@ public class ProduitServiceImpl implements ProduitService {
                         }
 
                         boolean canAutoCreate = (currentUser != null && (currentUser.getRoles() != null && currentUser.getRoles().stream().anyMatch(role -> "SUPERADMIN".equalsIgnoreCase(role.getName()))))
-                                || (currentUser != null && currentUser.getPermissions() != null && currentUser.getPermissions().stream().anyMatch(perm -> "UNITE_CREER".equalsIgnoreCase(perm.getName())));
+                                || (currentUser != null && currentUser.getPermissions() != null && currentUser.getPermissions().stream().anyMatch(perm -> "UNITE_CREER".equalsIgnoreCase(perm.getName())))
+                                || isExportedFile; // Pour les fichiers exportés, permettre la création automatique d'unités
 
                         if (resolved == null && (incomingSymbolOrCode != null && !incomingSymbolOrCode.isEmpty() || uniteName != null && !uniteName.trim().isEmpty())) {
                             if (canAutoCreate) {
-                                // create unit scoped to boutique (idempotent)
+                                // créer l'unité au niveau de la boutique (idempotent)
                                 resolved = uniteService.createIfNotExistsForBoutique(boutiqueId, incomingSymbolOrCode != null ? incomingSymbolOrCode : uniteName, uniteName, null);
                             } else {
                                 errors.add("Ligne " + (r+1) + ": unité introuvable et vous n'avez pas la permission de créer des unités (fournir id_unite, `symbole` ou demander la permission UNITE_CREER)");
@@ -456,7 +492,7 @@ public class ProduitServiceImpl implements ProduitService {
                         }
                     }
 
-                    // Create stock at boutique level (no specific magasin)
+                    // Créer le stock au niveau de la boutique (aucun magasin spécifique)
                     Stock boutiqueStock = new Stock();
                     boutiqueStock.setProduit(saved);
                     boutiqueStock.setMagasin(null);
@@ -467,7 +503,7 @@ public class ProduitServiceImpl implements ProduitService {
 
                     processed++;
                 } catch (com.smboutique.api.exception.ImportValidationException e) {
-                    // Validation errors: rethrow to cause rollback and provide details upstream
+                    // Erreurs de validation : relancer pour provoquer un rollback et fournir les détails en amont
                     throw e;
                 } catch (Exception e) {
                     errors.add("Ligne " + (r+1) + ": erreur interne - " + e.getMessage());
@@ -487,6 +523,55 @@ public class ProduitServiceImpl implements ProduitService {
         if (c.getCellType() == CellType.NUMERIC) return String.valueOf(c.getNumericCellValue());
         if (c.getCellType() == CellType.BOOLEAN) return String.valueOf(c.getBooleanCellValue());
         return c.toString();
+    }
+
+    private String getHeaderCellValue(Cell cell) {
+        if (cell == null) return null;
+        if (cell.getCellType() == CellType.STRING) return cell.getStringCellValue();
+        if (cell.getCellType() == CellType.NUMERIC) return String.valueOf(cell.getNumericCellValue());
+        if (cell.getCellType() == CellType.BOOLEAN) return String.valueOf(cell.getBooleanCellValue());
+        return cell.toString();
+    }
+
+    private static final Map<String, String> HEADER_ALIASES = Map.ofEntries(
+            Map.entry("nom", "nomProduit"),
+            Map.entry("nomproduit", "nomProduit"),
+            Map.entry("id", "id"),
+            Map.entry("idproduit", "id"),
+            Map.entry("prixachat", "prixAchat"),
+            Map.entry("prixdachat", "prixAchat"),
+            Map.entry("prixengros", "prixEnGros"),
+            Map.entry("prixgros", "prixEnGros"),
+            Map.entry("prixdetail", "prixDetail"),
+            Map.entry("prixdétail", "prixDetail"),
+            Map.entry("prixdétails", "prixDetail"),
+            Map.entry("unite", "unite_name"),
+            Map.entry("unitecode", "unite_code"),
+            Map.entry("symbole", "symbole"),
+            Map.entry("unitename", "unite_name"),
+            Map.entry("unitenom", "unite_name"),
+            Map.entry("unite_name", "unite_name"),
+            Map.entry("nombreunitesparconditionnement", "nombreUnitesParConditionnement"),
+            Map.entry("unitescond", "nombreUnitesParConditionnement"),
+            Map.entry("unitscond", "nombreUnitesParConditionnement"),
+            Map.entry("alerte", "alerteStock"),
+            Map.entry("alertestock", "alerteStock"),
+            Map.entry("productimage", "productImage"),
+            Map.entry("caracteristique", "caracteristique")
+    );
+
+    private static String normalizeHeader(String header) {
+        if (header == null) return "";
+        String normalized = Normalizer.normalize(header, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9]", "");
+        return normalized;
+    }
+
+    private static String canonicalHeader(String header) {
+        String normalized = normalizeHeader(header);
+        return HEADER_ALIASES.getOrDefault(normalized, normalized);
     }
 
     private Integer getIntegerCell(Row row, Integer idx) {
@@ -551,8 +636,8 @@ public class ProduitServiceImpl implements ProduitService {
                     s2.setProgress(1);
                 }
 
-                // Create a stable MultipartFile-like wrapper around the copied bytes so
-                // the existing import pipeline can be reused without further signature changes.
+                // Créer un wrapper stable de type MultipartFile autour des octets copiés afin
+                // de réutiliser le pipeline d'import existant sans modifier davantage la signature.
                 final MultipartFile stableFile = new MultipartFile() {
                     @Override
                     public String getName() { return file == null ? "file" : file.getName(); }
@@ -578,10 +663,10 @@ public class ProduitServiceImpl implements ProduitService {
                 if (applicationContext != null) {
                     try {
                         ProduitService svc = applicationContext.getBean(ProduitService.class);
-                        // call proxied service so @Transactional semantics still apply
+                        // appeler le service proxifié afin que la sémantique @Transactional reste valide
                         res = svc.importFromExcel(stableFile, currentUser, createMissingUnits);
                     } catch (Exception ex) {
-                        // fallback to internal implementation (keeps jobId for status reporting)
+                        // revenir à l'implémentation interne en dernier recours (conserve jobId pour le suivi du statut)
                         res = importFromExcelInternal(stableFile, currentUser, createMissingUnits, jobId);
                     }
                 } else {
@@ -604,7 +689,7 @@ public class ProduitServiceImpl implements ProduitService {
                     s4.setProgress(100);
                     s4.addError(ex.getMessage() == null ? ex.toString() : ex.getMessage());
                 }
-                // log with jobId for easier debugging
+                // journaliser avec jobId pour faciliter le débogage
                 org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).error("Async import job {} failed: {}", jobId, ex.getMessage(), ex);
             }
         });

@@ -6,12 +6,15 @@ import com.smboutique.api.service.ClientGrossisteService;
 import com.smboutique.api.service.FournisseurService;
 import com.smboutique.api.service.CommandeClientService;
 import com.smboutique.api.service.CommandeFournisseurService;
+import com.smboutique.api.service.LigneVenteService;
 import com.smboutique.api.service.StockService;
 import com.smboutique.api.service.InventaireService;
 import com.smboutique.api.service.dto.DashboardOverviewDTO;
 import com.smboutique.api.model.CommandeClient;
 import com.smboutique.api.model.CommandeFournisseur;
+import com.smboutique.api.model.LigneVente;
 import com.smboutique.api.model.Stock;
+import com.smboutique.api.model.Vente;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -31,6 +34,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final CommandeFournisseurService commandeFournisseurService;
     private final StockService stockService;
     private final InventaireService inventaireService;
+    private final LigneVenteService ligneVenteService;
     private final com.smboutique.api.service.VenteService venteService;
 
     public DashboardServiceImpl(ProduitService produitService,
@@ -40,6 +44,7 @@ public class DashboardServiceImpl implements DashboardService {
                                 CommandeFournisseurService commandeFournisseurService,
                                 StockService stockService,
                                 InventaireService inventaireService,
+                                LigneVenteService ligneVenteService,
                                 com.smboutique.api.service.VenteService venteService) {
         this.produitService = produitService;
         this.clientGrossisteService = clientGrossisteService;
@@ -48,6 +53,7 @@ public class DashboardServiceImpl implements DashboardService {
         this.commandeFournisseurService = commandeFournisseurService;
         this.stockService = stockService;
         this.inventaireService = inventaireService;
+        this.ligneVenteService = ligneVenteService;
         this.venteService = venteService;
     }
 
@@ -90,7 +96,13 @@ public class DashboardServiceImpl implements DashboardService {
             commandes = (boutiqueId == null) ? commandeClientService.findAll() : commandeClientService.findAllByBoutiqueId(boutiqueId);
         }
 
-        long salesTotal = commandes.stream().mapToLong(c -> c.getTotal() == null ? 0L : c.getTotal().longValue()).sum();
+        List<Vente> ventes = (boutiqueId == null) ? venteService.findAll() : venteService.findByBoutiqueId(boutiqueId);
+        List<LigneVente> ligneVentes = ligneVenteService.findAll().stream()
+                .filter(lv -> lv.getVente() != null && lv.getVente().getBoutique() != null && (boutiqueId == null || lv.getVente().getBoutique().getId().equals(boutiqueId)))
+                .collect(java.util.stream.Collectors.toList());
+
+        long salesTotal = commandes.stream().mapToLong(c -> c.getTotal() == null ? 0L : c.getTotal().longValue()).sum()
+                + ventes.stream().mapToLong(v -> v.getMontantTotal() == null ? 0L : v.getMontantTotal().longValue()).sum();
         dto.setSalesTotal(salesTotal);
 
         // today sales
@@ -99,6 +111,10 @@ public class DashboardServiceImpl implements DashboardService {
         long salesToday = commandes.stream()
                 .filter(c -> c.getDateCommande() != null && !c.getDateCommande().isBefore(start) && !c.getDateCommande().isAfter(end))
                 .mapToLong(c -> c.getTotal() == null ? 0L : c.getTotal().longValue())
+                .sum()
+                + ventes.stream()
+                .filter(v -> v.getDateVente() != null && !v.getDateVente().isBefore(start) && !v.getDateVente().isAfter(end))
+                .mapToLong(v -> v.getMontantTotal() == null ? 0L : v.getMontantTotal().longValue())
                 .sum();
         dto.setSalesToday(salesToday);
 
@@ -117,56 +133,64 @@ public class DashboardServiceImpl implements DashboardService {
         dto.setLowStockCount(lowStock);
 
         // Calculate top products
-        List<DashboardOverviewDTO.TopProductDTO> topProducts = calculateTopProducts(commandes);
+        List<DashboardOverviewDTO.TopProductDTO> topProducts = calculateTopProducts(commandes, ligneVentes);
         dto.setTopProducts(topProducts);
 
         // Calculate sales for last 7 days
-        List<Long> sales7d = calculateSalesLast7Days(commandes);
+        List<Long> sales7d = calculateSalesLast7Days(commandes, ventes);
         dto.setSales7d(sales7d);
 
         return dto;
     }
 
-    private List<DashboardOverviewDTO.TopProductDTO> calculateTopProducts(List<CommandeClient> commandes) {
-        Map<Long, Double> productSalesValue = new HashMap<>();
+    private List<DashboardOverviewDTO.TopProductDTO> calculateTopProducts(List<CommandeClient> commandes, List<LigneVente> ligneVentes) {
+        Map<Long, Long> productQuantity = new HashMap<>();
+        Map<Long, Long> productSalesValue = new HashMap<>();
         Map<Long, String> productNames = new HashMap<>();
 
-        // Aggregate sales value by product (quantity * unit price)
+        // Aggregate sales value from client commandes
         for (CommandeClient commande : commandes) {
             if (commande.getLignes() != null) {
                 for (var ligne : commande.getLignes()) {
                     if (ligne.getProduit() != null && ligne.getQuantite() != null) {
                         Long productId = ligne.getProduit().getId();
-                        Double quantity = ligne.getQuantite().doubleValue();
-                        
-                        // Use newPrice if available, otherwise use prixDetail from product
-                        Double unitPrice = ligne.getNewPrice() != null ? 
-                            ligne.getNewPrice().doubleValue() : 
-                            (ligne.getProduit().getPrixDetail() != null ? 
-                                ligne.getProduit().getPrixDetail().doubleValue() : 0.0);
-                        
-                        Double lineTotal = quantity * unitPrice;
-
-                        productSalesValue.put(productId, productSalesValue.getOrDefault(productId, 0.0) + lineTotal);
+                        long quantity = ligne.getQuantite().longValue();
+                        long unitPrice = ligne.getNewPrice() != null ? ligne.getNewPrice().longValue() :
+                                (ligne.getProduit().getPrixDetail() != null ? ligne.getProduit().getPrixDetail().longValue() : 0L);
+                        long lineTotal = quantity * unitPrice;
+                        productQuantity.put(productId, productQuantity.getOrDefault(productId, 0L) + quantity);
+                        productSalesValue.put(productId, productSalesValue.getOrDefault(productId, 0L) + lineTotal);
                         productNames.put(productId, ligne.getProduit().getNomProduit());
                     }
                 }
             }
         }
 
-        // Convert to TopProductDTO list and sort by sales value descending
+        // Aggregate sales value from cash vente lines
+        for (LigneVente ligne : ligneVentes) {
+            if (ligne.getProduit() != null && ligne.getQuantite() != null) {
+                Long productId = ligne.getProduit().getId();
+                long quantity = ligne.getQuantite().longValue();
+                long unitPrice = ligne.getNewPrice() != null ? ligne.getNewPrice().longValue() :
+                        (ligne.getProduit().getPrixDetail() != null ? ligne.getProduit().getPrixDetail().longValue() : 0L);
+                long lineTotal = quantity * unitPrice;
+                productQuantity.put(productId, productQuantity.getOrDefault(productId, 0L) + quantity);
+                productSalesValue.put(productId, productSalesValue.getOrDefault(productId, 0L) + lineTotal);
+                productNames.put(productId, ligne.getProduit().getNomProduit());
+            }
+        }
+
         return productSalesValue.entrySet().stream()
-                .sorted(Map.Entry.<Long, Double>comparingByValue().reversed())
-                .limit(10) // Top 10 products by value
+                .sorted(Map.Entry.<Long, Long>comparingByValue().reversed())
+                .limit(10)
                 .map(entry -> new DashboardOverviewDTO.TopProductDTO(
                         entry.getKey(),
                         productNames.get(entry.getKey()),
-                        entry.getValue().longValue() // Convert back to long for display
-                ))
+                        productQuantity.getOrDefault(entry.getKey(), 0L)))
                 .collect(java.util.stream.Collectors.toList());
     }
 
-    private List<Long> calculateSalesLast7Days(List<CommandeClient> commandes) {
+    private List<Long> calculateSalesLast7Days(List<CommandeClient> commandes, List<Vente> ventes) {
         List<Long> sales7d = new java.util.ArrayList<>();
         LocalDate today = LocalDate.now();
 
@@ -180,6 +204,12 @@ public class DashboardServiceImpl implements DashboardService {
                             !c.getDateCommande().isBefore(startOfDay) &&
                             !c.getDateCommande().isAfter(endOfDay))
                     .mapToLong(c -> c.getTotal() == null ? 0L : c.getTotal().longValue())
+                    .sum()
+                    + ventes.stream()
+                    .filter(v -> v.getDateVente() != null &&
+                            !v.getDateVente().isBefore(startOfDay) &&
+                            !v.getDateVente().isAfter(endOfDay))
+                    .mapToLong(v -> v.getMontantTotal() == null ? 0L : v.getMontantTotal().longValue())
                     .sum();
 
             sales7d.add(dailySales);
@@ -280,6 +310,8 @@ public class DashboardServiceImpl implements DashboardService {
 
         com.smboutique.api.service.dto.DashboardOverviewDTO dto = getOverview(finalTargetBoutiqueId, finalTargetMagasinId);
 
+        List<Vente> ventes = finalTargetBoutiqueId == null ? venteService.findAll() : venteService.findByBoutiqueId(finalTargetBoutiqueId);
+
         Map<String,Object> widgets = new java.util.HashMap<>();
         String role = "USER";
 
@@ -328,8 +360,8 @@ public class DashboardServiceImpl implements DashboardService {
 
             // Calculs détaillés pour bilan des ventes
             List<CommandeClient> commandes = commandeClientService.findAllByBoutiqueId(finalTargetBoutiqueId);
-            widgets.put("bilan_ventes", calculateBilanVentes(commandes));
-            widgets.put("bilan_trimestriel", calculateBilanTrimestriel(commandes));
+            widgets.put("bilan_ventes", calculateBilanVentes(commandes, ventes));
+            widgets.put("bilan_trimestriel", calculateBilanTrimestriel(commandes, ventes));
         } else if (isManager) {
             role = "GERANT";
             System.out.println("DEBUG: User is GERANT, adding commande_client widget");
@@ -465,7 +497,7 @@ public class DashboardServiceImpl implements DashboardService {
                 .mapToLong(c -> c.getTotal() == null ? 0L : c.getTotal().longValue()).sum();
     }
 
-    private Map<String, Object> calculateBilanVentes(List<CommandeClient> commandes) {
+    private Map<String, Object> calculateBilanVentes(List<CommandeClient> commandes, List<Vente> ventes) {
         Map<String, Object> bilan = new HashMap<>();
 
         LocalDateTime now = LocalDateTime.now();
@@ -477,7 +509,10 @@ public class DashboardServiceImpl implements DashboardService {
 
         long dailyTotal = commandes.stream()
             .filter(c -> c.getDateCommande() != null && !c.getDateCommande().isBefore(startOfDay) && !c.getDateCommande().isAfter(endOfDay))
-            .mapToLong(c -> c.getTotal() != null ? c.getTotal().longValue() : 0L).sum();
+            .mapToLong(c -> c.getTotal() != null ? c.getTotal().longValue() : 0L).sum()
+            + ventes.stream()
+            .filter(v -> v.getDateVente() != null && !v.getDateVente().isBefore(startOfDay) && !v.getDateVente().isAfter(endOfDay))
+            .mapToLong(v -> v.getMontantTotal() != null ? v.getMontantTotal().longValue() : 0L).sum();
 
         long dailyCredit = commandes.stream()
             .filter(c -> c.getDateCommande() != null && !c.getDateCommande().isBefore(startOfDay) && !c.getDateCommande().isAfter(endOfDay))
@@ -486,14 +521,20 @@ public class DashboardServiceImpl implements DashboardService {
 
         long dailyCash = commandes.stream()
             .filter(c -> c.getDateCommande() != null && !c.getDateCommande().isBefore(startOfDay) && !c.getDateCommande().isAfter(endOfDay))
-            .mapToLong(c -> c.getPaie() != null ? c.getPaie().longValue() : 0L).sum();
+            .mapToLong(c -> c.getPaie() != null ? c.getPaie().longValue() : 0L).sum()
+            + ventes.stream()
+            .filter(v -> v.getDateVente() != null && !v.getDateVente().isBefore(startOfDay) && !v.getDateVente().isAfter(endOfDay))
+            .mapToLong(v -> v.getMontantRecu() != null ? v.getMontantRecu().longValue() : 0L).sum();
 
         // Monthly calculations
         LocalDateTime startOfMonth = today.withDayOfMonth(1).atStartOfDay();
 
         long monthlyTotal = commandes.stream()
             .filter(c -> c.getDateCommande() != null && !c.getDateCommande().isBefore(startOfMonth))
-            .mapToLong(c -> c.getTotal() != null ? c.getTotal().longValue() : 0L).sum();
+            .mapToLong(c -> c.getTotal() != null ? c.getTotal().longValue() : 0L).sum()
+            + ventes.stream()
+            .filter(v -> v.getDateVente() != null && !v.getDateVente().isBefore(startOfMonth))
+            .mapToLong(v -> v.getMontantTotal() != null ? v.getMontantTotal().longValue() : 0L).sum();
 
         long monthlyCredit = commandes.stream()
             .filter(c -> c.getDateCommande() != null && !c.getDateCommande().isBefore(startOfMonth))
@@ -502,14 +543,20 @@ public class DashboardServiceImpl implements DashboardService {
 
         long monthlyCash = commandes.stream()
             .filter(c -> c.getDateCommande() != null && !c.getDateCommande().isBefore(startOfMonth))
-            .mapToLong(c -> c.getPaie() != null ? c.getPaie().longValue() : 0L).sum();
+            .mapToLong(c -> c.getPaie() != null ? c.getPaie().longValue() : 0L).sum()
+            + ventes.stream()
+            .filter(v -> v.getDateVente() != null && !v.getDateVente().isBefore(startOfMonth))
+            .mapToLong(v -> v.getMontantRecu() != null ? v.getMontantRecu().longValue() : 0L).sum();
 
         // Annual calculations
         LocalDateTime startOfYear = today.withDayOfYear(1).atStartOfDay();
 
         long annualTotal = commandes.stream()
             .filter(c -> c.getDateCommande() != null && !c.getDateCommande().isBefore(startOfYear))
-            .mapToLong(c -> c.getTotal() != null ? c.getTotal().longValue() : 0L).sum();
+            .mapToLong(c -> c.getTotal() != null ? c.getTotal().longValue() : 0L).sum()
+            + ventes.stream()
+            .filter(v -> v.getDateVente() != null && !v.getDateVente().isBefore(startOfYear))
+            .mapToLong(v -> v.getMontantTotal() != null ? v.getMontantTotal().longValue() : 0L).sum();
 
         long annualCredit = commandes.stream()
             .filter(c -> c.getDateCommande() != null && !c.getDateCommande().isBefore(startOfYear))
@@ -518,7 +565,10 @@ public class DashboardServiceImpl implements DashboardService {
 
         long annualCash = commandes.stream()
             .filter(c -> c.getDateCommande() != null && !c.getDateCommande().isBefore(startOfYear))
-            .mapToLong(c -> c.getPaie() != null ? c.getPaie().longValue() : 0L).sum();
+            .mapToLong(c -> c.getPaie() != null ? c.getPaie().longValue() : 0L).sum()
+            + ventes.stream()
+            .filter(v -> v.getDateVente() != null && !v.getDateVente().isBefore(startOfYear))
+            .mapToLong(v -> v.getMontantRecu() != null ? v.getMontantRecu().longValue() : 0L).sum();
 
         bilan.put("dailyTotal", dailyTotal);
         bilan.put("dailyCredit", dailyCredit);
@@ -533,7 +583,7 @@ public class DashboardServiceImpl implements DashboardService {
         return bilan;
     }
 
-    private Map<String, Object> calculateBilanTrimestriel(List<CommandeClient> commandes) {
+    private Map<String, Object> calculateBilanTrimestriel(List<CommandeClient> commandes, List<Vente> ventes) {
         Map<String, Object> bilan = new HashMap<>();
 
         LocalDate now = LocalDate.now();
@@ -543,7 +593,10 @@ public class DashboardServiceImpl implements DashboardService {
 
         long quarterlyTotal = commandes.stream()
             .filter(c -> c.getDateCommande() != null && !c.getDateCommande().isBefore(quarterStartDT))
-            .mapToLong(c -> c.getTotal() != null ? c.getTotal().longValue() : 0L).sum();
+            .mapToLong(c -> c.getTotal() != null ? c.getTotal().longValue() : 0L).sum()
+            + ventes.stream()
+            .filter(v -> v.getDateVente() != null && !v.getDateVente().isBefore(quarterStartDT))
+            .mapToLong(v -> v.getMontantTotal() != null ? v.getMontantTotal().longValue() : 0L).sum();
 
         // Calculate quarterly profit (simplified - 15% margin)
         long quarterlyProfit = (long)(quarterlyTotal * 0.15);

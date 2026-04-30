@@ -616,7 +616,7 @@ const Produits: React.FC = () => {
     return matchesSearch && matchesUnite;
   });
 
-  const isSuccessMessage = assignSuccess || /succès/i.test(message) || /réussi/i.test(message) || /reussi/i.test(message);
+  const isSuccessMessage = assignSuccess || /succès/i.test(message) || /réussi/i.test(message) || /reussi/i.test(message) || /import terminé/i.test(message);
 
   if (loading) return <div>Chargement...</div>;
   if (error) return <div className="alert alert-danger">{error}</div>;
