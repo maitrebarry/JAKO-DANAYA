@@ -345,9 +345,9 @@ const VenteEnEspece: React.FC = () => {
                 <h5>Vente En Espece</h5>
               </div>
               <div className="card-body">
-                <div className="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
+                <div className="page-breadcrumb d-flex flex-column flex-sm-row align-items-start align-items-sm-center mb-3">
                   <div className="breadcrumb-title pe-3">Vente</div>
-                  <div className="ps-3">
+                  <div className="ps-0 ps-sm-3 mt-2 mt-sm-0">
                     <nav aria-label="breadcrumb">
                       <ol className="breadcrumb mb-0 p-0">
                         <li className="breadcrumb-item"><a href="#"><i className="bx bx-home-alt"></i></a></li>
@@ -355,9 +355,9 @@ const VenteEnEspece: React.FC = () => {
                       </ol>
                     </nav>
                   </div>
-                  <div className="ms-auto">
+                  <div className="ms-sm-auto mt-2 mt-sm-0">
                     <div className="btn-group">
-                      <button className="btn btn-outline-primary mb-3 mb-lg-0 me-2" onClick={() => navigate('/ventes/especes')}>Liste Ventes</button>
+                      <button className="btn btn-outline-primary me-2" onClick={() => navigate('/ventes/especes')}>Liste Ventes</button>
                     </div>
                   </div>
                 </div>
