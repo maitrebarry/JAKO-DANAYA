@@ -52,6 +52,11 @@ const SignIn = () => {
         title: 'Soumettre une preuve de réabonnement',
         html: `
           <div class="text-start">
+            <div class="alert alert-info p-2 mb-3">
+              <div class="fw-semibold">Numéros de paiement</div>
+              <div>OrangeMoney et Wave: 74745669</div>
+              <div>Moov: 67205736</div>
+            </div>
             <label class="form-label mt-1">Formule d'abonnement</label>
             <select id="swal-sub-plan" class="swal2-input" style="margin:0 0 10px 0;width:100%">
               ${planSelectOptions || `<option value="${defaultPlanCode}" selected>${defaultPlanCode}</option>`}
