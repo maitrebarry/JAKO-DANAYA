@@ -14,6 +14,7 @@ import { approveAdminSubscriptionPayment, fetchAdminSubscriptionPayments, reject
 
 export type RootStackParamList = {
   Login: undefined;
+  ForgotPassword: undefined;
   BoutiqueSelect: undefined;
   Main: undefined;
   Notifications: undefined;
@@ -42,6 +43,13 @@ export type RootStackParamList = {
   ConfigurationPermissions: undefined;
   ConfigurationAssignPermissions: undefined;
   ConfigurationMarges: undefined;
+  Fournisseurs: undefined;
+  ReportsHome: undefined;
+  Rapports: undefined;
+  Documents: undefined;
+  Mouvements: undefined;
+  HistoriqueAchats: undefined;
+  HistoriqueVentes: undefined;
   SubscriptionRenew: undefined;
   Subscription: undefined;
 };
@@ -130,7 +138,10 @@ export default function RootNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!token ? (
-        <Stack.Screen name="Login" component={LoginScreen} />
+        <>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="ForgotPassword" component={require('../screens/ForgotPasswordScreen').default} />
+        </>
       ) : isSubscriptionBlocked ? (
         <Stack.Screen name="SubscriptionRenew" component={SubscriptionRenewScreen} />
       ) : !boutiqueId ? (
@@ -255,6 +266,41 @@ export default function RootNavigator() {
           <Stack.Screen
             name="ConfigurationMarges"
             component={require('../screens/ConfigurationMargesScreen').default}
+            options={{ headerShown: true, header: () => <TopBar key={topBarKey} showBack={true} /> }}
+          />
+          <Stack.Screen
+            name="Fournisseurs"
+            component={require('../screens/FournisseursScreen').default}
+            options={{ headerShown: true, header: () => <TopBar key={topBarKey} showBack={true} /> }}
+          />
+          <Stack.Screen
+            name="ReportsHome"
+            component={require('../screens/ReportsHomeScreen').default}
+            options={{ headerShown: true, header: () => <TopBar key={topBarKey} showBack={true} /> }}
+          />
+          <Stack.Screen
+            name="Rapports"
+            component={require('../screens/RapportsScreen').default}
+            options={{ headerShown: true, header: () => <TopBar key={topBarKey} showBack={true} /> }}
+          />
+          <Stack.Screen
+            name="Documents"
+            component={require('../screens/DocumentsScreen').default}
+            options={{ headerShown: true, header: () => <TopBar key={topBarKey} showBack={true} /> }}
+          />
+          <Stack.Screen
+            name="Mouvements"
+            component={require('../screens/MouvementsScreen').default}
+            options={{ headerShown: true, header: () => <TopBar key={topBarKey} showBack={true} /> }}
+          />
+          <Stack.Screen
+            name="HistoriqueAchats"
+            component={require('../screens/HistoriqueAchatsScreen').default}
+            options={{ headerShown: true, header: () => <TopBar key={topBarKey} showBack={true} /> }}
+          />
+          <Stack.Screen
+            name="HistoriqueVentes"
+            component={require('../screens/HistoriqueVentesScreen').default}
             options={{ headerShown: true, header: () => <TopBar key={topBarKey} showBack={true} /> }}
           />
           <Stack.Screen

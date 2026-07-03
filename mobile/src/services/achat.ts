@@ -1,24 +1,12 @@
 import { API_BASE_URL } from '../utils/env';
+import { fetchFournisseurs, createFournisseur, type Fournisseur, type FournisseurPayload } from './fournisseurs';
 
 // NOTE: This module is dedicated to ACHAT / COMMANDE FOURNISSEUR.
 // It must remain separate from VENTE logic (cash or credit).
 
-export type Fournisseur = {
-  id: number;
-  nom?: string;
-  prenom?: string;
-  contact?: string;
-  codePays?: string;
-  ville?: string;
-};
-
-export type CreateFournisseurPayload = {
-  nom?: string;
-  prenom?: string;
-  contact?: string;
-  codePays?: string;
-  ville?: string;
-};
+export type { Fournisseur };
+export type CreateFournisseurPayload = FournisseurPayload;
+export { fetchFournisseurs, createFournisseur };
 
 export type AchatLinePayload = {
   id_stock: number;
@@ -137,34 +125,6 @@ async function parseError(res: Response): Promise<string> {
   } catch {
     return text;
   }
-}
-
-export async function fetchFournisseurs(token: string): Promise<Fournisseur[]> {
-  const res = await fetch(`${API_BASE_URL}/api/fournisseurs`, { headers: authHeader(token) });
-  const data = await res.json().catch(() => []);
-  if (!res.ok) throw new Error((data && (data.message || data.error)) || `Erreur chargement fournisseurs (${res.status})`);
-  return Array.isArray(data) ? data : [];
-}
-
-export async function createFournisseur(payload: CreateFournisseurPayload, token: string): Promise<Fournisseur> {
-  const res = await fetch(`${API_BASE_URL}/api/fournisseurs`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const msg = await parseError(res);
-    throw new Error(msg);
-  }
-
-  const contentType = res.headers.get('content-type') || '';
-  if (contentType.includes('application/json')) {
-    return (await res.json().catch(() => ({}))) as any;
-  }
-  // Should not happen, but keep safe fallback
-  const txt = await res.text().catch(() => '');
-  throw new Error(txt || 'Réponse invalide');
 }
 
 export async function fetchBoutiqueStocksForAchat(token: string) {

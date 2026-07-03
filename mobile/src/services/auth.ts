@@ -28,6 +28,18 @@ export async function login(email: string, password: string): Promise<LoginRespo
   return data as LoginResponse;
 }
 
+export async function forgotPassword(email: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.message || data?.error || `Erreur réseau (${res.status})`);
+  }
+}
+
 export async function fetchCurrentUser(token: string) {
   const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
     headers: { Authorization: `Bearer ${token}` }

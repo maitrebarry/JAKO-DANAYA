@@ -53,17 +53,19 @@ async function parseHttpError(res: Response): Promise<string> {
 }
 
 
-export async function downloadAndSharePdf(opts: {
+export async function downloadAndShareFile(opts: {
   apiPath: string; // without leading /api
   token: string;
   filename: string;
+  mimeType?: string; // defaults to application/pdf
 }) {
   const { apiPath, token } = opts;
-  const filename = safeFilename(opts.filename.endsWith('.pdf') ? opts.filename : `${opts.filename}.pdf`);
+  const mimeType = opts.mimeType || 'application/pdf';
+  const filename = safeFilename(opts.filename);
   const authHeader = buildAuthHeader(token);
 
   if (!authHeader) {
-    throw new Error('Session expirée: token manquant pour générer le PDF');
+    throw new Error('Session expirée: token manquant pour générer le fichier');
   }
 
   const url = `${API_BASE_URL.replace(/\/$/, '')}/api/${apiPath.replace(/^\//, '')}`;
@@ -76,7 +78,7 @@ export async function downloadAndSharePdf(opts: {
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      throw new Error(text || `Erreur PDF (${res.status})`);
+      throw new Error(text || `Erreur téléchargement (${res.status})`);
     }
     const blob = await res.blob();
     const objectUrl = URL.createObjectURL(blob);
@@ -88,21 +90,17 @@ export async function downloadAndSharePdf(opts: {
   // Native: download to cache directory and share
   const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
   if (!baseDir) {
-    throw new Error('Dossier cache non disponible pour enregistrer le PDF');
+    throw new Error('Dossier cache non disponible pour enregistrer le fichier');
   }
 
-  const pdfDir = `${baseDir}pdf/`;
+  const dlDir = `${baseDir}downloads/`;
   try {
-    await FileSystem.makeDirectoryAsync(pdfDir, { intermediates: true });
+    await FileSystem.makeDirectoryAsync(dlDir, { intermediates: true });
   } catch {
     // ignore
   }
 
-  const fileUri = `${pdfDir}${filename}`;
-
-  if (__DEV__) {
-    try { console.log('PDF_AUTH', { tokenLen: token.length, hasBearer: authHeader.toLowerCase().startsWith('bearer ') }); } catch {}
-  }
+  const fileUri = `${dlDir}${filename}`;
 
   const fetchRes = await fetch(url, {
     method: 'GET',
@@ -130,9 +128,14 @@ export async function downloadAndSharePdf(opts: {
   }
 
   await Sharing.shareAsync(fileUri, {
-    mimeType: 'application/pdf',
-    dialogTitle: 'Ouvrir / partager le PDF',
+    mimeType,
+    dialogTitle: 'Ouvrir / partager le fichier',
   });
 
   return { uri: fileUri, shared: true };
+}
+
+export async function downloadAndSharePdf(opts: { apiPath: string; token: string; filename: string }) {
+  const filename = opts.filename.endsWith('.pdf') ? opts.filename : `${opts.filename}.pdf`;
+  return downloadAndShareFile({ ...opts, filename, mimeType: 'application/pdf' });
 }

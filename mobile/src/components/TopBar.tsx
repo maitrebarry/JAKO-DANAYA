@@ -239,6 +239,15 @@ export default function TopBar({ showBack = false }: { showBack?: boolean }) {
               })}
 
               {menuItem({
+                label: 'Rapports & Historique',
+                icon: 'stats-chart-outline',
+                onPress: () => {
+                  closeMenu();
+                  navigation.navigate('ReportsHome');
+                },
+              })}
+
+              {menuItem({
                 label: 'Abonnement',
                 icon: 'card-outline',
                 onPress: () => {

@@ -25,6 +25,16 @@ export type Access = {
   utilisationPertesModify: boolean;
   utilisationPertesDelete: boolean;
   clientsCreate: boolean;
+
+  fournisseurs: boolean;
+  fournisseursCreate: boolean;
+  fournisseursEdit: boolean;
+  fournisseursDelete: boolean;
+  stockTransfer: boolean;
+  mouvementsAudit: boolean;
+  documentsView: boolean;
+  documentsDownload: boolean;
+  rapportsView: boolean;
 };
 
 export function computeAccess(profile: any): Access {
@@ -62,6 +72,16 @@ export function computeAccess(profile: any): Access {
     utilisationPertesDelete: any(['UTILISA_PERTE_SUPPRIMER']),
 
     clientsCreate: any(['CLIENT_CREER']),
+
+    fournisseurs: any(['FOURNISSEUR_VOIR', 'FOURNISSEUR_LECTURE']),
+    fournisseursCreate: any(['FOURNISSEUR_CREER']),
+    fournisseursEdit: any(['FOURNISSEUR_MODIFIER']),
+    fournisseursDelete: any(['FOURNISSEUR_SUPPRIMER']),
+    stockTransfer: any(['INVENTAIRE_MODIFIER', 'INVENTAIRE_CREER', 'TRANSFERT_CREER']),
+    mouvementsAudit: any(['MOUVEMENT_AUDIT']),
+    documentsView: any(['DOCUMENTS_VOIR']),
+    documentsDownload: any(['DOCUMENTS_TELECHARGER']),
+    rapportsView: any(['RAPPORTS_VOIR', 'RAPPORT_LECTURE', 'RAPPORT_CREER']),
   };
 }
 

@@ -136,6 +136,12 @@ export default function ProduitsScreen({ navigation, route }: any) {
           <Pressable onPress={() => setLowStockOnly(s => !s)} style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: lowStockOnly ? '#f97316' : theme.surface, borderRadius: 8 }}>
             <Text style={{ color: lowStockOnly ? '#fff' : theme.text }}>Faible stock</Text>
           </Pressable>
+          {access.stockTransfer ? (
+            <Pressable onPress={() => navigation.navigate('StockTransfer')} style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: theme.surface, borderRadius: 8, borderWidth: 1, borderColor: theme.primary, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="swap-horizontal" size={16} color={theme.primary} />
+              <Text style={{ color: theme.primary }}>Transférer</Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
 

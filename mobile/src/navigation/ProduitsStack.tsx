@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ProduitsScreen from '../screens/ProduitsScreen';
 import ProductFormScreen from '../screens/ProductFormScreen';
+import StockTransferScreen from '../screens/StockTransferScreen';
 import TopBar from '../components/TopBar';
 import { useApp } from '../store/AppContext';
 
@@ -14,6 +15,7 @@ export default function ProduitsStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Produits" component={ProduitsScreen} options={{ headerShown: true, header: () => <TopBar key={topBarKey} showBack={false} /> }} />
       <Stack.Screen name="ProductForm" component={ProductFormScreen} options={{ headerShown: true, header: () => <TopBar key={topBarKey} showBack={true} /> }} />
+      <Stack.Screen name="StockTransfer" component={StockTransferScreen} options={{ headerShown: true, header: () => <TopBar key={topBarKey} showBack={true} /> }} />
     </Stack.Navigator>
   );
 }

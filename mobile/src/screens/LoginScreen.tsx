@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, ActivityIndicator, ImageBackground } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { login, fetchCurrentUser } from '../services/auth';
 import { useApp } from '../store/AppContext';
 import * as WebBrowser from 'expo-web-browser';
@@ -8,6 +9,7 @@ import { API_BASE_URL, OAUTH_REDIRECT_URL } from '../utils/env';
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
+  const navigation = useNavigation<any>();
   const { setToken, setBoutiqueId } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -161,6 +163,10 @@ export default function LoginScreen() {
               )}
             </Pressable>
           </View>
+
+          <Pressable onPress={() => navigation.navigate('ForgotPassword')} style={{ marginTop: 14, alignItems: 'center' }}>
+            <Text style={{ color: '#2563eb' }}>Mot de passe oublié ?</Text>
+          </Pressable>
         </View>
       </View>
     </ImageBackground>

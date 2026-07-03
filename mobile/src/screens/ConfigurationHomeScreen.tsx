@@ -61,6 +61,7 @@ export default function ConfigurationHomeScreen() {
       {isSuperAdmin(profile) ? item({ title: 'Permissions', subtitle: 'Liste / création / modification', icon: 'key-outline', route: 'ConfigurationPermissions' }) : null}
       {item({ title: 'Assigner des permissions', subtitle: 'Attribuer des permissions à un utilisateur', icon: 'shield-checkmark-outline', route: 'ConfigurationAssignPermissions' })}
       {item({ title: 'Marges (configuration)', subtitle: 'Type de marge + recalcul automatique', icon: 'calculator-outline', route: 'ConfigurationMarges' })}
+      {item({ title: 'Fournisseurs', subtitle: 'Créer / modifier / supprimer', icon: 'people-circle-outline', route: 'Fournisseurs' })}
     </ScrollView>
   );
 }
