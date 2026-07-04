@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, ActivityIndicator, ImageBackground } from 'react-native';
+import { View, Text, TextInput, Pressable, ActivityIndicator, ImageBackground, ScrollView, KeyboardAvoidingView, Platform, StatusBar } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { login, fetchCurrentUser } from '../services/auth';
 import { useApp } from '../store/AppContext';
 import * as WebBrowser from 'expo-web-browser';
@@ -8,11 +9,18 @@ import { API_BASE_URL, OAUTH_REDIRECT_URL } from '../utils/env';
 
 WebBrowser.maybeCompleteAuthSession();
 
+const ACCENT = '#0ea5e9';
+const PANEL_BG = '#14161a';
+const MUTED = '#9ca3af';
+const BORDER = '#2d2f36';
+
 export default function LoginScreen() {
   const navigation = useNavigation<any>();
+  const canGoBack = navigation.canGoBack();
   const { setToken, setBoutiqueId } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,67 +116,103 @@ export default function LoginScreen() {
   };
 
   return (
-    <ImageBackground
-      source={require('../assets/logo.png')}
-      style={{ flex: 1 }}
-      resizeMode="cover"
-    >
-      <View style={{ flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(255,255,255,0.78)' }}>
-        <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 3 }}>
-          <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 6, textAlign: 'center' }}>JAGO DANAYA</Text>
-          <Text style={{ marginBottom: 16, color: '#666', textAlign: 'center' }}>Connexion</Text>
+    <View style={{ flex: 1, backgroundColor: PANEL_BG }}>
+      <StatusBar barStyle="light-content" />
 
-          <Text style={{ marginBottom: 6 }}>Email</Text>
-          <TextInput
-            placeholder="ex: user@domaine.com"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-            style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 12 }}
-          />
+      <View style={{ height: '42%' }}>
+        <ImageBackground source={require('../assets/logo.png')} style={{ flex: 1 }} resizeMode="cover">
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.18)' }} />
+        </ImageBackground>
 
-          <Text style={{ marginBottom: 6 }}>Mot de passe</Text>
-          <TextInput
-            placeholder="Votre mot de passe"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 12 }}
-          />
-
-          {error ? (
-            <Text style={{ color: '#c0392b', marginBottom: 12 }}>{error}</Text>
-          ) : null}
-
+        {canGoBack ? (
           <Pressable
-            onPress={onLogin}
-            disabled={loading}
-            style={{ backgroundColor: '#2563eb', padding: 14, borderRadius: 8, alignItems: 'center' }}
+            onPress={() => navigation.goBack()}
+            hitSlop={12}
+            style={{ position: 'absolute', top: 50, left: 16, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}
           >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '600' }}>Se connecter</Text>}
+            <Ionicons name="chevron-back" size={24} color="#fff" />
           </Pressable>
-
-          <View style={{ marginTop: 12, alignItems: 'center' }}>
-            <Text style={{ color: '#666', marginBottom: 8 }}>ou</Text>
-            <Pressable
-              onPress={onGoogleLogin}
-              disabled={googleLoading}
-              style={{ borderWidth: 1, borderColor: '#ddd', padding: 14, borderRadius: 8, alignItems: 'center', width: '100%' }}
-            >
-              {googleLoading ? (
-                <ActivityIndicator />
-              ) : (
-                <Text style={{ fontWeight: '600' }}>Se connecter avec Google</Text>
-              )}
-            </Pressable>
-          </View>
-
-          <Pressable onPress={() => navigation.navigate('ForgotPassword')} style={{ marginTop: 14, alignItems: 'center' }}>
-            <Text style={{ color: '#2563eb' }}>Mot de passe oublié ?</Text>
-          </Pressable>
-        </View>
+        ) : null}
       </View>
-    </ImageBackground>
+
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View
+          style={{
+            flex: 1,
+            marginTop: -28,
+            backgroundColor: PANEL_BG,
+            borderTopLeftRadius: 32,
+            borderTopRightRadius: 32,
+          }}
+        >
+          <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+            <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800' }}>Authentification</Text>
+            <Text style={{ color: MUTED, marginTop: 6, marginBottom: 28 }}>Connectez-vous à votre compte JÀGO DÁNAYA</Text>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: BORDER, paddingBottom: 10, marginBottom: 24 }}>
+              <Ionicons name="mail-outline" size={20} color={MUTED} style={{ marginRight: 10 }} />
+              <TextInput
+                placeholder="Adresse email"
+                placeholderTextColor={MUTED}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+                style={{ flex: 1, color: '#fff', paddingVertical: 4 }}
+              />
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: BORDER, paddingBottom: 10, marginBottom: 8 }}>
+              <Ionicons name="lock-closed-outline" size={20} color={MUTED} style={{ marginRight: 10 }} />
+              <TextInput
+                placeholder="Mot de passe"
+                placeholderTextColor={MUTED}
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+                style={{ flex: 1, color: '#fff', paddingVertical: 4 }}
+              />
+              <Pressable onPress={() => setShowPassword((s) => !s)} hitSlop={8}>
+                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={MUTED} />
+              </Pressable>
+            </View>
+
+            {error ? (
+              <Text style={{ color: '#f87171', marginTop: 8, marginBottom: 4 }}>{error}</Text>
+            ) : null}
+
+            <Pressable
+              onPress={onLogin}
+              disabled={loading}
+              style={{ backgroundColor: ACCENT, paddingVertical: 15, borderRadius: 999, alignItems: 'center', marginTop: 24 }}
+            >
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>Se connecter</Text>}
+            </Pressable>
+
+            <View style={{ marginTop: 20, alignItems: 'center' }}>
+              <Text style={{ color: MUTED, marginBottom: 14 }}>ou</Text>
+              <Pressable
+                onPress={onGoogleLogin}
+                disabled={googleLoading}
+                style={{ borderWidth: 1, borderColor: BORDER, paddingVertical: 15, borderRadius: 999, alignItems: 'center', width: '100%', flexDirection: 'row', justifyContent: 'center', gap: 10 as any }}
+              >
+                {googleLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="logo-google" size={18} color="#fff" />
+                    <Text style={{ color: '#fff', fontWeight: '700' }}>Se connecter avec Google</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+
+            <Pressable onPress={() => navigation.navigate('ForgotPassword')} style={{ marginTop: 22, alignItems: 'center' }}>
+              <Text style={{ color: ACCENT, fontWeight: '600' }}>Mot de passe oublié ?</Text>
+            </Pressable>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
   );
 }

@@ -54,7 +54,7 @@ export default function OnboardingScreen() {
 
   const goToLogin = () => {
     setItem(ONBOARDING_SEEN_KEY, '1');
-    navigation.replace('Login');
+    navigation.navigate('Login');
   };
 
   const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
