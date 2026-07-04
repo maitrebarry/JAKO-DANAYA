@@ -151,12 +151,13 @@ export default function RootNavigator() {
   }
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={{ headerShown: false }}
+      initialRouteName={!token ? (showOnboarding ? 'Onboarding' : 'Login') : undefined}
+    >
       {!token ? (
         <>
-          {showOnboarding ? (
-            <Stack.Screen name="Onboarding" component={require('../screens/OnboardingScreen').default} />
-          ) : null}
+          <Stack.Screen name="Onboarding" component={require('../screens/OnboardingScreen').default} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="ForgotPassword" component={require('../screens/ForgotPasswordScreen').default} />
         </>

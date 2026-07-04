@@ -1,7 +1,6 @@
-import React, { useRef, useState } from 'react';
-import { View, Text, Pressable, FlatList, useWindowDimensions, StatusBar, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable, FlatList, Image, ImageSourcePropType, useWindowDimensions, StatusBar, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { setItem } from '../utils/storage';
 
@@ -9,8 +8,7 @@ const ONBOARDING_SEEN_KEY = 'jd_onboarding_seen';
 
 type Slide = {
   key: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  gradient: [string, string];
+  image: ImageSourcePropType;
   title: string;
   description: string;
 };
@@ -18,29 +16,25 @@ type Slide = {
 const SLIDES: Slide[] = [
   {
     key: 'produits',
-    icon: 'cube-outline',
-    gradient: ['#38bdf8', '#0369a1'],
+    image: require('../assets/onboarding/onboarding-produits.jpg'),
     title: 'Produits & Stock',
     description: "Gérez vos produits, vos prix et suivez votre stock en temps réel, boutique par boutique.",
   },
   {
     key: 'ventes',
-    icon: 'cart-outline',
-    gradient: ['#4ade80', '#15803d'],
+    image: require('../assets/onboarding/onboarding-ventes.jpg'),
     title: 'Ventes & Caisse',
     description: "Enregistrez vos ventes en espèces ou sur commande, et suivez votre caisse au quotidien.",
   },
   {
     key: 'rapports',
-    icon: 'bar-chart-outline',
-    gradient: ['#fbbf24', '#b45309'],
+    image: require('../assets/onboarding/onboarding-rapports.jpg'),
     title: 'Rapports & Historique',
     description: "Consultez vos rapports de ventes, de stock et l'historique complet de votre activité.",
   },
   {
     key: 'boutiques',
-    icon: 'business-outline',
-    gradient: ['#818cf8', '#3730a3'],
+    image: require('../assets/onboarding/onboarding-boutiques.jpg'),
     title: 'Multi-boutiques',
     description: "Gérez plusieurs boutiques et magasins depuis une seule et même application.",
   },
@@ -50,7 +44,6 @@ export default function OnboardingScreen() {
   const navigation = useNavigation<any>();
   const { width, height } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
-  const listRef = useRef<FlatList>(null);
 
   const goToLogin = () => {
     setItem(ONBOARDING_SEEN_KEY, '1');
@@ -68,7 +61,6 @@ export default function OnboardingScreen() {
     <View style={{ flex: 1, backgroundColor: '#14161a' }}>
       <StatusBar barStyle="light-content" />
       <FlatList
-        ref={listRef}
         data={SLIDES}
         keyExtractor={(s) => s.key}
         horizontal
@@ -77,25 +69,13 @@ export default function OnboardingScreen() {
         onMomentumScrollEnd={onScrollEnd}
         renderItem={({ item }) => (
           <View style={{ width, height }}>
-            <LinearGradient
-              colors={item.gradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{ width, height: imageHeight, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <View
-                style={{
-                  width: 160,
-                  height: 160,
-                  borderRadius: 80,
-                  backgroundColor: 'rgba(255,255,255,0.18)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Ionicons name={item.icon} size={84} color="#fff" />
-              </View>
-            </LinearGradient>
+            <View style={{ width, height: imageHeight }}>
+              <Image source={item.image} style={{ width, height: imageHeight }} resizeMode="cover" />
+              <LinearGradient
+                colors={['transparent', 'rgba(20,22,26,0.9)', '#14161a']}
+                style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 90 }}
+              />
+            </View>
 
             <View
               style={{

@@ -16,7 +16,10 @@ const BORDER = '#2d2f36';
 
 export default function LoginScreen() {
   const navigation = useNavigation<any>();
-  const canGoBack = navigation.canGoBack();
+  const goBackToSlides = () => {
+    if (navigation.canGoBack()) navigation.goBack();
+    else navigation.navigate('Onboarding');
+  };
   const { setToken, setBoutiqueId } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -120,19 +123,17 @@ export default function LoginScreen() {
       <StatusBar barStyle="light-content" />
 
       <View style={{ height: '42%' }}>
-        <ImageBackground source={require('../assets/logo.png')} style={{ flex: 1 }} resizeMode="cover">
+        <ImageBackground source={require('../assets/onboarding/onboarding-ventes.jpg')} style={{ flex: 1 }} resizeMode="cover">
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.18)' }} />
         </ImageBackground>
 
-        {canGoBack ? (
-          <Pressable
-            onPress={() => navigation.goBack()}
-            hitSlop={12}
-            style={{ position: 'absolute', top: 50, left: 16, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Ionicons name="chevron-back" size={24} color="#fff" />
-          </Pressable>
-        ) : null}
+        <Pressable
+          onPress={goBackToSlides}
+          hitSlop={12}
+          style={{ position: 'absolute', top: 50, left: 16, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Ionicons name="chevron-back" size={24} color="#fff" />
+        </Pressable>
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
