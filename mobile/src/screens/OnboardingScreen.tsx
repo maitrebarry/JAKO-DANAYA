@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, FlatList, Image, ImageSourcePropType, useWindowDimensions, StatusBar, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -40,10 +40,27 @@ const SLIDES: Slide[] = [
   },
 ];
 
+const AUTO_ADVANCE_MS = 30000;
+
 export default function OnboardingScreen() {
   const navigation = useNavigation<any>();
   const { width, height } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
+  const listRef = useRef<FlatList>(null);
+  const activeIndexRef = useRef(0);
+
+  useEffect(() => {
+    activeIndexRef.current = activeIndex;
+  }, [activeIndex]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const next = (activeIndexRef.current + 1) % SLIDES.length;
+      listRef.current?.scrollToOffset({ offset: next * width, animated: true });
+      setActiveIndex(next);
+    }, AUTO_ADVANCE_MS);
+    return () => clearInterval(timer);
+  }, [width]);
 
   const goToLogin = () => {
     setItem(ONBOARDING_SEEN_KEY, '1');
@@ -61,6 +78,7 @@ export default function OnboardingScreen() {
     <View style={{ flex: 1, backgroundColor: '#14161a' }}>
       <StatusBar barStyle="light-content" />
       <FlatList
+        ref={listRef}
         data={SLIDES}
         keyExtractor={(s) => s.key}
         horizontal
