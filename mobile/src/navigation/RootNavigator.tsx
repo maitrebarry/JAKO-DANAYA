@@ -11,8 +11,11 @@ import { getRoleNames, isSuperAdmin } from '../utils/permissions';
 import SubscriptionRenewScreen from '../screens/SubscriptionRenewScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import { approveAdminSubscriptionPayment, fetchAdminSubscriptionPayments, rejectAdminSubscriptionPayment } from '../services/admin';
+import { ONBOARDING_SEEN_KEY } from '../screens/OnboardingScreen';
+import { getItem } from '../utils/storage';
 
 export type RootStackParamList = {
+  Onboarding: undefined;
   Login: undefined;
   ForgotPassword: undefined;
   BoutiqueSelect: undefined;
@@ -60,6 +63,18 @@ export default function RootNavigator() {
   const { token, boutiqueId, ready, profile, subscriptionStatus, subscriptionChecked } = useApp();
   const topBarKey = profile?.photoUrl || profile?.photo || profile?.avatar || 'no-avatar';
   const [lastPromptPaymentId, setLastPromptPaymentId] = useState<number | null>(null);
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    getItem(ONBOARDING_SEEN_KEY).then((v) => {
+      if (!mounted) return;
+      setShowOnboarding(v !== '1');
+      setOnboardingChecked(true);
+    });
+    return () => { mounted = false; };
+  }, []);
 
   const roles = getRoleNames(profile);
   const isSubscriptionManagedRole = !!token;
@@ -119,7 +134,7 @@ export default function RootNavigator() {
     return () => { cancelled = true; };
   }, [token, subscriptionChecked, profile?.id, lastPromptPaymentId]);
 
-  if (!ready) {
+  if (!ready || !onboardingChecked) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator />
@@ -139,6 +154,9 @@ export default function RootNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!token ? (
         <>
+          {showOnboarding ? (
+            <Stack.Screen name="Onboarding" component={require('../screens/OnboardingScreen').default} />
+          ) : null}
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="ForgotPassword" component={require('../screens/ForgotPasswordScreen').default} />
         </>
