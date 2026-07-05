@@ -7,10 +7,10 @@ import { fetchCurrentSubscriptionStatus } from '../api/admin';
 import { fetchSubscriptionPlansForOwner, submitManualSubscriptionPayment } from '../api/subscription';
 
 import logoMark from '../../assets/images/jako-danaya-mark.png';
-import slideProduits from '../../assets/images/onboarding/onboarding-produits.jpg';
-import slideVentes from '../../assets/images/onboarding/onboarding-ventes.jpg';
-import slideRapports from '../../assets/images/onboarding/onboarding-rapports.jpg';
-import slideBoutiques from '../../assets/images/onboarding/onboarding-boutiques.jpg';
+import slideProduits from '../../assets/images/onboarding-web/produits.jpg';
+import slideVentes from '../../assets/images/onboarding-web/ventes.jpg';
+import slideRapports from '../../assets/images/onboarding-web/rapports.jpg';
+import slideBoutiques from '../../assets/images/onboarding-web/boutiques.jpg';
 
 const SLIDES = [
   {
@@ -397,20 +397,12 @@ const SignIn = () => {
           overflow: hidden;
         }
         .jd-bg-slide.active { opacity: 1; }
-        .jd-bg-slide.active .jd-bg-slide-blur { animation: jdKenBurns 9s ease-in-out forwards; }
-        .jd-bg-slide-blur {
-          position: absolute; inset: -30px;
-          background-size: cover; background-position: center;
-          filter: blur(40px) brightness(0.55) saturate(1.15);
-          transform: scale(1.15);
+        .jd-bg-slide.active .jd-bg-slide-img { animation: jdKenBurns 9s ease-in-out forwards; }
+        .jd-bg-slide-img {
+          position: absolute; inset: 0;
+          background-size: cover; background-position: center 30%;
         }
-        .jd-bg-slide-sharp {
-          position: absolute; top: 0; bottom: 0; left: 0;
-          width: min(62vw, 980px);
-          background-size: cover; background-position: center 20%;
-        }
-        @media (max-width: 900px) { .jd-bg-slide-sharp { width: 100%; } }
-        @keyframes jdKenBurns { from { transform: scale(1.15); } to { transform: scale(1.22); } }
+        @keyframes jdKenBurns { from { transform: scale(1); } to { transform: scale(1.06); } }
         .jd-bg-slide::after {
           content: '';
           position: absolute; inset: 0;
@@ -496,8 +488,7 @@ const SignIn = () => {
       <div className="jd-bg-carousel">
         {SLIDES.map((s, i) => (
           <div key={s.key} className={`jd-bg-slide${i === activeIndex ? ' active' : ''}`}>
-            <div className="jd-bg-slide-blur" style={{ backgroundImage: `url(${s.image})` }} />
-            <div className="jd-bg-slide-sharp" style={{ backgroundImage: `url(${s.image})` }} />
+            <div className="jd-bg-slide-img" style={{ backgroundImage: `url(${s.image})` }} />
           </div>
         ))}
         <div className="jd-bg-caption">
