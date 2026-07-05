@@ -20,5 +20,8 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-// Register PWA service worker (non-blocking)
-registerServiceWorker();
+// Register PWA service worker (non-blocking) — production only, to avoid
+// stale cache-first content when testing locally with `npm run dev`.
+if (import.meta.env.PROD) {
+  registerServiceWorker();
+}
