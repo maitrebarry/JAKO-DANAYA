@@ -405,9 +405,11 @@ const SignIn = () => {
           transform: scale(1.15);
         }
         .jd-bg-slide-sharp {
-          position: absolute; inset: 0;
-          background-size: contain; background-position: center; background-repeat: no-repeat;
+          position: absolute; top: 0; bottom: 0; left: 0;
+          width: min(62vw, 980px);
+          background-size: cover; background-position: center 20%;
         }
+        @media (max-width: 900px) { .jd-bg-slide-sharp { width: 100%; } }
         @keyframes jdKenBurns { from { transform: scale(1.15); } to { transform: scale(1.22); } }
         .jd-bg-slide::after {
           content: '';
