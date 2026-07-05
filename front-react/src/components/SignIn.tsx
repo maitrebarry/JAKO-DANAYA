@@ -393,13 +393,22 @@ const SignIn = () => {
         .jd-bg-carousel { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #0b1a33; }
         .jd-bg-slide {
           position: absolute; inset: 0;
-          background-size: cover; background-position: center;
           opacity: 0; transition: opacity 1.2s ease;
+          overflow: hidden;
         }
         .jd-bg-slide.active { opacity: 1; }
-        .jd-bg-slide.active .jd-bg-slide-img { animation: jdKenBurns 9s ease-in-out forwards; }
-        .jd-bg-slide-img { position: absolute; inset: 0; background-size: cover; background-position: center; }
-        @keyframes jdKenBurns { from { transform: scale(1); } to { transform: scale(1.08); } }
+        .jd-bg-slide.active .jd-bg-slide-blur { animation: jdKenBurns 9s ease-in-out forwards; }
+        .jd-bg-slide-blur {
+          position: absolute; inset: -30px;
+          background-size: cover; background-position: center;
+          filter: blur(40px) brightness(0.55) saturate(1.15);
+          transform: scale(1.15);
+        }
+        .jd-bg-slide-sharp {
+          position: absolute; inset: 0;
+          background-size: contain; background-position: center; background-repeat: no-repeat;
+        }
+        @keyframes jdKenBurns { from { transform: scale(1.15); } to { transform: scale(1.22); } }
         .jd-bg-slide::after {
           content: '';
           position: absolute; inset: 0;
@@ -485,7 +494,8 @@ const SignIn = () => {
       <div className="jd-bg-carousel">
         {SLIDES.map((s, i) => (
           <div key={s.key} className={`jd-bg-slide${i === activeIndex ? ' active' : ''}`}>
-            <div className="jd-bg-slide-img" style={{ backgroundImage: `url(${s.image})` }} />
+            <div className="jd-bg-slide-blur" style={{ backgroundImage: `url(${s.image})` }} />
+            <div className="jd-bg-slide-sharp" style={{ backgroundImage: `url(${s.image})` }} />
           </div>
         ))}
         <div className="jd-bg-caption">
