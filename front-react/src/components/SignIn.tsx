@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { withApi } from '../config/api';
@@ -6,16 +6,82 @@ import Swal from 'sweetalert2';
 import { fetchCurrentSubscriptionStatus } from '../api/admin';
 import { fetchSubscriptionPlansForOwner, submitManualSubscriptionPayment } from '../api/subscription';
 
-import bg1 from '../../assets/images/jako_danaya.png';
-import bg2 from '../../assets/images/jako_danaya2.png';
+import logoMark from '../../assets/images/jako-danaya-mark.png';
+import slideProduits from '../../assets/images/onboarding/onboarding-produits.jpg';
+import slideVentes from '../../assets/images/onboarding/onboarding-ventes.jpg';
+import slideRapports from '../../assets/images/onboarding/onboarding-rapports.jpg';
+import slideBoutiques from '../../assets/images/onboarding/onboarding-boutiques.jpg';
+
+const SLIDES = [
+  {
+    key: 'produits',
+    image: slideProduits,
+    icon: 'bi-box-seam',
+    badge: 'Produits',
+    title: 'Produits & Stock',
+    quote: 'Gérez vos produits, vos prix et suivez votre stock en temps réel, boutique par boutique.',
+  },
+  {
+    key: 'ventes',
+    image: slideVentes,
+    icon: 'bi-cart3',
+    badge: 'Ventes',
+    title: 'Ventes & Caisse',
+    quote: 'Enregistrez vos ventes en espèces ou sur commande, et suivez votre caisse au quotidien.',
+  },
+  {
+    key: 'rapports',
+    image: slideRapports,
+    icon: 'bi-bar-chart',
+    badge: 'Rapports',
+    title: 'Rapports & Historique',
+    quote: "Consultez vos rapports de ventes, de stock et l'historique complet de votre activité.",
+  },
+  {
+    key: 'boutiques',
+    image: slideBoutiques,
+    icon: 'bi-shop',
+    badge: 'Boutiques',
+    title: 'Multi-boutiques',
+    quote: 'Gérez plusieurs boutiques et magasins depuis une seule et même application.',
+  },
+];
+
+const MODULES = [
+  { icon: 'bi-box-seam', label: 'Produits' },
+  { icon: 'bi-cart-plus', label: 'Achats' },
+  { icon: 'bi-cart3', label: 'Ventes' },
+  { icon: 'bi-cash-stack', label: 'Caisse' },
+  { icon: 'bi-people', label: 'Fournisseurs' },
+  { icon: 'bi-wallet2', label: 'Dépenses' },
+  { icon: 'bi-clipboard-data', label: 'Inventaires' },
+  { icon: 'bi-bar-chart', label: 'Rapports' },
+  { icon: 'bi-file-earmark-text', label: 'Documents' },
+  { icon: 'bi-gear', label: 'Configuration' },
+];
+
+const AUTO_ADVANCE_MS = 7000;
 
 const SignIn = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const { setUserData } = useUser();
+
+  const [activeIndex, setActiveIndex] = useState(0);
+  const activeIndexRef = useRef(0);
+  useEffect(() => {
+    activeIndexRef.current = activeIndex;
+  }, [activeIndex]);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveIndex((activeIndexRef.current + 1) % SLIDES.length);
+    }, AUTO_ADVANCE_MS);
+    return () => clearInterval(timer);
+  }, []);
 
   const openRenewSubscriptionModal = async () => {
     try {
@@ -194,15 +260,6 @@ const SignIn = () => {
     }
   };
 
-  // Background image rotation for login page (switch every 60s)
-  const [bgImage, setBgImage] = useState<string>(bg1);
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setBgImage(prev => prev === bg1 ? bg2 : bg1);
-    }, 60000); // switch every 60s
-    return () => clearInterval(interval);
-  }, []);
-
   useEffect(() => {
     const blocked = localStorage.getItem('smb_sub_blocked') === '1';
     const token = localStorage.getItem('smb_token');
@@ -319,79 +376,213 @@ const SignIn = () => {
     }
   };
 
+  const year = new Date().getFullYear();
+
   return (
-    <div className="account-pages pt-2 pt-sm-5 pb-4 pb-sm-5 d-flex align-items-center" style={{
-      backgroundImage: `url(${bgImage})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
-      minHeight: '100vh'
-    }}>
-      <div className="container-fluid">
-        <div className="row justify-content-end">
-          <div className="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5 col-xxl-4 me-lg-4 me-xl-5">
-            <div className="card">
-              <div className="card-header pt-4 pb-4 text-center bg-primary">
-                <span className="fw-bold text-white brand-title" style={{
-                  background: 'linear-gradient(45deg, #007bff, #6610f2)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  textShadow: '1px 1px 0px #ccc, 2px 2px 0px #bbb, 3px 3px 0px #aaa',
-                  fontFamily: 'Arial, sans-serif',
-                  fontSize: '3rem',
-                  lineHeight: '1',
-                  whiteSpace: 'nowrap'
-                }}>
-                  JÀGO DÁNNAYA
-                </span>
-              </div>
-              <div className="card-body p-4">
-                <div className="text-center w-75 m-auto">
-                  <h4 className="text-dark-50 text-center pb-0 fw-bold">Connexion</h4>
-                  <p className="text-muted mb-4">Entrez votre email et mot de passe pour accéder à JÀGO DÁNAYA.</p>
-                </div>
-                {error && <div className="alert alert-danger">{error}</div>}
-                <form onSubmit={handleSubmit}>
-                  <div className="mb-3">
-                    <label htmlFor="emailaddress" className="form-label">Adresse email</label>
-                    <input
-                      className="form-control form-control-lg"
-                      type="email"
-                      id="emailaddress"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      placeholder="Entrez votre email"
-                      autoComplete="username"
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label htmlFor="password" className="form-label">Mot de passe</label>
-                    <input className="form-control form-control-lg" type="password" id="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Entrez votre mot de passe" required />
-                  </div>
-                  <div className="mb-3 mb-0 text-center">
-                    <button className="btn btn-primary btn-lg w-100" type="submit" disabled={loading}>{loading ? 'Connexion...' : 'Se connecter'}</button>
-                  </div>
-                  <div className="text-center my-3">
-                    <span className="text-muted">ou</span>
-                  </div>
+    <div className="jd-login-page">
+      <style>{`
+        .jd-login-page {
+          position: relative;
+          min-height: 100vh;
+          overflow: hidden;
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          font-family: inherit;
+        }
+        .jd-bg-carousel { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #0b1a33; }
+        .jd-bg-slide {
+          position: absolute; inset: 0;
+          background-size: cover; background-position: center;
+          opacity: 0; transition: opacity 1.2s ease;
+        }
+        .jd-bg-slide.active { opacity: 1; }
+        .jd-bg-slide.active .jd-bg-slide-img { animation: jdKenBurns 9s ease-in-out forwards; }
+        .jd-bg-slide-img { position: absolute; inset: 0; background-size: cover; background-position: center; }
+        @keyframes jdKenBurns { from { transform: scale(1); } to { transform: scale(1.08); } }
+        .jd-bg-slide::after {
+          content: '';
+          position: absolute; inset: 0;
+          background:
+            linear-gradient(180deg, rgba(8,14,28,.55) 0%, rgba(8,14,28,.2) 40%, rgba(8,14,28,.5) 75%, rgba(8,14,28,.78) 100%),
+            linear-gradient(105deg, rgba(8,14,28,.35) 0%, transparent 55%);
+        }
+        .jd-bg-caption { position: absolute; left: 32px; bottom: 130px; max-width: 480px; z-index: 2; color: #fff; }
+        .jd-bg-badge {
+          display: inline-flex; align-items: center; gap: 8px;
+          background: rgba(255,255,255,.14); backdrop-filter: blur(6px);
+          border: 1px solid rgba(255,255,255,.25);
+          padding: 6px 14px; border-radius: 999px; font-size: .8rem; font-weight: 600;
+          margin-bottom: 14px;
+        }
+        .jd-bg-title { font-size: 2rem; font-weight: 800; margin-bottom: 10px; text-shadow: 0 2px 12px rgba(0,0,0,.4); }
+        .jd-bg-quote { font-size: 1rem; opacity: .88; line-height: 1.5; font-style: italic; }
+        .jd-bg-progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,.15); z-index: 3; }
+        .jd-bg-progress-bar { height: 100%; background: linear-gradient(90deg,#1e40af,#16a34a); width: 0%; animation: jdProgress ${AUTO_ADVANCE_MS}ms linear forwards; }
+        @keyframes jdProgress { from { width: 0% } to { width: 100% } }
+        .jd-bg-dots { position: absolute; left: 32px; bottom: 100px; display: flex; gap: 8px; z-index: 2; }
+        .jd-bg-dot { width: 8px; height: 8px; border-radius: 999px; background: rgba(255,255,255,.4); cursor: pointer; transition: all .25s; border: none; padding: 0; }
+        .jd-bg-dot.active { width: 22px; background: #fff; }
+        @media (max-width: 600px) { .jd-bg-caption, .jd-bg-dots { display: none; } }
 
-                  <a className="btn btn-outline-secondary w-100" href={`${withApi('')}`.replace(/\/api\/?$/, '') + '/oauth2/authorization/google'}>
-                    <i className="bi bi-google me-2"></i> Se connecter avec Google
-                  </a>
+        .jd-module-wave { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1; pointer-events: none; }
+        .jd-module-wave svg { display: block; width: 100%; height: auto; }
+        .jd-module-list {
+          position: absolute; left: 0; right: 0; bottom: 0;
+          display: grid; grid-template-columns: repeat(10, 1fr);
+          padding: 10px 24px 16px; pointer-events: auto;
+        }
+        .jd-module-node { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #fff; opacity: .9; }
+        .jd-module-node i { font-size: 1.1rem; }
+        .jd-module-node span { font-size: .65rem; font-weight: 600; text-align: center; }
+        @media (max-width: 900px) { .jd-module-node span { display: none; } }
+        @media (max-width: 600px) { .jd-module-list { grid-template-columns: repeat(5, 1fr); row-gap: 8px; } }
 
-                  <div className="mt-3 text-center">
-                    <button type="button" className="btn btn-link text-muted p-0" onClick={handleForgotPassword}>
-                      Mot de passe oublié ?
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
+        .jd-login-main { position: relative; z-index: 4; width: 100%; display: flex; justify-content: flex-end; padding: 24px; }
+        .jd-login-card {
+          width: 100%; max-width: 420px;
+          background: rgba(255,255,255,.94);
+          backdrop-filter: blur(18px) saturate(1.4);
+          border: 1px solid rgba(255,255,255,.7);
+          border-radius: 16px;
+          box-shadow: 0 32px 80px rgba(10,18,35,.28);
+          padding: 32px 28px 24px;
+          position: relative;
+          overflow: hidden;
+        }
+        .jd-login-card::before {
+          content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+          background: linear-gradient(90deg, #1e40af, #16a34a 60%, #1e40af);
+        }
+        .jd-brand-area { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+        .jd-brand-logo { width: 52px; height: 52px; object-fit: contain; }
+        .jd-brand-title { font-size: 1.3rem; font-weight: 800; line-height: 1.1; }
+        .jd-brand-title .jd-blue { color: #1e40af; }
+        .jd-brand-title .jd-green { color: #16a34a; }
+        .jd-brand-subtitle { font-size: .68rem; letter-spacing: .06em; color: #64748b; font-weight: 600; }
+
+        .jd-form-divider { display: flex; align-items: center; gap: 10px; margin: 4px 0 18px; color: #64748b; font-size: .85rem; font-weight: 600; }
+        .jd-form-divider::before, .jd-form-divider::after { content: ''; flex: 1; height: 1px; background: #e2e8f0; }
+
+        .jd-input-group { display: flex; align-items: center; border: 1px solid #dfe5ee; border-radius: 10px; overflow: hidden; margin-bottom: 14px; background: #fff; }
+        .jd-input-group:focus-within { border-color: #1e40af; box-shadow: 0 0 0 3px rgba(30,64,175,.15); }
+        .jd-input-icon { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #64748b; flex-shrink: 0; }
+        .jd-input-group input { border: none; outline: none; flex: 1; height: 42px; padding: 0 12px; font-size: .92rem; background: transparent; }
+        .jd-password-toggle { border: none; background: transparent; color: #64748b; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+        .jd-login-button {
+          width: 100%; border: none; border-radius: 10px; padding: 12px; margin-top: 4px;
+          background: linear-gradient(135deg, #1e40af 0%, #16a34a 100%);
+          color: #fff; font-weight: 700; font-size: .98rem;
+          display: flex; align-items: center; justify-content: center; gap: 8px;
+          box-shadow: 0 8px 24px rgba(30,64,175,.25);
+        }
+        .jd-login-button:disabled { opacity: .7; }
+
+        .jd-login-footer { text-align: center; margin-top: 18px; font-size: .78rem; color: #94a3b8; }
+      `}</style>
+
+      <div className="jd-bg-carousel">
+        {SLIDES.map((s, i) => (
+          <div key={s.key} className={`jd-bg-slide${i === activeIndex ? ' active' : ''}`}>
+            <div className="jd-bg-slide-img" style={{ backgroundImage: `url(${s.image})` }} />
           </div>
+        ))}
+        <div className="jd-bg-caption">
+          <span className="jd-bg-badge"><i className={`bi ${SLIDES[activeIndex].icon}`}></i> {SLIDES[activeIndex].badge}</span>
+          <h2 className="jd-bg-title">{SLIDES[activeIndex].title}</h2>
+          <p className="jd-bg-quote">{SLIDES[activeIndex].quote}</p>
+        </div>
+        <div className="jd-bg-progress"><div key={activeIndex} className="jd-bg-progress-bar" /></div>
+        <div className="jd-bg-dots">
+          {SLIDES.map((s, i) => (
+            <button key={s.key} type="button" aria-label={s.title} className={`jd-bg-dot${i === activeIndex ? ' active' : ''}`} onClick={() => setActiveIndex(i)} />
+          ))}
         </div>
       </div>
+
+      <div className="jd-module-wave">
+        <svg viewBox="0 0 900 100" preserveAspectRatio="none">
+          <path d="M900 38 C790 52 755 88 630 76 C500 64 450 18 330 38 C205 60 175 90 0 68 L0 100 L900 100 Z" fill="rgba(11,26,51,0.92)" />
+        </svg>
+        <div className="jd-module-list">
+          {MODULES.map((m) => (
+            <div className="jd-module-node" key={m.label}>
+              <i className={`bi ${m.icon}`}></i>
+              <span>{m.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <main className="jd-login-main">
+        <section className="jd-login-card">
+          <div className="jd-brand-area">
+            <img src={logoMark} alt="JÀGO DÁNAYA" className="jd-brand-logo" />
+            <div>
+              <div className="jd-brand-title"><span className="jd-blue">JÀGO</span> <span className="jd-green">DÁNAYA</span></div>
+              <div className="jd-brand-subtitle">GESTION DE BOUTIQUE</div>
+            </div>
+          </div>
+
+          {error && <div className="alert alert-danger py-2">{error}</div>}
+
+          <div className="jd-form-divider"><span>Connexion</span></div>
+
+          <form onSubmit={handleSubmit}>
+            <label htmlFor="emailaddress" className="form-label small text-muted">Adresse email</label>
+            <div className="jd-input-group">
+              <span className="jd-input-icon"><i className="bi bi-person-badge"></i></span>
+              <input
+                type="email"
+                id="emailaddress"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="Entrez votre email"
+                autoComplete="username"
+                required
+              />
+            </div>
+
+            <label htmlFor="password" className="form-label small text-muted">Mot de passe</label>
+            <div className="jd-input-group">
+              <span className="jd-input-icon"><i className="bi bi-lock"></i></span>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                id="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Entrez votre mot de passe"
+                autoComplete="current-password"
+                required
+              />
+              <button type="button" className="jd-password-toggle" onClick={() => setShowPassword((v) => !v)} aria-label="Afficher le mot de passe">
+                <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+              </button>
+            </div>
+
+            <button className="jd-login-button" type="submit" disabled={loading}>
+              {loading ? 'Connexion...' : <>Connexion <i className="bi bi-box-arrow-in-right"></i></>}
+            </button>
+
+            <div className="text-center my-3">
+              <span className="text-muted">ou</span>
+            </div>
+
+            <a className="btn btn-outline-secondary w-100" href={`${withApi('')}`.replace(/\/api\/?$/, '') + '/oauth2/authorization/google'}>
+              <i className="bi bi-google me-2"></i> Se connecter avec Google
+            </a>
+
+            <div className="mt-3 text-center">
+              <button type="button" className="btn btn-link text-muted p-0" onClick={handleForgotPassword}>
+                Mot de passe oublié ?
+              </button>
+            </div>
+          </form>
+
+          <div className="jd-login-footer">© {year} JÀGO DÁNAYA</div>
+        </section>
+      </main>
     </div>
   );
 };
