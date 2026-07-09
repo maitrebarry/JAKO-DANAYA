@@ -7,7 +7,7 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import { useApp } from '../store/AppContext';
 import { View, ActivityIndicator, Alert } from 'react-native';
 import TopBar from '../components/TopBar';
-import { getRoleNames, isSuperAdmin } from '../utils/permissions';
+import { isSuperAdmin } from '../utils/permissions';
 import SubscriptionRenewScreen from '../screens/SubscriptionRenewScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import { approveAdminSubscriptionPayment, fetchAdminSubscriptionPayments, rejectAdminSubscriptionPayment } from '../services/admin';
@@ -76,11 +76,12 @@ export default function RootNavigator() {
     return () => { mounted = false; };
   }, []);
 
-  const roles = getRoleNames(profile);
-  const isSubscriptionManagedRole = !!token;
+  const superAdmin = isSuperAdmin(profile);
+  const isSubscriptionManagedRole = !!token && !superAdmin;
   const status = String(subscriptionStatus?.status || '').toUpperCase();
   const isAllowedStatus = status === 'ACTIVE' || status === 'TRIAL';
-  const isSubscriptionBlocked = !!subscriptionStatus?.blocked || (subscriptionStatus?.configured && !isAllowedStatus);
+  const isSubscriptionBlocked = !superAdmin &&
+    (!!subscriptionStatus?.blocked || (subscriptionStatus?.configured && !isAllowedStatus));
 
   useEffect(() => {
     if (!token) return;

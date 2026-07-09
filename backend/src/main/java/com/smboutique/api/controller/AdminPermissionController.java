@@ -46,7 +46,7 @@ public class AdminPermissionController {
         return user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
     }
 
-    @PreAuthorize("hasAnyRole('SUPERADMIN','PROPRIETAIRE','ADMINISTRATEUR')")
+    @PreAuthorize("hasRole('SUPERADMIN') or hasAnyAuthority('UTILISATEUR_GERER','UTILISATEUR_CREER')")
     @GetMapping("/utilisateurs")
     public List<Utilisateur> listUsers() {
         Utilisateur current = getCurrentUser();
@@ -59,13 +59,13 @@ public class AdminPermissionController {
         return utilisateurService.findAllByBoutiqueId(current.getBoutique().getId());
     }
 
-    @PreAuthorize("hasAnyRole('SUPERADMIN','PROPRIETAIRE','ADMINISTRATEUR')")
+    @PreAuthorize("hasRole('SUPERADMIN') or hasAnyAuthority('UTILISATEUR_GERER','UTILISATEUR_CREER')")
     @GetMapping("/admin/permissions")
     public List<Permission> listPermissions() {
         return permissionService.findAll();
     }
 
-    @PreAuthorize("hasAnyRole('SUPERADMIN','PROPRIETAIRE','ADMINISTRATEUR')")
+    @PreAuthorize("hasRole('SUPERADMIN') or hasAnyAuthority('UTILISATEUR_GERER','UTILISATEUR_CREER')")
     @GetMapping("/admin/utilisateurs/{id}/permissions")
     public ResponseEntity<Set<Permission>> getUserPermissions(@PathVariable Long id) {
         Utilisateur current = getCurrentUser();
@@ -89,7 +89,7 @@ public class AdminPermissionController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PreAuthorize("hasAnyRole('SUPERADMIN','PROPRIETAIRE','ADMINISTRATEUR')")
+    @PreAuthorize("hasRole('SUPERADMIN') or hasAnyAuthority('UTILISATEUR_GERER','UTILISATEUR_CREER')")
     @PostMapping("/admin/utilisateurs/{id}/permissions")
     public ResponseEntity<?> updateUserPermissions(@PathVariable Long id, @RequestBody List<Long> permissionIds) {
         Utilisateur current = getCurrentUser();

@@ -7,38 +7,39 @@ JÀGO DÁNAYA
 Gérez votre boutique : produits, ventes, caisse, rapports, où que vous soyez.
 
 ## Description complète (max 4000 caractères)
+⚠️ Champ en texte brut sur Play Console — pas de Markdown. Copie exactement ce qui suit (titres en majuscules, pas d'astérisques).
 
 JÀGO DÁNAYA est l'application de gestion de boutique pensée pour les commerçants : gérez vos produits, vos ventes, votre caisse et vos rapports directement depuis votre téléphone.
 
-**Produits & Stock**
+PRODUITS & STOCK
 Ajoutez vos produits, fixez vos prix (fixe, en pourcentage ou manuel) et suivez votre stock en temps réel, boutique par boutique et magasin par magasin. Scannez les codes-barres directement avec l'appareil photo de votre téléphone.
 
-**Achats & Fournisseurs**
+ACHATS & FOURNISSEURS
 Gérez vos fournisseurs, créez vos commandes d'achat, enregistrez vos réceptions et suivez vos paiements fournisseurs.
 
-**Ventes & Commandes clients**
+VENTES & COMMANDES CLIENTS
 Enregistrez vos ventes en espèces ou vos commandes clients, gérez les livraisons et les paiements.
 
-**Caisse**
+CAISSE
 Suivez vos mouvements de caisse au quotidien : entrées, sorties, ouvertures et fermetures.
 
-**Transfert de stock**
+TRANSFERT DE STOCK
 Transférez des produits entre votre boutique et vos différents magasins en quelques clics.
 
-**Dépenses**
+DÉPENSES
 Enregistrez et validez vos dépenses professionnelles.
 
-**Rapports & Historique**
+RAPPORTS & HISTORIQUE
 Consultez vos rapports de ventes, de stock, de valeur de stock et vos produits les plus vendus. Retrouvez l'historique complet de vos réceptions, paiements et livraisons.
 
-**Documents**
+DOCUMENTS
 Retrouvez et téléchargez vos documents (factures, réceptions, ventes) au format PDF.
 
-**Multi-boutiques**
+MULTI-BOUTIQUES
 Gérez plusieurs boutiques et magasins depuis une seule et même application, avec des permissions et rôles par utilisateur.
 
-**Abonnement**
-Payez votre abonnement facilement via Orange Money, Wave ou Moov/MobiCash.
+ABONNEMENT
+Soumettez votre preuve de paiement d'abonnement (transfert Orange Money, Wave ou Moov) directement depuis l'application ; votre paiement est ensuite vérifié manuellement par notre équipe.
 
 Connectez-vous simplement par email/mot de passe ou avec votre compte Google.
 

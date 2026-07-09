@@ -11,6 +11,7 @@ import slideProduits from '../../assets/images/onboarding-web/produits.jpg';
 import slideVentes from '../../assets/images/onboarding-web/ventes.jpg';
 import slideRapports from '../../assets/images/onboarding-web/rapports.jpg';
 import slideBoutiques from '../../assets/images/onboarding-web/boutiques.jpg';
+import slideQuincaillerie from '../../assets/images/onboarding-web/quincaillerie.jpg';
 
 const SLIDES = [
   {
@@ -45,6 +46,14 @@ const SLIDES = [
     title: 'Multi-boutiques',
     quote: 'Gérez plusieurs boutiques et magasins depuis une seule et même application.',
   },
+  {
+    key: 'quincaillerie',
+    image: slideQuincaillerie,
+    icon: 'bi-tools',
+    badge: 'Quincaillerie',
+    title: 'Adapté à tous les commerces',
+    quote: "Des quincailleries aux boutiques de matériaux, pilotez votre activité depuis un tableau de bord clair et complet.",
+  },
 ];
 
 const MODULES = [
@@ -61,6 +70,7 @@ const MODULES = [
 ];
 
 const AUTO_ADVANCE_MS = 7000;
+const LOGIN_LOCK_STORAGE_KEY = 'smb_login_lock_until';
 
 const SignIn = () => {
   const [email, setEmail] = useState('');
@@ -68,6 +78,14 @@ const SignIn = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
+  const [lockUntil, setLockUntil] = useState<number>(() => {
+    const stored = Number(localStorage.getItem(LOGIN_LOCK_STORAGE_KEY) || 0);
+    if (stored > Date.now()) return stored;
+    localStorage.removeItem(LOGIN_LOCK_STORAGE_KEY);
+    return 0;
+  });
+  const [lockSeconds, setLockSeconds] = useState(0);
   const navigate = useNavigate();
   const { setUserData } = useUser();
 
@@ -82,6 +100,26 @@ const SignIn = () => {
     }, AUTO_ADVANCE_MS);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const refreshLock = () => {
+      if (!lockUntil) {
+        setLockSeconds(0);
+        return;
+      }
+      const seconds = Math.max(0, Math.ceil((lockUntil - Date.now()) / 1000));
+      setLockSeconds(seconds);
+      if (seconds === 0) {
+        localStorage.removeItem(LOGIN_LOCK_STORAGE_KEY);
+        setLockUntil(0);
+        setRemainingAttempts(null);
+        setError('');
+      }
+    };
+    refreshLock();
+    const timer = window.setInterval(refreshLock, 1000);
+    return () => window.clearInterval(timer);
+  }, [lockUntil]);
 
   const openRenewSubscriptionModal = async () => {
     try {
@@ -286,6 +324,7 @@ const SignIn = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (lockSeconds > 0) return;
     setLoading(true);
     setError('');
     try {
@@ -296,8 +335,24 @@ const SignIn = () => {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'Échec de la connexion');
+        if (res.status === 429) {
+          const retryAfterSeconds = Math.max(1, Number(err.retryAfterSeconds || 180));
+          const until = Date.now() + retryAfterSeconds * 1000;
+          localStorage.setItem(LOGIN_LOCK_STORAGE_KEY, String(until));
+          setLockUntil(until);
+          setRemainingAttempts(0);
+        } else if (typeof err.remainingAttempts === 'number') {
+          setRemainingAttempts(err.remainingAttempts);
+        }
+        const loginError = new Error(err.message || 'Échec de la connexion') as Error & {
+          status?: number;
+        };
+        loginError.status = res.status;
+        throw loginError;
       }
+      setRemainingAttempts(null);
+      localStorage.removeItem(LOGIN_LOCK_STORAGE_KEY);
+      setLockUntil(0);
       const data = await res.json();
       if (data.token) {
         localStorage.setItem('smb_token', data.token);
@@ -377,6 +432,9 @@ const SignIn = () => {
   };
 
   const year = new Date().getFullYear();
+  const isLoginLocked = lockSeconds > 0;
+  const lockMinutesDisplay = String(Math.floor(lockSeconds / 60)).padStart(2, '0');
+  const lockSecondsDisplay = String(lockSeconds % 60).padStart(2, '0');
 
   return (
     <div className="jd-login-page">
@@ -481,6 +539,21 @@ const SignIn = () => {
           box-shadow: 0 8px 24px rgba(30,64,175,.25);
         }
         .jd-login-button:disabled { opacity: .7; }
+        .jd-login-button:disabled { cursor: not-allowed; transform: none; box-shadow: none; }
+        .jd-input-group.is-locked { background: #f1f5f9; opacity: .72; }
+        .jd-input-group.is-locked input, .jd-input-group.is-locked button { cursor: not-allowed; }
+        .jd-login-lock {
+          display: flex; align-items: flex-start; gap: 10px;
+          margin-bottom: 14px; padding: 11px 12px;
+          color: #7c2d12; background: #fff7ed;
+          border: 1px solid #fed7aa; border-radius: 10px;
+          font-size: .82rem; line-height: 1.4;
+        }
+        .jd-login-lock i { margin-top: 1px; font-size: 1rem; }
+        .jd-attempt-warning {
+          margin: -4px 0 12px; color: #b45309;
+          font-size: .78rem; font-weight: 700;
+        }
 
         .jd-login-footer { text-align: center; margin-top: 18px; font-size: .78rem; color: #94a3b8; }
       `}</style>
@@ -529,12 +602,21 @@ const SignIn = () => {
           </div>
 
           {error && <div className="alert alert-danger py-2">{error}</div>}
+          {isLoginLocked && (
+            <div className="jd-login-lock" role="alert" aria-live="polite">
+              <i className="bi bi-shield-lock-fill" aria-hidden="true"></i>
+              <div>
+                <strong>Connexion temporairement bloquée</strong><br />
+                Réessayez dans {lockMinutesDisplay}:{lockSecondsDisplay}.
+              </div>
+            </div>
+          )}
 
           <div className="jd-form-divider"><span>Connexion</span></div>
 
           <form onSubmit={handleSubmit}>
             <label htmlFor="emailaddress" className="form-label small text-muted">Adresse email</label>
-            <div className="jd-input-group">
+            <div className={`jd-input-group${isLoginLocked ? ' is-locked' : ''}`}>
               <span className="jd-input-icon"><i className="bi bi-person-badge"></i></span>
               <input
                 type="email"
@@ -543,12 +625,13 @@ const SignIn = () => {
                 onChange={e => setEmail(e.target.value)}
                 placeholder="Entrez votre email"
                 autoComplete="username"
+                disabled={isLoginLocked}
                 required
               />
             </div>
 
             <label htmlFor="password" className="form-label small text-muted">Mot de passe</label>
-            <div className="jd-input-group">
+            <div className={`jd-input-group${isLoginLocked ? ' is-locked' : ''}`}>
               <span className="jd-input-icon"><i className="bi bi-lock"></i></span>
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -557,15 +640,26 @@ const SignIn = () => {
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Entrez votre mot de passe"
                 autoComplete="current-password"
+                disabled={isLoginLocked}
                 required
               />
-              <button type="button" className="jd-password-toggle" onClick={() => setShowPassword((v) => !v)} aria-label="Afficher le mot de passe">
+              <button type="button" className="jd-password-toggle" disabled={isLoginLocked} onClick={() => setShowPassword((v) => !v)} aria-label="Afficher le mot de passe">
                 <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
               </button>
             </div>
 
-            <button className="jd-login-button" type="submit" disabled={loading}>
-              {loading ? 'Connexion...' : <>Connexion <i className="bi bi-box-arrow-in-right"></i></>}
+            {!isLoginLocked && remainingAttempts !== null && remainingAttempts > 0 && (
+              <div className="jd-attempt-warning" role="status">
+                {remainingAttempts} tentative{remainingAttempts > 1 ? 's' : ''} restante{remainingAttempts > 1 ? 's' : ''} avant le blocage.
+              </div>
+            )}
+
+            <button className="jd-login-button" type="submit" disabled={loading || isLoginLocked}>
+              {isLoginLocked
+                ? <><i className="bi bi-lock-fill"></i> Bloqué ({lockMinutesDisplay}:{lockSecondsDisplay})</>
+                : loading
+                  ? 'Connexion...'
+                  : <>Connexion <i className="bi bi-box-arrow-in-right"></i></>}
             </button>
 
             <div className="text-center my-3">

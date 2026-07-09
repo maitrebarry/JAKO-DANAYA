@@ -19,6 +19,7 @@ import {
 } from '../services/admin';
 import { isSuperAdmin } from '../utils/permissions';
 import { resolveMediaUrl } from '../utils/urls';
+import { useResponsiveLayout } from '../utils/responsive';
 
 const MOBILE_NUMBERS = {
   ORANGE_MONEY: '74745669',
@@ -30,6 +31,8 @@ type ModePaiement = 'ORANGE_MONEY' | 'WAVE' | 'MOBICASH';
 
 export default function SubscriptionScreen() {
   const { token, refreshSubscriptionStatus, profile } = useApp();
+  const superAdmin = isSuperAdmin(profile);
+  const responsive = useResponsiveLayout();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +85,13 @@ export default function SubscriptionScreen() {
     setLoading(true);
     setError(null);
     try {
+      if (superAdmin) {
+        setCurrent(null);
+        setPlans([]);
+        setPayments([]);
+        await loadAdminPayments();
+        return;
+      }
       const [sub, planRows, paymentRows] = await Promise.all([
         fetchCurrentSubscriptionStatus(token),
         fetchSubscriptionPlans(token).catch(() => []),
@@ -93,9 +103,6 @@ export default function SubscriptionScreen() {
       setPayments(Array.isArray(paymentRows) ? paymentRows : []);
       const defaultCode = (sub?.planCode || list[0]?.code || 'MENSUEL') as string;
       setPlanCode(defaultCode);
-      if (isSuperAdmin(profile)) {
-        await loadAdminPayments();
-      }
     } catch (e: any) {
       setError(e?.message || 'Impossible de charger les informations abonnement');
     } finally {
@@ -122,14 +129,14 @@ export default function SubscriptionScreen() {
 
   useEffect(() => {
     loadData();
-  }, [token]);
+  }, [token, superAdmin]);
 
   useEffect(() => {
     if (!token) return;
-    if (!isSuperAdmin(profile)) return;
+    if (!superAdmin) return;
     loadAdminPayments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, adminFilter, profile?.id]);
+  }, [token, adminFilter, profile?.id, superAdmin]);
 
   const openCamera = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -208,13 +215,35 @@ export default function SubscriptionScreen() {
   const numbers = manualNumbers || MOBILE_NUMBERS;
 
   return (
-    <ScrollView ref={scrollRef} contentContainerStyle={{ padding: 16, gap: 12 }}>
+    <ScrollView
+      ref={scrollRef}
+      contentContainerStyle={{
+        width: '100%',
+        maxWidth: responsive.contentMaxWidth,
+        alignSelf: 'center',
+        paddingHorizontal: responsive.horizontalPadding,
+        paddingVertical: 16,
+        paddingBottom: 36,
+        gap: 12,
+      }}
+    >
+      {superAdmin ? (
+        <View style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#bfdbfe' }}>
+          <Text style={{ color: '#1e3a8a', fontSize: 16, fontWeight: '800' }}>Administration des abonnements</Text>
+          <Text style={{ color: '#1e40af', marginTop: 5 }}>
+            Le compte SuperAdmin est exempté d’abonnement. Cet espace sert uniquement à valider ou rejeter les paiements des boutiques.
+          </Text>
+        </View>
+      ) : null}
+
       {error ? (
         <View style={{ backgroundColor: '#fef3c7', borderColor: '#fde68a', borderWidth: 1, borderRadius: 10, padding: 12 }}>
           <Text style={{ color: '#92400e' }}>{error}</Text>
         </View>
       ) : null}
 
+      {!superAdmin && (
+      <>
       <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
         <Pressable
           onPress={() => scrollRef.current?.scrollTo({ y: submitY, animated: true })}
@@ -360,8 +389,10 @@ export default function SubscriptionScreen() {
           ))
         )}
       </View>
+      </>
+      )}
 
-      {isSuperAdmin(profile) && (
+      {superAdmin && (
         <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#eee' }}>
           <Text style={{ fontSize: 16, fontWeight: '700', marginBottom: 10 }}>Validation paiements (SuperAdmin)</Text>
 

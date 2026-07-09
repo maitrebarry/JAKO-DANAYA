@@ -9,7 +9,7 @@ import { API_BASE_URL } from '../utils/env';
 import { resolveMediaUrl } from '../utils/urls';
 
 export default function TopBar({ showBack = false }: { showBack?: boolean }) {
-  const { profile, token, boutiqueId, themePref, setThemePref } = useApp();
+  const { profile, token, boutiqueId, themePref, setThemePref, setToken, setBoutiqueId } = useApp();
   const navigation = useNavigation<any>();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -88,25 +88,36 @@ export default function TopBar({ showBack = false }: { showBack?: boolean }) {
 
   const closeMenu = () => setMenuOpen(false);
 
-  const menuItem = (opts: { label: string; icon: any; onPress: () => void }) => (
-    <Pressable
-      onPress={opts.onPress}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 10,
-        borderRadius: 14,
-        backgroundColor: theme.surface,
-        borderWidth: 1,
-        borderColor,
-        marginBottom: 10,
-      }}
-    >
-      <Ionicons name={opts.icon} size={20} color={theme.text} />
-      <Text style={{ color: theme.text, fontWeight: '900', marginLeft: 10 }}>{opts.label}</Text>
-    </Pressable>
-  );
+  const menuItem = (opts: { label: string; icon: any; onPress: () => void; danger?: boolean }) => {
+    const tint = opts.danger ? theme.danger : theme.text;
+    return (
+      <Pressable
+        onPress={opts.onPress}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: 12,
+          paddingHorizontal: 10,
+          borderRadius: 14,
+          backgroundColor: theme.surface,
+          borderWidth: 1,
+          borderColor: opts.danger ? theme.danger + '33' : borderColor,
+          marginBottom: 10,
+          opacity: pressed ? 0.7 : 1,
+        })}
+      >
+        <Ionicons name={opts.icon} size={20} color={tint} />
+        <Text style={{ color: tint, fontWeight: '900', marginLeft: 10, flex: 1 }}>{opts.label}</Text>
+        <Ionicons name="chevron-forward" size={16} color={opts.danger ? theme.danger : theme.muted} />
+      </Pressable>
+    );
+  };
+
+  const logout = () => {
+    closeMenu();
+    setToken(null);
+    setBoutiqueId(null);
+  };
 
   return (
     <View style={{ backgroundColor: bg, paddingTop: insets.top, borderBottomWidth: 1, borderBottomColor: borderColor }}>
@@ -204,9 +215,28 @@ export default function TopBar({ showBack = false }: { showBack?: boolean }) {
                 </Pressable>
               </View>
 
-              <View style={{ marginTop: 14, backgroundColor: theme.surface, borderRadius: 16, padding: 12, borderWidth: 1, borderColor }}>
+              <Pressable
+                onPress={() => {
+                  closeMenu();
+                  navigation.navigate('Profil');
+                }}
+                style={({ pressed }) => ({
+                  marginTop: 14,
+                  backgroundColor: theme.surface,
+                  borderRadius: 16,
+                  padding: 12,
+                  borderWidth: 1,
+                  borderColor,
+                  opacity: pressed ? 0.85 : 1,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: isDark ? 0.3 : 0.06,
+                  shadowRadius: 8,
+                  elevation: 2,
+                })}
+              >
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Image source={avatarSource} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#e5e7eb' }} />
+                  <Image source={avatarSource} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#e5e7eb', borderWidth: 1, borderColor }} />
                   <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={{ color: theme.text, fontWeight: '900' }} numberOfLines={1}>
                       {profile?.prenom || profile?.nom || 'Utilisateur'}
@@ -215,10 +245,11 @@ export default function TopBar({ showBack = false }: { showBack?: boolean }) {
                       {boutiqueName || profile?.boutique?.nom || 'Boutique'}
                     </Text>
                   </View>
+                  <Ionicons name="chevron-forward" size={16} color={theme.muted} />
                 </View>
-              </View>
+              </Pressable>
 
-              <Text style={{ color: theme.muted, fontWeight: '900', marginTop: 14, marginBottom: 8 }}>Général</Text>
+              <Text style={{ color: theme.muted, fontWeight: '900', marginTop: 18, marginBottom: 8, letterSpacing: 0.5 }}>GÉNÉRAL</Text>
 
               {menuItem({
                 label: 'Configuration',
@@ -256,6 +287,8 @@ export default function TopBar({ showBack = false }: { showBack?: boolean }) {
                 },
               })}
 
+              <Text style={{ color: theme.muted, fontWeight: '900', marginTop: 8, marginBottom: 8, letterSpacing: 0.5 }}>COMPTE</Text>
+
               {menuItem({
                 label: 'Profil',
                 icon: 'person-outline',
@@ -263,6 +296,13 @@ export default function TopBar({ showBack = false }: { showBack?: boolean }) {
                   closeMenu();
                   navigation.navigate('Profil');
                 },
+              })}
+
+              {menuItem({
+                label: 'Déconnexion',
+                icon: 'log-out-outline',
+                danger: true,
+                onPress: logout,
               })}
             </Pressable>
           </Animated.View>

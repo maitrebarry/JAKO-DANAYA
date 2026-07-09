@@ -9,10 +9,12 @@ import { useTheme } from '../theme';
 import { useAccess } from '../utils/access';
 import { mergeAuthMeResponse } from '../utils/profile';
 import { useFormatMoney } from '../utils/currency';
+import { useResponsiveLayout } from '../utils/responsive';
 
 export default function DashboardScreen({ navigation }: any) {
   const { token, boutiqueId, profile, setProfile } = useApp();
   const theme = useTheme();
+  const responsive = useResponsiveLayout();
   const isDark = (theme as any).isDark;
   const access = useAccess();
   const [loading, setLoading] = useState(true);
@@ -256,7 +258,18 @@ export default function DashboardScreen({ navigation }: any) {
     <View style={{ flex: 1, backgroundColor: theme.background }}>
 
 
-      <ScrollView contentContainerStyle={{ padding: 16, backgroundColor: theme.background }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.primary]} /> }>
+      <ScrollView
+        contentContainerStyle={{
+          width: '100%',
+          maxWidth: responsive.contentMaxWidth,
+          alignSelf: 'center',
+          paddingHorizontal: responsive.horizontalPadding,
+          paddingVertical: 16,
+          paddingBottom: 36,
+          backgroundColor: theme.background,
+        }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.primary]} />}
+      >
         {loading && <ActivityIndicator style={{ marginTop: 12 }} color={theme.primary} />}
         {error ? <Text style={{ color: theme.danger }}>{error}</Text> : null}
 

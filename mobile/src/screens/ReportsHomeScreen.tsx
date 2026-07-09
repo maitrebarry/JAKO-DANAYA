@@ -4,11 +4,13 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import { useAccess } from '../utils/access';
+import { useResponsiveLayout } from '../utils/responsive';
 
 export default function ReportsHomeScreen() {
   const navigation = useNavigation<any>();
   const theme = useTheme();
   const access = useAccess();
+  const responsive = useResponsiveLayout();
   const borderColor = (theme as any).isDark ? '#1f2937' : '#e5e7eb';
 
   const item = (opts: { title: string; subtitle?: string; icon: any; route: string }) => (
@@ -38,7 +40,17 @@ export default function ReportsHomeScreen() {
   );
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: theme.background }} contentContainerStyle={{ padding: 16 }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: theme.background }}
+      contentContainerStyle={{
+        width: '100%',
+        maxWidth: responsive.contentMaxWidth,
+        alignSelf: 'center',
+        paddingHorizontal: responsive.horizontalPadding,
+        paddingVertical: 16,
+        paddingBottom: 36,
+      }}
+    >
       <Text style={{ color: theme.text, fontSize: 22, fontWeight: '900', marginBottom: 10 }}>Rapports & Historique</Text>
 
       {access.rapportsView ? item({ title: 'Rapports', subtitle: 'Ventes, stock, valeur stock, top produits', icon: 'bar-chart-outline', route: 'Rapports' }) : null}

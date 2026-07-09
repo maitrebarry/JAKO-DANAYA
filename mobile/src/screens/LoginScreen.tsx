@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, ActivityIndicator, ImageBackground, ScrollView, KeyboardAvoidingView, Platform, StatusBar } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { login, fetchCurrentUser } from '../services/auth';
+import { login, fetchCurrentUser, LoginError } from '../services/auth';
 import { useApp } from '../store/AppContext';
 import * as WebBrowser from 'expo-web-browser';
 import { API_BASE_URL, OAUTH_REDIRECT_URL } from '../utils/env';
+import { useResponsiveLayout } from '../utils/responsive';
+import { getItem, removeItem, setItem } from '../utils/storage';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -13,8 +15,10 @@ const ACCENT = '#0ea5e9';
 const PANEL_BG = '#14161a';
 const MUTED = '#9ca3af';
 const BORDER = '#2d2f36';
+const LOGIN_LOCK_STORAGE_KEY = 'login_lock_until';
 
 export default function LoginScreen() {
+  const responsive = useResponsiveLayout();
   const navigation = useNavigation<any>();
   const goBackToSlides = () => {
     if (navigation.canGoBack()) navigation.goBack();
@@ -27,8 +31,43 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
+  const [lockUntil, setLockUntil] = useState(0);
+  const [lockSeconds, setLockSeconds] = useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+    getItem(LOGIN_LOCK_STORAGE_KEY).then((stored) => {
+      if (!mounted) return;
+      const until = Number(stored || 0);
+      if (until > Date.now()) setLockUntil(until);
+      else removeItem(LOGIN_LOCK_STORAGE_KEY);
+    });
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (!lockUntil) {
+        setLockSeconds(0);
+        return;
+      }
+      const seconds = Math.max(0, Math.ceil((lockUntil - Date.now()) / 1000));
+      setLockSeconds(seconds);
+      if (seconds === 0) {
+        setLockUntil(0);
+        setRemainingAttempts(null);
+        setError(null);
+        removeItem(LOGIN_LOCK_STORAGE_KEY);
+      }
+    };
+    refresh();
+    const timer = setInterval(refresh, 1000);
+    return () => clearInterval(timer);
+  }, [lockUntil]);
 
   const onLogin = async () => {
+    if (lockSeconds > 0) return;
     setError(null);
     if (!email || !password) {
       setError('Email et mot de passe requis');
@@ -37,6 +76,9 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       const res = await login(email.trim(), password);
+      setRemainingAttempts(null);
+      setLockUntil(0);
+      await removeItem(LOGIN_LOCK_STORAGE_KEY);
       const token = res.token || res.accessToken;
       if (!token) throw new Error('Token manquant');
       setToken(token);
@@ -56,11 +98,25 @@ export default function LoginScreen() {
       }
 
     } catch (e: any) {
+      if (e instanceof LoginError) {
+        if (e.status === 429) {
+          const retrySeconds = Math.max(1, e.retryAfterSeconds || 180);
+          const until = Date.now() + retrySeconds * 1000;
+          setLockUntil(until);
+          setRemainingAttempts(0);
+          await setItem(LOGIN_LOCK_STORAGE_KEY, String(until));
+        } else if (e.remainingAttempts !== null) {
+          setRemainingAttempts(e.remainingAttempts);
+        }
+      }
       setError(e.message || 'Erreur de connexion');
     } finally {
       setLoading(false);
     }
   };
+
+  const loginLocked = lockSeconds > 0;
+  const lockClock = `${String(Math.floor(lockSeconds / 60)).padStart(2, '0')}:${String(lockSeconds % 60).padStart(2, '0')}`;
 
   const onGoogleLogin = async () => {
     if (googleLoading) return;
@@ -122,7 +178,7 @@ export default function LoginScreen() {
     <View style={{ flex: 1, backgroundColor: PANEL_BG }}>
       <StatusBar barStyle="light-content" />
 
-      <View style={{ height: '42%' }}>
+      <View style={{ height: responsive.isTablet ? '38%' : responsive.isCompact ? '35%' : '42%' }}>
         <ImageBackground source={require('../assets/onboarding/onboarding-ventes.jpg')} style={{ flex: 1 }} resizeMode="cover">
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.18)' }} />
         </ImageBackground>
@@ -136,7 +192,11 @@ export default function LoginScreen() {
         </Pressable>
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'android' ? 8 : 0}
+      >
         <View
           style={{
             flex: 1,
@@ -146,7 +206,17 @@ export default function LoginScreen() {
             borderTopRightRadius: 32,
           }}
         >
-          <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            contentContainerStyle={{
+              width: '100%',
+              maxWidth: responsive.formMaxWidth,
+              alignSelf: 'center',
+              paddingHorizontal: responsive.horizontalPadding,
+              paddingTop: responsive.isCompact ? 18 : 24,
+              paddingBottom: 40,
+            }}
+            keyboardShouldPersistTaps="handled"
+          >
             <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800' }}>Authentification</Text>
             <Text style={{ color: MUTED, marginTop: 6, marginBottom: 28 }}>Connectez-vous à votre compte JÀGO DÁNAYA</Text>
 
@@ -159,6 +229,7 @@ export default function LoginScreen() {
                 keyboardType="email-address"
                 value={email}
                 onChangeText={setEmail}
+                editable={!loginLocked}
                 style={{ flex: 1, color: '#fff', paddingVertical: 4 }}
               />
             </View>
@@ -171,9 +242,10 @@ export default function LoginScreen() {
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
+                editable={!loginLocked}
                 style={{ flex: 1, color: '#fff', paddingVertical: 4 }}
               />
-              <Pressable onPress={() => setShowPassword((s) => !s)} hitSlop={8}>
+              <Pressable disabled={loginLocked} onPress={() => setShowPassword((s) => !s)} hitSlop={8}>
                 <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={MUTED} />
               </Pressable>
             </View>
@@ -182,12 +254,29 @@ export default function LoginScreen() {
               <Text style={{ color: '#f87171', marginTop: 8, marginBottom: 4 }}>{error}</Text>
             ) : null}
 
+            {loginLocked ? (
+              <View style={{ marginTop: 12, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#92400e', backgroundColor: '#451a03' }}>
+                <Text style={{ color: '#fdba74', fontWeight: '800' }}>
+                  <Ionicons name="shield-outline" size={16} color="#fdba74" /> Connexion temporairement bloquée
+                </Text>
+                <Text style={{ color: '#fed7aa', marginTop: 5 }}>Réessayez dans {lockClock}.</Text>
+              </View>
+            ) : remainingAttempts !== null && remainingAttempts > 0 ? (
+              <Text style={{ color: '#fbbf24', marginTop: 10, fontWeight: '700' }}>
+                {remainingAttempts} tentative{remainingAttempts > 1 ? 's' : ''} restante{remainingAttempts > 1 ? 's' : ''} avant le blocage.
+              </Text>
+            ) : null}
+
             <Pressable
               onPress={onLogin}
-              disabled={loading}
-              style={{ backgroundColor: ACCENT, paddingVertical: 15, borderRadius: 999, alignItems: 'center', marginTop: 24 }}
+              disabled={loading || loginLocked}
+              style={{ backgroundColor: loginLocked ? '#475569' : ACCENT, paddingVertical: 15, borderRadius: 999, alignItems: 'center', marginTop: 24, opacity: loading ? 0.75 : 1 }}
             >
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>Se connecter</Text>}
+              {loading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>
+                    {loginLocked ? `Bloqué (${lockClock})` : 'Se connecter'}
+                  </Text>}
             </Pressable>
 
             <View style={{ marginTop: 20, alignItems: 'center' }}>

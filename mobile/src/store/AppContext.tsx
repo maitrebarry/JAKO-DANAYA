@@ -7,7 +7,7 @@ import { fetchAllPays } from '../services/pays';
 import { fetchCurrentSubscriptionStatus, type CurrentSubscriptionDTO } from '../services/subscription';
 import { getItem, setItem, removeItem } from '../utils/storage';
 import { mergeAuthMeResponse } from '../utils/profile';
-import { getRoleNames } from '../utils/permissions';
+import { isSuperAdmin } from '../utils/permissions';
 
 type AppContextState = {
   token: string | null;
@@ -38,7 +38,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [subscriptionStatus, setSubscriptionStatus] = useState<CurrentSubscriptionDTO | null>(null);
   const [subscriptionChecked, setSubscriptionChecked] = useState(false);
 
-  const canBeSubscriptionBlocked = (_profileLike: any): boolean => true;
+  // Keep aligned with the web application: SUPERADMIN administers and
+  // validates subscriptions, so their own session is never subscription-gated.
+  const canBeSubscriptionBlocked = (profileLike: any): boolean =>
+    !!profileLike && !isSuperAdmin(profileLike);
 
   const refreshSubscriptionStatus = async () => {
     if (!token) {

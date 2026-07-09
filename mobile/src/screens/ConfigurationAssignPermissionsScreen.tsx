@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import { useApp } from '../store/AppContext';
 import { getUserEffectivePermissions, listAdminPermissions, listAdminUsers, PermissionDTO, setUserPermissions, UserDTO } from '../services/admin';
-import { getRoleNames, isSuperAdmin } from '../utils/permissions';
+import { getRoleNames, hasPermission, isSuperAdmin } from '../utils/permissions';
 import { showError, showSuccess } from '../utils/notify';
 
 function normalizeRoleName(v: any): string {
@@ -36,18 +36,26 @@ export default function ConfigurationAssignPermissionsScreen() {
   const myRoles = getRoleNames(profile);
   const amSuper = isSuperAdmin(profile);
   const amProprietaire = myRoles.includes('PROPRIETAIRE');
+  const amAdministrateur = myRoles.includes('ADMIN') || myRoles.includes('ADMINISTRATEUR');
   const amGerant = myRoles.includes('GERANT_BOUTIQUE') || myRoles.includes('GERANT') || myRoles.includes('MANAGER');
-  const canAccess = amSuper || amProprietaire || amGerant;
+  const canManageUsers =
+    hasPermission(profile, 'UTILISATEUR_GERER') ||
+    hasPermission(profile, 'UTILISATEUR_CREER');
+  const canAccess = amSuper || ((amProprietaire || amAdministrateur || amGerant) && canManageUsers);
 
-  const allowedSubRoles = new Set(['GERANT_BOUTIQUE', 'GERANT', 'MANAGER', 'MAGASINIER', 'CAISSIER']);
-  const allowedGerantTargets = new Set(['MAGASINIER', 'CAISSIER']);
+  const allowedSubRoles = new Set([
+    'GERANT_BOUTIQUE', 'GERANT', 'MANAGER',
+    'MAGASINIER', 'STOREKEEPER',
+    'CAISSIER', 'CASHIER',
+  ]);
+  const allowedGerantTargets = new Set(['MAGASINIER', 'STOREKEEPER', 'CAISSIER', 'CASHIER']);
 
   const canAssignTo = (u: UserDTO): boolean => {
     const selfId = profile?.id;
     if (selfId != null && u.id === selfId) return false;
     const r = getUserRoleNames(u);
-    if (amSuper) return r.includes('PROPRIETAIRE');
-    if (amProprietaire) return r.some((x) => allowedSubRoles.has(x));
+    if (amSuper) return !r.includes('SUPERADMIN');
+    if (amProprietaire || amAdministrateur) return r.some((x) => allowedSubRoles.has(x));
     if (amGerant) return r.some((x) => allowedGerantTargets.has(x));
     return false;
   };
@@ -71,9 +79,9 @@ export default function ConfigurationAssignPermissionsScreen() {
       .filter((u) => {
         const r = getUserRoleNames(u);
         if (amSuper) {
-          return r.includes('PROPRIETAIRE');
+          return !r.includes('SUPERADMIN');
         }
-        if (amProprietaire) {
+        if (amProprietaire || amAdministrateur) {
           return r.some((x) => allowedSubRoles.has(x));
         }
         if (amGerant) {
@@ -81,7 +89,7 @@ export default function ConfigurationAssignPermissionsScreen() {
         }
         return false;
       });
-  }, [users, profile?.id, amSuper, amProprietaire, amGerant]);
+  }, [users, profile?.id, amSuper, amProprietaire, amAdministrateur, amGerant]);
 
   const filteredUsers = useMemo(() => {
     const q = userSearch.trim().toLowerCase();
@@ -123,7 +131,7 @@ export default function ConfigurationAssignPermissionsScreen() {
           <View style={{ backgroundColor: theme.surface, borderRadius: 16, padding: 12, borderWidth: 1, borderColor }}>
             <Text style={{ color: theme.text, fontWeight: '900' }}>Accès refusé</Text>
             <Text style={{ color: theme.muted, marginTop: 6, lineHeight: 20 }}>
-              Seuls SUPERADMIN, PROPRIETAIRE et GERANT peuvent assigner des permissions.
+              Accès réservé au SuperAdmin, ou aux Administrateurs, Propriétaires et Gérants disposant de la permission UTILISATEUR_GERER ou UTILISATEUR_CREER.
             </Text>
           </View>
         </ScrollView>
@@ -191,8 +199,8 @@ export default function ConfigurationAssignPermissionsScreen() {
             <View style={{ backgroundColor: theme.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor, marginBottom: 12 }}>
               <Text style={{ color: theme.muted, fontWeight: '900', marginBottom: 8 }}>Utilisateur</Text>
               {amSuper ? (
-                <Text style={{ color: theme.muted, marginBottom: 8 }}>Cible: PROPRIETAIRE</Text>
-              ) : amProprietaire ? (
+                <Text style={{ color: theme.muted, marginBottom: 8 }}>Cible: tous les utilisateurs, hors autres SuperAdmins</Text>
+              ) : amProprietaire || amAdministrateur ? (
                 <Text style={{ color: theme.muted, marginBottom: 8 }}>Cible: Gérants / Magasiniers / Caissiers</Text>
               ) : amGerant ? (
                 <Text style={{ color: theme.muted, marginBottom: 8 }}>Cible: Magasiniers / Caissiers</Text>

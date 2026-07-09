@@ -5,14 +5,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import { useApp } from '../store/AppContext';
 import { hasPermission, isSuperAdmin, getRoleNames } from '../utils/permissions';
+import { useResponsiveLayout } from '../utils/responsive';
 
 export default function ConfigurationHomeScreen() {
   const navigation = useNavigation<any>();
   const theme = useTheme();
+  const responsive = useResponsiveLayout();
   const { profile } = useApp();
   const borderColor = (theme as any).isDark ? '#1f2937' : '#e5e7eb';
 
   const roles = getRoleNames(profile);
+  const canAssignPermissions = isSuperAdmin(profile) ||
+    ((roles.includes('ADMIN') || roles.includes('ADMINISTRATEUR') || roles.includes('PROPRIETAIRE') || roles.includes('GERANT') || roles.includes('GERANT_BOUTIQUE') || roles.includes('MANAGER')) &&
+      (hasPermission(profile, 'UTILISATEUR_GERER') || hasPermission(profile, 'UTILISATEUR_CREER')));
   const canView = hasPermission(profile, 'CONFIGURATION_VOIR') || isSuperAdmin(profile) || roles.includes('PROPRIETAIRE') || roles.includes('ADMINISTRATEUR');
 
   const item = (opts: { title: string; subtitle?: string; icon: any; route: string }) => (
@@ -42,7 +47,17 @@ export default function ConfigurationHomeScreen() {
   );
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: theme.background }} contentContainerStyle={{ padding: 16 }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: theme.background }}
+      contentContainerStyle={{
+        width: '100%',
+        maxWidth: responsive.contentMaxWidth,
+        alignSelf: 'center',
+        paddingHorizontal: responsive.horizontalPadding,
+        paddingVertical: 16,
+        paddingBottom: 36,
+      }}
+    >
       <Text style={{ color: theme.text, fontSize: 22, fontWeight: '900', marginBottom: 10 }}>Configuration</Text>
 
       {!canView ? (
@@ -59,7 +74,7 @@ export default function ConfigurationHomeScreen() {
       {item({ title: 'Magasins', subtitle: 'Gestion des magasins (inventaire)', icon: 'business-outline', route: 'ConfigurationMagasins' })}
       {item({ title: 'Unité', subtitle: 'Unités (libellé, symbole, code)', icon: 'pricetag-outline', route: 'ConfigurationUnites' })}
       {isSuperAdmin(profile) ? item({ title: 'Permissions', subtitle: 'Liste / création / modification', icon: 'key-outline', route: 'ConfigurationPermissions' }) : null}
-      {item({ title: 'Assigner des permissions', subtitle: 'Attribuer des permissions à un utilisateur', icon: 'shield-checkmark-outline', route: 'ConfigurationAssignPermissions' })}
+      {canAssignPermissions ? item({ title: 'Assigner des permissions', subtitle: 'Attribuer des permissions à un utilisateur', icon: 'shield-checkmark-outline', route: 'ConfigurationAssignPermissions' }) : null}
       {item({ title: 'Marges (configuration)', subtitle: 'Type de marge + recalcul automatique', icon: 'calculator-outline', route: 'ConfigurationMarges' })}
       {item({ title: 'Fournisseurs', subtitle: 'Créer / modifier / supprimer', icon: 'people-circle-outline', route: 'Fournisseurs' })}
     </ScrollView>

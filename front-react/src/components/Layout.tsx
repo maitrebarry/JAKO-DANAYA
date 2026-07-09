@@ -330,7 +330,7 @@ const Layout = ({ children }: LayoutProps) => {
 
       <div className="content-page">
         <div className="content">
-          <div className="container-fluid" style={{ paddingBottom: '80px' }}>
+          <div className="container-fluid">
             {subscriptionWarning && (
               <div className="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mt-2" role="alert">
                 <div>
@@ -352,7 +352,7 @@ const Layout = ({ children }: LayoutProps) => {
 
 const Footer = () => {
   return (
-    <footer className="footer fixed-bottom w-100 bg-body-tertiary text-body border-top shadow-sm">
+    <footer className="footer">
       <div className="container-fluid">
         <div className="row px-4 py-2">
           <div className="col-md-6 text-center text-md-start">
@@ -512,7 +512,7 @@ const Topbar = ({ toggleSidebar, isMobile, sidebarOpen }: { toggleSidebar?: () =
             <i className="ti ti-menu-2 fs-22 text-white" aria-hidden />
           </button>
           {displayRoles && (
-            <span className="text-primary fw-semibold d-none d-lg-inline" style={{ fontSize: '0.7rem', marginLeft: '20em' }}>
+            <span className="topbar-role text-primary fw-semibold d-none d-lg-inline">
               {displayRoles}
             </span>
           )}
@@ -560,39 +560,63 @@ const Topbar = ({ toggleSidebar, isMobile, sidebarOpen }: { toggleSidebar?: () =
             </ul>
           </div>
 
-          <div className="dropdown d-flex align-items-center gap-2">
-            <img
-              src={avatarUrl}
-              alt="profile"
-              className="rounded-circle dropdown-toggle"
+          <div className="dropdown nav-user">
+            <a
+              href="#"
+              className="topbar-link dropdown-toggle drop-arrow-none d-flex align-items-center gap-2 px-1"
               data-bs-toggle="dropdown"
               aria-expanded="false"
-              style={{ cursor: 'pointer', width: '30px', height: '30px', objectFit: 'cover' }}
-              onError={(e) => {
-                try {
-                  console.warn('Avatar failed to load, falling back to default:', (e.currentTarget as HTMLImageElement).src);
-                  (e.currentTarget as HTMLImageElement).src = defaultAvatar;
-                } catch (ex) { console.error('Failed to apply avatar fallback', ex); }
-              }}
-              ref={el => {
-                // debug: print avatar url and page when rendered to help trace intermittent issues
-                try {
-                  if (el && (window as any).location) {
-                    // print once per render
-                    console.debug('Topbar avatar src:', el.src, 'location:', (window as any).location.pathname);
-                  }
-                } catch (ex) {}
-              }}
-            />
-            <span className="fw-semibold d-none d-sm-inline">{displayName}</span>
+              onClick={(e) => e.preventDefault()}
+            >
+              <img
+                src={avatarUrl}
+                alt="profile"
+                className="rounded-circle"
+                style={{ width: '32px', height: '32px', objectFit: 'cover' }}
+                onError={(e) => {
+                  try {
+                    console.warn('Avatar failed to load, falling back to default:', (e.currentTarget as HTMLImageElement).src);
+                    (e.currentTarget as HTMLImageElement).src = defaultAvatar;
+                  } catch (ex) { console.error('Failed to apply avatar fallback', ex); }
+                }}
+                ref={el => {
+                  // debug: print avatar url and page when rendered to help trace intermittent issues
+                  try {
+                    if (el && (window as any).location) {
+                      // print once per render
+                      console.debug('Topbar avatar src:', el.src, 'location:', (window as any).location.pathname);
+                    }
+                  } catch (ex) {}
+                }}
+              />
+              <span className="d-none d-sm-flex align-items-center gap-1">
+                <span className="fw-semibold">{displayName}</span>
+                <i className="ti ti-chevron-down fs-14 text-muted" aria-hidden />
+              </span>
+            </a>
             <ul className="dropdown-menu dropdown-menu-end">
-              <li><span className="dropdown-item-text fw-semibold">{displayName}</span></li>
-              {displayRoles && (
-                <li><span className="dropdown-item-text text-muted small">{displayRoles}</span></li>
-              )}
-              <li><a className="dropdown-item" href="/profile">Profil</a></li>
+              <li className="dropdown-header">
+                <h6 className="text-overflow m-0 fw-semibold">{displayName}</h6>
+                {displayRoles && <div className="text-muted small mt-1">{displayRoles}</div>}
+              </li>
               <li><hr className="dropdown-divider" /></li>
-              <li><a className="dropdown-item" href="#" onClick={handleLogout}>Déconnexion</a></li>
+              <li>
+                <a className="dropdown-item" href="/profile">
+                  <i className="ti ti-user-circle me-2 fs-17 align-middle" aria-hidden />
+                  <span className="align-middle">Mon profil</span>
+                </a>
+              </li>
+              <li><hr className="dropdown-divider" /></li>
+              <li>
+                <a
+                  className="dropdown-item text-danger fw-semibold"
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); handleLogout(); }}
+                >
+                  <i className="ti ti-logout-2 me-2 fs-17 align-middle" aria-hidden />
+                  <span className="align-middle">Déconnexion</span>
+                </a>
+              </li>
             </ul>
           </div>
         </div>
@@ -665,21 +689,11 @@ const Sidebar = ({ isOpen = true, isMobile = false, closeSidebar = () => {} }: {
   }, [permissions]);
   return (
     <div className="sidenav-menu" role="navigation" aria-hidden={isMobile ? (!isOpen) : false}>
-      <div className="text-center py-1" style={{ borderBottom: '1px solid #e9ecef' }}>
-        <span className="fw-bold text-primary d-block" style={{ 
-          fontSize: '1.5rem',
-          background: 'linear-gradient(45deg, #007bff, #6610f2)', 
-          WebkitBackgroundClip: 'text', 
-          WebkitTextFillColor: 'transparent', 
-          backgroundClip: 'text', 
-          textShadow: '1px 1px 0px #ccc, 2px 2px 0px #bbb, 3px 3px 0px #aaa', 
-          fontFamily: 'Arial Narrow, Arial, sans-serif',
-         
-          lineHeight: '1',
-          whiteSpace: 'nowrap'
-        }}>
+      <div className="sidenav-brand">
+        <span className="sidenav-brand-name">
           JÀGO DÁNAYA
         </span>
+        <span className="sidenav-brand-caption">Gestion commerciale</span>
       </div>
       <div className="scrollbar" data-simplebar>
         <ul

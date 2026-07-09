@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, Modal, Pressable, ScrollView, Text, TextInput
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../theme';
 import { useApp } from '../store/AppContext';
-import { BoutiqueDTO, createBoutique, listBoutiques, updateBoutique } from '../services/boutiques';
+import { BoutiqueDTO, createBoutique, deleteBoutique, listBoutiques, updateBoutique } from '../services/boutiques';
 import { fetchAllPays, type PaysDTO } from '../services/pays';
 import { isSuperAdmin } from '../utils/permissions';
 import { resolveMediaUrl } from '../utils/urls';
@@ -37,6 +37,9 @@ export default function ConfigurationBoutiqueScreen() {
   const [paysList, setPaysList] = useState<PaysDTO[]>([]);
   const [paysModalOpen, setPaysModalOpen] = useState(false);
   const [paysSearch, setPaysSearch] = useState('');
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const canEdit = isSuperAdmin(profile);
 
@@ -193,6 +196,27 @@ export default function ConfigurationBoutiqueScreen() {
 
   const logoUri = logoPreview || (selected?.logo ? resolveMediaUrl(selected.logo) : null);
 
+  const removeSelectedBoutique = async () => {
+    if (!token || !selected || !canEdit) return;
+    if (deleteConfirmation.trim().toLowerCase() !== String(selected.nom || '').trim().toLowerCase()) {
+      showError('Confirmation invalide', 'Saisissez exactement le nom de la boutique.');
+      return;
+    }
+    setDeleting(true);
+    try {
+      const result = await deleteBoutique(selected.id, String(selected.nom || ''), token);
+      if (boutiqueId === selected.id) setBoutiqueId(null);
+      setDeleteModalOpen(false);
+      setDeleteConfirmation('');
+      showSuccess('Boutique supprimée', `${result?.totalDeleted || 0} enregistrements liés ont été nettoyés.`);
+      await load();
+    } catch (e: any) {
+      showError('Suppression impossible', e?.message || 'La boutique n’a pas été supprimée.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
@@ -277,6 +301,18 @@ export default function ConfigurationBoutiqueScreen() {
                 <Text style={{ color: theme.text, fontWeight: '900' }}>{saving ? 'En cours…' : 'Enregistrer'}</Text>
               </Pressable>
             ) : null}
+
+            {!creatingNew && canEdit ? (
+              <Pressable
+                onPress={() => {
+                  setDeleteConfirmation('');
+                  setDeleteModalOpen(true);
+                }}
+                style={{ marginTop: 14, backgroundColor: theme.danger, paddingVertical: 14, borderRadius: 14, alignItems: 'center' }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '900' }}>Supprimer définitivement</Text>
+              </Pressable>
+            ) : null}
           </View>
         )}
       </ScrollView>
@@ -319,6 +355,53 @@ export default function ConfigurationBoutiqueScreen() {
                 ))
               )}
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={deleteModalOpen} transparent animationType="fade" onRequestClose={() => !deleting && setDeleteModalOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', padding: 16 }}>
+          <View style={{ backgroundColor: theme.card, borderRadius: 18, padding: 18, borderWidth: 1, borderColor }}>
+            <Text style={{ color: theme.danger, fontSize: 18, fontWeight: '900' }}>Suppression définitive</Text>
+            <Text style={{ color: theme.text, marginTop: 10, lineHeight: 21 }}>
+              Tous les utilisateurs, produits, stocks, commandes, ventes, paiements et historiques de cette boutique seront supprimés.
+            </Text>
+            <Text style={{ color: theme.muted, marginTop: 12 }}>
+              Saisissez exactement « {selected?.nom || ''} » pour confirmer.
+            </Text>
+            <TextInput
+              editable={!deleting}
+              value={deleteConfirmation}
+              onChangeText={setDeleteConfirmation}
+              autoCapitalize="none"
+              placeholder={String(selected?.nom || '')}
+              placeholderTextColor={theme.muted}
+              style={{ marginTop: 12, backgroundColor: theme.surface, borderRadius: 12, padding: 12, color: theme.text, borderWidth: 1, borderColor }}
+            />
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+              <Pressable
+                disabled={deleting}
+                onPress={() => setDeleteModalOpen(false)}
+                style={{ flex: 1, paddingVertical: 13, borderRadius: 12, borderWidth: 1, borderColor, alignItems: 'center' }}
+              >
+                <Text style={{ color: theme.text, fontWeight: '800' }}>Annuler</Text>
+              </Pressable>
+              <Pressable
+                disabled={deleting || deleteConfirmation.trim().toLowerCase() !== String(selected?.nom || '').trim().toLowerCase()}
+                onPress={removeSelectedBoutique}
+                style={{
+                  flex: 1,
+                  paddingVertical: 13,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  backgroundColor: deleting || deleteConfirmation.trim().toLowerCase() !== String(selected?.nom || '').trim().toLowerCase()
+                    ? theme.muted
+                    : theme.danger,
+                }}
+              >
+                {deleting ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '900' }}>Supprimer</Text>}
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>

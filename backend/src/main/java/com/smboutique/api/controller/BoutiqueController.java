@@ -4,6 +4,7 @@ import com.smboutique.api.model.Boutique;
 import com.smboutique.api.model.Utilisateur;
 import com.smboutique.api.service.BoutiqueService;
 import com.smboutique.api.service.UtilisateurService;
+import com.smboutique.api.service.BoutiquePurgeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -38,6 +39,9 @@ public class BoutiqueController {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private BoutiquePurgeService boutiquePurgeService;
 
     private static final String UPLOAD_DIR = "uploads/logos/";
 
@@ -274,17 +278,30 @@ public class BoutiqueController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('SUPERADMIN')")
-    public ResponseEntity<?> deleteBoutique(@PathVariable Long id) {
+    public ResponseEntity<?> deleteBoutique(
+            @PathVariable Long id,
+            @RequestParam(value = "confirmation", required = false) String confirmation) {
         return boutiqueService.findById(id)
                 .map(boutique -> {
+                    if (confirmation == null || !boutique.getNom().equalsIgnoreCase(confirmation.trim())) {
+                        return ResponseEntity.badRequest().body(java.util.Map.of(
+                                "error", "Confirmation invalide",
+                                "message", "Saisissez exactement le nom de la boutique pour confirmer la suppression définitive."
+                        ));
+                    }
                     try {
-                        boutiqueService.deleteById(id);
-                        return ResponseEntity.ok().<Void>build();
-                    } catch (org.springframework.dao.DataIntegrityViolationException dive) {
-                        // Can't delete due to FK constraints - return actionable 409 with message
-                        String msg = "Impossible de supprimer la boutique : il existe des données liées (ventes, commandes, paiements, etc.). Supprimez d'abord les dépendances ou contactez l'administrateur.";
-                        org.slf4j.LoggerFactory.getLogger(BoutiqueController.class).warn("Failed to delete boutique id={}. Reason: {}", id, dive.getMessage());
-                        return ResponseEntity.status(409).body(java.util.Map.of("error", msg));
+                        BoutiquePurgeService.PurgeResult result = boutiquePurgeService.purge(id);
+                        org.slf4j.LoggerFactory.getLogger(BoutiqueController.class)
+                                .warn("SUPERADMIN purged boutique id={}, name={}, deletedRows={}",
+                                        id, boutique.getNom(), result.totalDeleted());
+                        return ResponseEntity.ok(result);
+                    } catch (Exception ex) {
+                        org.slf4j.LoggerFactory.getLogger(BoutiqueController.class)
+                                .error("Atomic boutique purge failed for id={}", id, ex);
+                        return ResponseEntity.status(409).body(java.util.Map.of(
+                                "error", "Suppression annulée",
+                                "message", "La boutique n’a pas été supprimée car une dépendance n’a pas pu être nettoyée."
+                        ));
                     }
                 })
                 .orElse(ResponseEntity.notFound().build());

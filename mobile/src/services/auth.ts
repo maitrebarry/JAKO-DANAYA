@@ -8,6 +8,20 @@ export type LoginResponse = {
   roles?: string[];
 };
 
+export class LoginError extends Error {
+  status: number;
+  remainingAttempts: number | null;
+  retryAfterSeconds: number | null;
+
+  constructor(message: string, status: number, remainingAttempts?: number, retryAfterSeconds?: number) {
+    super(message);
+    this.name = 'LoginError';
+    this.status = status;
+    this.remainingAttempts = typeof remainingAttempts === 'number' ? remainingAttempts : null;
+    this.retryAfterSeconds = typeof retryAfterSeconds === 'number' ? retryAfterSeconds : null;
+  }
+}
+
 export async function login(email: string, password: string): Promise<LoginResponse> {
   const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
     method: 'POST',
@@ -22,7 +36,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
 
   if (!res.ok) {
     const msg = (data && (data.message || data.error)) || text || `Erreur réseau (${res.status})`;
-    throw new Error(msg);
+    throw new LoginError(msg, res.status, data?.remainingAttempts, data?.retryAfterSeconds);
   }
 
   return data as LoginResponse;

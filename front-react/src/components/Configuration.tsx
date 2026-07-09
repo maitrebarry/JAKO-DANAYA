@@ -408,15 +408,31 @@ const ListeUtilisateurs = () => {
   };
 
   const handleDelete = async (id: number) => {
+    const boutique = boutiques.find((item: any) => Number(item.id) === Number(id)) as any;
+    if (!boutique) {
+      setMessage('Boutique introuvable.');
+      return;
+    }
+
     const result = await Swal.fire({
-      title: 'Êtes-vous sûr ?',
-      text: 'Cette action est irréversible.',
+      title: 'Suppression définitive',
+      html: `Cette action supprimera <strong>${boutique.nom}</strong> ainsi que tous ses utilisateurs, produits, stocks, commandes, ventes, paiements et historiques.<br><br>Saisissez exactement <strong>${boutique.nom}</strong> pour confirmer.`,
       icon: 'warning',
+      input: 'text',
+      inputPlaceholder: boutique.nom,
       showCancelButton: true,
       confirmButtonColor: '#d33',
       cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Oui, supprimer',
-      cancelButtonText: 'Annuler'
+      confirmButtonText: 'Supprimer définitivement',
+      cancelButtonText: 'Annuler',
+      reverseButtons: true,
+      preConfirm: (value) => {
+        if (String(value || '').trim().toLowerCase() !== String(boutique.nom).trim().toLowerCase()) {
+          Swal.showValidationMessage('Le nom saisi ne correspond pas à la boutique.');
+          return false;
+        }
+        return value;
+      },
     });
     
     if (!result.isConfirmed) return;
@@ -1140,30 +1156,47 @@ const Boutique = () => {
       setMessage('Accès lecture seule pour les boutiques.');
       return;
     }
-    
+
+    const boutique = boutiques.find((item: any) => Number(item.id) === Number(id)) as any;
+    if (!boutique) {
+      setMessage('Boutique introuvable.');
+      return;
+    }
+
     const result = await Swal.fire({
-      title: 'Êtes-vous sûr ?',
-      text: 'Cette action est irréversible.',
+      title: 'Suppression définitive',
+      html: `Cette action supprimera <strong>${boutique.nom}</strong> ainsi que tous ses utilisateurs, produits, stocks, commandes, ventes, paiements et historiques.<br><br>Saisissez exactement <strong>${boutique.nom}</strong> pour confirmer.`,
       icon: 'warning',
+      input: 'text',
+      inputPlaceholder: boutique.nom,
       showCancelButton: true,
       confirmButtonColor: '#d33',
       cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Oui, supprimer',
-      cancelButtonText: 'Annuler'
+      confirmButtonText: 'Supprimer définitivement',
+      cancelButtonText: 'Annuler',
+      reverseButtons: true,
+      preConfirm: (value) => {
+        if (String(value || '').trim().toLowerCase() !== String(boutique.nom).trim().toLowerCase()) {
+          Swal.showValidationMessage('Le nom saisi ne correspond pas à la boutique.');
+          return false;
+        }
+        return value;
+      },
     });
     
     if (!result.isConfirmed) return;
     
     try {
       const token = localStorage.getItem('smb_token');
-      const res = await fetch(`${API}/boutiques/${id}`, {
+      const res = await fetch(`${API}/boutiques/${id}?confirmation=${encodeURIComponent(boutique.nom)}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
-      if (!res.ok) throw new Error('Erreur lors de la suppression');
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.message || body?.error || 'Erreur lors de la suppression');
       
-      setMessage('Boutique supprimée avec succès !');
+      setMessage(`Boutique supprimée avec succès (${body?.totalDeleted || 0} enregistrements nettoyés).`);
       fetchBoutiques();
       setTimeout(() => setMessage(''), 3000);
     } catch (err: any) {

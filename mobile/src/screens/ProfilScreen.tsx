@@ -8,10 +8,13 @@ import { useRoute } from '@react-navigation/native';
 import { showSuccess, showError } from '../utils/notify';
 import { useTheme } from '../theme';
 import { mergeAuthMeResponse } from '../utils/profile';
+import { isSuperAdmin } from '../utils/permissions';
+import { useResponsiveLayout } from '../utils/responsive';
 
 export default function ProfilScreen() {
   const { token, setToken, setBoutiqueId, profile: ctxProfile, setProfile, themePref, setThemePref } = useApp();
   const theme = useTheme();
+  const responsive = useResponsiveLayout();
   const [loading, setLoading] = useState(true);
   const [profile, setLocalProfile] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,8 +37,11 @@ export default function ProfilScreen() {
         if (!mounted) return;
         const user = data?.user || data;
         setLocalProfile(user);
-        // also fetch boutiques list
-        try { const b = await fetchBoutiques(token); if (mounted) setBoutiques(b); } catch (e) { /* ignore */ }
+        if (!isSuperAdmin(mergeAuthMeResponse(data))) {
+          try { const b = await fetchBoutiques(token); if (mounted) setBoutiques(b); } catch (e) { /* ignore */ }
+        } else if (mounted) {
+          setBoutiques([]);
+        }
       } catch (e: any) {
         if (!mounted) return;
         setError(e.message || 'Erreur');
@@ -172,9 +178,21 @@ export default function ProfilScreen() {
   };
 
   const avatarUri = avatarPreview || (profile?.avatar ? resolveMediaUrl(profile.avatar) : null);
+  const superAdmin = isSuperAdmin(profile);
 
   return (
-    <ScrollView style={{ flex: 1, padding: 24, backgroundColor: theme.background }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: theme.background }}
+      contentContainerStyle={{
+        width: '100%',
+        maxWidth: responsive.contentMaxWidth,
+        alignSelf: 'center',
+        paddingHorizontal: responsive.horizontalPadding,
+        paddingTop: 24,
+        paddingBottom: 36,
+      }}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={{ fontSize: 22, fontWeight: '700', marginBottom: 12, color: theme.text }}>Profil</Text>
 
       {loading && <ActivityIndicator />}
@@ -236,14 +254,14 @@ export default function ProfilScreen() {
             </View>
           )}
 
-          <View style={{ marginTop: 8 }}>
+          {!superAdmin && <View style={{ marginTop: 8 }}>
             <Text style={{ color: theme.muted, marginBottom: 8 }}>Boutique</Text>
             {boutiques.map(b => (
               <Pressable key={b.id} onPress={() => switchBoutique(b.id)} style={{ padding: 10, backgroundColor: theme.card, borderRadius: 8, marginBottom: 8 }}>
                 <Text style={{ color: theme.text }}>{b.nom}</Text>
               </Pressable>
             ))}
-          </View>
+          </View>}
 
           <View style={{ marginTop: 12 }}>
             <Text style={{ color: theme.muted, marginBottom: 8 }}>Thème</Text>
@@ -265,7 +283,7 @@ export default function ProfilScreen() {
       {/* Change password modal */}
       <Modal visible={pwdModal} transparent animationType="slide" onRequestClose={() => setPwdModal(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' }}>
-          <View style={{ width: '86%', backgroundColor: theme.surface, padding: 16, borderRadius: 10 }}>
+          <View style={{ width: '86%', maxWidth: responsive.formMaxWidth, backgroundColor: theme.surface, padding: responsive.isTablet ? 24 : 16, borderRadius: 10 }}>
             <Text style={{ fontWeight: '800', marginBottom: 8, color: theme.text }}>Changer le mot de passe</Text>
             <TextInput placeholder="Mot de passe actuel" secureTextEntry value={oldPwd} onChangeText={setOldPwd} style={{ backgroundColor: theme.card, padding: 10, borderRadius: 6, marginBottom: 8, color: theme.text }} />
             <TextInput placeholder="Nouveau mot de passe" secureTextEntry value={newPwd} onChangeText={setNewPwd} style={{ backgroundColor: theme.card, padding: 10, borderRadius: 6, marginBottom: 8, color: theme.text }} />

@@ -38,6 +38,12 @@ const SLIDES: Slide[] = [
     title: 'Multi-boutiques',
     description: "Gérez plusieurs boutiques et magasins depuis une seule et même application.",
   },
+  {
+    key: 'quincaillerie',
+    image: require('../assets/onboarding/onboarding-quincaillerie.jpg'),
+    title: 'Scan de codes-barres',
+    description: "Scannez vos articles directement avec l'appareil photo de votre téléphone, même en quincaillerie ou en magasin de matériaux.",
+  },
 ];
 
 const AUTO_ADVANCE_MS = 30000;

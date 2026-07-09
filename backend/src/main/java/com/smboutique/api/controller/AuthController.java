@@ -5,6 +5,7 @@ import com.smboutique.api.model.Utilisateur;
 import com.smboutique.api.repository.UtilisateurRepository;
 import com.smboutique.api.security.JwtUtils;
 import com.smboutique.api.security.UserDetailsImpl;
+import com.smboutique.api.security.LoginAttemptService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,6 +48,9 @@ public class AuthController {
 
     @Autowired
     JwtUtils jwtUtils;
+
+    @Autowired
+    LoginAttemptService loginAttemptService;
 
     @Autowired(required = false)
     private JavaMailSender mailSender;
@@ -105,11 +109,18 @@ public class AuthController {
             return ResponseEntity.badRequest().body(body);
         }
 
+        LoginAttemptService.AttemptStatus attemptStatus =
+                loginAttemptService.status(loginRequest.getEmail());
+        if (attemptStatus.locked()) {
+            return lockedLoginResponse(attemptStatus);
+        }
+
         try {
             logger.info("Attempting authentication for email={}", loginRequest != null ? loginRequest.getEmail() : null);
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword()));
 
+            loginAttemptService.registerSuccess(loginRequest.getEmail());
             SecurityContextHolder.getContext().setAuthentication(authentication);
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
@@ -160,11 +171,17 @@ public class AuthController {
 
         } catch (org.springframework.security.authentication.BadCredentialsException ex) {
             logger.warn("Bad credentials for email={}", loginRequest != null ? loginRequest.getEmail() : null);
+            LoginAttemptService.AttemptStatus failureStatus =
+                    loginAttemptService.registerFailure(loginRequest.getEmail());
+            if (failureStatus.locked()) {
+                return lockedLoginResponse(failureStatus);
+            }
             // Return a French message for bad credentials
             Map<String, Object> body = new HashMap<>();
             body.put("status", 401);
             body.put("error", "Non autorisé");
             body.put("message", "Identifiants incorrects");
+            body.put("remainingAttempts", failureStatus.remainingAttempts());
             return ResponseEntity.status(401).body(body);
         } catch (org.springframework.security.authentication.DisabledException ex) {
             Map<String, Object> body = new HashMap<>();
@@ -186,6 +203,19 @@ public class AuthController {
             body.put("message", "Erreur interne du serveur");
             return ResponseEntity.status(500).body(body);
         }
+    }
+
+    private ResponseEntity<Map<String, Object>> lockedLoginResponse(
+            LoginAttemptService.AttemptStatus status) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("status", 429);
+        body.put("error", "Trop de tentatives");
+        body.put("message", "Trop de tentatives incorrectes. Réessayez dans 3 minutes.");
+        body.put("remainingAttempts", 0);
+        body.put("retryAfterSeconds", status.retryAfterSeconds());
+        return ResponseEntity.status(429)
+                .header("Retry-After", String.valueOf(status.retryAfterSeconds()))
+                .body(body);
     }
 
     @GetMapping("/me")

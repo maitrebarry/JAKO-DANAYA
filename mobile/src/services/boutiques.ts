@@ -92,3 +92,17 @@ export async function createBoutique(
   if (!res.ok) throw new Error(await parseError(res));
   return (await res.json().catch(() => ({}))) as any;
 }
+
+export async function deleteBoutique(id: number, confirmation: string, token: string): Promise<any> {
+  const base = API_BASE_URL.replace(/\/$/, '');
+  const url = `${base}/api/boutiques/${id}?confirmation=${encodeURIComponent(confirmation)}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.message || data?.error || `Suppression impossible (${res.status})`);
+  }
+  return data;
+}
