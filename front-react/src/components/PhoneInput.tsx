@@ -33,8 +33,15 @@ const PhoneInput = forwardRef<PhoneInputHandle, { value?: string, onChange: (tel
     let mounted = true;
     (async () => {
       if (!window.intlTelInput) {
-        // dynamic import to ensure vite handles it
-        await import('intl-tel-input');
+        // dynamic import to ensure vite handles it. Vite/esbuild bundles this
+        // CommonJS package as an ES module whose default export IS the
+        // intlTelInput factory function — it is not attached to window as a
+        // side effect (unlike the plain <script> UMD build). Without this,
+        // window.intlTelInput stays undefined and initialization below throws,
+        // silently leaving the input with no event listeners wired up (typed
+        // phone numbers are then never captured into the form state).
+        const mod: any = await import('intl-tel-input');
+        window.intlTelInput = mod?.default || mod;
       }
       if (!inputRef.current || !mounted) return;
 

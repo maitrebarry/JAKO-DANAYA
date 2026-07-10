@@ -41,7 +41,6 @@ const ListeCommandes: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCommande, setSelectedCommande] = useState<CommandeData | null>(null);
 
   // Detect if we are in 'ventes' context by checking the current path or query param ?mode=vente
   const urlParams = new URLSearchParams(location.search || '');
@@ -146,25 +145,26 @@ const ListeCommandes: React.FC = () => {
   };
 
   const handleRowClick = (commande: CommandeData) => {
-    setSelectedCommande(commande);
-    // Afficher le menu d'actions avec SweetAlert2 au lieu du modal Bootstrap
-    showActionMenu();
+    // La commande cliquée est passée directement au menu d'actions plutôt que
+    // via le state React : setState est asynchrone, donc la lire depuis le state
+    // ici afficherait le menu de la commande sélectionnée au clic précédent.
+    showActionMenu(commande);
   };
 
-  const showActionMenu = () => {
-    if (!selectedCommande) {
+  const showActionMenu = (commande: CommandeData) => {
+    if (!commande) {
       // Swal.fire('Erreur', 'Veuillez sélectionner une commande', 'warning');
       return;
     }
 
     const receptionLabel = isVenteMode ? 'Livraison' : 'Réception';
-    const viewLabel = ((selectedCommande as any).isVente === true) ? 'Voir la commande (Vente)' : 'Voir la commande (Fournisseur)';
-    const printLabel = ((selectedCommande as any).isVente === true) ? 'Imprimer (Vente)' : 'Imprimer (Fournisseur)';
-    const paymentLabel = ((selectedCommande as any).isVente === true) ? 'Paiement (Vente)' : 'Paiement (Fournisseur)';
-    const paymentStarted = (selectedCommande.pourcentage_paye ?? 0) > 0 || (selectedCommande.paie ?? 0) > 0;
+    const viewLabel = ((commande as any).isVente === true) ? 'Voir la commande (Vente)' : 'Voir la commande (Fournisseur)';
+    const printLabel = ((commande as any).isVente === true) ? 'Imprimer (Vente)' : 'Imprimer (Fournisseur)';
+    const paymentLabel = ((commande as any).isVente === true) ? 'Paiement (Vente)' : 'Paiement (Fournisseur)';
+    const paymentStarted = (commande.pourcentage_paye ?? 0) > 0 || (commande.paie ?? 0) > 0;
 
     Swal.fire({
-      title: `Actions pour ${selectedCommande.reference}`,
+      title: `Actions pour ${commande.reference}`,
       html: `
         <div class="text-center">
           <button class="btn btn-primary w-100 my-2" onclick="window.handleActionFromSwal('view')">
@@ -179,14 +179,14 @@ const ListeCommandes: React.FC = () => {
           <button class="btn btn-warning w-100 my-2 ${!canReception ? 'disabled' : ''}" onclick="window.handleActionFromSwal('reception')" ${!canReception ? 'disabled' : ''}>
             <i class="bx bx-box me-2"></i> ${receptionLabel}
           </button>
-            <button class="btn btn-success w-100 my-2 ${selectedCommande.pourcentage_recu > 0 || paymentStarted || !canModifyCommande ? 'disabled' : ''}" 
-                  onclick="window.handleActionFromSwal('modify')" 
-              ${selectedCommande.pourcentage_recu > 0 || paymentStarted || !canModifyCommande ? 'disabled' : ''}>
+            <button class="btn btn-success w-100 my-2 ${commande.pourcentage_recu > 0 || paymentStarted || !canModifyCommande ? 'disabled' : ''}"
+                  onclick="window.handleActionFromSwal('modify')"
+              ${commande.pourcentage_recu > 0 || paymentStarted || !canModifyCommande ? 'disabled' : ''}>
             <i class="bx bx-edit me-2"></i> Modification
           </button>
-            <button class="btn btn-danger w-100 my-2 ${selectedCommande.pourcentage_recu > 0 || paymentStarted || !canDeleteCommande ? 'disabled' : ''}" 
-                  onclick="window.handleActionFromSwal('delete')" 
-              ${selectedCommande.pourcentage_recu > 0 || paymentStarted || !canDeleteCommande ? 'disabled' : ''}>
+            <button class="btn btn-danger w-100 my-2 ${commande.pourcentage_recu > 0 || paymentStarted || !canDeleteCommande ? 'disabled' : ''}"
+                  onclick="window.handleActionFromSwal('delete')"
+              ${commande.pourcentage_recu > 0 || paymentStarted || !canDeleteCommande ? 'disabled' : ''}>
             <i class="bx bx-trash me-2"></i> Supprimer
           </button>
         </div>
@@ -201,38 +201,38 @@ const ListeCommandes: React.FC = () => {
     // Définir les fonctions globales pour les boutons SweetAlert
     (window as any).handleActionFromSwal = (action: string) => {
       Swal.close();
-      handleAction(action);
+      handleAction(action, commande);
     };
     // expose mode to SweetAlert inline HTML to change button labels
     (window as any).isVenteMode = isVenteMode;
   };
 
-  const handleAction = (action: string) => {
-    if (!selectedCommande) return;
+  const handleAction = (action: string, commande: CommandeData) => {
+    if (!commande) return;
 
-    const isVenteItem = (selectedCommande as any).isVente === true;
-    const paymentStarted = (selectedCommande.pourcentage_paye ?? 0) > 0 || (selectedCommande.paie ?? 0) > 0;
+    const isVenteItem = (commande as any).isVente === true;
+    const paymentStarted = (commande.pourcentage_paye ?? 0) > 0 || (commande.paie ?? 0) > 0;
 
     switch (action) {
       case 'view':
         // Decide view path based on the actual item type (vente vs fournisseur)
-        const viewPath = isVenteItem ? `/commandes-clients/appercu/${selectedCommande.id_commande_fournisseur}` : `/commandes/appercu/${selectedCommande.id_commande_fournisseur}`;
+        const viewPath = isVenteItem ? `/commandes-clients/appercu/${commande.id_commande_fournisseur}` : `/commandes/appercu/${commande.id_commande_fournisseur}`;
         navigate(viewPath);
         break;
       case 'print':
-        openCommandePdf(selectedCommande.id_commande_fournisseur, isVenteItem);
+        openCommandePdf(commande.id_commande_fournisseur, isVenteItem);
         break;
       case 'payment':
         if (!canPayment) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de gérer les paiements', 'error'); return; }
         // If the item is a vente, include ?mode=vente so the paiement component loads client-mode
-        navigate(`/commandes/paiement/${selectedCommande.id_commande_fournisseur}${isVenteItem ? '?mode=vente' : ''}`);
+        navigate(`/commandes/paiement/${commande.id_commande_fournisseur}${isVenteItem ? '?mode=vente' : ''}`);
         break;
       case 'reception':
         if (!canReception) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de gérer les réceptions', 'error'); return; }
         if (isVenteItem) {
-          navigate(`/ventes/livraisons?venteId=${selectedCommande.id_commande_fournisseur}`);
+          navigate(`/ventes/livraisons?venteId=${commande.id_commande_fournisseur}`);
         } else {
-          navigate(`/commandes/reception/${selectedCommande.id_commande_fournisseur}`);
+          navigate(`/commandes/reception/${commande.id_commande_fournisseur}`);
         }
         break;
       case 'modify':
@@ -241,10 +241,10 @@ const ListeCommandes: React.FC = () => {
           Swal.fire('Erreur', 'Impossible de modifier une commande avec paiement déjà déclenché', 'error');
           return;
         }
-        if (selectedCommande.pourcentage_recu > 0) {
+        if (commande.pourcentage_recu > 0) {
           Swal.fire('Erreur', 'Impossible de modifier une commande déjà réceptionnée', 'error');
         } else {
-          const modPath = isVenteItem ? `/ventes/update/${selectedCommande.id_commande_fournisseur}` : `/commandes/update/${selectedCommande.id_commande_fournisseur}`;
+          const modPath = isVenteItem ? `/ventes/update/${commande.id_commande_fournisseur}` : `/commandes/update/${commande.id_commande_fournisseur}`;
           navigate(modPath);
         }
         break;
@@ -254,10 +254,10 @@ const ListeCommandes: React.FC = () => {
           Swal.fire('Erreur', 'Impossible de supprimer une commande avec paiement déjà déclenché', 'error');
           return;
         }
-        if (selectedCommande.pourcentage_recu > 0) {
+        if (commande.pourcentage_recu > 0) {
           Swal.fire('Erreur', 'Impossible de supprimer une commande déjà réceptionnée', 'error');
         } else {
-          handleDelete(selectedCommande.id_commande_fournisseur, isVenteItem);
+          handleDelete(commande.id_commande_fournisseur, isVenteItem);
         }
         break;
     }

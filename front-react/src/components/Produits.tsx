@@ -1120,8 +1120,8 @@ const Produits: React.FC = () => {
       <div className={`modal fade ${showModal ? 'show' : ''}`} style={{ display: showModal ? 'block' : 'none' }} tabIndex={-1}>
         <div className="modal-dialog modal-lg modal-fullscreen-sm-down">
           <div className="modal-content">
-            <div className="modal-header bg-black">
-              <h5 className="modal-title text-white">{editing ? 'Modifier le produit' : 'Créer un produit'}</h5>
+            <div className="modal-header">
+              <h5 className="modal-title">{editing ? 'Modifier le produit' : 'Créer un produit'}</h5>
               <button type="button" className="btn-close" onClick={() => { setShowModal(false); setEditing(null); resetForm(); }} />
             </div>
             <div className="modal-body">

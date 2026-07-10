@@ -249,7 +249,7 @@ const Documents: React.FC = () => {
                           </select>
                         </div>
                         <div className="col-12">
-                          <small className="form-text text-muted">Par défaut : boutique de l'utilisateur. Les produits "en boutique" sont ceux dont <code>id_magasin</code> est null dans la table stock.</small>
+                          <small className="form-text text-muted">Par défaut : boutique de l'utilisateur.</small>
                         </div>
                         <div className="col-12">
                           <button className="btn btn-outline-success" onClick={(e) => { e.preventDefault(); fetchList(0); }}>Filtrer</button>

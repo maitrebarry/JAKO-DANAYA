@@ -129,9 +129,14 @@ const VenteLivraison: React.FC = () => {
       setLocationType('BOUTIQUE');
       setSelectedMagasinId(null);
       await fetchStocksByLocation('BOUTIQUE');
-      // Toujours charger la liste des ventes/commandes à livrer pour peupler le select
-      await fetchVentesToDeliver();
-      // Si un param venteId est fourni, sélectionner et charger ses lignes
+      // Peupler la liste déroulante des ventes/commandes à livrer : ne pas attendre
+      // cet appel avant de charger la commande demandée ci-dessous. Il fait un appel
+      // réseau par vente/commande existante pour récupérer leurs lignes (le backend ne
+      // les inclut pas dans la liste), ce qui peut prendre plusieurs dizaines de
+      // secondes dès qu'il y a un historique conséquent — bloquer dessus empêchait la
+      // commande demandée via venteId de s'afficher avant la fin de ce peuplement.
+      fetchVentesToDeliver();
+      // Si un param venteId est fourni, sélectionner et charger ses lignes immédiatement
       if (venteId) {
         setSelectedVenteId(venteId);
         fetchVenteAndLines(venteId);
@@ -148,45 +153,27 @@ const VenteLivraison: React.FC = () => {
       // S'assurer que les stocks sont chargés en premier pour enrichir les lignes
       if (!stocks || stocks.length === 0) await fetchStocksByLocation('BOUTIQUE');
 
-      const [resV, resC] = await Promise.all([
-        fetch(`${API}/ventes`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
-        // Envoyer aussi l'en-tête Authorization pour commandes-clients afin d'obtenir la liste correcte
-        fetch(`${API}/commandes-clients`, { headers: { Authorization: token ? `Bearer ${token}` : '' } })
-      ]);
+      // Note : cette page ne peuple le menu déroulant qu'avec des commandes clients
+      // (seul cas atteignable depuis l'UI : "Ventes -> Liste commandes clients").
+      // Les ventes au comptant (/api/ventes) ne sont volontairement pas incluses ici :
+      // elles sont systématiquement livrées intégralement dès leur création (qte_livre
+      // == quantite pour toutes leurs lignes), et /api/ventes ne renvoie pas les lignes
+      // dans sa liste — les inclure obligeait à faire un appel réseau supplémentaire par
+      // vente existante (GET /api/ventes/{id}/lignes) pour ne jamais rien trouver à
+      // livrer, une rafale de requêtes qui grossit avec l'historique des ventes et peut
+      // saturer le pool de connexions à la base au point de rendre toute l'application
+      // indisponible.
+      const resC = await fetch(`${API}/commandes-clients`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
 
-      console.debug('fetchVentesToDeliver: response statuses', { ventesStatus: resV.status, commandesStatus: resC.status });
+      console.debug('fetchVentesToDeliver: response status', { commandesStatus: resC.status });
 
       // Si le serveur renvoie 403, informer l'utilisateur (auth manquante ou permissions insuffisantes)
-      if (resV.status === 403 || resC.status === 403) {
-        Swal.fire('Erreur', 'Accès refusé (403) lors de la récupération des ventes/commandes. Veuillez vous reconnecter ou vérifier vos permissions.', 'error');
+      if (resC.status === 403) {
+        Swal.fire('Erreur', 'Accès refusé (403) lors de la récupération des commandes. Veuillez vous reconnecter ou vérifier vos permissions.', 'error');
         return;
       }
 
-      const ventesData = resV.ok ? await resV.json() : [];
       const commandesData = resC.ok ? await resC.json() : [];
-
-      // S'assurer que chaque vente contient ses lignes : si /api/ventes n'en fournit pas, récupérer les lignes pour chaque vente
-      const ventesWithLines = await Promise.all((ventesData || []).map(async (v: any) => {
-        if (Array.isArray(v.lignes) && v.lignes.length > 0) return v;
-        try {
-          const lres = await fetch(`${API}/ventes/${v.id}/lignes`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
-          if (lres.ok) {
-            const lines = await lres.json();
-            return { ...v, lignes: lines };
-          }
-          const lres2 = await fetch(`${API}/ventes/${v.id}/articles`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
-          if (lres2.ok) {
-            const lines2 = await lres2.json();
-            return { ...v, lignes: lines2 };
-          }
-        } catch (e) {
-          console.debug('fetchVentesToDeliver: could not fetch lines for vente', { id: v.id, err: e });
-        }
-        return v;
-      }));
-
-      // Normaliser et filtrer les ventes qui ont encore des quantités à livrer
-      const vFiltered = (ventesWithLines || []).map((v: any) => ({ ...v, type: 'vente' })).filter((v: any) => (v.lignes || []).some((l: any) => ((l.quantite || l.quantiteCommande || 0) > (l.quantiteLivre || l.qte_livre || 0))));
 
       // Pour commandes-clients : essayer d'abord l'endpoint dédié (/a-livrer), sinon utiliser la liste et s'assurer que chaque commande a ses lignes
       let commandesList: any[] = [];
@@ -232,15 +219,13 @@ const VenteLivraison: React.FC = () => {
 
       const cFiltered = cNormalized.filter((c: any) => (c.lignes || []).some((l: any) => ((l.quantite || l.quantiteCommande || 0) > (l.quantiteLivre || l.qte_livre || 0))));
 
-      const combined = [...vFiltered, ...cFiltered];
-
       // Infos debug pour vérifier la structure des données
-      console.debug('fetchVentesToDeliver', { ventesCount: vFiltered.length, commandesCount: cFiltered.length, combinedCount: combined.length });
+      console.debug('fetchVentesToDeliver', { commandesCount: cFiltered.length });
 
-      setVentes(combined);
-      if (combined.length === 1) {
-        setSelectedVenteId(String(combined[0].id));
-        if (combined[0].type === 'commande-client') fetchCommandeClientAndLines(String(combined[0].id)); else fetchVenteAndLines(String(combined[0].id));
+      setVentes(cFiltered);
+      if (cFiltered.length === 1) {
+        setSelectedVenteId(String(cFiltered[0].id));
+        fetchCommandeClientAndLines(String(cFiltered[0].id));
       }
     } catch (e: any) {
       Swal.fire('Erreur', e.message || 'Erreur lors du chargement des ventes/commandes', 'error');
@@ -649,17 +634,6 @@ const VenteLivraison: React.FC = () => {
                 <div className="d-flex">
                   <select className="form-select me-2" value={selectedVenteId || ''} onChange={(e) => handleSelectVente(e.target.value || null)}>
                     <option value="">-- Sélectionner une commande --</option>
-                    {(ventes || []).filter((v: any) => v.type === 'vente').map((v: any) => {
-                      const totalDelivered = (v.lignes || []).reduce((acc: number, ln: any) => acc + (ln.quantiteLivre || ln.qte_livre || 0), 0);
-                      const totalOrdered = (v.lignes || []).reduce((acc: number, ln: any) => acc + (ln.quantite || ln.quantiteCommande || 0), 0) || 1;
-                      const deliveredPct = ((totalDelivered / totalOrdered) * 100).toFixed(1);
-                      const refLabel = v.referenceCaisse || v.reference || `Vente ${v.id}`;
-                      return (
-                        <option key={`vente-${v.id}`} value={v.id}>
-                          {refLabel} - {v.nomClient || '-'} - Vente en espèces - {deliveredPct}% livré
-                        </option>
-                      );
-                    })}
                     {(ventes || []).filter((v: any) => v.type === 'commande-client').map((v: any) => {
                       const totalReceived = (v.lignes || []).reduce((acc: number, ln: any) => acc + (ln.quantiteLivre || ln.qte_livre || 0), 0);
                       const totalOrdered = (v.lignes || []).reduce((acc: number, ln: any) => acc + (ln.quantite || ln.quantiteCommande || 0), 0) || 1;

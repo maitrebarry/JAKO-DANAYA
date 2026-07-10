@@ -46,7 +46,7 @@ const Configuration = () => {
       <div className="row">
         <div className="col-3">
           <div className="card">
-            <div className="card-header d-flex justify-content-between align-items-center" style={{ backgroundColor: '#007bff', color: 'white' }}>
+            <div className="card-header d-flex justify-content-between align-items-center bg-primary text-white">
               <h6>MENU de Configuration</h6>
             </div>
             <div className="list-group list-group-flush">
@@ -142,7 +142,8 @@ const ListeUtilisateurs = () => {
   const [search, setSearch] = useState('');
   const [creating, setCreating] = useState(false);
   const [phoneCodePays, setPhoneCodePays] = useState<string | null>(null);
-  
+  const [userTelephoneValid, setUserTelephoneValid] = useState<boolean | null>(null);
+
   const canCreateUser = useHasPermission('UTILISATEUR_CREER');
   const canModifyUser = useHasPermission('UTILISATEUR_MODIFIER');
   const canToggleUser = useHasPermission('UTILISATEUR_ACTIVER_DESACTIVER');
@@ -151,6 +152,7 @@ const ListeUtilisateurs = () => {
   const { roles: sessionRoles, currentBoutique, user: currentUser } = useUser();
   const normalizedRoles = sessionRoles.map(r => (r || '').replace(/^ROLE_/i, '').toUpperCase());
   const isAdminOrProprio = normalizedRoles.some(r => ['ADMINISTRATEUR', 'PROPRIETAIRE', 'SUPERADMIN'].includes(r));
+  const isSuperAdmin = normalizedRoles.includes('SUPERADMIN') || (currentUser as any)?.typeUtilisateur === 'SUPERADMIN';
 
   const [formData, setFormData] = useState({
     id: null as number | null,
@@ -231,6 +233,7 @@ const ListeUtilisateurs = () => {
       roleIds: []
     });
     setPhoneCodePays(null);
+    setUserTelephoneValid(null);
   };
 
   useEffect(() => {
@@ -350,7 +353,11 @@ const ListeUtilisateurs = () => {
       Swal.fire('Erreur', 'Le mot de passe est requis pour créer un utilisateur.', 'error');
       return;
     }
-    
+    if (formData.contact && formData.contact.trim() && userTelephoneValid !== true) {
+      Swal.fire('Erreur', 'Le numéro de téléphone est invalide ou incomplet pour le pays sélectionné', 'error');
+      return;
+    }
+
     setCreating(true);
     setMessage('');
     try {
@@ -535,6 +542,8 @@ const ListeUtilisateurs = () => {
       }
     }
     setPhoneCodePays(inferredCode || user.codePays || (user.boutique && user.boutique.pays ? user.boutique.pays.codeIso : (currentBoutique?.pays?.codeIso || 'ML')));
+    // Le numéro existant est présumé valide tant qu'il n'est pas retouché dans le formulaire
+    setUserTelephoneValid(user.contact ? true : null);
     setShowModal(true);
   };
 
@@ -574,7 +583,7 @@ const ListeUtilisateurs = () => {
       )}
       
       <div className="card">
-        <div className="card-header d-flex justify-content-between align-items-center" style={{ backgroundColor: '#007bff', color: 'white' }}>
+        <div className="card-header d-flex justify-content-between align-items-center bg-primary text-white">
           <h5>Utilisateurs</h5>
           {canCreateUser && (
             <button 
@@ -687,15 +696,17 @@ const ListeUtilisateurs = () => {
                               <i className="ti ti-pencil"></i>
                             </button>
                           )}
-                          <RequirePermission permission="UTILISATEUR_SUPPRIMER">
-                            <button 
-                              className="btn btn-sm btn-outline-danger ms-1" 
-                              title="Supprimer" 
-                              onClick={() => handleDelete(user.id)}
-                            >
-                              <i className="ti ti-trash"></i>
-                            </button>
-                          </RequirePermission>
+                          {isSuperAdmin && (
+                            <RequirePermission permission="UTILISATEUR_SUPPRIMER">
+                              <button
+                                className="btn btn-sm btn-outline-danger ms-1"
+                                title="Supprimer"
+                                onClick={() => handleDelete(user.id)}
+                              >
+                                <i className="ti ti-trash"></i>
+                              </button>
+                            </RequirePermission>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -827,7 +838,7 @@ const ListeUtilisateurs = () => {
               <div className="row">
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Contact</label>
-                  <PhoneWithDial value={formData.contact} defaultCountry={phoneCodePays || currentBoutique?.pays?.codeIso || 'ML'} onChange={(tel, code) => { setFormData({ ...formData, contact: tel || '' }); setPhoneCodePays(code || null); }} />
+                  <PhoneWithDial value={formData.contact} defaultCountry={phoneCodePays || currentBoutique?.pays?.codeIso || 'ML'} onChange={(tel, code, valid) => { setFormData({ ...formData, contact: tel || '' }); setPhoneCodePays(code || null); setUserTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
                 </div>
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Adresse</label>
@@ -1267,7 +1278,7 @@ const Boutique = () => {
       )}
       
       <div className="card">
-        <div className="card-header d-flex justify-content-between align-items-center" style={{ backgroundColor: '#007bff', color: 'white' }}>
+        <div className="card-header d-flex justify-content-between align-items-center bg-primary text-white">
           <h5>Boutiques</h5>
           {isSuperAdmin && (
             <button 
@@ -1704,7 +1715,7 @@ const Unite = () => {
       )}
       
       <div className="card">
-        <div className="card-header d-flex justify-content-between align-items-center" style={{ backgroundColor: '#007bff', color: 'white' }}>
+        <div className="card-header d-flex justify-content-between align-items-center bg-primary text-white">
           <h5>Unités</h5>
           <button 
             className="btn btn-light" 
@@ -2057,7 +2068,7 @@ const Magasins = () => {
       )}
       
       <div className="card">
-        <div className="card-header d-flex justify-content-between align-items-center" style={{ backgroundColor: '#007bff', color: 'white' }}>
+        <div className="card-header d-flex justify-content-between align-items-center bg-primary text-white">
           <h5>Magasins</h5>
           <button 
             className="btn btn-light" 
@@ -2602,7 +2613,7 @@ const AssignerPermissions = () => {
     <div className="row">
       <div className="col-md-4">
         <div className="card h-100">
-          <div className="card-header d-flex justify-content-between align-items-center" style={{ backgroundColor: '#007bff', color: 'white' }}>
+          <div className="card-header d-flex justify-content-between align-items-center bg-primary text-white">
             <div>
               <h6 className="mb-0">Utilisateurs</h6>
               <small className="text-white">Sélectionnez un utilisateur</small>
@@ -2649,7 +2660,7 @@ const AssignerPermissions = () => {
 
       <div className="col-md-8">
         <div className="card h-100">
-          <div className="card-header d-flex justify-content-between align-items-center" style={{ backgroundColor: '#007bff', color: 'white' }}>
+          <div className="card-header d-flex justify-content-between align-items-center bg-primary text-white">
             <div>
               <h6 className="mb-0">Permissions</h6>
               <small className="text-white">
@@ -2887,7 +2898,7 @@ const Permissions = () => {
       )}
       
       <div className="card">
-        <div className="card-header d-flex justify-content-between align-items-center" style={{ backgroundColor: '#007bff', color: 'white' }}>
+        <div className="card-header d-flex justify-content-between align-items-center bg-primary text-white">
           <h5>Permissions</h5>
           <button 
             className="btn btn-light" 
@@ -3238,7 +3249,7 @@ const ConfigurationAbonnementTarifs = () => {
 
   return (
     <div className="card">
-      <div className="card-header d-flex justify-content-between align-items-center" style={{ backgroundColor: '#007bff', color: 'white' }}>
+      <div className="card-header d-flex justify-content-between align-items-center bg-primary text-white">
         <h6 className="mb-0">Configuration des tarifs d'abonnement</h6>
         <button className="btn btn-sm btn-light" onClick={loadPlans}>
           <i className="bi bi-arrow-clockwise me-1"></i>Rafraîchir

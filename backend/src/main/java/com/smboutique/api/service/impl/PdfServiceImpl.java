@@ -468,6 +468,7 @@ public class PdfServiceImpl implements PdfService {
         Context ctx = new Context();
         ctx.setVariable("boutiqueId", boutiqueId);
         ctx.setVariable("data", data);
+        ctx.setVariable("deviseSymbole", "FCFA");
 
         if (boutiqueId != null) {
             com.smboutique.api.model.Boutique b = boutiqueRepository.findById(boutiqueId).orElse(null);
@@ -487,6 +488,22 @@ public class PdfServiceImpl implements PdfService {
                 // ignore
             }
             ctx.setVariable("logoBase64", logoData);
+
+            String boutiqueNom = "";
+            String boutiqueTelephone = "";
+            String boutiqueAdresse = "";
+            String deviseSymbole = "FCFA";
+            if (b != null) {
+                if (b.getNom() != null) boutiqueNom = b.getNom();
+                if (b.getTelephoneLocal() != null) boutiqueTelephone = b.getTelephoneLocal();
+                if (b.getAdresse() != null) boutiqueAdresse = b.getAdresse();
+                try { if (b.getPays() != null && b.getPays().getDeviseSymbole() != null) deviseSymbole = b.getPays().getDeviseSymbole(); } catch (Exception ignore) {}
+            }
+            try { if (deviseSymbole == null || deviseSymbole.trim().isEmpty() || "deviseSymbole".equalsIgnoreCase(deviseSymbole.trim())) deviseSymbole = "FCFA"; } catch (Exception ignore) {}
+            ctx.setVariable("boutiqueNom", boutiqueNom);
+            ctx.setVariable("boutiqueTelephone", boutiqueTelephone);
+            ctx.setVariable("boutiqueAdresse", boutiqueAdresse);
+            ctx.setVariable("deviseSymbole", deviseSymbole);
         }
 
         String html = templateEngine.process("rapport_valeur_stock", ctx);

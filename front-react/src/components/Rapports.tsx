@@ -124,6 +124,14 @@ const Rapports: React.FC = () => {
   const exportCsv = () => exportFile('csv');
   const exportPdf = () => exportFile('pdf');
 
+  const formatCell = (key: string, value: any): string => {
+    if (key === 'date' && typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [y, m, d] = value.split('-');
+      return `${d}/${m}/${y}`;
+    }
+    return String(value ?? '');
+  };
+
   return (
     <div>
       <div className="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
@@ -202,7 +210,7 @@ const Rapports: React.FC = () => {
                 <tbody>
                   {rows.map((r, idx) => (
                     <tr key={idx}>
-                      {Object.keys(rows[0]).map(k => (<td key={k}>{String((r as any)[k] ?? '')}</td>))}
+                      {Object.keys(rows[0]).map(k => (<td key={k}>{formatCell(k, (r as any)[k])}</td>))}
                     </tr>
                   ))}
                 </tbody>

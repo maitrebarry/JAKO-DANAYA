@@ -238,7 +238,7 @@ const UtilisationForm: React.FC<Props> = ({ onSuccess, onClose, editing }) => {
       <div className="modal-dialog modal-fullscreen-sm-down" role="document">
         <div className="modal-content">
           <form onSubmit={submit}>
-            <div className="modal-header bg-dark text-white d-flex align-items-center justify-content-between">
+            <div className="modal-header d-flex align-items-center justify-content-between">
               <div>
                 <h5 className="modal-title d-inline">Nouvelle Utilisation / Perte</h5>
                 <span className={`badge ms-2 ${sousType === 'PERTE' ? 'bg-danger' : 'bg-primary'}`}>{sousType}</span>

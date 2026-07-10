@@ -123,6 +123,17 @@ body {
   line-height: 20px !important;
 }
 
+/* Long top-level labels (e.g. "Documents/Rapports") wrap instead of being
+   ellipsis-truncated by the template's default single-line .menu-text rule. */
+.side-nav .side-nav-link .menu-text {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  min-width: 0;
+  flex: 1 1 auto;
+  line-height: 1.25;
+}
+
 .side-nav .collapse,
 .side-nav .collapsing {
   list-style: none;

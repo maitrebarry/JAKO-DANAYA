@@ -356,7 +356,7 @@ const Footer = () => {
       <div className="container-fluid">
         <div className="row px-4 py-2">
           <div className="col-md-6 text-center text-md-start">
-            © te@che@b@rry@
+            © Computer Service Barry CSB
           </div>
           <div className="col-md-6">
             <div className="text-md-end d-none d-md-block">
