@@ -44,7 +44,7 @@ export type RootStackParamList = {
   ConfigurationMagasins: undefined;
   ConfigurationUnites: undefined;
   ConfigurationPermissions: undefined;
-  ConfigurationAssignPermissions: undefined;
+  ConfigurationAssignPermissions: { initialUserId?: number } | undefined;
   ConfigurationMarges: undefined;
   Fournisseurs: undefined;
   ReportsHome: undefined;

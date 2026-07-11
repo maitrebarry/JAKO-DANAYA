@@ -86,6 +86,11 @@ export default function TopBar({ showBack = false }: { showBack?: boolean }) {
   const barHeight = 56;
   const borderColor = isDark ? '#1f2937' : '#e5e7eb';
 
+  // Retour tactile natif Android (effet "ripple") — ignoré automatiquement sur iOS.
+  const rippleColor = isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.12)';
+  const iconRipple = { color: rippleColor, borderless: true, radius: 24 };
+  const surfaceRipple = { color: rippleColor, borderless: false };
+
   const closeMenu = () => setMenuOpen(false);
 
   const menuItem = (opts: { label: string; icon: any; onPress: () => void; danger?: boolean }) => {
@@ -93,6 +98,7 @@ export default function TopBar({ showBack = false }: { showBack?: boolean }) {
     return (
       <Pressable
         onPress={opts.onPress}
+        android_ripple={surfaceRipple}
         style={({ pressed }) => ({
           flexDirection: 'row',
           alignItems: 'center',
@@ -126,6 +132,7 @@ export default function TopBar({ showBack = false }: { showBack?: boolean }) {
           {showBack ? (
             <Pressable
               onPress={() => navigation.goBack()}
+              android_ripple={iconRipple}
               style={{ marginRight: 12, padding: 6, borderRadius: 999 }}
               hitSlop={{ top: 10, left: 10, right: 10, bottom: 10 }}
             >
@@ -134,6 +141,7 @@ export default function TopBar({ showBack = false }: { showBack?: boolean }) {
           ) : (
             <Pressable
               onPress={() => setMenuOpen(true)}
+              android_ripple={iconRipple}
               style={{ marginRight: 10, padding: 6, borderRadius: 12, backgroundColor: theme.surface, borderWidth: 1, borderColor }}
               hitSlop={{ top: 10, left: 10, right: 10, bottom: 10 }}
             >
@@ -154,7 +162,7 @@ export default function TopBar({ showBack = false }: { showBack?: boolean }) {
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable onPress={() => navigation.navigate('Notifications')} style={{ marginRight: 10, padding: 6 }}>
+          <Pressable onPress={() => navigation.navigate('Notifications')} android_ripple={iconRipple} style={{ marginRight: 10, padding: 6 }}>
             <View>
               <Ionicons name="notifications-outline" size={24} color={textColor} />
               {unread > 0 && (
@@ -170,6 +178,7 @@ export default function TopBar({ showBack = false }: { showBack?: boolean }) {
               const next = themePref === 'dark' ? 'light' : 'dark';
               setThemePref(next);
             }}
+            android_ripple={iconRipple}
             style={{ marginRight: 10, padding: 6 }}
             hitSlop={{ top: 10, left: 10, right: 10, bottom: 10 }}
             accessibilityRole="button"
@@ -182,6 +191,7 @@ export default function TopBar({ showBack = false }: { showBack?: boolean }) {
             onPress={() => navigation.navigate('Profil')}
             onLongPress={() => navigation.navigate('Profil', { openAvatarPicker: true })}
             delayLongPress={350}
+            android_ripple={iconRipple}
             hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
           >
             <Image
@@ -210,7 +220,7 @@ export default function TopBar({ showBack = false }: { showBack?: boolean }) {
             <Pressable onPress={() => {}} style={{}}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Text style={{ color: theme.text, fontWeight: '900', fontSize: 16 }}>Menu</Text>
-                <Pressable onPress={closeMenu} hitSlop={12} style={{ padding: 6 }}>
+                <Pressable onPress={closeMenu} android_ripple={iconRipple} hitSlop={12} style={{ padding: 6 }}>
                   <Ionicons name="close" size={20} color={theme.text} />
                 </Pressable>
               </View>
@@ -220,6 +230,7 @@ export default function TopBar({ showBack = false }: { showBack?: boolean }) {
                   closeMenu();
                   navigation.navigate('Profil');
                 }}
+                android_ripple={surfaceRipple}
                 style={({ pressed }) => ({
                   marginTop: 14,
                   backgroundColor: theme.surface,

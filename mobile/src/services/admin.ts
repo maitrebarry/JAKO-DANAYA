@@ -53,6 +53,7 @@ export type UserDTO = {
   boutique?: any;
   roles?: RoleDTO[] | string[];
   permissions?: PermissionDTO[] | string[];
+  creePar?: { id: number; nom?: string | null; prenom?: string | null } | null;
 };
 
 export async function listUsers(token: string): Promise<UserDTO[]> {

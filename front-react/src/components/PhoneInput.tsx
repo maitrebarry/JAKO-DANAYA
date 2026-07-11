@@ -9,6 +9,24 @@ type PhoneInputHandle = {
   setCountryISO: (code?: string) => void
 };
 
+const getNationalDisplayValue = (value: string | undefined, dialCode?: string) => {
+  if (!value) return '';
+  const raw = value.toString().trim();
+  if (!dialCode) return raw;
+
+  const digits = raw.replace(/\D/g, '');
+  const looksInternational = raw.startsWith('+') || raw.startsWith('00') || digits.length > 10;
+  if (looksInternational && digits.startsWith(dialCode)) {
+    return digits.substring(dialCode.length);
+  }
+
+  return raw;
+};
+
+const applyNationalPlaceholder = (input: HTMLInputElement | null) => {
+  if (input) input.setAttribute('placeholder', '70000000');
+};
+
 const PhoneInput = forwardRef<PhoneInputHandle, { value?: string, onChange: (telephone?: string, codePays?: string, valid?: boolean, dialCode?: string, national?: string) => void, defaultCountry?: string }>(
   ({ value, onChange, defaultCountry }, ref) => {
     const inputRef = useRef<HTMLInputElement | null>(null);
@@ -21,7 +39,7 @@ const PhoneInput = forwardRef<PhoneInputHandle, { value?: string, onChange: (tel
           if (code) itiRef.current.setCountry((code || 'ml').toLowerCase());
           const country = itiRef.current.getSelectedCountryData();
           if (country && country.dialCode && inputRef.current) {
-            inputRef.current.setAttribute('placeholder', `+${country.dialCode} 70000000`);
+            applyNationalPlaceholder(inputRef.current);
             // Do not set the actual input value to the dial-only string (avoid sending incomplete number).
             try { onChange('', (code || '').toUpperCase(), false, country.dialCode, ''); } catch(e){}
           }
@@ -51,10 +69,8 @@ const PhoneInput = forwardRef<PhoneInputHandle, { value?: string, onChange: (tel
         initialCountry: (defaultCountry || 'ml').toLowerCase(),
         utilsScript: 'https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/utils.js',
         separateDialCode: true,
-        nationalMode: false
+        nationalMode: true
       });
-
-      if (value) inputRef.current.value = value;
 
       // Ensure the plugin picks the requested country and update placeholder
       try {
@@ -63,7 +79,10 @@ const PhoneInput = forwardRef<PhoneInputHandle, { value?: string, onChange: (tel
         }
         const country = itiRef.current.getSelectedCountryData();
         if (country && country.dialCode) {
-          inputRef.current.setAttribute('placeholder', `+${country.dialCode} 70000000`);
+          applyNationalPlaceholder(inputRef.current);
+          if (value) inputRef.current.value = getNationalDisplayValue(value, country.dialCode);
+        } else if (value) {
+          inputRef.current.value = value;
         }
       } catch (err) { /* ignore */ }
 
@@ -75,7 +94,7 @@ const PhoneInput = forwardRef<PhoneInputHandle, { value?: string, onChange: (tel
         const code = country && country.iso2 ? country.iso2.toUpperCase() : '';
         // update placeholder on country change/selection
         if (country && country.dialCode) {
-          inputRef.current.setAttribute('placeholder', `+${country.dialCode} 70000000`);
+          applyNationalPlaceholder(inputRef.current);
         }
         // compute validity when available
         const valid = typeof itiRef.current.isValidNumber === 'function' ? itiRef.current.isValidNumber() : undefined;
@@ -147,10 +166,11 @@ const PhoneInput = forwardRef<PhoneInputHandle, { value?: string, onChange: (tel
       try {
         const country = itiRef.current.getSelectedCountryData();
         if (country && country.dialCode && inputRef.current) {
-          inputRef.current.setAttribute('placeholder', `+${country.dialCode} 70000000`);
-          // set the input value to the dial code as a visual cue and notify parent
-          inputRef.current.value = `+${country.dialCode}`;
-          try { onChange(inputRef.current.value, (defaultCountry || '').toUpperCase(), false, country.dialCode, ''); } catch(e){}
+          applyNationalPlaceholder(inputRef.current);
+          // Do NOT write the dial code into the input's text value: intl-tel-input
+          // already shows it separately via the flag selector (separateDialCode: true).
+          // Writing it here would duplicate it inside the field itself.
+          try { onChange('', (defaultCountry || '').toUpperCase(), false, country.dialCode, ''); } catch(e){}
           return true;
         }
         // fallback: try to get country data from global helper
@@ -160,7 +180,7 @@ const PhoneInput = forwardRef<PhoneInputHandle, { value?: string, onChange: (tel
           const found = list.find((c: any) => (c.iso2 || '').toLowerCase() === (defaultCountry || 'ml').toLowerCase());
           if (found && found.dialCode && inputRef.current) {
             const dial = found.dialCode;
-            inputRef.current.setAttribute('placeholder', `+${dial} 70000000`);
+            applyNationalPlaceholder(inputRef.current);
             // Do NOT prefill the input with only the dial code (that would be an incomplete number).
             // Instead notify parent that the country changed and there is no valid number yet and supply the dial code
             try {
@@ -192,14 +212,22 @@ const PhoneInput = forwardRef<PhoneInputHandle, { value?: string, onChange: (tel
   // (handled by useImperativeHandle above)
 
   useEffect(() => {
-    // if external value changes, reflect
     if (inputRef.current && value != null) {
-      inputRef.current.value = value;
+      let dial: string | undefined;
+      try {
+        const country = itiRef.current?.getSelectedCountryData?.();
+        dial = country?.dialCode;
+      } catch (err) { /* ignore */ }
+
+      const displayValue = getNationalDisplayValue(value, dial);
+      if (inputRef.current.value !== displayValue) {
+        inputRef.current.value = displayValue;
+      }
     }
   }, [value]);
 
   return (
-    <input ref={inputRef} className="form-control" placeholder="+223 70000000" />
+    <input ref={inputRef} className="form-control" placeholder="70000000" />
   );
 });
 

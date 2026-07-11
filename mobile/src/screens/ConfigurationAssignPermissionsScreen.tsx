@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRoute } from '@react-navigation/native';
 import { useTheme } from '../theme';
 import { useApp } from '../store/AppContext';
 import { getUserEffectivePermissions, listAdminPermissions, listAdminUsers, PermissionDTO, setUserPermissions, UserDTO } from '../services/admin';
@@ -30,6 +31,9 @@ function getUserRoleNames(u: any): string[] {
 
 export default function ConfigurationAssignPermissionsScreen() {
   const theme = useTheme();
+  const route = useRoute<any>();
+  const initialUserId: number | undefined = route.params?.initialUserId;
+  const appliedInitialUserRef = React.useRef(false);
   const { token, profile } = useApp();
   const borderColor = (theme as any).isDark ? '#1f2937' : '#e5e7eb';
 
@@ -50,13 +54,19 @@ export default function ConfigurationAssignPermissionsScreen() {
   ]);
   const allowedGerantTargets = new Set(['MAGASINIER', 'STOREKEEPER', 'CAISSIER', 'CASHIER']);
 
+  const isOwnCreation = (u: UserDTO): boolean => {
+    const selfId = profile?.id;
+    return !!(selfId != null && u.creePar?.id === selfId);
+  };
+
   const canAssignTo = (u: UserDTO): boolean => {
     const selfId = profile?.id;
     if (selfId != null && u.id === selfId) return false;
     const r = getUserRoleNames(u);
     if (amSuper) return !r.includes('SUPERADMIN');
     if (amProprietaire || amAdministrateur) return r.some((x) => allowedSubRoles.has(x));
-    if (amGerant) return r.some((x) => allowedGerantTargets.has(x));
+    // Un Gérant délégué ne peut assigner des permissions qu'aux utilisateurs qu'il a lui-même créés.
+    if (amGerant) return r.some((x) => allowedGerantTargets.has(x)) && isOwnCreation(u);
     return false;
   };
 
@@ -85,7 +95,7 @@ export default function ConfigurationAssignPermissionsScreen() {
           return r.some((x) => allowedSubRoles.has(x));
         }
         if (amGerant) {
-          return r.some((x) => allowedGerantTargets.has(x));
+          return r.some((x) => allowedGerantTargets.has(x)) && isOwnCreation(u);
         }
         return false;
       });
@@ -122,6 +132,17 @@ export default function ConfigurationAssignPermissionsScreen() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  useEffect(() => {
+    if (appliedInitialUserRef.current) return;
+    if (!initialUserId || loading || users.length === 0) return;
+    const target = users.find((u) => u.id === initialUserId);
+    if (target) {
+      appliedInitialUserRef.current = true;
+      selectUser(target);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialUserId, loading, users]);
 
   if (!canAccess) {
     return (

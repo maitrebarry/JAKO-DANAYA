@@ -10,13 +10,21 @@ import { withApi, API, API_BASE } from '../config/api';
 const Configuration = () => {
   const { roles } = useUser();
   const [selectedSub, setSelectedSub] = useState('liste-utilisateurs');
+  const [pendingPermissionUserId, setPendingPermissionUserId] = useState<number | null>(null);
   const normalizedRoles = roles.map(r => r.toUpperCase());
   const isSuperAdmin = normalizedRoles.includes('SUPERADMIN');
 
   const renderContent = () => {
     switch (selectedSub) {
       case 'liste-utilisateurs':
-        return <ListeUtilisateurs />;
+        return (
+          <ListeUtilisateurs
+            onUserCreated={(userId) => {
+              setPendingPermissionUserId(userId);
+              setSelectedSub('assigner-permissions');
+            }}
+          />
+        );
       case 'boutique':
         return <Boutique />;
       case 'magasins':
@@ -26,7 +34,12 @@ const Configuration = () => {
       case 'permissions':
         return <Permissions />;
       case 'assigner-permissions':
-        return <AssignerPermissions />;
+        return (
+          <AssignerPermissions
+            initialUserId={pendingPermissionUserId}
+            onInitialUserConsumed={() => setPendingPermissionUserId(null)}
+          />
+        );
       case 'marges':
         return <ConfigurationMarges />;
       case 'abonnement-tarifs':
@@ -129,7 +142,7 @@ const Configuration = () => {
   );
 };
 
-const ListeUtilisateurs = () => {
+const ListeUtilisateurs = ({ onUserCreated }: { onUserCreated?: (userId: number) => void }) => {
   const [users, setUsers] = useState<any[]>([]);
   const [boutiques, setBoutiques] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
@@ -183,8 +196,8 @@ const ListeUtilisateurs = () => {
     SUPERADMIN: ['SUPERADMIN'],
     ADMINISTRATEUR: ['ADMINISTRATEUR', 'ADMIN'],
     GERANT_BOUTIQUE: ['GERANT_BOUTIQUE', 'GERANT', 'MANAGER'],
-    CAISSIER: ['CAISSIER'],
-    MAGASINIER: ['MAGASINIER']
+    CAISSIER: ['CAISSIER', 'CASHIER'],
+    MAGASINIER: ['MAGASINIER', 'STOREKEEPER']
   };
 
   const getRoleIdForType = (typeValue: string) => {
@@ -331,8 +344,8 @@ const ListeUtilisateurs = () => {
 
   const handleCreateOrUpdate = async () => {
     // Validation
-    if (!formData.nom.trim() || !formData.email.trim() || !formData.pseudo.trim() || !formData.boutiqueId) {
-      setMessage('Nom, email, pseudo et boutique sont obligatoires.');
+    if (!formData.nom.trim() || !formData.email.trim() || !formData.boutiqueId) {
+      setMessage('Nom, email et boutique sont obligatoires.');
       return;
     }
     
@@ -371,7 +384,7 @@ const ListeUtilisateurs = () => {
         nom: formData.nom,
         prenom: formData.prenom,
         email: formData.email,
-        pseudo: formData.pseudo,
+        pseudo: formData.pseudo || formData.email.split('@')[0],
         contact: formData.contact,
         codePays: phoneCodePays || (currentBoutique?.pays?.codeIso || 'ML'),
         adresse: formData.adresse,
@@ -400,12 +413,17 @@ const ListeUtilisateurs = () => {
         Swal.fire('Erreur', errData.message || `Erreur lors de la ${isEdit ? 'modification' : 'création'}`, 'error');
         return;
       }
-      
+
+      const savedUser = await res.json().catch(() => null);
+
       setShowModal(false);
       await Swal.fire('Succès', `Utilisateur ${isEdit ? 'modifié' : 'créé'} avec succès !`, 'success');
       setMessage(`Utilisateur ${isEdit ? 'modifié' : 'créé'} avec succès !`);
       resetForm();
       loadUsers();
+      if (!isEdit && savedUser?.id && onUserCreated) {
+        onUserCreated(savedUser.id);
+      }
       setTimeout(() => setMessage(''), 3000);
     } catch (err: any) {
       Swal.fire('Erreur', err.message, 'error');
@@ -769,17 +787,11 @@ const ListeUtilisateurs = () => {
                   />
                 </div>
                 <div className="col-md-6 mb-3">
-                  <label className="form-label">Pseudo *</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={formData.pseudo}
-                    onChange={(e) => setFormData({ ...formData, pseudo: e.target.value })}
-                    required
-                  />
+                  <label className="form-label">Contact</label>
+                  <PhoneWithDial value={formData.contact} defaultCountry={phoneCodePays || currentBoutique?.pays?.codeIso || 'ML'} onChange={(tel, code, valid) => { setFormData({ ...formData, contact: tel || '' }); setPhoneCodePays(code || null); setUserTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
                 </div>
               </div>
-              
+
               <div className="row">
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Boutique *</label>
@@ -795,7 +807,7 @@ const ListeUtilisateurs = () => {
                     ))}
                   </select>
                 </div>
-                <div className="col-md-3 mb-3">
+                <div className="col-md-6 mb-3">
                   <label className="form-label">Type</label>
                   <select
                     className="form-control"
@@ -821,7 +833,10 @@ const ListeUtilisateurs = () => {
                     })()}
                   </select>
                 </div>
-                <div className="col-md-3 mb-3">
+              </div>
+
+              <div className="row">
+                <div className="col-md-6 mb-3">
                   <label className="form-label">Statut</label>
                   <select
                     className="form-control"
@@ -833,25 +848,6 @@ const ListeUtilisateurs = () => {
                     ))}
                   </select>
                 </div>
-              </div>
-              
-              <div className="row">
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Contact</label>
-                  <PhoneWithDial value={formData.contact} defaultCountry={phoneCodePays || currentBoutique?.pays?.codeIso || 'ML'} onChange={(tel, code, valid) => { setFormData({ ...formData, contact: tel || '' }); setPhoneCodePays(code || null); setUserTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
-                </div>
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Adresse</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={formData.adresse}
-                    onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
-                  />
-                </div>
-              </div>
-              
-              <div className="row">
                 <div className="col-md-6 mb-3">
                   <label className="form-label">
                     Mot de passe {!formData.id && '*'}
@@ -2242,8 +2238,13 @@ const Magasins = () => {
   );
 };
 
-const AssignerPermissions = () => {
-  const { user, roles, currentBoutique } = useUser();
+const OWNER_TIER_TYPES = ['PROPRIETAIRE', 'ADMINISTRATEUR', 'ADMIN', 'OWNER'];
+const MANAGER_TIER_TYPES = ['GERANT_BOUTIQUE', 'GERANT', 'MANAGER'];
+const SUBORDINATE_TIER_TYPES = ['GERANT_BOUTIQUE', 'GERANT', 'MANAGER', 'MAGASINIER', 'STOREKEEPER', 'CAISSIER', 'CASHIER'];
+const MANAGER_TARGET_TIER_TYPES = ['MAGASINIER', 'STOREKEEPER', 'CAISSIER', 'CASHIER'];
+
+const AssignerPermissions = ({ initialUserId, onInitialUserConsumed }: { initialUserId?: number | null; onInitialUserConsumed?: () => void }) => {
+  const { user, roles, permissions: sessionPermissions, currentBoutique } = useUser();
   const [users, setUsers] = useState<any[]>([]);
   const [permissions, setPermissions] = useState<any[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -2252,8 +2253,6 @@ const AssignerPermissions = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-
-  const allowedRoles = ['SUPERADMIN', 'PROPRIETAIRE', 'ADMINISTRATEUR', 'ADMIN'];
 
   const normalizeRole = (value: string) => (value || '').replace(/^ROLE_/i, '').toUpperCase();
 
@@ -2266,17 +2265,53 @@ const AssignerPermissions = () => {
     return normalizeRole(user?.role || '');
   };
 
-  const currentRole = useMemo(() => {
-    if (Array.isArray(roles) && roles.length > 0) {
-      const firstRole = roles[0];
-      if (typeof firstRole === 'string') return normalizeRole(firstRole);
-      if ((firstRole as any)?.name) return normalizeRole((firstRole as any).name);
+  // Tous les tokens de rôle de l'utilisateur courant (typeUtilisateur + rôles assignés)
+  const currentTokens = useMemo(() => {
+    const tokens = new Set<string>();
+    if (user?.typeUtilisateur) tokens.add(normalizeRole(user.typeUtilisateur));
+    if (Array.isArray(roles)) {
+      roles.forEach((r: any) => {
+        const name = typeof r === 'string' ? r : (r?.name || '');
+        if (name) tokens.add(normalizeRole(name));
+      });
     }
-    return normalizeRole(user?.typeUtilisateur || '');
+    return tokens;
   }, [roles, user]);
 
-  const allowedNormalized = useMemo(() => allowedRoles.map(normalizeRole), []);
-  const hasAccess = allowedNormalized.includes(currentRole);
+  const hasAnyToken = (candidates: string[]) => candidates.some((c) => currentTokens.has(c));
+  const isSuper = currentTokens.has('SUPERADMIN');
+  const isOwnerTier = hasAnyToken(OWNER_TIER_TYPES);
+  const isManagerTier = hasAnyToken(MANAGER_TIER_TYPES);
+  const canManageUsers = (sessionPermissions || []).some((p) => ['UTILISATEUR_GERER', 'UTILISATEUR_CREER'].includes((p || '').toUpperCase()));
+
+  const hasAccess = isSuper || isOwnerTier || (isManagerTier && canManageUsers);
+
+  const getUserTokens = (u: any) => {
+    const tokens = new Set<string>();
+    if (u?.typeUtilisateur) tokens.add(normalizeRole(u.typeUtilisateur));
+    if (Array.isArray(u?.roles)) {
+      u.roles.forEach((r: any) => {
+        const name = typeof r === 'string' ? r : (r?.name || '');
+        if (name) tokens.add(normalizeRole(name));
+      });
+    }
+    return tokens;
+  };
+
+  const isOwnCreation = (u: any) => user?.id != null && u?.creePar?.id === user.id;
+
+  // Portée de gestion des permissions, en miroir de AdminPermissionController.canManagePermissionsFor
+  // côté backend : le Superadmin gère tout le monde (sauf d'autres Superadmins) ; le Propriétaire/
+  // Administrateur gère tous les subalternes de sa boutique ; un Gérant délégué ne gère que les
+  // utilisateurs qu'il a lui-même créés.
+  const canAssignTo = (u: any) => {
+    if (user?.id != null && u.id === user.id) return false;
+    const targetTokens = getUserTokens(u);
+    if (isSuper) return !targetTokens.has('SUPERADMIN');
+    if (isOwnerTier) return SUBORDINATE_TIER_TYPES.some((t) => targetTokens.has(t));
+    if (isManagerTier) return MANAGER_TARGET_TIER_TYPES.some((t) => targetTokens.has(t)) && isOwnCreation(u);
+    return false;
+  };
 
   const fetchUsers = async () => {
     const token = localStorage.getItem('smb_token');
@@ -2285,31 +2320,26 @@ const AssignerPermissions = () => {
       setLoading(false);
       return;
     }
-    
+
     try {
       const response = await fetch(`${API_BASE}/api/utilisateurs`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       if (!response.ok) {
         throw new Error("Erreur lors du chargement des utilisateurs");
       }
-      
-      let data = await response.json();
-      const currentId = user?.id;
-      const boutiqueId = currentBoutique?.id;
-      const isSuper = Array.isArray(roles) && roles.some((r: any) => {
-        const name = typeof r === 'string' ? r : (r?.name || '');
-        return normalizeRole(name) === 'SUPERADMIN';
-      });
 
-      // Exclure l'utilisateur courant
-      data = (data || []).filter((u: any) => u.id !== currentId);
+      let data = await response.json();
+      const boutiqueId = currentBoutique?.id;
 
       // Appliquer filtre boutique uniquement si l'utilisateur n'est pas SUPERADMIN
       if (!isSuper && boutiqueId) {
-        data = data.filter((u: any) => u.boutique?.id === boutiqueId);
+        data = (data || []).filter((u: any) => u.boutique?.id === boutiqueId);
       }
+
+      // Ne garder que les utilisateurs que je suis autorisé à gérer (miroir du backend)
+      data = (data || []).filter((u: any) => canAssignTo(u));
 
       setUsers(data);
     } catch (err: any) {
@@ -2368,9 +2398,14 @@ const AssignerPermissions = () => {
       setError('');
       await Promise.all([fetchUsers(), fetchPermissions()]);
       setLoading(false);
+      if (initialUserId) {
+        await handleUserSelect(initialUserId);
+        onInitialUserConsumed?.();
+      }
     };
-    
+
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasAccess, currentBoutique]);
 
   const filteredUsers = useMemo(() => {

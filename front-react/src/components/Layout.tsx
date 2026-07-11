@@ -626,7 +626,18 @@ const Topbar = ({ toggleSidebar, isMobile, sidebarOpen }: { toggleSidebar?: () =
 };
 
 const Sidebar = ({ isOpen = true, isMobile = false, closeSidebar = () => {} }: { isOpen?: boolean, isMobile?: boolean, closeSidebar?: () => void }) => {
-  const { permissions, user, roles = [] } = useUser();
+  const { permissions, user, roles = [], logout } = useUser();
+  const navigate = useNavigate();
+
+  const handleSidebarLogout = () => {
+    try {
+      logout();
+    } catch (e) {
+      localStorage.removeItem('smb_token');
+      localStorage.removeItem('smb_user_data');
+      navigate('/');
+    }
+  };
   // Only use explicit permissions to show/hide UI elements. Some menus (like Configuration)
   // are also visible to owners (PROPRIETAIRE) and SUPERADMIN by role.
   const normalizedPermissions = permissions.map(p => p.toUpperCase());
@@ -919,6 +930,16 @@ const Sidebar = ({ isOpen = true, isMobile = false, closeSidebar = () => {} }: {
             </Link>
           </li>
         </ul>
+      </div>
+      <div className="sidenav-footer" style={{ borderTop: '1px solid var(--jako-border, rgba(255,255,255,0.08))', padding: '10px 16px' }}>
+        <a
+          href="#"
+          className="side-nav-link text-danger fw-semibold"
+          onClick={(e) => { e.preventDefault(); handleSidebarLogout(); }}
+        >
+          <span className="menu-icon"><i className="ti ti-logout-2"></i></span>
+          <span className="menu-text">Déconnexion</span>
+        </a>
       </div>
     </div>
   );

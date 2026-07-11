@@ -61,6 +61,14 @@ public class Utilisateur {
     @JoinColumn(name = "boutique_id")
     private Boutique boutique;
 
+    // Utilisateur ayant créé ce compte : sert à restreindre la portée de gestion des
+    // délégués (ex: un Gérant ne peut assigner des permissions qu'aux utilisateurs qu'il a lui-même créés).
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_createur")
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.SET_NULL)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"motDePasse", "permissions", "roles", "creePar", "boutique"})
+    private Utilisateur creePar;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "utilisateur_roles",

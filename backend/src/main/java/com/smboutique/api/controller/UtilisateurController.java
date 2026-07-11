@@ -37,6 +37,18 @@ public class UtilisateurController {
     @Autowired
     private com.smboutique.api.repository.UtilisateurRepository utilisateurRepository;
 
+    @Autowired
+    private com.smboutique.api.repository.PermissionRepository permissionRepository;
+
+    // Rôles pour lesquels toutes les permissions sont accordées par défaut à la création,
+    // à l'exception de celles listées dans DEFAULT_FULL_ACCESS_EXCLUSIONS.
+    private static final java.util.Set<String> DEFAULT_FULL_ACCESS_ROLE_TYPES =
+            new java.util.HashSet<>(java.util.Arrays.asList("PROPRIETAIRE", "ADMINISTRATEUR"));
+
+    private static final java.util.Set<String> DEFAULT_FULL_ACCESS_EXCLUSIONS =
+            new java.util.HashSet<>(java.util.Arrays.asList(
+                    "BOUTIQUE_CREER", "BOUTIQUE_SUPPRIMER", "VENTE_EMPLACEMENT_MODIFIER"));
+
     private Utilisateur getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -138,6 +150,7 @@ public class UtilisateurController {
     @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
     public ResponseEntity<?> createUser(@RequestBody Utilisateur utilisateur) {
         Utilisateur current = getCurrentUser();
+        utilisateur.setCreePar(current);
         if (!isSuperAdmin(current)) {
             utilisateur.setBoutique(current.getBoutique());
         } else if (utilisateur.getBoutique() != null && utilisateur.getBoutique().getId() != null) {
@@ -202,6 +215,19 @@ public class UtilisateurController {
         if (utilisateur.getMotDePasse() != null && !utilisateur.getMotDePasse().isEmpty()) {
             utilisateur.setMotDePasse(passwordEncoder.encode(utilisateur.getMotDePasse()));
         }
+
+        // Attribution par défaut : Propriétaire/Administrateur reçoivent toutes les permissions
+        // à la création, sauf création/suppression de boutique et modification de l'emplacement de vente.
+        if (utilisateur.getTypeUtilisateur() != null
+                && DEFAULT_FULL_ACCESS_ROLE_TYPES.contains(utilisateur.getTypeUtilisateur().toUpperCase())
+                && (utilisateur.getPermissions() == null || utilisateur.getPermissions().isEmpty())) {
+            java.util.Set<com.smboutique.api.model.Permission> defaultPermissions = permissionRepository.findAll()
+                    .stream()
+                    .filter(p -> p.getName() != null && !DEFAULT_FULL_ACCESS_EXCLUSIONS.contains(p.getName().toUpperCase()))
+                    .collect(java.util.stream.Collectors.toSet());
+            utilisateur.setPermissions(defaultPermissions);
+        }
+
         Utilisateur saved = utilisateurService.save(utilisateur);
         return ResponseEntity.ok(saved);
     }
