@@ -263,7 +263,7 @@ const Fournisseurs: React.FC = () => {
               </div>
               <div className="mb-3">
                 <label className="form-label">Contact</label>
-                <PhoneWithDial value={newFournisseur.contact} defaultCountry={((currentBoutique as any) && (currentBoutique as any).pays && (currentBoutique as any).pays.codeIso) ? (currentBoutique as any).pays.codeIso : 'ML'} onChange={(tel, code, valid) => { setNewFournisseur({ ...newFournisseur, contact: tel || '' }); setPhoneCodePays(code || null); setNewFournisseurTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
+                <PhoneWithDial value={newFournisseur.contact} defaultCountry={((currentBoutique as any) && (currentBoutique as any).pays && (currentBoutique as any).pays.codeIso) ? (currentBoutique as any).pays.codeIso : 'ML'} onChange={(tel, code, valid) => { setNewFournisseur(prev => ({ ...prev, contact: tel || '' })); setPhoneCodePays(code || null); setNewFournisseurTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
               </div>
               <div className="mb-3">
                 <label className="form-label">Ville</label>

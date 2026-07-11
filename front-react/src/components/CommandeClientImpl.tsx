@@ -1345,7 +1345,7 @@ const CommandeClient: React.FC = () => {
                       <input className="form-control" placeholder="Nom" value={newClient.nom || ''} onChange={(e) => setNewClient({ ...newClient, nom: e.target.value })} />
                     </div>
                     <div className="mb-2">
-                      <PhoneWithDial value={newClient.contact || ''} defaultCountry={(currentBoutique && (currentBoutique as any).pays && (currentBoutique as any).pays.codeIso) ? (currentBoutique as any).pays.codeIso : 'ML'} onChange={(tel, code, valid) => { setNewClient({ ...newClient, contact: tel }); setNewClientCodePays(code || null); setNewClientTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
+                      <PhoneWithDial value={newClient.contact || ''} defaultCountry={(currentBoutique && (currentBoutique as any).pays && (currentBoutique as any).pays.codeIso) ? (currentBoutique as any).pays.codeIso : 'ML'} onChange={(tel, code, valid) => { setNewClient(prev => ({ ...prev, contact: tel || '' })); setNewClientCodePays(code || null); setNewClientTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
                     </div>
                     <div className="mb-2">
                       <input className="form-control" placeholder="Ville" value={newClient.ville || ''} onChange={(e) => setNewClient({ ...newClient, ville: e.target.value })} />

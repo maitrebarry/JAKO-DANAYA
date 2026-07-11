@@ -1108,7 +1108,7 @@ const CommandeFournisseur: React.FC = () => {
                       <input className="form-control" placeholder="Nom" value={newFournisseur.nom || ''} onChange={(e) => setNewFournisseur({ ...newFournisseur, nom: e.target.value })} />
                     </div>
                     <div className="mb-2">
-                      <PhoneWithDial value={newFournisseur.contact || ''} defaultCountry={(currentBoutique && (currentBoutique as any).pays && (currentBoutique as any).pays.codeIso) ? (currentBoutique as any).pays.codeIso : 'ML'} onChange={(tel, code, valid) => { setNewFournisseur({ ...newFournisseur, contact: tel }); setNewFournisseurCodePays(code || null); setNewFournisseurTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
+                      <PhoneWithDial value={newFournisseur.contact || ''} defaultCountry={(currentBoutique && (currentBoutique as any).pays && (currentBoutique as any).pays.codeIso) ? (currentBoutique as any).pays.codeIso : 'ML'} onChange={(tel, code, valid) => { setNewFournisseur(prev => ({ ...prev, contact: tel || '' })); setNewFournisseurCodePays(code || null); setNewFournisseurTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
                     </div>
                     <div className="mb-2">
                       <input className="form-control" placeholder="Ville" value={newFournisseur.ville || ''} onChange={(e) => setNewFournisseur({ ...newFournisseur, ville: e.target.value })} />

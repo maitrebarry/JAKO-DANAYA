@@ -788,7 +788,7 @@ const ListeUtilisateurs = ({ onUserCreated }: { onUserCreated?: (userId: number)
                 </div>
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Contact</label>
-                  <PhoneWithDial value={formData.contact} defaultCountry={phoneCodePays || currentBoutique?.pays?.codeIso || 'ML'} onChange={(tel, code, valid) => { setFormData({ ...formData, contact: tel || '' }); setPhoneCodePays(code || null); setUserTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
+                  <PhoneWithDial value={formData.contact} defaultCountry={phoneCodePays || currentBoutique?.pays?.codeIso || 'ML'} onChange={(tel, code, valid) => { setFormData(prev => ({ ...prev, contact: tel || '' })); setPhoneCodePays(code || null); setUserTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
                 </div>
               </div>
 

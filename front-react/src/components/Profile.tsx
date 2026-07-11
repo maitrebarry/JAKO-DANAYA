@@ -313,7 +313,7 @@ const Profile: React.FC = () => {
                 </div>
                 <div className="col-md-6">
                   <label className="form-label">Contact</label>
-                  <PhoneWithDial value={form.contact || ''} defaultCountry={(user && (user as any).boutique && (user as any).boutique.pays && (user as any).boutique.pays.codeIso) ? (user as any).boutique.pays.codeIso : 'ML'} onChange={(tel, code, valid) => { setForm({ ...form, contact: tel || '' }); setProfileCodePays(code || null); setProfileTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
+                  <PhoneWithDial value={form.contact || ''} defaultCountry={(user && (user as any).boutique && (user as any).boutique.pays && (user as any).boutique.pays.codeIso) ? (user as any).boutique.pays.codeIso : 'ML'} onChange={(tel, code, valid) => { setForm((prev: any) => ({ ...prev, contact: tel || '' })); setProfileCodePays(code || null); setProfileTelephoneValid(typeof valid === 'boolean' ? valid : null); }} />
                 </div>
               </div>
               <div className="mb-3">
