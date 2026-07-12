@@ -109,33 +109,89 @@ public class AdminPermissionController {
         return user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "SUPERADMIN".equalsIgnoreCase(r.getName()));
     }
 
+    private java.util.Map<String, Object> permissionDto(Permission permission) {
+        java.util.Map<String, Object> dto = new java.util.LinkedHashMap<>();
+        dto.put("id", permission.getId());
+        dto.put("name", permission.getName());
+        dto.put("description", permission.getDescription());
+        return dto;
+    }
+
+    private java.util.Map<String, Object> userDto(Utilisateur utilisateur) {
+        java.util.Map<String, Object> dto = new java.util.LinkedHashMap<>();
+        dto.put("id", utilisateur.getId());
+        dto.put("nom", utilisateur.getNom());
+        dto.put("prenom", utilisateur.getPrenom());
+        dto.put("email", utilisateur.getEmail());
+        dto.put("pseudo", utilisateur.getPseudo());
+        dto.put("typeUtilisateur", utilisateur.getTypeUtilisateur());
+        dto.put("statut", utilisateur.getStatut());
+
+        if (utilisateur.getBoutique() != null) {
+            java.util.Map<String, Object> boutique = new java.util.LinkedHashMap<>();
+            boutique.put("id", utilisateur.getBoutique().getId());
+            boutique.put("nom", utilisateur.getBoutique().getNom());
+            dto.put("boutique", boutique);
+        } else {
+            dto.put("boutique", null);
+        }
+
+        if (utilisateur.getCreePar() != null) {
+            java.util.Map<String, Object> creePar = new java.util.LinkedHashMap<>();
+            creePar.put("id", utilisateur.getCreePar().getId());
+            dto.put("creePar", creePar);
+        } else {
+            dto.put("creePar", null);
+        }
+
+        java.util.List<java.util.Map<String, Object>> roles = new java.util.ArrayList<>();
+        if (utilisateur.getRoles() != null) {
+            utilisateur.getRoles().forEach(role -> {
+                java.util.Map<String, Object> roleDto = new java.util.LinkedHashMap<>();
+                roleDto.put("id", role.getId());
+                roleDto.put("name", role.getName());
+                roles.add(roleDto);
+            });
+        }
+        dto.put("roles", roles);
+        return dto;
+    }
+
     @PreAuthorize("hasRole('SUPERADMIN') or hasAnyAuthority('UTILISATEUR_GERER','UTILISATEUR_CREER')")
     @GetMapping("/utilisateurs")
-    public List<Utilisateur> listUsers() {
+    public List<java.util.Map<String, Object>> listUsers() {
         Utilisateur current = getCurrentUser();
+        List<Utilisateur> users;
         if (isSuperAdmin(current)) {
-            return utilisateurService.findAll();
+            users = utilisateurService.findAll();
+        } else if (current.getBoutique() != null) {
+            users = utilisateurService.findAllByBoutiqueId(current.getBoutique().getId());
+        } else {
+            users = List.of();
         }
-        if (current.getBoutique() == null) {
-            return List.of();
-        }
-        return utilisateurService.findAllByBoutiqueId(current.getBoutique().getId());
+
+        return users.stream()
+                .filter(target -> canManagePermissionsFor(current, target))
+                .map(this::userDto)
+                .toList();
     }
 
     @PreAuthorize("hasRole('SUPERADMIN') or hasAnyAuthority('UTILISATEUR_GERER','UTILISATEUR_CREER')")
     @GetMapping("/admin/permissions")
-    public List<Permission> listPermissions() {
-        return permissionService.findAll();
+    public List<java.util.Map<String, Object>> listPermissions() {
+        return permissionService.findAll().stream()
+                .map(this::permissionDto)
+                .toList();
     }
 
     @PreAuthorize("hasRole('SUPERADMIN') or hasAnyAuthority('UTILISATEUR_GERER','UTILISATEUR_CREER')")
     @GetMapping("/admin/utilisateurs/{id}/permissions")
-    public ResponseEntity<Set<Permission>> getUserPermissions(@PathVariable Long id) {
+    public ResponseEntity<List<java.util.Map<String, Object>>> getUserPermissions(@PathVariable Long id) {
         Utilisateur current = getCurrentUser();
         return utilisateurService.findById(id)
                 .map(utilisateur -> {
                     if (!canManagePermissionsFor(current, utilisateur)) {
-                        return ResponseEntity.status(403).<Set<Permission>>build();
+                        return ResponseEntity.status(403).<List<java.util.Map<String, Object>>>build();
                     }
                     // Combine direct permissions and role-inherited permissions so the UI can pre-check them
                     java.util.Set<Permission> combined = new java.util.HashSet<>();
@@ -145,7 +201,9 @@ public class AdminPermissionController {
                             if (r.getPermissions() != null) combined.addAll(r.getPermissions());
                         }
                     }
-                    return ResponseEntity.ok(combined);
+                    return ResponseEntity.ok(combined.stream()
+                            .map(this::permissionDto)
+                            .toList());
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -163,7 +221,9 @@ public class AdminPermissionController {
                     Set<Permission> permissions = new HashSet<>(permissionService.findAllByIds(ids));
                     utilisateur.setPermissions(permissions);
                     Utilisateur saved = utilisateurService.save(utilisateur);
-                    return ResponseEntity.ok(saved.getPermissions());
+                    return ResponseEntity.ok(saved.getPermissions().stream()
+                            .map(this::permissionDto)
+                            .toList());
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
