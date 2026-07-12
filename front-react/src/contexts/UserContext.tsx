@@ -116,8 +116,6 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     setRoles(incomingRoles);
     setCurrentBoutique(data.currentBoutique || null);
     scheduleTokenExpiry(localStorage.getItem('smb_token'));
-    // debug
-    try { console.debug('UserContext setUserData - roles=', incomingRoles, 'permissions=', Array.isArray(data.permissions) ? data.permissions.length : 0); } catch(e){}
   }, [scheduleTokenExpiry]);
 
   useEffect(() => {

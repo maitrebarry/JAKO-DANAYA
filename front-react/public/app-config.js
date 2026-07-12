@@ -12,8 +12,7 @@
       : 'https://jako-danaya.onrender.com';
 
     window.APP_CONFIG = { API_BASE_URL: apiHost };
-    console.info('[app-config] LOADED: API_BASE_URL set to', window.APP_CONFIG.API_BASE_URL, 'for host:', host);
   } catch (e) { 
-    console.error('[app-config] ERROR loading config:', e);
+    window.APP_CONFIG = { API_BASE_URL: 'https://jako-danaya.onrender.com' };
   }
 })();

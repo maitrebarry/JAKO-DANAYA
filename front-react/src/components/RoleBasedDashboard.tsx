@@ -497,12 +497,9 @@ const RoleBasedDashboard: React.FC = () => {
   };
 
   const load = async (shopId?: number, magasinId?: number) => {
-    console.log('🔄 Starting dashboard load for shopId:', shopId, 'magasinId:', magasinId);
-
     // Vérifier si l'utilisateur est connecté
     const token = localStorage.getItem('smb_token');
     if (!token) {
-      console.log('❌ No authentication token found');
       setError('Utilisateur non connecté');
       setLoading(false);
       navigate('/login');
@@ -512,11 +509,8 @@ const RoleBasedDashboard: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      console.log('📡 Calling getDashboard API...');
       // Charger le dashboard de l'utilisateur connecté
       const p = await getDashboard(shopId, magasinId);
-      console.log('✅ Dashboard data received:', p);
-      console.log('📊 Top products data:', p.widgets?.top_products);
       setPayload(p);
 
       if (p.role === 'SUPERADMIN') {
@@ -530,56 +524,42 @@ const RoleBasedDashboard: React.FC = () => {
 
       // Si c'est un ADMIN, charger les dashboards des subalternes
       if (p.role === 'ADMIN' || p.role === 'PROPRIETAIRE') {
-        console.log('👥 Loading subordinates dashboards...');
         const subs = await getSubordinatesDashboards();
-        console.log('✅ Subordinates data received:', subs);
         setSubordinates(subs);
       }
 
       setLastRefresh(new Date());
-      console.log('🎉 Dashboard load completed successfully');
     } catch (e) {
-      console.error('❌ Error in dashboard load:', e);
       const error = e as Error;
-      console.error('Error details:', error.message, error.stack);
       setError(error?.message || 'Erreur lors du chargement du dashboard');
     } finally {
-      console.log('🏁 Setting loading to false');
       setLoading(false);
     }
   };
 
   const loadLocations = async () => {
-    console.log('🏪 Starting locations load...');
-
     // Vérifier si l'utilisateur est connecté
     const token = localStorage.getItem('smb_token');
     if (!token) {
-      console.log('❌ No authentication token found for locations');
       return;
     }
 
     try {
       // Charger les boutiques
       const boutiquesList = await getBoutiques();
-      console.log('✅ Boutiques data received:', boutiquesList);
       setBoutiques(boutiquesList);
 
       // Charger les magasins
       const magasinsList = await getMagasins();
-      console.log('✅ Magasins data received:', magasinsList);
       setMagasins(magasinsList);
 
       // Sélectionner la première boutique par défaut (celle de l'utilisateur)
       if (boutiquesList.length > 0 && selectedBoutiqueId === null) {
-        console.log('🎯 Setting default boutique:', boutiquesList[0].id);
         setSelectedBoutiqueId(boutiquesList[0].id);
       }
     } catch (e) {
-      console.error('❌ Error loading locations:', e);
       // Pour les rôles qui n'ont pas accès aux boutiques, c'est normal
       // Le dashboard se chargera quand même avec la boutique de l'utilisateur
-      console.log('ℹ️ Locations loading failed, dashboard will use user\'s boutique');
     }
   };
 
@@ -872,13 +852,8 @@ const RoleBasedDashboard: React.FC = () => {
   const getWidgetsForCurrentRole = () => {
     if (!payload) return [];
     
-    console.log('🔍 getWidgetsForCurrentRole - payload:', payload);
-    console.log('🔍 payload.sections:', payload.sections);
-    console.log('🔍 payload.widgets:', payload.widgets);
-    
     // Si des sections existent, utiliser la logique actuelle
     if (payload.sections && payload.sections.length && payload.role !== 'SUPERADMIN') {
-      console.log('📋 Using sections logic');
       // Trouver la section correspondant au rôle de l'utilisateur
       const userSection = payload.sections.find(section => 
         section.role === payload.role || 
@@ -886,22 +861,18 @@ const RoleBasedDashboard: React.FC = () => {
         section.role === 'GERANT' && payload.role === 'GÉRANT'
       );
       
-      console.log('👤 Found userSection:', userSection);
       return userSection?.widgets || [];
     }
     
     // Pour SUPERADMIN ou si pas de sections, convertir payload.widgets en format WidgetDTO[]
     if (payload.widgets) {
-      console.log('🔄 Converting payload.widgets to WidgetDTO[]');
       const convertedWidgets = Object.entries(payload.widgets).map(([key, value]) => ({
         key,
         data: { value }
       }));
-      console.log('📊 Converted widgets:', convertedWidgets);
       return convertedWidgets;
     }
     
-    console.log('❌ No widgets found');
     return [];
   };
 
@@ -912,9 +883,6 @@ const RoleBasedDashboard: React.FC = () => {
     const role = payload.role;
     const widgets = getWidgetsForCurrentRole();
     
-    console.log('🎯 getWidgetsConfig - role:', role);
-    console.log('📋 widgets:', widgets);
-    
     // Configuration des widgets par rôle
     const config: any[] = [];
     
@@ -922,12 +890,9 @@ const RoleBasedDashboard: React.FC = () => {
       const key = widget.key.toLowerCase();
       const value = widget.data?.value;
       
-      console.log('🔍 Processing widget:', { key, value, originalKey: widget.key });
-      
       // SUPERADMIN/DÉVELOPPEUR - Widgets techniques uniquement
       if (role === 'SUPERADMIN' || role === 'DEVELOPPEUR') {
         if (key.includes('shopscount') || key.includes('boutiques_actives')) {
-          console.log('✅ Found shopsCount widget:', value);
           config.push({
             title: 'Boutiques actives',
             value: value,
@@ -937,7 +902,6 @@ const RoleBasedDashboard: React.FC = () => {
             subtitle: 'Nombre total de boutiques'
           });
         } else if (key.includes('userscount') || key.includes('utilisateurs_inscrits')) {
-          console.log('✅ Found usersCount widget:', value);
           config.push({
             title: 'Utilisateurs inscrits',
             value: value,
@@ -947,7 +911,6 @@ const RoleBasedDashboard: React.FC = () => {
             subtitle: 'Total des comptes utilisateur'
           });
         } else if (key.includes('transactionscount') || key.includes('transactions_totales')) {
-          console.log('✅ Found transactionsCount widget:', value);
           config.push({
             title: 'Transactions totales',
             value: value,
@@ -1585,9 +1548,6 @@ const RoleBasedDashboard: React.FC = () => {
                   <div className="text-center py-5">
                     <i className="bi bi-bar-chart-line fs-1 text-muted mb-3"></i>
                     <p className="text-muted">Aucune donnée de vente disponible pour le moment</p>
-                    <small className="text-muted">
-                      Données reçues: {JSON.stringify(payload.widgets?.top_products)}
-                    </small>
                   </div>
                 )}
               </div>

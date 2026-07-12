@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect } from 'react';
+import React, { ReactNode } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import 'flag-icons/css/flag-icons.min.css';
@@ -429,20 +429,6 @@ const Topbar = ({ toggleSidebar, isMobile, sidebarOpen }: { toggleSidebar?: () =
     return (parts[0]?.[0] || 'U').toUpperCase();
   };
 
-  // Debug: print minimal user info (sanitized) and masked storage to avoid leaking permission lists
-  try {
-    const _sanitizedStorage = (() => {
-      try {
-        const s = localStorage.getItem('smb_user_data');
-        if (!s) return null;
-        const p = JSON.parse(s);
-        if (p && p.permissions) p.permissions = `[${Array.isArray(p.permissions) ? p.permissions.length : 0} items]`;
-        return p;
-      } catch (ex) { return null; }
-    })();
-    console.debug('Topbar render - user:', { id: user?.id, name: user ? `${user.prenom || ''} ${user.nom || ''}`.trim() || user.pseudo || user.email : undefined, avatar: (user as any)?.avatar, permissionsCount: Array.isArray((user as any)?.permissions) ? (user as any).permissions.length : undefined }, 'localStorage:', _sanitizedStorage);
-  } catch (e) { /* ignore in non-browser env */ }
-
   const displayName = `${user?.prenom || ''} ${user?.nom || ''}`.trim() || user?.pseudo || user?.email || 'Profil';
   const defaultAvatar = `/assets/images/avatar.svg`;
   const resolveAvatarUrl = (avatar?: string) => {
@@ -579,15 +565,6 @@ const Topbar = ({ toggleSidebar, isMobile, sidebarOpen }: { toggleSidebar?: () =
                     (e.currentTarget as HTMLImageElement).src = defaultAvatar;
                   } catch (ex) { console.error('Failed to apply avatar fallback', ex); }
                 }}
-                ref={el => {
-                  // debug: print avatar url and page when rendered to help trace intermittent issues
-                  try {
-                    if (el && (window as any).location) {
-                      // print once per render
-                      console.debug('Topbar avatar src:', el.src, 'location:', (window as any).location.pathname);
-                    }
-                  } catch (ex) {}
-                }}
               />
               <span className="d-none d-sm-flex align-items-center gap-1">
                 <span className="fw-semibold">{displayName}</span>
@@ -675,29 +652,6 @@ const Sidebar = ({ isOpen = true, isMobile = false, closeSidebar = () => {} }: {
     configuration: (hasAnyPermission(['CONFIGURATION_VOIR']) || isOwner || isSuperAdmin),
   }; 
 
-  // Diagnostic: log the reason the Configuration menu is shown or hidden to ease debugging
-  useEffect(() => {
-    try {
-      const reasonParts: string[] = [];
-      if (hasAnyPermission(['CONFIGURATION_VOIR'])) reasonParts.push('permission:CONFIGURATION_VOIR');
-      if (isOwner) reasonParts.push('owner');
-      if (isSuperAdmin) reasonParts.push('superadmin');
-      console.debug('Configuration menu visibility:', reasonParts.length > 0 ? 'VISIBLE (' + reasonParts.join(',') + ')' : 'HIDDEN');
-    } catch (e) {
-      // ignore
-    }
-  }, [permissions, user, roles]);
-
-  // Diagnostic: log summary (counts) to avoid printing full permission lists
-  useEffect(() => {
-    try {
-      console.debug('Sidebar permissions: count=', Array.isArray(permissions) ? permissions.length : 0);
-      console.debug('Sidebar normalizedPermissions: count=', Array.isArray(normalizedPermissions) ? normalizedPermissions.length : 0);
-      console.debug('Sidebar computed can:', can);
-    } catch (e) {
-      console.warn('Error logging sidebar diagnostics', e);
-    }
-  }, [permissions]);
   return (
     <div className="sidenav-menu" role="navigation" aria-hidden={isMobile ? (!isOpen) : false}>
       <div className="sidenav-brand">

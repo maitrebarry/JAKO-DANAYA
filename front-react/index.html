@@ -9,10 +9,8 @@
         // For production on Render
         if (window.location.hostname === 'jakodanaya.onrender.com') {
           window.APP_CONFIG = { API_BASE_URL: 'https://jako-danaya.onrender.com' };
-          console.info('[app-config] SET for production: API_BASE_URL =', window.APP_CONFIG.API_BASE_URL);
         } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
           window.APP_CONFIG = { API_BASE_URL: 'http://localhost:8085' };
-          console.info('[app-config] SET for local: API_BASE_URL =', window.APP_CONFIG.API_BASE_URL);
         }
       })();
     </script>
