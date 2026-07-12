@@ -63,11 +63,18 @@ public class Utilisateur {
 
     // Utilisateur ayant créé ce compte : sert à restreindre la portée de gestion des
     // délégués (ex: un Gérant ne peut assigner des permissions qu'aux utilisateurs qu'il a lui-même créés).
+    // Non sérialisé directement (getCreeParId() ci-dessous expose juste l'id) : sérialiser le proxy Hibernate
+    // LAZY complet via Jackson produit un JSON corrompu (propriété interne "hibernateLazyInitializer").
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_createur")
     @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.SET_NULL)
-    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"motDePasse", "permissions", "roles", "creePar", "boutique"})
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Utilisateur creePar;
+
+    @com.fasterxml.jackson.annotation.JsonProperty("creeParId")
+    public Long getCreeParId() {
+        return creePar != null ? creePar.getId() : null;
+    }
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

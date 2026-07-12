@@ -2298,7 +2298,7 @@ const AssignerPermissions = ({ initialUserId, onInitialUserConsumed }: { initial
     return tokens;
   };
 
-  const isOwnCreation = (u: any) => user?.id != null && u?.creePar?.id === user.id;
+  const isOwnCreation = (u: any) => user?.id != null && u?.creeParId === user.id;
 
   // Portée de gestion des permissions, en miroir de AdminPermissionController.canManagePermissionsFor
   // côté backend : le Superadmin gère tout le monde (sauf d'autres Superadmins) ; le Propriétaire/

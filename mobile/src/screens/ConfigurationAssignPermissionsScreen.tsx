@@ -56,7 +56,7 @@ export default function ConfigurationAssignPermissionsScreen() {
 
   const isOwnCreation = (u: UserDTO): boolean => {
     const selfId = profile?.id;
-    return !!(selfId != null && u.creePar?.id === selfId);
+    return !!(selfId != null && u.creeParId === selfId);
   };
 
   const canAssignTo = (u: UserDTO): boolean => {
