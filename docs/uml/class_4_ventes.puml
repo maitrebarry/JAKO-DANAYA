@@ -1,0 +1,132 @@
+@startuml JAKO-DANAYA_class_4_ventes
+!pragma layout smetana
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Helvetica"
+skinparam classFontSize 12
+skinparam classAttributeFontSize 11
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor #EAF2FB
+  BorderColor #2C5F8A
+  ArrowColor #4A6A80
+  HeaderBackgroundColor #D7E7F5
+}
+hide circle
+title Diagramme de classes (4/5) - Ventes, Clients & Livraisons
+
+class ClientGrossiste {
+  -id : Long
+  -nom : String
+  -prenom : String
+  -ville : String
+  -contact : String
+}
+
+class CommandeClient {
+  -id : Long
+  -dateCommande : LocalDateTime
+  -reference : String
+  -total : Integer
+  -paie : Integer
+}
+
+class LigneCommandeClient {
+  -id : Long
+  -quantite : Integer
+  -quantiteConditionnement : Integer
+  -quantiteLivre : Integer
+  -newPrice : Integer
+  -priceMode : PriceMode
+}
+
+class Livraison {
+  -id : Long
+  -dateLivraison : LocalDateTime
+  -reference : String
+  -annule : Boolean
+  -annuleAt : LocalDateTime
+  -annulePar : Long
+  -annuleReason : String
+}
+
+class LigneLivraison {
+  -id : Long
+  -quantiteRecu : Integer
+}
+
+class PaiementClient {
+  -id : Long
+  -montantPaye : Integer
+  -datePaie : LocalDateTime
+  -reference : String
+  -referenceCaisse : String
+  -annule : Boolean
+  -annuleAt : LocalDateTime
+  -annulePar : Long
+  -annuleReason : String
+}
+
+class Vente {
+  -id : Long
+  -nomClient : String
+  -dateVente : LocalDateTime
+  -montantTotal : Integer
+  -referenceCaisse : String
+  -remise : Integer
+  -netAPayer : Integer
+  -montantRecu : Integer
+  -monnaieRembourse : Integer
+}
+
+class LigneVente {
+  -id : Long
+  -quantite : Integer
+  -quantiteConditionnement : Integer
+  -newPrice : Integer
+  -priceMode : PriceMode
+  -quantiteLivre : Integer
+  -resteUnitesDansCartonApresVente : Integer
+}
+
+enum PriceMode {
+  DETAIL
+  GROS
+}
+
+class "Boutique" as BoutiqueRef <<référence>> #F7F9FB {
+  voir Diagramme 1
+}
+class "Utilisateur" as UtilisateurRef <<référence>> #F7F9FB {
+  voir Diagramme 1
+}
+class "Produit" as ProduitRef <<référence>> #F7F9FB {
+  voir Diagramme 2
+}
+
+CommandeClient "*" -- "1" ClientGrossiste : client >
+CommandeClient "*" -- "1" UtilisateurRef : passée par >
+CommandeClient "*" -- "1" BoutiqueRef : boutique >
+CommandeClient "1" -- "*" LigneCommandeClient : lignes
+LigneCommandeClient "*" -- "1" ProduitRef : produit >
+LigneCommandeClient -- PriceMode
+
+Livraison "*" -- "1" CommandeClient : commande >
+Livraison "1" -- "*" LigneLivraison : lignes
+LigneLivraison "*" -- "1" ProduitRef : produit >
+
+PaiementClient "*" -- "1" CommandeClient : commande >
+
+Vente "*" -- "1" UtilisateurRef : vendeur >
+Vente "*" -- "1" BoutiqueRef : boutique >
+Vente "1" -- "*" LigneVente : lignes
+LigneVente "*" -- "1" ProduitRef : produit >
+LigneVente -- PriceMode
+
+note bottom of Vente
+  Vente = encaissement immédiat (comptoir).
+  CommandeClient = vente à crédit / grossiste,
+  livrée et payée en plusieurs étapes.
+end note
+
+@enduml

@@ -1,0 +1,76 @@
+@startuml JAKO-DANAYA_seq_4_inventaire
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Helvetica"
+skinparam sequenceMessageAlign center
+skinparam sequenceArrowFontSize 11
+skinparam sequenceParticipant underline
+skinparam actor {
+  BackgroundColor #FFF3E0
+  BorderColor #B36B00
+}
+skinparam participant {
+  BackgroundColor #EAF2FB
+  BorderColor #2C5F8A
+}
+skinparam sequenceLifeLineBorderColor #2C5F8A
+skinparam sequenceLifeLineBackgroundColor #EAF2FB
+title Diagramme de séquence - Régulariser un inventaire
+
+actor "Gérant" as U
+participant "Application\n(Web / Mobile)" as UI
+participant "InventaireController" as C
+participant "InventaireService" as IS
+participant "LigneInventaireRepository" as LIR
+participant "StockRepository" as SR
+database "Base de données" as DB
+
+U -> UI : Demande la régularisation\nde l'inventaire
+UI -> C : POST /api/inventaires/{id}/regularize
+
+C -> C : Vérifie permission\nINVENTAIRE_REGULARISER
+
+alt permission manquante
+  C --> UI : 403 Accès refusé
+  UI --> U : Message d'erreur
+else permission accordée
+  C -> IS : regularizeInventory(id, utilisateur)
+  IS -> DB : SELECT inventaire
+
+  alt inventaire déjà régularisé
+    IS --> C : erreur "déjà régularisé"
+    C --> UI : 409 Conflit
+    UI --> U : Message d'erreur
+  else inventaire régularisable
+    IS -> LIR : findByInventaireId(id)
+    LIR -> DB : SELECT ligne_inventaire
+    DB --> LIR : lignes comptées
+    LIR --> IS : lignes
+
+    IS -> SR : findByProduitId / findByProduitIdAndBoutiqueId
+    SR -> DB : SELECT stock (par produit / boutique / magasin)
+    DB --> SR : stocks concernés
+    SR --> IS : stocks
+
+    IS -> IS : Vérifie cohérence de portée\n(pas de mélange boutique / magasin)
+
+    alt lignes de portées différentes détectées
+      IS --> C : erreur "portées différentes"
+      C --> UI : 409 Conflit
+      UI --> U : Message d'erreur
+    else portée cohérente
+      loop pour chaque ligne d'inventaire
+        IS -> IS : Calcule l'écart\n(quantité physique - quantité théorique)
+        IS -> SR : ajuste quantiteDisponible du stock
+        SR -> DB : UPDATE stock
+        IS -> DB : INSERT mouvement\n(type AJUSTEMENT_INVENTAIRE)
+      end
+      IS -> DB : UPDATE inventaire SET regulariser = true
+      IS --> C : RegularisationResult (écarts appliqués)
+      C --> UI : 200 OK {résultat de régularisation}
+      UI --> U : Stock mis à jour + rapport d'écarts
+    end
+  end
+end
+
+@enduml

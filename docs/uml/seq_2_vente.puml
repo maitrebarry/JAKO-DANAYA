@@ -1,0 +1,88 @@
+@startuml JAKO-DANAYA_seq_2_vente
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Helvetica"
+skinparam sequenceMessageAlign center
+skinparam sequenceArrowFontSize 11
+skinparam sequenceParticipant underline
+skinparam actor {
+  BackgroundColor #FFF3E0
+  BorderColor #B36B00
+}
+skinparam participant {
+  BackgroundColor #EAF2FB
+  BorderColor #2C5F8A
+}
+skinparam sequenceLifeLineBorderColor #2C5F8A
+skinparam sequenceLifeLineBackgroundColor #EAF2FB
+title Diagramme de séquence - Enregistrer une vente au comptant
+
+actor "Caissier" as U
+participant "Application\n(Web / Mobile)" as UI
+participant "VenteController" as C
+participant "InventaireService" as INV
+participant "CaisseRepository" as CR
+participant "StockRepository" as SR
+participant "VenteService" as VS
+participant "MouvementService" as MOV
+participant "CaisseMovementService" as CMS
+database "Base de données" as DB
+
+U -> UI : Sélectionne produits + quantités,\nsaisit montant reçu
+UI -> C : POST /api/ventes/cash
+
+C -> INV : existsActiveInventoryForBoutique(boutiqueId)
+INV -> DB : SELECT inventaire (regulariser = false)
+DB --> INV : résultat
+INV --> C : true / false
+
+alt inventaire actif en cours
+  C --> UI : 409 Opération bloquée (inventaire actif)
+  UI --> U : Message : inventaire en cours
+else pas d'inventaire actif
+  C -> CR : findFirstByBoutiqueId + findByIdForUpdate
+  CR -> DB : SELECT ... FOR UPDATE caisse
+  DB --> CR : Caisse (verrouillée)
+  CR --> C : Caisse
+
+  alt caisse absente ou fermée
+    C --> UI : 400 Aucune caisse ouverte
+    UI --> U : Message d'erreur
+  else caisse ouverte
+    loop pour chaque ligne produit
+      C -> SR : findByIdForUpdate(idStock)
+      SR -> DB : SELECT ... FOR UPDATE stock
+      DB --> SR : Stock (verrouillé)
+      SR --> C : Stock
+      C -> C : Vérifie quantité disponible
+    end
+
+    alt stock insuffisant pour une ligne
+      C --> UI : 400 Stock insuffisant
+      UI --> U : Message d'erreur
+    else stock suffisant pour toutes les lignes
+      C -> VS : save(nouvelle Vente)
+      VS -> DB : INSERT vente
+      DB --> VS : Vente (id)
+      VS --> C : Vente enregistrée
+
+      loop pour chaque ligne produit
+        C -> DB : INSERT ligne_vente
+        C -> SR : décrémenter quantiteDisponible
+        SR -> DB : UPDATE stock
+        C -> MOV : log(VENTE, SORTIE, produit, quantité)
+        MOV -> DB : INSERT mouvement
+      end
+
+      C -> CR : montantTotal += net à payer
+      CR -> DB : UPDATE caisse
+      C -> CMS : save(CaisseMovement CREDIT)
+      CMS -> DB : INSERT caisse_movement
+
+      C --> UI : 200 OK {vente, reçu}
+      UI --> U : Ticket de vente / reçu
+    end
+  end
+end
+
+@enduml

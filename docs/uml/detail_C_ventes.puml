@@ -1,0 +1,100 @@
+@startuml JAKO-DANAYA_detail_C_ventes
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam actorStyle awesome
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Helvetica"
+skinparam usecase {
+  BackgroundColor #EAF2FB
+  BorderColor #2C5F8A
+  FontSize 12
+  ArrowColor #4A6A80
+}
+skinparam package {
+  BackgroundColor #FDFEFE
+  BorderColor #7F97A8
+  FontStyle bold
+  FontSize 13
+}
+skinparam actor {
+  BackgroundColor #FFF3E0
+  BorderColor #B36B00
+  FontSize 12
+}
+skinparam ArrowFontSize 10
+title Cas d'utilisation détaillés (3/3) - Ventes, Caisse, Rapports & Abonnement
+
+actor "Caissier" as Caissier
+actor "Gérant" as Gerant
+actor "Administrateur\nde boutique" as Admin
+actor "Super\nAdministrateur" as SuperAdmin
+
+rectangle "Système JAKO-DANAYA" {
+  package "Ventes & Clients" {
+    usecase "Gérer les clients\n(détail / grossiste)" as UC_ManageClients
+    usecase "Enregistrer une vente" as UC_Vente
+    usecase "Créer une commande client" as UC_CommandeClient
+    usecase "Livrer une commande client" as UC_Livraison
+    usecase "Encaisser un paiement client" as UC_PaiementClient
+    usecase "Consulter l'historique\ndes ventes" as UC_HistoVentes
+  }
+
+  package "Caisse & Dépenses" {
+    usecase "Gérer la caisse\n(ouverture / mouvements)" as UC_Caisse
+    usecase "Enregistrer une dépense" as UC_Depense
+    usecase "Valider / rejeter\nune dépense" as UC_ValiderDepense
+  }
+
+  package "Rapports, Documents & Suivi" {
+    usecase "Consulter le tableau de bord" as UC_Dashboard
+    usecase "Recevoir des notifications\n/ alertes" as UC_Notifications
+    usecase "Générer des rapports" as UC_Rapports
+    usecase "Consulter / télécharger\ndes documents" as UC_Documents
+    usecase "Consulter le journal d'audit" as UC_Audit
+  }
+
+  package "Abonnement SaaS" {
+    usecase "Consulter son abonnement" as UC_VoirAbonnement
+    usecase "Soumettre un justificatif\nde paiement" as UC_SoumettrePaiement
+    usecase "Gérer les plans\nd'abonnement" as UC_GererPlans
+    usecase "Activer / suspendre\nl'abonnement d'une boutique" as UC_ActiverAbonnement
+    usecase "Valider / rejeter un\npaiement d'abonnement" as UC_ValiderPaiementAbo
+  }
+}
+
+Caissier -- UC_ManageClients
+Caissier -- UC_Vente
+Caissier -- UC_CommandeClient
+Caissier -- UC_HistoVentes
+Caissier -- UC_Caisse
+Caissier -- UC_Depense
+Caissier -- UC_Dashboard
+Caissier -- UC_Notifications
+
+Gerant -- UC_Livraison
+Gerant -- UC_PaiementClient
+Gerant -- UC_Rapports
+Gerant -- UC_Documents
+Gerant -- UC_Dashboard
+
+Admin -- UC_PaiementClient
+Admin -- UC_Livraison
+Admin -- UC_ValiderDepense
+Admin -- UC_Audit
+Admin -- UC_Rapports
+Admin -- UC_VoirAbonnement
+Admin -- UC_SoumettrePaiement
+
+SuperAdmin --|> Admin
+SuperAdmin -- UC_GererPlans
+SuperAdmin -- UC_ActiverAbonnement
+SuperAdmin -- UC_ValiderPaiementAbo
+SuperAdmin -- UC_Audit
+
+UC_Vente .> UC_PaiementClient : <<extend>>
+UC_CommandeClient .> UC_Livraison : <<extend>>
+UC_Depense .> UC_ValiderDepense : <<extend>>
+UC_SoumettrePaiement .> UC_ValiderPaiementAbo : <<extend>>
+
+@enduml

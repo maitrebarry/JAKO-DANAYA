@@ -1,0 +1,81 @@
+@startuml JAKO-DANAYA_global
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam actorStyle awesome
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Helvetica"
+skinparam usecase {
+  BackgroundColor #EAF2FB
+  BorderColor #2C5F8A
+  FontSize 13
+  ArrowColor #4A6A80
+}
+skinparam package {
+  BackgroundColor #FDFEFE
+  BorderColor #7F97A8
+  FontStyle bold
+  FontSize 14
+}
+skinparam actor {
+  BackgroundColor #FFF3E0
+  BorderColor #B36B00
+}
+skinparam rectangle {
+  BackgroundColor #FBFBFB
+  BorderColor #444444
+}
+title Diagramme de cas d'utilisation - Vue d'ensemble\nJAKO-DANAYA (Web & Mobile) - Gestion de boutique(s)
+
+actor "Caissier" as Caissier
+actor "Magasinier" as Magasinier
+actor "Gérant" as Gerant
+actor "Administrateur\nde boutique" as Admin
+actor "Super\nAdministrateur" as SuperAdmin
+actor "Personnel\n(acteur abstrait)" as Personnel #line.dashed
+
+Caissier --|> Personnel
+Magasinier --|> Personnel
+Gerant --|> Personnel
+Admin --|> Personnel
+SuperAdmin --|> Admin
+
+rectangle "Système JAKO-DANAYA (Web & Mobile)" {
+  usecase "Gérer authentification\net profil" as UC1
+  usecase "Gérer utilisateurs,\nrôles et permissions" as UC2
+  usecase "Gérer boutiques,\nmagasins et configuration" as UC3
+  usecase "Gérer produits\net stock" as UC4
+  usecase "Gérer achats\net fournisseurs" as UC5
+  usecase "Gérer ventes\net clients" as UC6
+  usecase "Gérer caisse\net dépenses" as UC7
+  usecase "Consulter rapports,\ndocuments et notifications" as UC8
+  usecase "Gérer l'abonnement\nSaaS de la plateforme" as UC9
+}
+
+Personnel -- UC1
+Gerant -- UC2
+Admin -- UC2
+Caissier -- UC6
+Caissier -- UC7
+Magasinier -- UC4
+Magasinier -- UC5
+Gerant -- UC4
+Gerant -- UC5
+Gerant -- UC6
+Gerant -- UC8
+Admin -- UC5
+Admin -- UC6
+Admin -- UC7
+Admin -- UC8
+Admin -- UC9
+SuperAdmin -- UC3
+SuperAdmin -- UC9
+
+legend right
+  |= Note |
+  | UC9 "Gérer l'abonnement SaaS" est réservé au Super Administrateur |
+  | (gestion multi-boutiques, plans et paiements d'abonnement) |
+  | Chaque bloc ci-dessus est détaillé dans un diagramme dédié (voir figures suivantes) |
+endlegend
+
+@enduml

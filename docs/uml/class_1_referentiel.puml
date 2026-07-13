@@ -1,0 +1,112 @@
+@startuml JAKO-DANAYA_class_1_referentiel
+!pragma layout smetana
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Helvetica"
+skinparam classFontSize 12
+skinparam classAttributeFontSize 11
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor #EAF2FB
+  BorderColor #2C5F8A
+  ArrowColor #4A6A80
+  HeaderBackgroundColor #D7E7F5
+}
+hide circle
+title Diagramme de classes (1/5) - Référentiel, Organisation & Utilisateurs
+
+class Pays {
+  -id : Long
+  -codeIso : String
+  -nom : String
+  -indicatif : String
+  -deviseCode : String
+  -deviseSymbole : String
+  -drapeau : String
+}
+
+class Boutique {
+  -id : Long
+  -nom : String
+  -quartier : String
+  -adresse : String
+  -indicatif : String
+  -telephoneLocal : String
+  -logo : String
+}
+
+class Magasin {
+  -id : Long
+  -nom : String
+  -adresse : String
+  -typeMagasin : String
+}
+
+class Unite {
+  -id : Long
+  -libelle : String
+  -symbole : String
+  -code : String
+}
+
+class Role {
+  -id : Long
+  -name : String
+  -description : String
+}
+
+class Permission {
+  -id : Long
+  -name : String
+  -description : String
+}
+
+class Utilisateur {
+  -id : Long
+  -nom : String
+  -prenom : String
+  -contact : String
+  -email : String
+  -pseudo : String
+  -motDePasse : String
+  -adresse : String
+  -avatar : String
+  -typeUtilisateur : String
+  -statut : String
+  -lastLoginAt : LocalDateTime
+  -resetToken : String
+}
+
+class ConfigurationMarge {
+  -id : Long
+  -typeMarge : TypeMarge
+  -valeurDetail : BigDecimal
+  -valeurGros : BigDecimal
+  -margeMinimaleDetail : BigDecimal
+  -margeMinimaleGros : BigDecimal
+}
+
+enum TypeMarge {
+  FIXE
+  POURCENTAGE
+  MANUEL
+}
+
+Boutique "*" -- "0..1" Pays : pays >
+Magasin "*" -- "1" Boutique : boutique >
+Unite "*" -- "0..1" Boutique : boutique >
+Utilisateur "*" -- "0..1" Boutique : boutique >
+Utilisateur "0..*" -- "0..1" Utilisateur : créé par <\ncréePar
+Utilisateur "*" -- "*" Role : roles
+Utilisateur "*" -- "*" Permission : permissions directes
+Role "*" -- "*" Permission : role_permissions
+ConfigurationMarge "*" -- "1" Boutique : boutique >
+ConfigurationMarge -- TypeMarge
+
+note bottom of Utilisateur
+  Un utilisateur possède des rôles ET des
+  permissions directes (délégation fine),
+  en plus des permissions héritées de ses rôles.
+end note
+
+@enduml

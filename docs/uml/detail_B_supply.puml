@@ -1,0 +1,79 @@
+@startuml JAKO-DANAYA_detail_B_supply
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam actorStyle awesome
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Helvetica"
+skinparam usecase {
+  BackgroundColor #EAF2FB
+  BorderColor #2C5F8A
+  FontSize 12
+  ArrowColor #4A6A80
+}
+skinparam package {
+  BackgroundColor #FDFEFE
+  BorderColor #7F97A8
+  FontStyle bold
+  FontSize 13
+}
+skinparam actor {
+  BackgroundColor #FFF3E0
+  BorderColor #B36B00
+  FontSize 12
+}
+skinparam ArrowFontSize 10
+title Cas d'utilisation détaillés (2/3) - Produits, Stock, Achats & Fournisseurs
+
+actor "Magasinier" as Magasinier
+actor "Gérant" as Gerant
+actor "Administrateur\nde boutique" as Admin
+
+rectangle "Système JAKO-DANAYA" {
+  package "Produits & Stock" {
+    usecase "Gérer les produits" as UC_ManageProduits
+    usecase "Scanner un code-barres\n(mobile)" as UC_Scan
+    usecase "Consulter le stock" as UC_ViewStock
+    usecase "Effectuer un inventaire" as UC_Inventaire
+    usecase "Régulariser le stock" as UC_Regulariser
+    usecase "Transférer du stock\nentre magasins" as UC_Transfert
+    usecase "Enregistrer une perte\n/ utilisation interne" as UC_Perte
+    usecase "Consulter les mouvements\nde stock" as UC_Mouvements
+  }
+
+  package "Achats & Fournisseurs" {
+    usecase "Gérer les fournisseurs" as UC_ManageFournisseurs
+    usecase "Créer une commande\nfournisseur" as UC_CreerCommandeF
+    usecase "Réceptionner une commande" as UC_Reception
+    usecase "Payer un fournisseur" as UC_PayerFournisseur
+    usecase "Consulter l'historique\ndes achats" as UC_HistoAchats
+  }
+}
+
+Magasinier -- UC_ManageProduits
+Magasinier -- UC_Scan
+Magasinier -- UC_ViewStock
+Magasinier -- UC_Inventaire
+Magasinier -- UC_Transfert
+Magasinier -- UC_Perte
+Magasinier -- UC_Mouvements
+Magasinier -- UC_ManageFournisseurs
+Magasinier -- UC_Reception
+
+Gerant -- UC_ManageProduits
+Gerant -- UC_Regulariser
+Gerant -- UC_CreerCommandeF
+Gerant -- UC_Reception
+
+Admin -- UC_ManageFournisseurs
+Admin -- UC_PayerFournisseur
+Admin -- UC_HistoAchats
+Admin -- UC_CreerCommandeF
+
+UC_ManageProduits .> UC_Scan : <<extend>>
+UC_Inventaire .> UC_Regulariser : <<extend>>
+UC_CreerCommandeF .> UC_Reception : <<extend>>
+UC_Reception .> UC_ViewStock : <<include>>
+UC_Transfert .> UC_ViewStock : <<include>>
+
+@enduml

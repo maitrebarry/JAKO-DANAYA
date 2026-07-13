@@ -1,0 +1,64 @@
+@startuml JAKO-DANAYA_seq_6_abonnement
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Helvetica"
+skinparam sequenceMessageAlign center
+skinparam sequenceArrowFontSize 11
+skinparam sequenceParticipant underline
+skinparam actor {
+  BackgroundColor #FFF3E0
+  BorderColor #B36B00
+}
+skinparam participant {
+  BackgroundColor #EAF2FB
+  BorderColor #2C5F8A
+}
+skinparam sequenceLifeLineBorderColor #2C5F8A
+skinparam sequenceLifeLineBackgroundColor #EAF2FB
+title Diagramme de séquence - Valider un paiement d'abonnement
+
+actor "Super Administrateur" as U
+participant "Application\n(Web / Mobile)" as UI
+participant "AdminController" as C
+participant "SubscriptionPaymentService" as SPS
+participant "NotificationService" as NS
+database "Base de données" as DB
+
+U -> UI : Consulte les paiements d'abonnement\nen attente et confirme l'approbation
+UI -> C : POST /api/admin/subscriptions/payments/{id}/approve
+
+C -> C : Vérifie rôle SUPERADMIN
+
+alt rôle insuffisant
+  C --> UI : 403 Accès refusé
+  UI --> U : Message d'erreur
+else rôle SUPERADMIN confirmé
+  C -> SPS : simulateSuccess(utilisateur, paymentId)
+  SPS -> DB : SELECT abonnement_paiement\nJOIN abonnement_boutique
+
+  alt paiement introuvable
+    SPS --> C : IllegalArgumentException
+    C --> UI : 400 Paiement introuvable
+    UI --> U : Message d'erreur
+  else paiement trouvé
+    SPS -> DB : UPDATE abonnement_paiement\nSET statut = PAID, reviewed_by, reviewed_at
+    SPS -> DB : SELECT abonnement_plan (code, durée)
+    DB --> SPS : plan (durée en mois)
+    SPS -> DB : SELECT MAX(date_fin) abonnement ACTIVE\npour la boutique
+    DB --> SPS : ancienne date de fin (le cas échéant)
+
+    SPS -> SPS : Calcule la nouvelle période\n(prolonge si abonnement encore actif,\nsinon démarre à maintenant)
+
+    SPS -> DB : INSERT abonnement_boutique\n(statut = ACTIVE, date_debut, date_fin)
+    DB --> SPS : nouvel abonnement (id)
+
+    SPS -> NS : notifier les utilisateurs de la boutique
+    NS -> DB : INSERT notification (type ABONNEMENT)
+
+    SPS --> C : résumé {boutique, nouvelle échéance}
+    C --> UI : 200 OK {abonnement activé}
+    UI --> U : Confirmation d'activation
+  end
+end
+
+@enduml

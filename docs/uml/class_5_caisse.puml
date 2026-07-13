@@ -1,0 +1,129 @@
+@startuml JAKO-DANAYA_class_5_caisse
+!pragma layout smetana
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Helvetica"
+skinparam classFontSize 12
+skinparam classAttributeFontSize 11
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor #EAF2FB
+  BorderColor #2C5F8A
+  ArrowColor #4A6A80
+  HeaderBackgroundColor #D7E7F5
+}
+hide circle
+title Diagramme de classes (5/5) - Caisse, Dépenses & Notifications
+
+class Caisse {
+  -id : Long
+  -dateCaisse : LocalDate
+  -montantInitial : Integer
+  -statut : String
+  -reference : String
+  -numero : Integer
+  -montantTotal : Integer
+}
+
+class CaisseMovement {
+  -id : Long
+  -type : MovementType
+  -montant : Integer
+  -balanceBefore : Integer
+  -balanceAfter : Integer
+  -paiementId : Long
+  -commandeId : Long
+  -depenseId : Long
+  -userId : Long
+  -referenceCaisse : String
+  -boutiqueId : Long
+  -raison : String
+  -createdAt : LocalDateTime
+}
+
+enum MovementType {
+  DEBIT
+  CREDIT
+  REVERSAL
+  OPEN
+  CLOSE
+  DEPENSE
+  AJUSTEMENT
+}
+
+class CaisseTransaction {
+  -id : Long
+  -type : TransactionType
+  -montant : Integer
+  -paiementId : Long
+  -commandeId : Long
+  -userId : Long
+  -referenceCaisse : String
+  -boutiqueId : Long
+  -raison : String
+  -createdAt : LocalDateTime
+}
+
+enum TransactionType {
+  DEBIT
+  CREDIT
+  REVERSAL
+}
+
+class Depense {
+  -id : Long
+  -reference : String
+  -referenceCaisse : String
+  -libelle : String
+  -montant : Integer
+  -date : LocalDate
+  -note : String
+  -boutiqueId : Long
+  -createurId : Long
+  -status : DepenseStatus
+  -validatorId : Long
+  -validatedAt : LocalDateTime
+  -annulePar : Long
+  -annuleAt : LocalDateTime
+  -annuleReason : String
+  -createdAt : LocalDateTime
+}
+
+enum DepenseStatus {
+  EN_ATTENTE
+  VALIDEE
+  REJETEE
+  ANNULEE
+}
+
+class Notification {
+  -id : Long
+  -userId : Long
+  -boutiqueId : Long
+  -type : String
+  -payload : String
+  -read : boolean
+  -createdAt : LocalDateTime
+}
+
+class "Boutique" as BoutiqueRef <<référence>> #F7F9FB {
+  voir Diagramme 1
+}
+
+Caisse "*" -- "1" BoutiqueRef : boutique >
+CaisseMovement -- MovementType
+CaisseTransaction -- TransactionType
+Depense -- DepenseStatus
+
+note bottom of CaisseMovement
+  boutiqueId / userId / paiementId / commandeId /
+  depenseId sont de simples identifiants (pas de
+  contrainte de clé étrangère JPA) : Caisse est la
+  seule association objet réelle vers Boutique.
+end note
+
+note "CaisseMovement et CaisseTransaction coexistent :\nCaisseMovement conserve en plus le solde\navant/après chaque opération de caisse." as NoteLedger
+CaisseTransaction .. NoteLedger
+CaisseMovement .. NoteLedger
+
+@enduml

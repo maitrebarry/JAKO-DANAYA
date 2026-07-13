@@ -1,0 +1,109 @@
+@startuml JAKO-DANAYA_class_3_achats
+!pragma layout smetana
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Helvetica"
+skinparam classFontSize 12
+skinparam classAttributeFontSize 11
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor #EAF2FB
+  BorderColor #2C5F8A
+  ArrowColor #4A6A80
+  HeaderBackgroundColor #D7E7F5
+}
+hide circle
+title Diagramme de classes (3/5) - Achats & Fournisseurs
+
+class Fournisseur {
+  -id : Long
+  -prenom : String
+  -nom : String
+  -contact : String
+  -ville : String
+}
+
+class CommandeFournisseur {
+  -id : Long
+  -dateCommande : LocalDateTime
+  -reference : String
+  -total : Integer
+  -paie : Integer
+}
+
+class LigneCommande {
+  -id : Long
+  -quantite : Integer
+  -quantiteConditionnement : Integer
+  -quantiteLivre : Integer
+  -newPrice : Integer
+}
+
+class Reception {
+  -id : Long
+  -dateReception : LocalDateTime
+  -reference : String
+  -annule : Boolean
+  -annuleAt : LocalDateTime
+  -annulePar : Long
+  -annuleReason : String
+}
+
+class LigneReception {
+  -id : Long
+  -quantiteRecu : Integer
+  -quantiteConditionnement : Integer
+  -beforeStockQuantite : Integer
+  -beforeStockCostAverage : BigDecimal
+  -beforeProduitPrixAchat : Integer
+}
+
+class Paiement {
+  -id : Long
+  -montantPaye : Integer
+  -datePaie : LocalDateTime
+  -reference : String
+  -referenceCaisse : String
+  -annule : Boolean
+  -annuleAt : LocalDateTime
+  -annulePar : Long
+  -annuleReason : String
+}
+
+class "Boutique" as BoutiqueRef <<référence>> #F7F9FB {
+  voir Diagramme 1
+}
+class "Utilisateur" as UtilisateurRef <<référence>> #F7F9FB {
+  voir Diagramme 1
+}
+class "Produit" as ProduitRef <<référence>> #F7F9FB {
+  voir Diagramme 2
+}
+class "Stock" as StockRef <<référence>> #F7F9FB {
+  voir Diagramme 2
+}
+
+Fournisseur "*" -- "0..1" BoutiqueRef : boutique >
+
+CommandeFournisseur "*" -- "1" Fournisseur : fournisseur >
+CommandeFournisseur "*" -- "1" UtilisateurRef : passée par >
+CommandeFournisseur "*" -- "1" BoutiqueRef : boutique >
+CommandeFournisseur "1" -- "*" LigneCommande : lignes
+
+LigneCommande "*" -- "1" StockRef : stock >
+
+Reception "*" -- "1" CommandeFournisseur : commande >
+Reception "*" -- "1" BoutiqueRef : boutique >
+Reception "1" -- "*" LigneReception : lignes
+
+LigneReception "*" -- "1" ProduitRef : produit >
+
+Paiement "*" -- "1" CommandeFournisseur : commande >
+
+note bottom of Reception
+  La réception matérialise la livraison du
+  fournisseur et déclenche la mise à jour du
+  stock (voir Diagramme 2 - Mouvement).
+end note
+
+@enduml

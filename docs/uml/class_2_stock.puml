@@ -1,0 +1,140 @@
+@startuml JAKO-DANAYA_class_2_stock
+!pragma layout smetana
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Helvetica"
+skinparam classFontSize 12
+skinparam classAttributeFontSize 11
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor #EAF2FB
+  BorderColor #2C5F8A
+  ArrowColor #4A6A80
+  HeaderBackgroundColor #D7E7F5
+}
+hide circle
+title Diagramme de classes (2/5) - Catalogue, Stock & Mouvements
+
+class Produit {
+  -id : Long
+  -nomProduit : String
+  -uniteConditionnement : String
+  -nombreUnitesParConditionnement : Integer
+  -productImage : String
+  -caracteristique : String
+  -prixDetail : Integer
+  -prixEnGros : Integer
+  -prixAchat : Integer
+  -margeGros : BigDecimal
+  -margeDetail : BigDecimal
+  -alerteStock : Integer
+  -dateCreation : LocalDateTime
+}
+
+class Stock {
+  -id : Long
+  -quantiteDisponible : Integer
+  -costAverage : BigDecimal
+  -lastPurchasePrice : BigDecimal
+}
+
+class Inventaire {
+  -id : Long
+  -dateInventaire : LocalDateTime
+  -reference : String
+  -regulariser : Boolean
+}
+
+class LigneInventaire {
+  -id : Long
+  -quantitePhysique : Integer
+  -ecartStock : Integer
+  -montant : Integer
+}
+
+class Transfer {
+  -id : Long
+  -sourceType : String
+  -sourceId : Long
+  -destType : String
+  -destId : Long
+  -dateTransfer : LocalDateTime
+}
+
+class UtilisationPertes {
+  -id : Long
+  -motif : String
+  -quantite : Integer
+  -date : LocalDate
+  -type : String
+  -mouvementId : Long
+}
+
+class Mouvement {
+  -id : Long
+  -sousType : String
+  -description : String
+  -referenceId : Long
+  -referenceInventaire : String
+  -quantite : Integer
+  -typeMouvement : String
+  -montant : Integer
+  -dateMouvement : LocalDateTime
+}
+
+class "Unite" as UniteRef <<référence>> #F7F9FB {
+  voir Diagramme 1
+}
+class "Magasin" as MagasinRef <<référence>> #F7F9FB {
+  voir Diagramme 1
+}
+class "Boutique" as BoutiqueRef <<référence>> #F7F9FB {
+  voir Diagramme 1
+}
+class "Utilisateur" as UtilisateurRef <<référence>> #F7F9FB {
+  voir Diagramme 1
+}
+class "LigneVente" as LigneVenteRef <<référence>> #F7F9FB {
+  voir Diagramme 4
+}
+class "LigneReception" as LigneReceptionRef <<référence>> #F7F9FB {
+  voir Diagramme 3
+}
+class "LigneLivraison" as LigneLivraisonRef <<référence>> #F7F9FB {
+  voir Diagramme 4
+}
+
+Produit "*" -- "1" UniteRef : unité >
+Produit "1" -- "*" Stock : stocks
+Stock "*" -- "1" MagasinRef : magasin >
+Stock "*" -- "0..1" BoutiqueRef : boutique >
+
+Inventaire "*" -- "1" BoutiqueRef : boutique >
+Inventaire "*" -- "1" UtilisateurRef : réalisé par >
+Inventaire "1" -- "*" LigneInventaire : lignes
+LigneInventaire "*" -- "1" Produit : produit >
+
+Transfer "*" -- "1" UtilisateurRef : initié par >
+
+UtilisationPertes "*" -- "1" Produit : produit >
+UtilisationPertes "*" -- "1" BoutiqueRef : boutique >
+UtilisationPertes "*" -- "1" MagasinRef : magasin >
+
+Mouvement "*" -- "1" Produit : produit >
+Mouvement "*" -- "0..1" Stock : stock >
+Mouvement "*" -- "0..1" MagasinRef : magasin >
+Mouvement "*" -- "1" BoutiqueRef : boutique >
+Mouvement "*" -- "1" UtilisateurRef : utilisateur >
+Mouvement "*" -- "0..1" Transfer : transfer >
+Mouvement "*" -- "0..1" Inventaire : inventaire >
+Mouvement "*" -- "0..1" LigneVenteRef : ligneVente >
+Mouvement "*" -- "0..1" LigneReceptionRef : ligneReception >
+Mouvement "*" -- "0..1" LigneLivraisonRef : ligneLivraison >
+
+note bottom of Mouvement
+  Journal d'audit central : chaque entrée/sortie
+  de stock (vente, réception, transfert, inventaire,
+  perte) génère un Mouvement traçable.
+end note
+
+@enduml

@@ -1,0 +1,76 @@
+@startuml JAKO-DANAYA_seq_1_login
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Helvetica"
+skinparam sequenceMessageAlign center
+skinparam sequenceArrowFontSize 11
+skinparam sequenceParticipant underline
+skinparam actor {
+  BackgroundColor #FFF3E0
+  BorderColor #B36B00
+}
+skinparam participant {
+  BackgroundColor #EAF2FB
+  BorderColor #2C5F8A
+}
+skinparam sequenceLifeLineBorderColor #2C5F8A
+skinparam sequenceLifeLineBackgroundColor #EAF2FB
+title Diagramme de séquence - Se connecter (Authentification)
+
+actor "Personnel" as U
+participant "Application\n(Web / Mobile)" as UI
+participant "AuthController" as C
+participant "AuthenticationManager\n(Spring Security)" as AM
+participant "UtilisateurRepository" as UR
+participant "LoginAttemptService" as LAS
+participant "JwtUtils" as JWT
+database "Base de données" as DB
+
+U -> UI : Saisit email + mot de passe
+UI -> C : POST /api/auth/login
+
+C -> LAS : status(email)
+LAS --> C : tentatives / verrouillage
+
+alt compte verrouillé (trop de tentatives)
+  C --> UI : 423 Compte verrouillé
+  UI --> U : Message : réessayer plus tard
+else compte non verrouillé
+  C -> AM : authenticate(email, motDePasse)
+  AM -> UR : findByEmail(email)
+  UR -> DB : SELECT utilisateur
+  DB --> UR : utilisateur + rôles + permissions
+  UR --> AM : Utilisateur
+
+  alt identifiants invalides
+    AM --> C : AuthenticationException
+    C -> LAS : registerFailure(email)
+    C --> UI : 401 Identifiants invalides
+    UI --> U : Message d'erreur
+  else identifiants valides
+    AM --> C : Authentication OK
+    C -> LAS : registerSuccess(email)
+
+    alt compte désactivé
+      C --> UI : 403 Compte désactivé
+      UI --> U : Message : compte désactivé
+    else compte actif
+      C -> DB : Vérifier abonnement boutique\n(statut, date_fin, grace_end_at)
+      DB --> C : statut abonnement
+
+      alt abonnement expiré (et non superadmin)
+        C --> UI : 403 Abonnement expiré
+        UI --> U : Redirection page abonnement
+      else abonnement valide ou superadmin
+        C -> JWT : generateJwtToken(authentication)
+        JWT --> C : token JWT
+        C -> UR : save(lastLoginAt = now)
+        UR -> DB : UPDATE utilisateur
+        C --> UI : 200 OK {token, utilisateur}
+        UI --> U : Accès au tableau de bord
+      end
+    end
+  end
+end
+
+@enduml

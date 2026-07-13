@@ -1,0 +1,76 @@
+@startuml JAKO-DANAYA_seq_5_depense
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Helvetica"
+skinparam sequenceMessageAlign center
+skinparam sequenceArrowFontSize 11
+skinparam sequenceParticipant underline
+skinparam actor {
+  BackgroundColor #FFF3E0
+  BorderColor #B36B00
+}
+skinparam participant {
+  BackgroundColor #EAF2FB
+  BorderColor #2C5F8A
+}
+skinparam sequenceLifeLineBorderColor #2C5F8A
+skinparam sequenceLifeLineBackgroundColor #EAF2FB
+title Diagramme de séquence - Valider une dépense
+
+actor "Administrateur" as U
+participant "Application\n(Web / Mobile)" as UI
+participant "DepenseController" as C
+participant "DepenseService" as DS
+participant "CaisseRepository" as CR
+participant "CaisseTransactionService" as CTS
+participant "CaisseMovementService" as CMS
+database "Base de données" as DB
+
+U -> UI : Ouvre une dépense EN_ATTENTE\net confirme la validation
+UI -> C : POST /api/depenses/{id}/validate
+
+C -> C : Vérifie permission\nDEPENSE_VALIDATION
+
+alt permission manquante
+  C --> UI : 403 Accès refusé
+  UI --> U : Message d'erreur
+else permission accordée
+  C -> DS : findById(id)
+  DS -> DB : SELECT depense
+  DB --> DS : Depense
+  DS --> C : dépense
+
+  alt dépense pas en statut EN_ATTENTE
+    C --> UI : 400 Statut invalide
+    UI --> U : Message d'erreur
+  else dépense en attente
+    C -> CR : findFirstByReferenceAndBoutiqueId\n+ findByIdForUpdate
+    CR -> DB : SELECT ... FOR UPDATE caisse
+    DB --> CR : Caisse (verrouillée)
+    CR --> C : Caisse
+
+    alt caisse introuvable ou fermée
+      C --> UI : 400 Caisse invalide
+      UI --> U : Message d'erreur
+    else caisse ouverte
+
+      alt solde insuffisant (montant > solde caisse)
+        C --> UI : 400 Solde insuffisant
+        UI --> U : Message d'erreur
+      else solde suffisant
+        C -> CR : montantTotal -= montant dépense
+        CR -> DB : UPDATE caisse
+        C -> CTS : save(CaisseTransaction DEBIT)
+        CTS -> DB : INSERT caisse_transaction
+        C -> CMS : save(CaisseMovement DEPENSE,\nbalanceBefore/balanceAfter)
+        CMS -> DB : INSERT caisse_movement
+        C -> DS : status = VALIDEE, validatorId, validatedAt
+        DS -> DB : UPDATE depense
+        C --> UI : 200 OK {dépense validée}
+        UI --> U : Confirmation de validation
+      end
+    end
+  end
+end
+
+@enduml

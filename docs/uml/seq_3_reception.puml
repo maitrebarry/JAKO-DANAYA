@@ -1,0 +1,73 @@
+@startuml JAKO-DANAYA_seq_3_reception
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Helvetica"
+skinparam sequenceMessageAlign center
+skinparam sequenceArrowFontSize 11
+skinparam sequenceParticipant underline
+skinparam actor {
+  BackgroundColor #FFF3E0
+  BorderColor #B36B00
+}
+skinparam participant {
+  BackgroundColor #EAF2FB
+  BorderColor #2C5F8A
+}
+skinparam sequenceLifeLineBorderColor #2C5F8A
+skinparam sequenceLifeLineBackgroundColor #EAF2FB
+title Diagramme de séquence - Réceptionner une commande fournisseur
+
+actor "Magasinier" as U
+participant "Application\n(Web / Mobile)" as UI
+participant "ReceptionController" as C
+participant "CommandeFournisseurService" as CFS
+participant "ReceptionService" as RS
+participant "LigneCommandeRepository" as LCR
+participant "StockRepository" as SR
+participant "MouvementService" as MOV
+database "Base de données" as DB
+
+U -> UI : Saisit quantités reçues par produit
+UI -> C : POST /api/receptions/create
+
+C -> CFS : findById(idCommandeFournisseur)
+CFS -> DB : SELECT commande_fournisseur
+DB --> CFS : CommandeFournisseur
+CFS --> C : commande
+
+alt boutique de la commande ≠ boutique de l'utilisateur
+  C --> UI : 403 Accès refusé
+  UI --> U : Message d'erreur
+else boutique cohérente
+  C -> RS : save(nouvelle Reception)
+  RS -> DB : INSERT reception
+  RS --> C : Reception (id)
+  C -> MOV : log(RECEPTION, CREATION)
+  MOV -> DB : INSERT mouvement
+
+  C -> LCR : findByCommandeFournisseurId(idCommande)
+  LCR -> DB : SELECT ligne_commande
+  DB --> LCR : lignes de commande
+  LCR --> C : lignes
+
+  C -> C : Vérifie quantité reçue ≤ quantité restante\npour chaque ligne
+
+  alt quantité reçue > quantité restante
+    C --> UI : 400 Quantité invalide
+    UI --> U : Message d'erreur
+  else quantités valides
+    loop pour chaque ligne reçue
+      C -> LCR : quantiteLivre += quantité reçue
+      LCR -> DB : UPDATE ligne_commande
+      C -> SR : recalcule coût moyen pondéré (CMP)\net incrémente le stock
+      SR -> DB : UPDATE stock, UPDATE tbl_product (prixAchat)
+      C -> DB : INSERT ligne_reception\n(avec snapshot avant mise à jour)
+      C -> MOV : log(RECEPTION, MISE_A_JOUR_STOCK)
+      MOV -> DB : INSERT mouvement
+    end
+    C --> UI : 200 OK {réception, lignes, nouveaux CMP}
+    UI --> U : Confirmation de réception + bon PDF
+  end
+end
+
+@enduml
