@@ -33,7 +33,7 @@ describe('Documentation placement', () => {
 
     fireEvent.click(sideDoc);
 
-    await waitFor(() => expect(screen.getByText(/DOCUMENTATION UTILISATEUR/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/GUIDE D'UTILISATION/i)).toBeInTheDocument());
     expect(screen.getByRole('button', { name: /Télécharger \(PDF\)/i })).toBeInTheDocument();
   });
 });

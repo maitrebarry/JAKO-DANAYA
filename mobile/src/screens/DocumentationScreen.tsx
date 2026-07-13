@@ -61,12 +61,12 @@ export default function DocumentationScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.background }} contentContainerStyle={{ padding: 16 }}>
-      <Text style={{ color: theme.text, fontSize: 22, fontWeight: '900', marginBottom: 10 }}>Documentation</Text>
+      <Text style={{ color: theme.text, fontSize: 22, fontWeight: '900', marginBottom: 10 }}>Guide d'utilisation</Text>
 
       <View style={{ backgroundColor: theme.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor }}>
-        <Text style={{ color: theme.text, fontWeight: '900', marginBottom: 8 }}>Documentation utilisateur — JÀGO DÁNAYA</Text>
+        <Text style={{ color: theme.text, fontWeight: '900', marginBottom: 8 }}>Le guide de JÀGO DÁNAYA</Text>
         <Text style={{ color: theme.muted, lineHeight: 20 }}>
-          Cette page résume les étapes d’utilisation et la configuration essentielle. Pour la version complète (mise en page web), utilisez le bouton ci‑dessous.
+          Ce résumé te dit quoi faire, étape par étape. Pour voir le guide complet avec des images de l'application, ouvre la documentation web ci‑dessous.
         </Text>
 
         <View style={{ flexDirection: 'row', gap: 10 as any, marginTop: 12 }}>
@@ -95,18 +95,18 @@ export default function DocumentationScreen() {
       <View style={{ height: 12 }} />
 
       <View style={{ backgroundColor: theme.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor }}>
-        <Text style={{ color: theme.text, fontWeight: '900', marginBottom: 6 }}>Étape 1 — Connexion</Text>
-        <Text style={{ color: theme.muted, lineHeight: 20 }}>Connectez-vous avec votre compte et choisissez la boutique si nécessaire.</Text>
+        <Text style={{ color: theme.text, fontWeight: '900', marginBottom: 6 }}>1. Se connecter</Text>
+        <Text style={{ color: theme.muted, lineHeight: 20 }}>Tape ton email et ton mot de passe, puis appuie sur « Connexion ».</Text>
 
-        <Text style={{ color: theme.text, fontWeight: '900', marginTop: 12, marginBottom: 6 }}>Étape 2 — Configuration essentielle</Text>
+        <Text style={{ color: theme.text, fontWeight: '900', marginTop: 12, marginBottom: 6 }}>2. Configuration de départ</Text>
         <Text style={{ color: theme.muted, lineHeight: 20 }}>
-          - Unités (optionnel) : définissez les unités utilisées pour les produits.{"\n"}
-          - Marges/CMP (obligatoire) : configurez la marge pour automatiser le calcul des prix.
+          - Unités : ajoute au moins une unité (carton, sac, paquet).{"\n"}
+          - Marges : règle-les une fois, les prix de vente se calculent tout seuls ensuite.
         </Text>
 
-        <Text style={{ color: theme.text, fontWeight: '900', marginTop: 12, marginBottom: 6 }}>Étape 3 — Produits & Stocks</Text>
+        <Text style={{ color: theme.text, fontWeight: '900', marginTop: 12, marginBottom: 6 }}>3. Produits et stock</Text>
         <Text style={{ color: theme.muted, lineHeight: 20 }}>
-          Créez/importe vos produits, contrôlez le stock, puis effectuez les achats/réceptions et ventes.
+          Ajoute tes produits, fais l'inventaire, puis enregistre tes achats et tes ventes.
         </Text>
       </View>
     </ScrollView>
