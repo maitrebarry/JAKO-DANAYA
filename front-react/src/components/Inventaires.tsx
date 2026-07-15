@@ -11,6 +11,7 @@ const Inventaires: React.FC = () => {
   const navigate = useNavigate();
   const [inventaires, setInventaires] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [regularizingId, setRegularizingId] = useState<number | null>(null);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -35,14 +36,18 @@ const Inventaires: React.FC = () => {
   };
 
   const handleRegularize = async (id: number) => {
+    if (regularizingId != null) return; // guard against double-click / duplicate submission
     const resp = await Swal.fire({title: 'Confirmation', text: 'Confirmer la régularisation ? Cette action est irréversible.', icon: 'warning', showCancelButton: true});
     if (!resp.isConfirmed) return;
+    setRegularizingId(id);
     try {
       await inventaireApi.regularizeInventaire(id);
       await Swal.fire('Succès', 'Inventaire régularisé.', 'success');
-      load();
+      await load();
     } catch (e: any) {
       await Swal.fire('Erreur', e && e.message ? e.message : 'Erreur', 'error');
+    } finally {
+      setRegularizingId(null);
     }
   };
 
@@ -86,6 +91,7 @@ const Inventaires: React.FC = () => {
                 <thead className="table-light">
                   <tr>
                     <th>Référence</th>
+                    <th>Emplacement</th>
                     <th>Date</th>
                     <th>Regularisé</th>
                     <th className="text-end">Actions</th>
@@ -95,13 +101,20 @@ const Inventaires: React.FC = () => {
                   {inventaires.map(inv => (
                     <tr key={inv.idInventaire || inv.id}>
                       <td>{inv.referenceInventaire || inv.reference}</td>
+                      <td>{inv.magasin?.nom || 'Boutique'}</td>
                       <td>{formatServerDate(inv.dateInventaire || inv.date || '')}</td>
                       <td>{inv.regulariser ? <span className="badge bg-success">Oui</span> : <span className="badge bg-secondary">Non</span>}</td>
                       <td className="text-end">
                         <a className="btn btn-sm btn-outline-primary me-2" href={`/inventaires/${inv.idInventaire || inv.id}`}>Voir</a>
                         {!inv.regulariser && (
                           <RequirePermission permission="INVENTAIRE_REGULARISER">
-                            <button className="btn btn-sm btn-success" onClick={() => handleRegularize(inv.idInventaire || inv.id)}>Régulariser</button>
+                            <button
+                              className="btn btn-sm btn-success"
+                              disabled={regularizingId != null}
+                              onClick={() => handleRegularize(inv.idInventaire || inv.id)}
+                            >
+                              {regularizingId === (inv.idInventaire || inv.id) ? (<><span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Régularisation...</>) : 'Régulariser'}
+                            </button>
                           </RequirePermission>
                         )}
                       </td>

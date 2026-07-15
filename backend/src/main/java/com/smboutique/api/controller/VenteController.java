@@ -156,6 +156,7 @@ public class VenteController {
         public Integer quantite;
         public Boolean venteParConditionnement;
         public Integer quantiteConditionnement;
+        public Long id_emballage; // which emballage (carton, sac...) was ordered; required only when the product has 2+
         public Integer prix;
         public String priceMode; // DETAIL or GROS
     }
@@ -221,21 +222,42 @@ public class VenteController {
             }
 
             java.util.List<LigneCommandeClient> lignes = new java.util.ArrayList<>();
+            long computedTotal = 0;
             for (VenteLineRequest pl : request.produitsSelectionnes) {
                 com.smboutique.api.model.Stock s = stockRepository.findById(pl.id_stock).orElseThrow(() -> new RuntimeException("Stock introuvable"));
                 LigneCommandeClient lcc = new LigneCommandeClient();
 
                 int quantiteReelle = 0;
+                com.smboutique.api.model.ProduitEmballage chosenEmballageCC = null;
                 if (pl.venteParConditionnement != null && pl.venteParConditionnement) {
-                    Integer mul = s.getProduit().getNombreUnitesParConditionnement();
+                    chosenEmballageCC = resolveEmballage(pl.id_emballage, s);
+                    Integer mul = chosenEmballageCC != null
+                            ? chosenEmballageCC.getNombreUnites()
+                            : (s.getProduit().getNombreUnitesParConditionnement() == null ? 1 : s.getProduit().getNombreUnitesParConditionnement());
                     quantiteReelle = pl.quantiteConditionnement * mul;
                 } else {
                     quantiteReelle = pl.quantite == null ? 0 : pl.quantite;
                 }
 
+                if (pl.prix == null || pl.prix < 0) {
+                    return ResponseEntity.badRequest().body(java.util.Map.of("error", "Prix invalide pour produit " + s.getProduit().getNomProduit()));
+                }
+                // Same tariff check as createVenteCash: the submitted price must match the
+                // product's configured gros/détail price (or prixAchat if that tier is unset).
+                boolean isGrosFull = "GROS".equalsIgnoreCase(pl.priceMode);
+                Integer expectedPriceFull = isGrosFull
+                        ? (s.getProduit().getPrixEnGros() != null ? s.getProduit().getPrixEnGros() : s.getProduit().getPrixAchat())
+                        : (s.getProduit().getPrixDetail() != null ? s.getProduit().getPrixDetail() : s.getProduit().getPrixAchat());
+                if (expectedPriceFull == null || !expectedPriceFull.equals(pl.prix)) {
+                    return ResponseEntity.badRequest().body(java.util.Map.of("error",
+                            "Le prix soumis (" + pl.prix + ") ne correspond pas au prix " + (isGrosFull ? "gros" : "détail") + " configuré pour " + s.getProduit().getNomProduit()));
+                }
+                computedTotal += (long) pl.prix * quantiteReelle;
+
                 lcc.setProduit(s.getProduit());
                 lcc.setQuantite(quantiteReelle);
                 lcc.setQuantiteConditionnement(pl.quantiteConditionnement);
+                lcc.setEmballage(chosenEmballageCC);
                 lcc.setQuantiteLivre(0);
                 lcc.setNewPrice(pl.prix == null ? 0 : pl.prix);
                 // set price mode if provided
@@ -250,6 +272,15 @@ public class VenteController {
                 lignes.add(lcc);
 
                 // Inventory will be updated on delivery (livraison), not at sale creation.
+            }
+
+            // Never trust the client-submitted total blindly (see the same fix in createVenteCash):
+            // it must equal the sum of the lines, otherwise the amount owed by the client would be
+            // disconnected from what was actually ordered.
+            long clientTotal = request.total == null ? 0 : request.total;
+            if (computedTotal != clientTotal) {
+                return ResponseEntity.badRequest().body(java.util.Map.of("error",
+                        "Le montant total (" + clientTotal + ") ne correspond pas à la somme des lignes commandées (" + computedTotal + ")"));
             }
 
             cc.setLignes(lignes);
@@ -267,8 +298,38 @@ public class VenteController {
         public Integer quantite; // units or number of conditionnements depending on venteParConditionnement
         public Boolean venteParConditionnement;
         public Integer quantiteConditionnement;
+        public Long id_emballage; // which emballage (carton, sac...) was sold; required only when the product has 2+
         public Integer prix;
         public String priceMode; // DETAIL or GROS
+    }
+
+    @Autowired
+    private com.smboutique.api.repository.ProduitEmballageRepository produitEmballageRepository;
+
+    // Resolves which emballage a conditionnement-based cash sale line refers to, validating it
+    // belongs to the sold product and requiring disambiguation when the product has more than
+    // one. Returns null when the product has 0 or 1 emballage, meaning callers should fall back
+    // to the legacy flat Produit.nombreUnitesParConditionnement field (unchanged behavior).
+    private com.smboutique.api.model.ProduitEmballage resolveEmballage(CashLineRequest pl, com.smboutique.api.model.Stock s) {
+        return resolveEmballage(pl.id_emballage, s);
+    }
+
+    private com.smboutique.api.model.ProduitEmballage resolveEmballage(Long idEmballage, com.smboutique.api.model.Stock s) {
+        if (idEmballage != null) {
+            com.smboutique.api.model.ProduitEmballage emb = produitEmballageRepository.findById(idEmballage)
+                    .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Emballage introuvable"));
+            if (!emb.getProduit().getId().equals(s.getProduit().getId())) {
+                throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST,
+                        "Cet emballage n'appartient pas au produit " + s.getProduit().getNomProduit());
+            }
+            return emb;
+        }
+        java.util.List<com.smboutique.api.model.ProduitEmballage> all = produitEmballageRepository.findByProduitId(s.getProduit().getId());
+        if (all.size() > 1) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "Veuillez préciser l'emballage vendu pour " + s.getProduit().getNomProduit());
+        }
+        return null;
     }
 
     public static class VenteCashRequest {
@@ -321,6 +382,7 @@ public class VenteController {
             }
 
             // Validate stock availability before any change
+            long computedTotal = 0;
             for (CashLineRequest pl : request.produitsSelectionnes) {
                 com.smboutique.api.model.Stock s = stockRepository.findById(pl.id_stock)
                         .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Stock introuvable"));
@@ -332,7 +394,10 @@ public class VenteController {
 
                 int quantiteReelle = 0;
                 if (pl.venteParConditionnement != null && pl.venteParConditionnement) {
-                    Integer mul = s.getProduit().getNombreUnitesParConditionnement() == null ? 1 : s.getProduit().getNombreUnitesParConditionnement();
+                    com.smboutique.api.model.ProduitEmballage chosenEmballage = resolveEmballage(pl, s);
+                    Integer mul = chosenEmballage != null
+                            ? chosenEmballage.getNombreUnites()
+                            : (s.getProduit().getNombreUnitesParConditionnement() == null ? 1 : s.getProduit().getNombreUnitesParConditionnement());
                     // Validation rules for conditionnement-based sale
                     if (mul == null || mul <= 1) {
                         throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Conditionnement non autorisé pour produit " + s.getProduit().getNomProduit());
@@ -360,6 +425,33 @@ public class VenteController {
                 if (s.getQuantiteDisponible() == null || s.getQuantiteDisponible() < quantiteReelle) {
                     throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Stock insuffisant pour produit " + s.getProduit().getNomProduit());
                 }
+
+                if (pl.prix == null || pl.prix < 0) {
+                    throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Prix invalide pour produit " + s.getProduit().getNomProduit());
+                }
+                // Never trust a client-submitted price disconnected from the product's real
+                // tariff: the honest UI locks this field to the catalog gros/détail price, but a
+                // direct API call could otherwise sell at any price. Same fallback chain as the
+                // frontend (VenteEnEspece.tsx): prixEnGros/prixDetail, falling back to prixAchat
+                // only when the tier itself isn't configured.
+                boolean isGrosCash = "GROS".equalsIgnoreCase(pl.priceMode);
+                Integer expectedPriceCash = isGrosCash
+                        ? (s.getProduit().getPrixEnGros() != null ? s.getProduit().getPrixEnGros() : s.getProduit().getPrixAchat())
+                        : (s.getProduit().getPrixDetail() != null ? s.getProduit().getPrixDetail() : s.getProduit().getPrixAchat());
+                if (expectedPriceCash == null || !expectedPriceCash.equals(pl.prix)) {
+                    throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST,
+                            "Le prix soumis (" + pl.prix + ") ne correspond pas au prix " + (isGrosCash ? "gros" : "détail") + " configuré pour " + s.getProduit().getNomProduit());
+                }
+                computedTotal += (long) pl.prix * quantiteReelle;
+            }
+
+            // Never trust the client-submitted total blindly: it must equal the sum of the lines,
+            // otherwise a crafted request could credit the caisse with an amount disconnected from
+            // what was actually sold (till-skimming risk, or an accounting mismatch on a UI bug).
+            long clientTotal = request.total == null ? 0 : request.total;
+            if (computedTotal != clientTotal) {
+                return ResponseEntity.badRequest().body(java.util.Map.of("error",
+                        "Le montant total (" + clientTotal + ") ne correspond pas à la somme des lignes vendues (" + computedTotal + ")"));
             }
 
             // Create Vente
@@ -405,11 +497,17 @@ public class VenteController {
                 }
 
                 int quantiteReelle = 0;
+                com.smboutique.api.model.ProduitEmballage chosenEmballage = null;
+                Integer mul;
                 if (pl.venteParConditionnement != null && pl.venteParConditionnement) {
-                    Integer mul = s.getProduit().getNombreUnitesParConditionnement() == null ? 1 : s.getProduit().getNombreUnitesParConditionnement();
+                    chosenEmballage = resolveEmballage(pl, s);
+                    mul = chosenEmballage != null
+                            ? chosenEmballage.getNombreUnites()
+                            : (s.getProduit().getNombreUnitesParConditionnement() == null ? 1 : s.getProduit().getNombreUnitesParConditionnement());
                     int totalOpenUnits = (pl.quantiteConditionnement == null ? 0 : pl.quantiteConditionnement) * mul;
                     quantiteReelle = pl.quantite == null ? totalOpenUnits : pl.quantite;
                 } else {
+                    mul = s.getProduit().getNombreUnitesParConditionnement() == null ? 1 : s.getProduit().getNombreUnitesParConditionnement();
                     quantiteReelle = pl.quantite == null ? 0 : pl.quantite;
                 }
 
@@ -419,6 +517,7 @@ public class VenteController {
                 lv.setQuantite(quantiteReelle);
                 // Only record quantiteConditionnement when sale was issued from a conditionnement
                 lv.setQuantiteConditionnement((pl.venteParConditionnement != null && pl.venteParConditionnement) ? pl.quantiteConditionnement : null);
+                lv.setEmballage(chosenEmballage);
                 lv.setQuantiteLivre(quantiteReelle);
                 lv.setNewPrice(pl.prix == null ? 0 : pl.prix);
                 if (pl.priceMode != null) {
@@ -426,7 +525,6 @@ public class VenteController {
                 }
 
                 // Compute remainder after sale for 'open carton' semantics and save on line for history
-                Integer mul = s.getProduit().getNombreUnitesParConditionnement() == null ? 1 : s.getProduit().getNombreUnitesParConditionnement();
                 Integer cur = s.getQuantiteDisponible() == null ? 0 : s.getQuantiteDisponible();
                 if (cur < quantiteReelle) {
                     throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Stock insuffisant pour produit " + s.getProduit().getNomProduit());

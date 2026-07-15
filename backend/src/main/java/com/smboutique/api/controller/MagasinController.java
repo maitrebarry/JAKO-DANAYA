@@ -36,6 +36,9 @@ public class MagasinController {
     @Autowired
     private com.smboutique.api.service.TransferService transferService;
 
+    @Autowired
+    private com.smboutique.api.repository.ProduitEmballageRepository produitEmballageRepository;
+
     private Utilisateur getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -335,6 +338,18 @@ public class MagasinController {
                                 u.put("symbole", s.getProduit().getUnite().getSymbole());
                                 p.put("unite", u);
                             }
+                            java.util.List<com.smboutique.api.model.ProduitEmballage> embs = produitEmballageRepository.findByProduitId(s.getProduit().getId());
+                            java.util.List<java.util.Map<String, Object>> embList = new java.util.ArrayList<>();
+                            for (com.smboutique.api.model.ProduitEmballage pe : embs) {
+                                java.util.Map<String, Object> em = new java.util.HashMap<>();
+                                em.put("id", pe.getId());
+                                em.put("uniteId", pe.getUnite() != null ? pe.getUnite().getId() : null);
+                                em.put("uniteLibelle", pe.getUnite() != null ? pe.getUnite().getLibelle() : null);
+                                em.put("nombreUnites", pe.getNombreUnites());
+                                em.put("estParDefaut", pe.getEstParDefaut());
+                                embList.add(em);
+                            }
+                            p.put("emballages", embList);
                             m.put("produit", p);
                         }
 

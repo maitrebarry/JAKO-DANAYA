@@ -59,6 +59,38 @@ public class CommandeFournisseurController {
     private com.smboutique.api.service.LigneReceptionService ligneReceptionService;
 
     @Autowired
+    private com.smboutique.api.repository.ProduitEmballageRepository produitEmballageRepository;
+
+    // Resolves which emballage (carton, sac...) a conditionnement-based line refers to,
+    // validating it belongs to the sold product's produit and requiring disambiguation when the
+    // product has more than one. Returns null when the product has 0 or 1 emballage, meaning
+    // callers should fall back to the legacy flat Produit.nombreUnitesParConditionnement field.
+    private com.smboutique.api.model.ProduitEmballage resolveEmballage(Long idEmballage, Stock stock) {
+        if (stock == null || stock.getProduit() == null) return null;
+        if (idEmballage != null) {
+            com.smboutique.api.model.ProduitEmballage emb = produitEmballageRepository.findById(idEmballage)
+                    .orElseThrow(() -> new IllegalArgumentException("Emballage introuvable"));
+            if (!emb.getProduit().getId().equals(stock.getProduit().getId())) {
+                throw new IllegalArgumentException("Cet emballage n'appartient pas au produit " + stock.getProduit().getNomProduit());
+            }
+            return emb;
+        }
+        List<com.smboutique.api.model.ProduitEmballage> all = produitEmballageRepository.findByProduitId(stock.getProduit().getId());
+        if (all.size() > 1) {
+            throw new IllegalArgumentException("Veuillez préciser l'emballage pour " + stock.getProduit().getNomProduit());
+        }
+        return null;
+    }
+
+    private Integer multiplierFor(com.smboutique.api.model.ProduitEmballage emb, Stock stock) {
+        if (emb != null) return emb.getNombreUnites();
+        if (stock != null && stock.getProduit() != null && stock.getProduit().getNombreUnitesParConditionnement() != null) {
+            return stock.getProduit().getNombreUnitesParConditionnement();
+        }
+        return 1;
+    }
+
+    @Autowired
     private com.smboutique.api.service.MouvementService mouvementService;
 
     @Autowired
@@ -286,12 +318,12 @@ public class CommandeFournisseurController {
                     int effectiveQty = ps.getQuantite();
                     if (ps.getQuantiteConditionnement() != null) {
                         if (ps.getQuantiteConditionnement() < 0) throw new IllegalArgumentException("Quantité invalide");
-                        int mul = 1;
                         java.util.Optional<Stock> sOpt = stockRepository.findById(ps.getId_stock());
-                        if (sOpt.isPresent() && sOpt.get().getProduit() != null && sOpt.get().getProduit().getNombreUnitesParConditionnement() != null) {
-                            mul = sOpt.get().getProduit().getNombreUnitesParConditionnement();
-                        }
+                        Stock fullStock = sOpt.orElse(null);
+                        com.smboutique.api.model.ProduitEmballage emb = resolveEmballage(ps.getId_emballage(), fullStock);
+                        int mul = multiplierFor(emb, fullStock);
                         effectiveQty = ps.getQuantiteConditionnement() * mul;
+                        ligne.setEmballage(emb);
                     }
 
                     ligne.setQuantite(effectiveQty);
@@ -311,6 +343,7 @@ public class CommandeFournisseurController {
         }
     }
     @PostMapping("/{id}/paiement")
+    @Transactional
     public ResponseEntity<CommandeFournisseur> enregistrerPaiement(@PathVariable Long id, @RequestBody PaiementRequest request) {
         Utilisateur current = getCurrentUser();
         if (!isSuperAdmin(current) && (current.getBoutique() == null)) {
@@ -326,8 +359,13 @@ public class CommandeFournisseurController {
             return ResponseEntity.status(403).build();
         }
 
-        java.util.Optional<CommandeFournisseur> cmdOpt = commandeFournisseurService.findByIdAndBoutiqueId(id, boutiqueId);
-        if (!cmdOpt.isPresent()) {
+        // Lock the commande row for the duration of the transaction (same rationale as the
+        // matching fix on CommandeClientController#enregistrerPaiement): without this, two
+        // concurrent payments could both read the same "paie" value and the second save would
+        // silently overwrite the first's update, desyncing the amount recorded as paid from what
+        // was actually received.
+        java.util.Optional<CommandeFournisseur> cmdOpt = commandeFournisseurRepository.findByIdForUpdate(id);
+        if (!cmdOpt.isPresent() || cmdOpt.get().getBoutique() == null || !cmdOpt.get().getBoutique().getId().equals(boutiqueId)) {
             return ResponseEntity.notFound().build();
         }
         CommandeFournisseur cmd = cmdOpt.get();
@@ -422,11 +460,14 @@ public class CommandeFournisseurController {
 
                                 ligneCommandeRepository.findById(ligneId).ifPresent(existing -> {
                                     // Determine new delivered quantity in UNITS. Accept either quantiteLivre (units) or quantiteConditionnement (conditionnement count)
+                                    final com.smboutique.api.model.ProduitEmballage emb = (l.getQuantiteConditionnement() != null)
+                                            ? resolveEmballage(l.getId_emballage(), existing.getStock())
+                                            : null;
                                     Integer newQteLivre;
                                     if (l.getQuantiteLivre() != null) {
                                         newQteLivre = l.getQuantiteLivre();
                                     } else if (l.getQuantiteConditionnement() != null && existing.getStock() != null && existing.getStock().getProduit() != null) {
-                                        Integer mul = existing.getStock().getProduit().getNombreUnitesParConditionnement() == null ? 1 : existing.getStock().getProduit().getNombreUnitesParConditionnement();
+                                        Integer mul = multiplierFor(emb, existing.getStock());
                                         newQteLivre = l.getQuantiteConditionnement() * mul;
                                     } else {
                                         newQteLivre = existing.getQuantiteLivre();
@@ -476,6 +517,7 @@ public class CommandeFournisseurController {
                                                 // save original conditionnement when provided in request (handled earlier) - fallback null
                                                 // Note: the ReceptionRequest.ReceptionLigne provided quantiteConditionnement is not directly available here; however the controller previously computed delta from request, so we set quantiteConditionnement only when present in the request processing scope. For create per-call, set it from l.getQuantiteConditionnement() if available.
                                                 lr.setQuantiteConditionnement(l.getQuantiteConditionnement());
+                                                lr.setEmballage(emb);
                                                 lr.setProduit(stock.getProduit());
                                                 lr.setBeforeStockQuantite(currentQty);
                                                 lr.setBeforeStockCostAverage(stock.getCostAverage());
@@ -584,6 +626,10 @@ public class CommandeFournisseurController {
 
         public Integer getQuantiteConditionnement() { return quantiteConditionnement; }
         public void setQuantiteConditionnement(Integer quantiteConditionnement) { this.quantiteConditionnement = quantiteConditionnement; }
+
+        private Long id_emballage;
+        public Long getId_emballage() { return id_emballage; }
+        public void setId_emballage(Long id_emballage) { this.id_emballage = id_emballage; }
     }
 
     @PutMapping("/{id}")
@@ -638,14 +684,19 @@ public class CommandeFournisseurController {
                                         err.put("error", "Quantité invalide");
                                         return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST).body(err);
                                     }
-                                    int mul = 1;
-                                    if (existing.getStock() != null && existing.getStock().getProduit() != null && existing.getStock().getProduit().getNombreUnitesParConditionnement() != null) {
-                                        mul = existing.getStock().getProduit().getNombreUnitesParConditionnement();
-                                    } else {
-                                        java.util.Optional<Stock> sOpt = stockRepository.findById(stokId);
-                                        if (sOpt.isPresent() && sOpt.get().getProduit() != null && sOpt.get().getProduit().getNombreUnitesParConditionnement() != null) mul = sOpt.get().getProduit().getNombreUnitesParConditionnement();
+                                    Stock fullStock = existing.getStock() != null && existing.getStock().getProduit() != null
+                                            ? existing.getStock() : stockRepository.findById(stokId).orElse(null);
+                                    com.smboutique.api.model.ProduitEmballage emb;
+                                    try {
+                                        emb = resolveEmballage(ps.getId_emballage(), fullStock);
+                                    } catch (IllegalArgumentException ex) {
+                                        java.util.Map<String, Object> err = new java.util.HashMap<>();
+                                        err.put("error", ex.getMessage());
+                                        return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST).body(err);
                                     }
+                                    int mul = multiplierFor(emb, fullStock);
                                     effectiveQty = ps.getQuantiteConditionnement() * mul;
+                                    existing.setEmballage(emb);
                                 }
                                 existing.setQuantite(effectiveQty);
                                 existing.setQuantiteConditionnement(ps.getQuantiteConditionnement());
@@ -678,9 +729,17 @@ public class CommandeFournisseurController {
                                         err.put("error", "Quantité invalide");
                                         return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST).body(err);
                                     }
-                                    int mul = 1;
-                                    if (s.getProduit() != null && s.getProduit().getNombreUnitesParConditionnement() != null) mul = s.getProduit().getNombreUnitesParConditionnement();
+                                    com.smboutique.api.model.ProduitEmballage embNew;
+                                    try {
+                                        embNew = resolveEmballage(ps.getId_emballage(), s);
+                                    } catch (IllegalArgumentException ex) {
+                                        java.util.Map<String, Object> err = new java.util.HashMap<>();
+                                        err.put("error", ex.getMessage());
+                                        return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST).body(err);
+                                    }
+                                    int mul = multiplierFor(embNew, s);
                                     effectiveQtyNew = ps.getQuantiteConditionnement() * mul;
+                                    newL.setEmballage(embNew);
                                 }
                                 newL.setQuantite(effectiveQtyNew);
                                 newL.setQuantiteConditionnement(ps.getQuantiteConditionnement());
@@ -809,12 +868,31 @@ public class CommandeFournisseurController {
                     if (l.getStock().getProduit() != null) {
                         li.setProduitId(l.getStock().getProduit().getId());
                         li.setNom(l.getStock().getProduit().getNomProduit());
-                        li.setMultiplicateur(l.getStock().getProduit().getNombreUnitesParConditionnement());
-                        if (l.getStock().getProduit().getUnite() != null) {
-                            CommandeFournisseurDTO.LigneDTO.UniteDTO u = new CommandeFournisseurDTO.LigneDTO.UniteDTO();
-                            u.setId(l.getStock().getProduit().getUnite().getId());
-                            u.setLibelle(l.getStock().getProduit().getUnite().getLibelle());
-                            u.setSymbole(l.getStock().getProduit().getUnite().getSymbole());                            u.setCode(l.getStock().getProduit().getUnite().getCode());                            li.setUnite(u);
+                        // Prefer the emballage actually recorded on this order line — it is
+                        // authoritative over the product's flat "default" fields when the
+                        // product has 2+ packaging options.
+                        com.smboutique.api.model.ProduitEmballage lEmb = l.getEmballage();
+                        if (lEmb != null) {
+                            li.setIdEmballage(lEmb.getId());
+                            li.setMultiplicateur(lEmb.getNombreUnites());
+                            if (lEmb.getUnite() != null) {
+                                CommandeFournisseurDTO.LigneDTO.UniteDTO u = new CommandeFournisseurDTO.LigneDTO.UniteDTO();
+                                u.setId(lEmb.getUnite().getId());
+                                u.setLibelle(lEmb.getUnite().getLibelle());
+                                u.setSymbole(lEmb.getUnite().getSymbole());
+                                u.setCode(lEmb.getUnite().getCode());
+                                li.setUnite(u);
+                            }
+                        } else {
+                            li.setMultiplicateur(l.getStock().getProduit().getNombreUnitesParConditionnement());
+                            if (l.getStock().getProduit().getUnite() != null) {
+                                CommandeFournisseurDTO.LigneDTO.UniteDTO u = new CommandeFournisseurDTO.LigneDTO.UniteDTO();
+                                u.setId(l.getStock().getProduit().getUnite().getId());
+                                u.setLibelle(l.getStock().getProduit().getUnite().getLibelle());
+                                u.setSymbole(l.getStock().getProduit().getUnite().getSymbole());
+                                u.setCode(l.getStock().getProduit().getUnite().getCode());
+                                li.setUnite(u);
+                            }
                         }
                     }
                 }

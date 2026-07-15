@@ -14,6 +14,8 @@ import org.springframework.data.repository.query.Param;
 public interface LigneVenteRepository extends JpaRepository<LigneVente, Long> {
     List<LigneVente> findByVenteId(Long venteId);
 
+    boolean existsByEmballageId(Long emballageId);
+
     @Query("SELECT l FROM LigneVente l JOIN l.vente v WHERE (:boutiqueId IS NULL OR v.boutique.id = :boutiqueId) AND v.dateVente >= :fromDate AND v.dateVente <= :toDate")
     List<LigneVente> findByVenteDateRangeAndBoutique(@Param("fromDate") LocalDateTime fromDate,
                                                      @Param("toDate") LocalDateTime toDate,

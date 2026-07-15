@@ -14,7 +14,7 @@ import java.util.Map;
 
 @Entity
 @Data
-@ToString(exclude = {"stocks"})
+@ToString(exclude = {"stocks", "emballages"})
 @Table(name = "tbl_product")
 @EntityListeners(AuditingEntityListener.class)
 public class Produit {
@@ -66,6 +66,12 @@ public class Produit {
 
     @OneToMany(mappedBy = "produit", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Stock> stocks;
+
+    // Ways this product can be sold as a pack (e.g. Carton x24, Sac x6). At most one is
+    // flagged estParDefaut=true, which is mirrored into unite/nombreUnitesParConditionnement
+    // above so every flow that hasn't been migrated to the emballage list keeps working unchanged.
+    @OneToMany(mappedBy = "produit", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<ProduitEmballage> emballages;
 
     @Transient
     private List<Long> magasinIds;

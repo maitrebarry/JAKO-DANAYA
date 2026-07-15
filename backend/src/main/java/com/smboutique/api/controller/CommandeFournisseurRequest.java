@@ -35,6 +35,7 @@ public class CommandeFournisseurRequest {
         private Long id_stock;
         private int quantite;
         private Integer quantiteConditionnement; // optional: quantity expressed in conditionnements
+        private Long id_emballage; // which emballage (carton, sac...) was ordered; required only when the product has 2+
         private double prix;
 
         public Long getId_stock() { return id_stock; }
@@ -45,6 +46,9 @@ public class CommandeFournisseurRequest {
 
         public Integer getQuantiteConditionnement() { return quantiteConditionnement; }
         public void setQuantiteConditionnement(Integer quantiteConditionnement) { this.quantiteConditionnement = quantiteConditionnement; }
+
+        public Long getId_emballage() { return id_emballage; }
+        public void setId_emballage(Long id_emballage) { this.id_emballage = id_emballage; }
 
         public double getPrix() { return prix; }
         public void setPrix(double prix) { this.prix = prix; }

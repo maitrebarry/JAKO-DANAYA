@@ -31,6 +31,7 @@ const PaiementCommande: React.FC = () => {
   // No article list: payment is per-commande
   const [montantAPayerTotal, setMontantAPayerTotal] = useState<number>(0);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [caisses, setCaisses] = useState<any[]>([]);
   const [selectedCaisseRef, setSelectedCaisseRef] = useState<string | null>(null);
@@ -195,6 +196,7 @@ const PaiementCommande: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return; // guard against double-click / duplicate submission
     if (!selectedCommande) return;
     if (!canCreatePaiement) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de créer un paiement', 'error'); return; }
     const montantToSend = montantAPayerTotal > 0 ? montantAPayerTotal : montantAPayer;
@@ -203,6 +205,7 @@ const PaiementCommande: React.FC = () => {
       return;
     }
 
+    setSubmitting(true);
     try {
       const token = localStorage.getItem('smb_token');
       // Send total montant (sum of per-line input) to backend
@@ -286,6 +289,8 @@ const PaiementCommande: React.FC = () => {
       });
     } catch (err: any) {
       Swal.fire('Erreur', err.message || 'Erreur inconnue', 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -422,9 +427,9 @@ const PaiementCommande: React.FC = () => {
                           className="btn btn-primary"
                           type="submit"
                           style={{ display: selectedCommande ? 'inline-block' : 'none' }}
-                          disabled={(montantAPayerTotal) <= 0 || (montantAPayerTotal) > montantRestant}
+                          disabled={submitting || (montantAPayerTotal) <= 0 || (montantAPayerTotal) > montantRestant}
                         >
-                          Enregistrer le paiement
+                          {submitting ? (<><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Enregistrement...</>) : 'Enregistrer le paiement'}
                         </button>
                       </RequirePermission>
                     </div>

@@ -28,9 +28,16 @@ public class LigneCommande {
     
     @Column(name = "qte_livre")
     private Integer quantiteLivre;
-    
+
     @Column(name = "new_price_cmndFour")
     private Integer newPrice;
+
+    // Which specific emballage (carton, sac...) was ordered, when the product has 2+ and the
+    // caller disambiguated. Null for unit orders, single/zero-emballage products, and lines
+    // predating this feature.
+    @ManyToOne
+    @JoinColumn(name = "id_emballage")
+    private ProduitEmballage emballage;
 
     // Derived designation used by templates and DTOs when explicit designation is not stored
     public String getDesignation() {

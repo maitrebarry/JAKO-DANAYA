@@ -124,7 +124,8 @@ public class VenteLivraisonController {
                     if (!soldInConditionnement) {
                         throw new RuntimeException("La ligne '" + (lc.getProduit() != null ? lc.getProduit().getNomProduit() : "") + "' a été vendue en unités (U). Veuillez livrer en U.");
                     }
-                    Integer mul = lc.getProduit() != null && lc.getProduit().getNombreUnitesParConditionnement() != null ? lc.getProduit().getNombreUnitesParConditionnement() : 1;
+                    Integer mul = lc.getEmballage() != null ? lc.getEmballage().getNombreUnites()
+                            : (lc.getProduit() != null && lc.getProduit().getNombreUnitesParConditionnement() != null ? lc.getProduit().getNombreUnitesParConditionnement() : 1);
                     requestedUnits = lr.quantiteConditionnement * mul;
                 }
                 if (available < requestedUnits) {
@@ -166,7 +167,8 @@ public class VenteLivraisonController {
                     if (!soldInConditionnement) {
                         throw new RuntimeException("La ligne '" + (lc.getProduit() != null ? lc.getProduit().getNomProduit() : "") + "' a été vendue en unités (U). Veuillez livrer en U.");
                     }
-                    Integer mul = lc.getProduit() != null && lc.getProduit().getNombreUnitesParConditionnement() != null ? lc.getProduit().getNombreUnitesParConditionnement() : 1;
+                    Integer mul = lc.getEmballage() != null ? lc.getEmballage().getNombreUnites()
+                            : (lc.getProduit() != null && lc.getProduit().getNombreUnitesParConditionnement() != null ? lc.getProduit().getNombreUnitesParConditionnement() : 1);
                     qtyUnits = lr.quantiteConditionnement * mul;
                 }
 
@@ -184,6 +186,7 @@ public class VenteLivraisonController {
                 ligneLivraison.setLivraison(savedLiv);
                 ligneLivraison.setQuantiteRecu(qtyUnits);
                 ligneLivraison.setProduit(lc.getProduit());
+                ligneLivraison.setEmballage(lc.getEmballage());
                 ligneLivraisonService.save(ligneLivraison);
 
                 // update qte_livre on ligne vente

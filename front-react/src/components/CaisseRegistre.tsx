@@ -16,6 +16,8 @@ const CaisseRegistre: React.FC = () => {
   // Date and validation errors (to match PHP form behavior)
   const [date, setDate] = useState<string>('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [updatingId, setUpdatingId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchCaisses();
@@ -80,6 +82,7 @@ const CaisseRegistre: React.FC = () => {
   }
 
   const createCaisse = async () => {
+    if (submitting) return;
     if (!currentBoutique) return Swal.fire('Erreur', 'Aucune boutique définie pour cet utilisateur', 'error');
 
     // Prevent creation if an open caisse exists
@@ -102,6 +105,7 @@ const CaisseRegistre: React.FC = () => {
     // Clear previous errors
     setErrors({});
 
+    setSubmitting(true);
     try {
       const token = localStorage.getItem('smb_token');
       const ref = reference || generateRef();
@@ -118,6 +122,7 @@ const CaisseRegistre: React.FC = () => {
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
         body: JSON.stringify(payload)
       });
+      if (res.status === 409) throw new Error('Une caisse est déjà ouverte pour cette boutique.');
       if (!res.ok) throw new Error('Erreur lors de la création de la caisse');
       await Swal.fire('Succès', 'Caisse créée', 'success');
       setReference('');
@@ -127,11 +132,15 @@ const CaisseRegistre: React.FC = () => {
       fetchCaisses();
     } catch (e: any) {
       Swal.fire('Erreur', e.message || 'Erreur inconnue', 'error');
+    } finally {
+      setSubmitting(false);
     }
   }
 
   const updateStatut = async (id: number, newStatut: string) => {
+    if (updatingId !== null) return;
     if (!canModifyCaisse) { Swal.fire('Accès refusé', 'Vous n\'avez pas la permission de modifier les caisses', 'error'); return; }
+    setUpdatingId(id);
     try {
       const token = localStorage.getItem('smb_token');
       // fetch existing caisse
@@ -149,6 +158,8 @@ const CaisseRegistre: React.FC = () => {
       fetchCaisses();
     } catch (e: any) {
       Swal.fire('Erreur', e.message || 'Erreur inconnue', 'error');
+    } finally {
+      setUpdatingId(null);
     }
   }
 
@@ -195,7 +206,7 @@ const CaisseRegistre: React.FC = () => {
 
           <div className="text-center">
             <RequirePermission permission="CAISSE_GERER" fallback={<button type="button" className="btn btn-secondary me-2" disabled title="Permission requise">Sauvegarder</button>}>
-              <button type="button" className="btn btn-success me-2" onClick={createCaisse} disabled={hasOpenCaisse} title={hasOpenCaisse ? 'Une caisse est ouverte. Fermez-la avant d\'en créer une nouvelle.' : ''}>Sauvegarder</button>
+              <button type="button" className="btn btn-success me-2" onClick={createCaisse} disabled={hasOpenCaisse || submitting} title={hasOpenCaisse ? 'Une caisse est ouverte. Fermez-la avant d\'en créer une nouvelle.' : ''}>{submitting ? 'Création...' : 'Sauvegarder'}</button>
             </RequirePermission>
             {/* <a className="btn btn-primary" href="#liste-caisses">Liste caisse</a> */}
             {hasOpenCaisse && (
@@ -231,7 +242,7 @@ const CaisseRegistre: React.FC = () => {
                   <td>{c.montantTotal ?? '-'}</td>
                   <td>{c.statut ?? '-'}</td>
                   <td>
-                    <button className="btn btn-sm btn-secondary me-2" onClick={() => updateStatut(c.id, c.statut === 'OUVERTE' ? 'FERMEE' : 'OUVERTE')}>{c.statut === 'OUVERTE' ? 'Fermer' : 'Ouvrir'}</button>
+                    <button className="btn btn-sm btn-secondary me-2" onClick={() => updateStatut(c.id, c.statut === 'OUVERTE' ? 'FERMEE' : 'OUVERTE')} disabled={updatingId === c.id}>{updatingId === c.id ? '...' : (c.statut === 'OUVERTE' ? 'Fermer' : 'Ouvrir')}</button>
                     <button className="btn btn-sm btn-outline-primary" style={{ marginLeft: 8 }} onClick={() => window.location.href = `/caisses/movements?ref=${encodeURIComponent(c.reference)}`}>Voir mouvements</button>
                   </td>
                 </tr>

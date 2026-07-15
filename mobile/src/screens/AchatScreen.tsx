@@ -34,6 +34,7 @@ type CartLine = {
   achatParConditionnement: boolean;
   quantite: string; // units
   quantiteConditionnement: string; // cartons
+  idEmballage?: number; // which emballage (carton, sac...) was picked, when the product has 2+
   prixUnit: string; // digits string
 };
 
@@ -54,10 +55,24 @@ function parseIntFromDigits(digitsOrFormatted: string) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function packMultiplier(stock: any) {
+function packMultiplier(stock: any, idEmballage?: number) {
+  const embList = stock?.produit?.emballages;
+  if (idEmballage != null && Array.isArray(embList)) {
+    const chosen = embList.find((e: any) => e.id === idEmballage);
+    if (chosen) return Number(chosen.nombreUnites) || 1;
+  }
   const raw = stock?.produit?.nombreUnitesParConditionnement;
   const n = Number(raw);
   return Number.isFinite(n) && n > 1 ? n : 1;
+}
+
+function emballageList(stock: any): any[] {
+  return Array.isArray(stock?.produit?.emballages) ? stock.produit.emballages : [];
+}
+
+function defaultEmballageId(stock: any): number | undefined {
+  const def = emballageList(stock).find((e: any) => e.estParDefaut);
+  return def ? def.id : undefined;
 }
 
 function productNameFromStock(s: any) {
@@ -507,7 +522,7 @@ export default function AchatScreen() {
   const total = useMemo(() => {
     return cart.reduce((sum, line) => {
       const stock = stockById.get(line.stockId);
-      const mult = packMultiplier(stock || { produit: line.produit });
+      const mult = packMultiplier(stock || { produit: line.produit }, line.idEmballage);
 
       let qtyUnits = parseIntFromDigits(line.quantite);
       if (line.achatParConditionnement) {
@@ -566,6 +581,7 @@ export default function AchatScreen() {
           achatParConditionnement: false,
           quantite: '1',
           quantiteConditionnement: '',
+          idEmballage: defaultEmballageId(s),
           prixUnit: defaultPrix,
         },
         ...prev,
@@ -605,6 +621,10 @@ export default function AchatScreen() {
     setCart((prev) => prev.map((l) => (l.stockId === stockId ? { ...l, prixUnit: digitsOnly(v) } : l)));
   }, []);
 
+  const changeEmballage = useCallback((stockId: number, idEmballage: number) => {
+    setCart((prev) => prev.map((l) => (l.stockId === stockId ? { ...l, idEmballage } : l)));
+  }, []);
+
   const submit = useCallback(async () => {
     if (!token) {
       showError('Connexion', 'Vous devez être connecté.');
@@ -630,7 +650,7 @@ export default function AchatScreen() {
     const produitsSelectionnes: CreateCommandeFournisseurPayload['produitsSelectionnes'] = [];
     for (const line of cart) {
       const stock = stockById.get(line.stockId);
-      const mult = packMultiplier(stock || { produit: line.produit });
+      const mult = packMultiplier(stock || { produit: line.produit }, line.idEmballage);
 
       const prix = parseIntFromDigits(line.prixUnit);
       if (prix <= 0) {
@@ -644,10 +664,15 @@ export default function AchatScreen() {
           showError('Quantité', `Quantité carton invalide pour ${line.designation}`);
           return;
         }
+        if (emballageList(stock).length > 1 && line.idEmballage == null) {
+          showError('Emballage', `Veuillez préciser l'emballage pour ${line.designation}`);
+          return;
+        }
         produitsSelectionnes.push({
           id_stock: line.stockId,
           quantite: cartons * mult,
           quantiteConditionnement: cartons,
+          id_emballage: line.idEmballage,
           prix,
         });
       } else {
@@ -854,7 +879,8 @@ export default function AchatScreen() {
             ) : (
               cart.map((line) => {
                 const stock = stockById.get(line.stockId);
-                const mult = packMultiplier(stock || { produit: line.produit });
+                const mult = packMultiplier(stock || { produit: line.produit }, line.idEmballage);
+                const embList = emballageList(stock || { produit: line.produit });
                 return (
                   <View
                     key={String(line.stockId)}
@@ -901,8 +927,34 @@ export default function AchatScreen() {
                         >
                           {line.achatParConditionnement && <Ionicons name="checkmark" size={16} color="white" />}
                         </View>
-                        <Text style={{ color: theme.text, fontWeight: '800' }}>Saisir par conditionnement</Text>
+                        <Text style={{ color: theme.text, fontWeight: '800' }}>Saisir par emballage</Text>
                       </Pressable>
+                    )}
+
+                    {line.achatParConditionnement && embList.length > 1 && (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                        {embList.map((e: any) => {
+                          const selected = line.idEmballage === e.id;
+                          return (
+                            <Pressable
+                              key={e.id}
+                              onPress={() => changeEmballage(line.stockId, e.id)}
+                              style={{
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 12,
+                                backgroundColor: selected ? theme.primary : theme.surface,
+                                borderWidth: 1,
+                                borderColor: selected ? theme.primary : (theme.isDark ? '#1f2937' : '#e5e7eb'),
+                              }}
+                            >
+                              <Text style={{ color: selected ? 'white' : theme.text, fontWeight: '700' }}>
+                                {e.uniteLibelle} ({e.nombreUnites}u)
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
                     )}
 
                     <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>

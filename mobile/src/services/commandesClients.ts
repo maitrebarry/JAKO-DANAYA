@@ -24,6 +24,7 @@ export type CommandeClientLinePayload = {
   quantite?: number | null;
   venteParConditionnement?: boolean;
   quantiteConditionnement?: number | null;
+  id_emballage?: number | null;
   prix: number;
   priceMode?: 'DETAIL' | 'GROS';
 };

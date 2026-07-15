@@ -12,6 +12,10 @@ public interface CommandeFournisseurRepository extends JpaRepository<CommandeFou
     List<CommandeFournisseur> findAllByBoutiqueId(Long boutiqueId);
     Optional<CommandeFournisseur> findByIdAndBoutiqueId(Long id, Long boutiqueId);
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select c from CommandeFournisseur c where c.id = :id")
+    Optional<CommandeFournisseur> findByIdForUpdate(@org.springframework.data.repository.query.Param("id") Long id);
+
     @org.springframework.data.jpa.repository.Query("SELECT DISTINCT cf FROM CommandeFournisseur cf JOIN cf.lignes lc WHERE lc.quantite > COALESCE(lc.quantiteLivre, 0)")
     List<CommandeFournisseur> findNonReceptionnees();
 

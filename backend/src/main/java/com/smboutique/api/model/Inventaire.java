@@ -24,6 +24,12 @@ public class Inventaire {
     @JoinColumn(name = "id_boutique")
     private Boutique boutique;
 
+    // Explicit scope: null means the inventaire counts the boutique-level stock;
+    // a non-null magasin scopes it to exactly that magasin's stock.
+    @ManyToOne
+    @JoinColumn(name = "id_magasin")
+    private Magasin magasin;
+
     @Column(name = "reference_inventaire")
     private String reference;
 

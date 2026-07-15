@@ -29,6 +29,7 @@ type CartLine = {
   venteParConditionnement: boolean;
   quantite: string; // unités vendues
   quantiteConditionnement: string; // nombre de cartons/conditionnements
+  idEmballage?: number; // which emballage (carton, sac...) was picked, when the product has 2+
   prixUnit: number;
   priceMode: PriceMode;
 };
@@ -64,10 +65,25 @@ function productNameFromStock(s: any) {
   return s?.produit?.nomProduit || s?.produit?.nom || `Stock ${s?.id ?? ''}`;
 }
 
-function packMultiplier(s: any) {
+function packMultiplier(s: any, idEmballage?: number) {
+  const embList = s?.produit?.emballages;
+  if (idEmballage != null && Array.isArray(embList)) {
+    const chosen = embList.find((e: any) => e.id === idEmballage);
+    if (chosen) return Number(chosen.nombreUnites) || 1;
+  }
   const raw = s?.produit?.nombreUnitesParConditionnement;
   const n = Number(raw);
   return Number.isFinite(n) && n > 1 ? n : 1;
+}
+
+function emballageList(s: any): any[] {
+  return Array.isArray(s?.produit?.emballages) ? s.produit.emballages : [];
+}
+
+function defaultEmballageId(s: any): number | undefined {
+  const list = emballageList(s);
+  const def = list.find((e: any) => e.estParDefaut);
+  return def ? def.id : undefined;
 }
 
 function defaultUnitPrice(prod: any, mode: PriceMode) {
@@ -211,6 +227,7 @@ const CartLineItem = React.memo(function CartLineItem({
   onToggleConditionnement,
   onChangeQuantite,
   onChangeQuantiteConditionnement,
+  onChangeEmballage,
 }: {
   line: CartLine;
   stock: StockItem | undefined;
@@ -219,9 +236,12 @@ const CartLineItem = React.memo(function CartLineItem({
   onToggleConditionnement: (stockId: number, enabled: boolean) => void;
   onChangeQuantite: (stockId: number, v: string) => void;
   onChangeQuantiteConditionnement: (stockId: number, v: string) => void;
+  onChangeEmballage: (stockId: number, idEmballage: number) => void;
 }) {
   const name = line.designation;
-  const mult = packMultiplier(stock || { produit: line.produit });
+  const stockOrProduit = stock || { produit: line.produit };
+  const mult = packMultiplier(stockOrProduit, line.idEmballage);
+  const embList = emballageList(stockOrProduit);
   const available = Number(stock?.quantiteDisponible) || 0;
   const stockLabel = formatStock(available, mult);
 
@@ -272,9 +292,35 @@ const CartLineItem = React.memo(function CartLineItem({
           >
             {line.venteParConditionnement ? <Ionicons name="checkmark" size={16} color="white" /> : null}
           </View>
-          <Text style={{ color: theme.text, fontWeight: '700' }}>Par conditionnement</Text>
+          <Text style={{ color: theme.text, fontWeight: '700' }}>Par emballage</Text>
           <Text style={{ color: theme.muted, marginLeft: 8 }}>1 carton = {mult} U</Text>
         </Pressable>
+      )}
+
+      {line.venteParConditionnement && embList.length > 1 && (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+          {embList.map((e: any) => {
+            const selected = line.idEmballage === e.id;
+            return (
+              <Pressable
+                key={e.id}
+                onPress={() => onChangeEmballage(line.stockId, e.id)}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 12,
+                  backgroundColor: selected ? theme.primary : theme.surface,
+                  borderWidth: 1,
+                  borderColor: selected ? theme.primary : (theme.isDark ? '#1f2937' : '#e5e7eb'),
+                }}
+              >
+                <Text style={{ color: selected ? 'white' : theme.text, fontWeight: '700' }}>
+                  {e.uniteLibelle} ({e.nombreUnites}u)
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       )}
 
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
@@ -426,6 +472,7 @@ export default function VenteEspeceScreen() {
           venteParConditionnement: false,
           quantite: '1',
           quantiteConditionnement: '1',
+          idEmballage: defaultEmballageId(s),
           prixUnit: defaultUnitPrice(prod, priceModeDefault),
           priceMode: priceModeDefault,
         };
@@ -461,6 +508,10 @@ export default function VenteEspeceScreen() {
     setLines((prev) => prev.map((l) => (l.stockId === stockId ? { ...l, quantiteConditionnement: v } : l)));
   }, []);
 
+  const changeEmballage = useCallback((stockId: number, idEmballage: number) => {
+    setLines((prev) => prev.map((l) => (l.stockId === stockId ? { ...l, idEmballage } : l)));
+  }, []);
+
   const { subtotal, totalNet, remise, montantRecu, monnaie, submissionErrors, canSubmit } = useMemo(() => {
     const errors: string[] = [];
 
@@ -478,7 +529,7 @@ export default function VenteEspeceScreen() {
         errors.push(`Stock introuvable pour ${l.designation}.`);
         return;
       }
-      const mult = packMultiplier(stock);
+      const mult = packMultiplier(stock, l.idEmballage);
       const available = Number(stock?.quantiteDisponible) || 0;
 
       let units = parseIntFromDigits(l.quantite);
@@ -488,6 +539,9 @@ export default function VenteEspeceScreen() {
         const totalOpen = packs * mult;
         if (units < 1) errors.push(`Quantité (unités) invalide pour ${l.designation}.`);
         if (units > totalOpen) errors.push(`Unités vendues trop élevées pour ${l.designation} (max ${totalOpen}).`);
+        if (emballageList(stock).length > 1 && l.idEmballage == null) {
+          errors.push(`Veuillez préciser l'emballage vendu pour ${l.designation}.`);
+        }
       } else {
         if (units < 1) errors.push(`Quantité invalide pour ${l.designation}.`);
       }
@@ -544,8 +598,6 @@ export default function VenteEspeceScreen() {
         monnaieRembourse: monnaie,
         remise,
         produitsSelectionnes: lines.map((l) => {
-          const stock = stockById.get(l.stockId);
-          const mult = packMultiplier(stock || { produit: l.produit });
           const packs = l.venteParConditionnement ? parseIntFromDigits(l.quantiteConditionnement) : 0;
           const units = parseIntFromDigits(l.quantite);
           return {
@@ -553,6 +605,7 @@ export default function VenteEspeceScreen() {
             quantite: units,
             venteParConditionnement: l.venteParConditionnement,
             quantiteConditionnement: l.venteParConditionnement ? packs : null,
+            id_emballage: l.venteParConditionnement ? l.idEmballage : undefined,
             prix: Number(l.prixUnit) || 0,
             priceMode: l.priceMode,
           };
@@ -706,6 +759,7 @@ export default function VenteEspeceScreen() {
                   onToggleConditionnement={toggleConditionnement}
                   onChangeQuantite={changeQuantite}
                   onChangeQuantiteConditionnement={changeQuantiteConditionnement}
+                  onChangeEmballage={changeEmballage}
                 />
               ))
             )}

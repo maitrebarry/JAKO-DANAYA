@@ -16,6 +16,9 @@ public class DepenseController {
     private DepenseService depenseService;
 
     @Autowired
+    private com.smboutique.api.repository.DepenseRepository depenseRepository;
+
+    @Autowired
     private com.smboutique.api.service.UtilisateurService utilisateurService;
 
     @Autowired
@@ -214,7 +217,9 @@ public class DepenseController {
         String refCaisseFromReq = body != null ? body.getOrDefault("referenceCaisse", null) : null;
 
         try {
-            Depense dep = depenseService.findById(id).orElse(null);
+            // Lock the dépense row first: two concurrent validate calls for the same
+            // dépense must not both pass the EN_ATTENTE check and each debit the caisse.
+            Depense dep = depenseRepository.findByIdForUpdate(id).orElse(null);
             if (dep == null) return ResponseEntity.notFound().build();
             if (dep.getStatus() != com.smboutique.api.model.DepenseStatus.EN_ATTENTE) return ResponseEntity.badRequest().body(java.util.Map.of("error", "Seules les dépenses en EN_ATTENTE peuvent être validées"));
 
@@ -292,6 +297,7 @@ public class DepenseController {
 
     // --- Reject ---
     @PostMapping("/{id}/reject")
+    @Transactional
     public ResponseEntity<?> rejectDepense(@PathVariable Long id) {
         org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || auth.getName() == null) return ResponseEntity.status(403).body(java.util.Map.of("error", "Accès refusé"));
@@ -299,7 +305,7 @@ public class DepenseController {
         if (user == null) return ResponseEntity.status(403).body(java.util.Map.of("error", "Accès refusé"));
         if (!isSuperAdmin(user) && !utilisateurService.hasPermission(user, "DEPENSE_VALIDATION")) return ResponseEntity.status(403).body(java.util.Map.of("error", "Permission DEPENSE_VALIDATION requise"));
 
-        return depenseService.findById(id)
+        return depenseRepository.findByIdForUpdate(id)
                 .map(depense -> {
                     if (depense.getStatus() != com.smboutique.api.model.DepenseStatus.EN_ATTENTE) {
                         return ResponseEntity.status(400).body(java.util.Map.of("error", "Seules les dépenses en EN_ATTENTE peuvent être rejetées"));
@@ -356,7 +362,9 @@ public class DepenseController {
         String reason = body != null ? body.getOrDefault("reason", "Annulation dépense") : "Annulation dépense";
 
         try {
-            Depense dep = depenseService.findById(id).orElse(null);
+            // Lock the dépense row first: two concurrent cancel calls for the same
+            // dépense must not both pass the VALIDEE check and each re-credit the caisse.
+            Depense dep = depenseRepository.findByIdForUpdate(id).orElse(null);
             if (dep == null) return ResponseEntity.notFound().build();
             if (dep.getStatus() != com.smboutique.api.model.DepenseStatus.VALIDEE) return ResponseEntity.badRequest().body(java.util.Map.of("error", "Seules les dépenses validées peuvent être annulées"));
 

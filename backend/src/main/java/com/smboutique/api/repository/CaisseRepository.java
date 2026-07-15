@@ -15,6 +15,9 @@ public interface CaisseRepository extends JpaRepository<Caisse, Long> {
     // Find the most recent caisse for a boutique (useful to determine the active register)
     Optional<Caisse> findFirstByBoutiqueIdOrderByIdDesc(Long boutiqueId);
 
+    // All caisses for a boutique (used to enforce at most one OUVERTE caisse per boutique)
+    java.util.List<Caisse> findAllByBoutiqueId(Long boutiqueId);
+
     // Find caisse by its reference (numero string)
     Optional<Caisse> findByReference(String reference);
 

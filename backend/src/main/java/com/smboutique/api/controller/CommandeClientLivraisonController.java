@@ -105,7 +105,8 @@ public class CommandeClientLivraisonController {
                     if (!orderedInConditionnement) {
                         throw new RuntimeException("La ligne '" + (lcc.getProduit() != null ? lcc.getProduit().getNomProduit() : "") + "' a été commandée en unité (U). Veuillez livrer en U.");
                     }
-                    int mul = lcc.getProduit() != null && lcc.getProduit().getNombreUnitesParConditionnement() != null ? lcc.getProduit().getNombreUnitesParConditionnement() : 1;
+                    int mul = lcc.getEmballage() != null ? lcc.getEmballage().getNombreUnites()
+                            : (lcc.getProduit() != null && lcc.getProduit().getNombreUnitesParConditionnement() != null ? lcc.getProduit().getNombreUnitesParConditionnement() : 1);
                     requestedUnits = lr.quantiteConditionnement * mul;
                 }
                 if (available < requestedUnits) throw new RuntimeException("Stock insuffisant pour le produit " + (lcc.getProduit() != null ? lcc.getProduit().getId() : ""));
@@ -131,7 +132,8 @@ public class CommandeClientLivraisonController {
                     if (!orderedInConditionnement) {
                         throw new RuntimeException("La ligne '" + (lcc.getProduit() != null ? lcc.getProduit().getNomProduit() : "") + "' a été commandée en unité (U). Veuillez livrer en U.");
                     }
-                    int mul = lcc.getProduit() != null && lcc.getProduit().getNombreUnitesParConditionnement() != null ? lcc.getProduit().getNombreUnitesParConditionnement() : 1;
+                    int mul = lcc.getEmballage() != null ? lcc.getEmballage().getNombreUnites()
+                            : (lcc.getProduit() != null && lcc.getProduit().getNombreUnitesParConditionnement() != null ? lcc.getProduit().getNombreUnitesParConditionnement() : 1);
                     qtyUnits = lr.quantiteConditionnement * mul;
                 }
 
@@ -149,6 +151,7 @@ public class CommandeClientLivraisonController {
                 ligneLivraison.setLivraison(savedLiv);
                 ligneLivraison.setQuantiteRecu(qtyUnits);
                 ligneLivraison.setProduit(lcc.getProduit());
+                ligneLivraison.setEmballage(lcc.getEmballage());
                 ligneLivraisonService.save(ligneLivraison);
 
                 // update qte_livre on ligne commande client

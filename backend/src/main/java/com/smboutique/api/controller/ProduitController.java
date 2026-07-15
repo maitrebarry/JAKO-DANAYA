@@ -473,6 +473,24 @@ public class ProduitController {
                             }
                         }
                         List<Stock> existingStocks = stockService.getStocksByProduit(saved.getId());
+                        // Never silently delete a magasin-level stock row that still holds
+                        // quantity: that would destroy real inventory with no movement log
+                        // and no way back. Require the stock to be emptied (via Transfert)
+                        // before it can be unassigned.
+                        List<String> blockedMagasins = new java.util.ArrayList<>();
+                        for (Stock st : existingStocks) {
+                            if (st.getMagasin() != null && !magasinIds.contains(st.getMagasin().getId())) {
+                                Integer qty = st.getQuantiteDisponible();
+                                if (qty != null && qty > 0) {
+                                    blockedMagasins.add((st.getMagasin().getNom() != null ? st.getMagasin().getNom() : ("#" + st.getMagasin().getId())) + " (" + qty + ")");
+                                }
+                            }
+                        }
+                        if (!blockedMagasins.isEmpty()) {
+                            java.util.Map<String, Object> err = new java.util.HashMap<>();
+                            err.put("error", "Impossible de désassigner un magasin dont le stock n'est pas vide. Transférez d'abord la quantité restante : " + String.join(", ", blockedMagasins));
+                            return ResponseEntity.badRequest().body(err);
+                        }
                         for (Stock st : existingStocks) {
                             if (st.getMagasin() != null && !magasinIds.contains(st.getMagasin().getId())) {
                                 stockService.deleteStock(st.getId());
@@ -609,11 +627,19 @@ public class ProduitController {
                 .collect(Collectors.toList());
             produit.setMagasinStocks(magasinStocks);
 
-            Integer quantiteDisponible = produit.getStocks().stream()
-                    .map(stock -> stock.getQuantiteDisponible())
-                    .filter(Objects::nonNull)
-                    .findFirst()
-                    .orElse(null);
+            // Sum across every stock row (boutique-level + all assigned magasins): a
+            // product split across several magasins must report its total quantity,
+            // not just whichever row the stream happens to return first — that arbitrary
+            // pick was undercounting stock for any multi-magasin product, which fed into
+            // low-stock alerts, product detail views, and the "bénéfice boutique" estimate.
+            boolean hasAnyQuantity = produit.getStocks().stream().anyMatch(stock -> stock.getQuantiteDisponible() != null);
+            Integer quantiteDisponible = hasAnyQuantity
+                    ? produit.getStocks().stream()
+                        .map(stock -> stock.getQuantiteDisponible())
+                        .filter(Objects::nonNull)
+                        .mapToInt(Integer::intValue)
+                        .sum()
+                    : null;
 
             if (quantiteDisponible != null) {
                 Integer nbUnitesParConditionnement = produit.getNombreUnitesParConditionnement();

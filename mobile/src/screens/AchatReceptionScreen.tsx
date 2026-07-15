@@ -93,6 +93,7 @@ export default function AchatReceptionScreen() {
           remainingUnits,
           multiplicateur: Number.isFinite(multiplicateur) && multiplicateur > 0 ? multiplicateur : 1,
           unitLabel: (l?.unite?.libelle || l?.unite?.symbole || 'unité').toString(),
+          idEmballage: l?.idEmballage ?? undefined,
         };
       });
     return list;
@@ -230,6 +231,7 @@ export default function AchatReceptionScreen() {
           l.multiplicateur > 1 && l.receivedUnits % l.multiplicateur === 0
             ? Math.floor(l.receivedUnits / l.multiplicateur)
             : null,
+        idEmballage: l.idEmballage ?? null,
       })),
     };
 

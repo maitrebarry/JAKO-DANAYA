@@ -20,6 +20,7 @@ type TransferStock = {
   prixAchat?: number;
   prixDetail?: number;
   prixGros?: number;
+  emballages: any[];
 };
 
 function normalizeStock(s: any): TransferStock | null {
@@ -34,7 +35,21 @@ function normalizeStock(s: any): TransferStock | null {
     prixAchat: s?.prixAchat ?? s?.produit?.prixAchat,
     prixDetail: s?.prixDetail ?? s?.produit?.prixDetail,
     prixGros: s?.prixGros ?? s?.prixEnGros ?? s?.produit?.prixEnGros,
+    emballages: Array.isArray(s?.produit?.emballages) ? s.produit.emballages : [],
   };
+}
+
+function defaultEmballageId(s: TransferStock): number | undefined {
+  const def = (s.emballages || []).find((e: any) => e.estParDefaut);
+  return def ? def.id : undefined;
+}
+
+function multiplierFor(s: TransferStock, idEmballage?: number): number {
+  if (idEmballage != null) {
+    const chosen = (s.emballages || []).find((e: any) => e.id === idEmballage);
+    if (chosen) return Number(chosen.nombreUnites) || 1;
+  }
+  return s.multiplicateur;
 }
 
 export default function StockTransferScreen() {
@@ -57,6 +72,7 @@ export default function StockTransferScreen() {
   const [quantities, setQuantities] = useState<Record<number, string>>({});
   const [isCond, setIsCond] = useState<Record<number, boolean>>({});
   const [condQuantities, setCondQuantities] = useState<Record<number, string>>({});
+  const [emballageChoice, setEmballageChoice] = useState<Record<number, number>>({});
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -106,7 +122,7 @@ export default function StockTransferScreen() {
   const effectiveQty = (s: TransferStock): number => {
     if (isCond[s.produitId]) {
       const cq = Number(condQuantities[s.produitId] || 0);
-      return cq * s.multiplicateur;
+      return cq * multiplierFor(s, emballageChoice[s.produitId]);
     }
     return Number(quantities[s.produitId] || 0);
   };
@@ -129,10 +145,14 @@ export default function StockTransferScreen() {
 
   const toggleSelected = (id: number) => setSelected((prev) => ({ ...prev, [id]: !prev[id] }));
 
-  const buildItems = (): { produitId: number; quantite?: number; quantiteConditionnement?: number }[] => {
+  const buildItems = (): { produitId: number; quantite?: number; quantiteConditionnement?: number; idEmballage?: number }[] => {
     return selectedItems.map((s) => {
       if (isCond[s.produitId]) {
-        return { produitId: s.produitId, quantiteConditionnement: Number(condQuantities[s.produitId] || 0) };
+        return {
+          produitId: s.produitId,
+          quantiteConditionnement: Number(condQuantities[s.produitId] || 0),
+          idEmballage: emballageChoice[s.produitId],
+        };
       }
       return { produitId: s.produitId, quantite: Number(quantities[s.produitId] || 0) };
     });
@@ -146,6 +166,9 @@ export default function StockTransferScreen() {
       const qty = effectiveQty(s);
       if (!qty || qty <= 0) return `Quantité invalide pour ${s.nomProduit}`;
       if (qty > s.quantiteDisponible) return `Quantité insuffisante pour ${s.nomProduit} (disponible: ${s.quantiteDisponible})`;
+      if (isCond[s.produitId] && s.emballages.length > 1 && emballageChoice[s.produitId] == null) {
+        return `Veuillez préciser l'emballage pour ${s.nomProduit}`;
+      }
     }
     return null;
   };
@@ -306,16 +329,47 @@ export default function StockTransferScreen() {
                       <Pressable onPress={() => setIsCond((p) => ({ ...p, [item.produitId]: false }))} style={{ flex: 1, backgroundColor: !cond ? theme.primary : theme.surface, borderWidth: 1, borderColor, paddingVertical: 8, borderRadius: 10, alignItems: 'center' }}>
                         <Text style={{ color: theme.text }}>Unités</Text>
                       </Pressable>
-                      <Pressable onPress={() => setIsCond((p) => ({ ...p, [item.produitId]: true }))} style={{ flex: 1, backgroundColor: cond ? theme.primary : theme.surface, borderWidth: 1, borderColor, paddingVertical: 8, borderRadius: 10, alignItems: 'center' }}>
+                      <Pressable
+                        onPress={() => {
+                          setIsCond((p) => ({ ...p, [item.produitId]: true }));
+                          setEmballageChoice((p) => (p[item.produitId] != null ? p : { ...p, [item.produitId]: defaultEmballageId(item) as number }));
+                        }}
+                        style={{ flex: 1, backgroundColor: cond ? theme.primary : theme.surface, borderWidth: 1, borderColor, paddingVertical: 8, borderRadius: 10, alignItems: 'center' }}
+                      >
                         <Text style={{ color: theme.text }}>Par cond.</Text>
                       </Pressable>
                     </View>
+                    {cond && item.emballages.length > 1 ? (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                        {item.emballages.map((e: any) => {
+                          const selected = emballageChoice[item.produitId] === e.id;
+                          return (
+                            <Pressable
+                              key={e.id}
+                              onPress={() => setEmballageChoice((p) => ({ ...p, [item.produitId]: e.id }))}
+                              style={{
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 10,
+                                backgroundColor: selected ? theme.primary : theme.surface,
+                                borderWidth: 1,
+                                borderColor: selected ? theme.primary : borderColor,
+                              }}
+                            >
+                              <Text style={{ color: theme.text, fontWeight: '700' }}>
+                                {e.uniteLibelle} ({e.nombreUnites}u)
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    ) : null}
                     {cond ? (
                       <TextInput
                         value={condQuantities[item.produitId] || ''}
                         onChangeText={(v) => setCondQuantities((p) => ({ ...p, [item.produitId]: v.replace(/[^0-9]/g, '') }))}
                         keyboardType="numeric"
-                        placeholder="Qté conditionnements"
+                        placeholder="Qté emballages"
                         placeholderTextColor={theme.muted}
                         style={{ backgroundColor: theme.surface, borderRadius: 10, padding: 10, color: theme.text, borderWidth: 1, borderColor }}
                       />

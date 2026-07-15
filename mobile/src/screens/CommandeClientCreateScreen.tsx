@@ -37,6 +37,7 @@ type CartLine = {
   venteParConditionnement: boolean;
   quantite: string; // units
   quantiteConditionnement: string; // cartons
+  idEmballage?: number; // which emballage (carton, sac...) was picked, when the product has 2+
   prixUnit: string; // digits-only string
   priceMode: 'DETAIL' | 'GROS';
 };
@@ -63,10 +64,24 @@ function parseIntFromDigits(digitsOrFormatted: string) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function packMultiplier(stock: any) {
+function packMultiplier(stock: any, idEmballage?: number) {
+  const embList = stock?.produit?.emballages;
+  if (idEmballage != null && Array.isArray(embList)) {
+    const chosen = embList.find((e: any) => e.id === idEmballage);
+    if (chosen) return Number(chosen.nombreUnites) || 1;
+  }
   const raw = stock?.produit?.nombreUnitesParConditionnement;
   const n = Number(raw);
   return Number.isFinite(n) && n > 1 ? n : 1;
+}
+
+function emballageList(stock: any): any[] {
+  return Array.isArray(stock?.produit?.emballages) ? stock.produit.emballages : [];
+}
+
+function defaultEmballageId(stock: any): number | undefined {
+  const def = emballageList(stock).find((e: any) => e.estParDefaut);
+  return def ? def.id : undefined;
 }
 
 function stockLabel(s: any) {
@@ -584,7 +599,7 @@ export default function CommandeClientCreateScreen() {
   const total = useMemo(() => {
     return (lines || []).reduce((sum, l) => {
       const stock = stockById.get(l.stockId);
-      const mult = packMultiplier(stock);
+      const mult = packMultiplier(stock, l.idEmballage);
       const qUnits = parseIntFromDigits(l.quantite);
       const qCond = parseIntFromDigits(l.quantiteConditionnement);
       const realQ = l.venteParConditionnement ? Math.max(0, qCond) * mult : Math.max(0, qUnits);
@@ -608,6 +623,7 @@ export default function CommandeClientCreateScreen() {
             venteParConditionnement: false,
             quantite: '1',
             quantiteConditionnement: '1',
+            idEmballage: defaultEmballageId(stock),
             prixUnit: String(Math.max(0, Number(price || 0)) || 0),
             priceMode,
           },
@@ -639,7 +655,7 @@ export default function CommandeClientCreateScreen() {
   const updateLine = useCallback(
     (
       stockId: number,
-      patch: Partial<Pick<CartLine, 'quantite' | 'quantiteConditionnement' | 'prixUnit' | 'venteParConditionnement' | 'priceMode'>>
+      patch: Partial<Pick<CartLine, 'quantite' | 'quantiteConditionnement' | 'prixUnit' | 'venteParConditionnement' | 'priceMode' | 'idEmballage'>>
     ) => {
       setLines((prev) => (prev || []).map((l) => (l.stockId === stockId ? { ...l, ...patch } : l)));
     },
@@ -656,12 +672,13 @@ export default function CommandeClientCreateScreen() {
     // require qty > 0 and price >= 0
     for (const l of lines) {
       const stock = stockById.get(l.stockId);
-      const mult = packMultiplier(stock);
+      const mult = packMultiplier(stock, l.idEmballage);
       const qUnits = parseIntFromDigits(l.quantite);
       const qCond = parseIntFromDigits(l.quantiteConditionnement);
       const realQ = l.venteParConditionnement ? qCond * mult : qUnits;
       if (!realQ || realQ <= 0) return false;
       if (parseIntFromDigits(l.prixUnit) < 0) return false;
+      if (l.venteParConditionnement && emballageList(stock).length > 1 && l.idEmballage == null) return false;
     }
     return !submitting;
   }, [token, access.ventesCreate, reference, selectedClient, lines, total, submitting, stockById]);
@@ -693,7 +710,7 @@ export default function CommandeClientCreateScreen() {
 
     const produitsSelectionnes: CommandeClientLinePayload[] = lines.map((l) => {
       const stock = stockById.get(l.stockId);
-      const mult = packMultiplier(stock);
+      const mult = packMultiplier(stock, l.idEmballage);
       const qUnits = parseIntFromDigits(l.quantite);
       const qCond = parseIntFromDigits(l.quantiteConditionnement);
       const realQ = l.venteParConditionnement ? qCond * mult : qUnits;
@@ -702,6 +719,7 @@ export default function CommandeClientCreateScreen() {
         quantite: realQ,
         venteParConditionnement: !!l.venteParConditionnement,
         quantiteConditionnement: l.venteParConditionnement ? qCond : null,
+        id_emballage: l.venteParConditionnement ? l.idEmballage : undefined,
         prix: parseIntFromDigits(l.prixUnit),
         priceMode: l.priceMode,
       };
@@ -1028,7 +1046,8 @@ export default function CommandeClientCreateScreen() {
           ) : (
             lines.map((l) => {
               const stock = stockById.get(l.stockId);
-              const mult = packMultiplier(stock);
+              const mult = packMultiplier(stock, l.idEmballage);
+              const embList = emballageList(stock);
               const available = stock?.quantiteDisponible != null ? Number(stock.quantiteDisponible) : null;
               const qUnits = parseIntFromDigits(l.quantite);
               const qCond = parseIntFromDigits(l.quantiteConditionnement);
@@ -1081,7 +1100,7 @@ export default function CommandeClientCreateScreen() {
                         </Text>
                       </Pressable>
                       <Pressable
-                        onPress={() => updateLine(l.stockId, { venteParConditionnement: true })}
+                        onPress={() => updateLine(l.stockId, { venteParConditionnement: true, idEmballage: l.idEmballage ?? defaultEmballageId(stock) })}
                         style={{
                           flex: 1,
                           backgroundColor: l.venteParConditionnement ? theme.primary : theme.surface,
@@ -1098,6 +1117,32 @@ export default function CommandeClientCreateScreen() {
                       </Pressable>
                     </View>
                   ) : null}
+
+                  {l.venteParConditionnement && embList.length > 1 && (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                      {embList.map((e: any) => {
+                        const selected = l.idEmballage === e.id;
+                        return (
+                          <Pressable
+                            key={e.id}
+                            onPress={() => updateLine(l.stockId, { idEmballage: e.id })}
+                            style={{
+                              paddingHorizontal: 12,
+                              paddingVertical: 8,
+                              borderRadius: 12,
+                              backgroundColor: selected ? theme.primary : theme.surface,
+                              borderWidth: 1,
+                              borderColor: selected ? theme.primary : (theme.isDark ? '#1f2937' : '#e5e7eb'),
+                            }}
+                          >
+                            <Text style={{ color: selected ? '#fff' : theme.text, fontWeight: '700' }}>
+                              {e.uniteLibelle} ({e.nombreUnites}u)
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  )}
 
                   <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
                     <View style={{ flex: 1 }}>

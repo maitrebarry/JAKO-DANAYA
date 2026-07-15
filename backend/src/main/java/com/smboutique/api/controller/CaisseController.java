@@ -64,6 +64,17 @@ public class CaisseController {
             }
             if (caisse.getBoutique() == null || caisse.getBoutique().getId() == null) return ResponseEntity.badRequest().build();
             Long bid = caisse.getBoutique().getId();
+
+            // Enforce at most one OUVERTE caisse per boutique: a stale/racy client (double
+            // submit, multiple tabs) must not be able to open a second register — new sales
+            // are always credited to the most-recently-created caisse, so a second open caisse
+            // would silently orphan the balance of the first one.
+            boolean alreadyOpen = caisseRepository.findAllByBoutiqueId(bid).stream()
+                    .anyMatch(c -> c.getStatut() != null && "OUVERTE".equalsIgnoreCase(c.getStatut().trim()));
+            if (alreadyOpen) {
+                return ResponseEntity.status(409).build();
+            }
+
             Integer max = caisseRepository.findMaxNumeroByBoutiqueId(bid);
             int next = (max == null) ? 1 : (max + 1);
             caisse.setNumero(next);

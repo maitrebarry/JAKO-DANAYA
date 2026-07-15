@@ -14,6 +14,10 @@ public interface InventaireRepository extends JpaRepository<Inventaire, Long> {
     java.util.List<Inventaire> findByBoutiqueId(Long boutiqueId);
     boolean existsByBoutiqueIdAndRegulariserFalse(Long boutiqueId);
 
+    // Only a boutique-scoped active inventaire (magasin IS NULL) blocks ventes/réceptions on
+    // the boutique's own stock — an active magasin inventaire never touches boutique stock.
+    boolean existsByBoutiqueIdAndMagasinIsNullAndRegulariserFalse(Long boutiqueId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select i from Inventaire i where i.id = :id")
     java.util.Optional<Inventaire> findByIdForUpdate(@Param("id") Long id);

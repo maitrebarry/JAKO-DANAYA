@@ -20,6 +20,7 @@ const UtilisationsPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [magasins, setMagasins] = useState<any[]>([]);
   const [magasinFilter, setMagasinFilter] = useState<number | ''>('');
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const fetchList = async () => {
     if (!canRead && !canCreate) return; // no permission to view
@@ -36,6 +37,7 @@ const UtilisationsPage: React.FC = () => {
   };
 
   const handleDelete = async (it: any) => {
+    if (deletingId !== null) return;
     const r = await Swal.fire({
       title: 'Confirmer la suppression',
       text: 'Cette action est irréversible. Supprimer cette utilisation/perte ?',
@@ -47,6 +49,7 @@ const UtilisationsPage: React.FC = () => {
     });
     if (!r.isConfirmed) return;
 
+    setDeletingId(it.id);
     try {
       const res = await fetch(`${API_BASE}/mouvements/${it.id}`, { method: 'DELETE', headers: AUTH_HEADER() });
       if (!res.ok) {
@@ -59,6 +62,8 @@ const UtilisationsPage: React.FC = () => {
       console.error(e);
       setError(String(e.message || e));
       Swal.fire('Erreur', e && e.message ? e.message : 'Erreur suppression', 'error');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -217,7 +222,8 @@ const UtilisationsPage: React.FC = () => {
                       ) : null}
 
                       {canDelete ? (
-                        <button title="Supprimer" className="btn btn-sm btn-outline-danger" onClick={async () => {
+                        <button title="Supprimer" className="btn btn-sm btn-outline-danger" disabled={deletingId === it.id} onClick={async () => {
+                          if (deletingId !== null) return;
                           // prefer deleting via utilisation_pertes if linked
                           if (it.mouvementId) {
                             const r = await fetch(`${API_BASE}/utilisation-pertes/mouvement/${it.mouvementId}`, { headers: AUTH_HEADER() });
@@ -234,10 +240,17 @@ const UtilisationsPage: React.FC = () => {
                                 reverseButtons: true,
                               });
                               if (!resp.isConfirmed) return;
-                              const del = await fetch(`${API_BASE}/utilisation-pertes/${up.id}`, { method: 'DELETE', headers: AUTH_HEADER() });
-                              if (!del.ok) { const txt = await del.text(); throw new Error(txt || 'Erreur suppression'); }
-                              await Swal.fire('Succès', 'Utilisation supprimée', 'success');
-                              fetchList();
+                              setDeletingId(it.id);
+                              try {
+                                const del = await fetch(`${API_BASE}/utilisation-pertes/${up.id}`, { method: 'DELETE', headers: AUTH_HEADER() });
+                                if (!del.ok) { const txt = await del.text(); throw new Error(txt || 'Erreur suppression'); }
+                                await Swal.fire('Succès', 'Utilisation supprimée', 'success');
+                                fetchList();
+                              } catch (e: any) {
+                                Swal.fire('Erreur', e && e.message ? e.message : 'Erreur suppression', 'error');
+                              } finally {
+                                setDeletingId(null);
+                              }
                               return;
                             }
                           }

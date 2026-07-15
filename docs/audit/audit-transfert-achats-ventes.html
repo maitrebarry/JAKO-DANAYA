@@ -1,0 +1,361 @@
+<title>Audit — Produits, Achats, Ventes | JAKO-DANAYA</title>
+<style>
+  :root{
+    --bg:#F5F6F8; --surface:#FFFFFF; --surface-2:#FAFBFC;
+    --ink:#1B2430; --ink-muted:#5C6B7A;
+    --accent:#2C5F8A; --accent-soft:#E7F0F8;
+    --critical:#B3261E; --critical-soft:#FBEAE9;
+    --high:#B36B00; --high-soft:#FBF0E0;
+    --medium:#7A6A00; --medium-soft:#F8F3D9;
+    --low:#3B6E42; --low-soft:#E9F3EA;
+    --fixed:#1E7B34; --fixed-soft:#E7F5EA;
+    --line:#DDE3E9;
+    --serif: Iowan Old Style, "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#10151C; --surface:#171F29; --surface-2:#1B2430;
+      --ink:#E8EDF2; --ink-muted:#93A4B5;
+      --accent:#7FB0DA; --accent-soft:#1C2A38;
+      --critical:#FF6B61; --critical-soft:#2E1917;
+      --high:#E0A857; --high-soft:#2B2114;
+      --medium:#D8C84A; --medium-soft:#2A2712;
+      --low:#7FCB8B; --low-soft:#132018;
+      --fixed:#6FCB86; --fixed-soft:#122A18;
+      --line:#2A3644;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#10151C; --surface:#171F29; --surface-2:#1B2430; --ink:#E8EDF2; --ink-muted:#93A4B5;
+    --accent:#7FB0DA; --accent-soft:#1C2A38; --critical:#FF6B61; --critical-soft:#2E1917;
+    --high:#E0A857; --high-soft:#2B2114; --medium:#D8C84A; --medium-soft:#2A2712;
+    --low:#7FCB8B; --low-soft:#132018; --fixed:#6FCB86; --fixed-soft:#122A18; --line:#2A3644;
+  }
+  :root[data-theme="light"]{
+    --bg:#F5F6F8; --surface:#FFFFFF; --surface-2:#FAFBFC; --ink:#1B2430; --ink-muted:#5C6B7A;
+    --accent:#2C5F8A; --accent-soft:#E7F0F8; --critical:#B3261E; --critical-soft:#FBEAE9;
+    --high:#B36B00; --high-soft:#FBF0E0; --medium:#7A6A00; --medium-soft:#F8F3D9;
+    --low:#3B6E42; --low-soft:#E9F3EA; --fixed:#1E7B34; --fixed-soft:#E7F5EA; --line:#DDE3E9;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased;}
+  .page{max-width:900px;margin:0 auto;padding:56px 26px 96px;}
+
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:8px;}
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--critical);}
+  h1{font-family:var(--serif);font-weight:600;font-size:clamp(26px,4vw,36px);line-height:1.15;margin:12px 0 8px;text-wrap:balance;}
+  .subtitle{font-size:15.5px;color:var(--ink-muted);max-width:66ch;margin:0 0 20px;}
+  .metaline{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:13px;color:var(--ink-muted);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:11px 0;margin-bottom:30px;font-variant-numeric:tabular-nums;}
+  .metaline b{color:var(--ink);font-weight:600;}
+
+  section{margin-bottom:44px;}
+  h2{font-family:var(--serif);font-size:21px;font-weight:600;margin:0 0 6px;letter-spacing:-.005em;}
+  .section-intro{color:var(--ink-muted);max-width:70ch;margin:0 0 18px;font-size:14.5px;}
+
+  /* summary table */
+  .summary{width:100%;border-collapse:collapse;font-size:13.5px;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  .summary th{text-align:left;background:var(--surface-2);color:var(--ink-muted);font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;padding:9px 12px;border-bottom:1px solid var(--line);}
+  .summary td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;}
+  .summary tr:last-child td{border-bottom:none;}
+  .summary a{color:var(--accent);text-decoration:none;}
+  .summary a:hover{text-decoration:underline;}
+
+  .pill{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;border-radius:5px;padding:2.5px 7px;white-space:nowrap;}
+  .pill.critical{background:var(--critical-soft);color:var(--critical);}
+  .pill.high{background:var(--high-soft);color:var(--high);}
+  .pill.medium{background:var(--medium-soft);color:var(--medium);}
+  .pill.low{background:var(--low-soft);color:var(--low);}
+  .pill.fixed{background:var(--fixed-soft);color:var(--fixed);}
+
+  /* finding cards */
+  .finding{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px 24px;margin-bottom:18px;scroll-margin-top:20px;}
+  .finding-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:4px;}
+  .finding-num{font-family:var(--mono);font-size:12px;color:var(--ink-muted);}
+  .finding h3{font-family:var(--serif);font-size:17.5px;font-weight:600;margin:6px 0 12px;}
+  .finding .module{font-family:var(--mono);font-size:11px;color:var(--ink-muted);margin-bottom:14px;}
+  .finding p{font-size:14.5px;margin:0 0 10px;}
+  .finding .block-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-muted);margin:14px 0 5px;}
+  .finding pre{background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:10px 12px;font-family:var(--mono);font-size:12px;overflow-x:auto;margin:0 0 10px;color:var(--ink);}
+  .finding code{font-family:var(--mono);font-size:12.5px;background:var(--surface-2);padding:1px 5px;border-radius:4px;}
+  .proof{background:var(--fixed-soft);border-left:3px solid var(--fixed);border-radius:0 7px 7px 0;padding:10px 14px;font-size:13.5px;margin:10px 0;}
+  .proof b{color:var(--fixed);}
+  .filepath{font-family:var(--mono);font-size:12px;color:var(--accent);}
+
+  .pattern-box{background:var(--medium-soft);border:1px solid var(--line);border-left:3px solid var(--medium);border-radius:0 10px 10px 0;padding:16px 20px;margin:14px 0 0;}
+  .pattern-box h4{margin:0 0 8px;font-size:14.5px;font-family:var(--serif);}
+  .pattern-box ul{margin:8px 0 0;padding-left:20px;font-size:13.5px;}
+  .pattern-box li{margin-bottom:4px;}
+
+  .reco{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin-bottom:10px;}
+  .reco h4{margin:0 0 4px;font-size:14.5px;font-family:var(--serif);}
+  .reco p{margin:0;font-size:13.5px;color:var(--ink-muted);}
+
+  footer{border-top:1px solid var(--line);padding-top:20px;font-size:12.5px;color:var(--ink-muted);}
+  footer .path{font-family:var(--mono);background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--ink);}
+
+  @media (max-width:640px){
+    .page{padding:36px 16px 72px;}
+    .summary{display:block;overflow-x:auto;}
+  }
+</style>
+
+<div class="page">
+
+  <div class="eyebrow"><span class="dot"></span>JAKO-DANAYA · Audit technique</div>
+  <h1>Audit — Produits, Transferts, Achats &amp; Ventes</h1>
+  <p class="subtitle">Vérification du code des modules Transfert, Achats/Réception, Vente en espèce, Commande client, Caisse, Dépenses, Utilisations/Pertes et Produits, avec reproduction réelle des anomalies sur l'environnement de développement (compte Amadou Bocoum, boutique BOCOUM-SERVICE) avant correction.</p>
+  <div class="metaline">
+    <span><b>13</b> anomalies confirmées et corrigées</span>
+    <span><b>2</b> critiques</span>
+    <span><b>8</b> modules couverts</span>
+    <span>Méthode : lecture de code + reproduction réelle + correctif + re-test</span>
+  </div>
+
+  <section>
+    <h2>Résumé</h2>
+    <p class="section-intro">Chaque anomalie listée ci-dessous a été reproduite sur des données réelles (pas seulement déduite du code), corrigée, puis re-testée pour confirmer le correctif. Les données de test ont été supprimées après chaque vérification. L'audit a été mené en deux vagues : la première couvre Transfert / Achats / Ventes / Commande client (n°1 à 7), la seconde étend la même méthode à Caisse, Dépenses, Utilisations/Pertes et Produits (n°8 à 13).</p>
+    <div style="overflow-x:auto;">
+    <table class="summary">
+      <tr><th>#</th><th>Anomalie</th><th>Module</th><th>Gravité</th><th>Statut</th></tr>
+      <tr><td>1</td><td><a href="#f1">Réception → marge de vente écrasée</a></td><td>Achats</td><td><span class="pill critical">Critique</span></td><td><span class="pill fixed">Corrigé</span></td></tr>
+      <tr><td>2</td><td><a href="#f2">Montant de vente falsifiable</a></td><td>Vente / Commande client</td><td><span class="pill critical">Critique</span></td><td><span class="pill fixed">Corrigé</span></td></tr>
+      <tr><td>3</td><td><a href="#f3">Paiement fournisseur sans verrou ni transaction</a></td><td>Achats</td><td><span class="pill high">Élevée</span></td><td><span class="pill fixed">Corrigé</span></td></tr>
+      <tr><td>4</td><td><a href="#f4">Paiement client sans verrou</a></td><td>Commande client</td><td><span class="pill high">Élevée</span></td><td><span class="pill fixed">Corrigé</span></td></tr>
+      <tr><td>5</td><td><a href="#f5">6 boutons non protégés contre le double-clic</a></td><td>Transfert / Achats / Ventes</td><td><span class="pill medium">Moyenne</span></td><td><span class="pill fixed">Corrigé</span></td></tr>
+      <tr><td>6</td><td><a href="#f6">Livraison client sans plafond de quantité</a></td><td>Commande client</td><td><span class="pill low">Faible</span></td><td><span class="pill low">Observation</span></td></tr>
+      <tr><td>7</td><td><a href="#f7">Endpoint de paiement générique non validé</a></td><td>Commande client</td><td><span class="pill low">Faible</span></td><td><span class="pill low">Observation</span></td></tr>
+      <tr><td>8</td><td><a href="#f8">Deux caisses ouvertes simultanément pour une même boutique</a></td><td>Caisse</td><td><span class="pill high">Élevée</span></td><td><span class="pill fixed">Corrigé</span></td></tr>
+      <tr><td>9</td><td><a href="#f9">Validation / annulation de dépense sans verrou</a></td><td>Dépenses</td><td><span class="pill high">Élevée</span></td><td><span class="pill fixed">Corrigé</span></td></tr>
+      <tr><td>10</td><td><a href="#f10">Modification d'une utilisation/perte sans verrou</a></td><td>Utilisations/Pertes</td><td><span class="pill high">Élevée</span></td><td><span class="pill fixed">Corrigé</span></td></tr>
+      <tr><td>11</td><td><a href="#f11">Désassignation d'un magasin effaçant son stock</a></td><td>Produits</td><td><span class="pill high">Élevée</span></td><td><span class="pill fixed">Corrigé</span></td></tr>
+      <tr><td>12</td><td><a href="#f12">Quantité de stock sous-comptée pour les produits multi-magasins</a></td><td>Produits</td><td><span class="pill medium">Moyenne</span></td><td><span class="pill fixed">Corrigé</span></td></tr>
+      <tr><td>13</td><td><a href="#f13">6 boutons supplémentaires non protégés contre le double-clic</a></td><td>Caisse / Dépenses / Utilisations / Produits / Configuration</td><td><span class="pill medium">Moyenne</span></td><td><span class="pill fixed">Corrigé</span></td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Anomalies critiques</h2>
+
+    <div class="finding" id="f1">
+      <div class="finding-head"><span class="finding-num">01</span><span class="pill critical">Critique</span><span class="pill fixed">Corrigé</span></div>
+      <h3>Chaque réception sur un stock boutique effaçait la marge du produit</h3>
+      <div class="module">Module Achats — <span class="filepath">ReceptionController.java</span> → <code>updateProductPricing()</code></div>
+      <p>Le calcul de la marge de vente après une réception cherchait la configuration de marge de la boutique uniquement via <code>stock.getMagasin().getBoutique()</code>. Or la très large majorité des réceptions portent sur un <b>stock boutique</b> (pas un stock de magasin), pour lequel <code>stock.getMagasin()</code> vaut <code>null</code> — la boutique s'obtient alors directement via <code>stock.getBoutique()</code>, jamais consultée. Sans configuration de marge trouvée, le code appliquait une marge nulle : <code>prixEnGros = prixDetail = coût d'achat</code>.</p>
+      <div class="block-label">Conséquence</div>
+      <p>Après chaque réception normale, les prix de vente du produit reçu retombaient au prix d'achat (marge à 0), jusqu'à ce qu'un utilisateur remarque le problème et corrige manuellement les prix.</p>
+      <div class="block-label">Preuve (reproduite avant correctif)</div>
+      <div class="proof">Produit « Cote D'or » — avant réception : <b>Prix gros 450 / Prix détail 850</b> (marges 300 / 700). Réception de 10 unités au même prix fournisseur (150, donc CMP inchangé) → après réception : <b>Prix gros 150 / Prix détail 150</b> (marges 0 / 0).</div>
+      <div class="block-label">Correctif</div>
+      <p>La résolution de la boutique retombe désormais sur <code>stock.getBoutique()</code> quand le stock n'appartient à aucun magasin.</p>
+      <div class="block-label">Re-test après correctif</div>
+      <div class="proof">Même scénario rejoué : <b>Prix gros 450 / Prix détail 850</b> conservés après réception. ✔</div>
+    </div>
+
+    <div class="finding" id="f2">
+      <div class="finding-head"><span class="finding-num">02</span><span class="pill critical">Critique</span><span class="pill fixed">Corrigé</span></div>
+      <h3>Le montant total d'une vente n'était jamais vérifié par le serveur</h3>
+      <div class="module">Modules Vente en espèce &amp; Commande client — <span class="filepath">VenteController.java</span> → <code>createVenteCash()</code> / <code>createVenteFull()</code></div>
+      <p>Le champ <code>total</code> envoyé par l'application (web et mobile, même endpoint) était enregistré tel quel sur la vente et crédité tel quel à la caisse, <b>sans jamais être recalculé ou comparé</b> à la somme réelle (prix × quantité) des lignes vendues.</p>
+      <div class="block-label">Conséquence</div>
+      <p>Une requête contournant l'interface habituelle (navigateur, script) pouvait déclarer n'importe quel montant, sans lien avec les produits réellement vendus — la caisse était créditée de ce montant arbitraire. Cela ouvre un vecteur de fraude à la caisse (déclarer moins que ce qui a été encaissé) aussi bien qu'un risque d'erreur comptable silencieuse en cas de bug côté interface.</p>
+      <div class="block-label">Preuve (reproduite avant correctif)</div>
+      <div class="proof">Vente réelle : 1 unité de « Cote D'or » à 850 F CFA. Montant déclaré : <b>999 999 F CFA</b>. Résultat : vente acceptée à 999 999, caisse créditée de <b>+999 999</b> (passée de 5 588 460 à 6 588 459) au lieu de +850.</div>
+      <div class="block-label">Correctif</div>
+      <p>Le serveur recalcule désormais le total à partir des lignes (<code>Σ prix × quantité</code>) et rejette la requête (400) si le total envoyé ne correspond pas exactement. Appliqué aux deux endpoints partagés par le web et le mobile.</p>
+      <div class="block-label">Re-test après correctif</div>
+      <div class="proof">Même tentative (999 999 F CFA pour une ligne à 850) → <b>rejetée</b> : <code>"Le montant total (999999) ne correspond pas à la somme des lignes vendues (850)"</code>. Une vente avec un total correct (850) est toujours acceptée normalement. ✔</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Anomalies de concurrence (gravité élevée)</h2>
+    <p class="section-intro">Ces deux anomalies ne se déclenchent qu'en cas de double clic ou de deux actions simultanées sur la même commande — mais quand elles se déclenchent, l'argent réellement en caisse se désynchronise de ce que le système croit avoir enregistré.</p>
+
+    <div class="finding" id="f3">
+      <div class="finding-head"><span class="finding-num">03</span><span class="pill high">Élevée</span><span class="pill fixed">Corrigé</span></div>
+      <h3>Paiement fournisseur : aucun verrou, et pas même de transaction</h3>
+      <div class="module">Module Achats — <span class="filepath">CommandeFournisseurController.java</span> → <code>enregistrerPaiement()</code></div>
+      <p>La commande fournisseur était relue sans verrou avant de vérifier <code>payé + montant ≤ total</code>, puis re-sauvegardée. Deux paiements simultanés peuvent lire la même valeur de <code>payé</code>, passer tous les deux le contrôle de dépassement, et le second écrase silencieusement la mise à jour du premier : le fournisseur apparaît moins payé qu'il ne l'est réellement. Fait aggravant : la méthode n'était même pas annotée <code>@Transactional</code>.</p>
+      <div class="block-label">Correctif</div>
+      <p>Ajout d'un verrou pessimiste (<code>findByIdForUpdate</code>, nouvelle méthode sur <span class="filepath">CommandeFournisseurRepository</span>) et ajout de <code>@Transactional</code> sur la méthode.</p>
+    </div>
+
+    <div class="finding" id="f4">
+      <div class="finding-head"><span class="finding-num">04</span><span class="pill high">Élevée</span><span class="pill fixed">Corrigé</span></div>
+      <h3>Paiement client : même défaut de verrou</h3>
+      <div class="module">Module Commande client — <span class="filepath">CommandeClientController.java</span> → <code>enregistrerPaiement()</code></div>
+      <p>Même schéma que le paiement fournisseur : la commande client n'était pas verrouillée pendant la lecture/mise à jour de <code>payé</code>, alors que la caisse, elle, l'était déjà correctement. Deux paiements concurrents créditent bien la caisse deux fois, mais un seul est comptabilisé sur la commande — désynchronisation entre « argent reçu » et « montant dû restant ».</p>
+      <div class="block-label">Correctif</div>
+      <p>Ajout d'un verrou pessimiste (<code>findByIdForUpdate</code>, nouvelle méthode sur <span class="filepath">CommandeClientRepository</span>), verrouillage déplacé après le contrôle de permission pour ne verrouiller que les requêtes autorisées.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Anomalie systémique (gravité moyenne)</h2>
+
+    <div class="finding" id="f5">
+      <div class="finding-head"><span class="finding-num">05</span><span class="pill medium">Moyenne</span><span class="pill fixed">Corrigé</span></div>
+      <h3>Boutons « Transférer / Passer commande / Livrer / Payer / Valider la réception » cliquables pendant leur propre soumission</h3>
+      <p>Le même défaut trouvé et corrigé précédemment sur le bouton « Régulariser » de l'inventaire existait, non corrigé, à six autres endroits du parcours produits → achats → ventes. Dans chaque cas, l'état <code>loading</code> existait déjà dans le composant pour d'autres besoins, mais n'était pas relié au bouton d'action ni activé pendant l'appel réseau du bouton lui-même.</p>
+      <div class="pattern-box">
+        <h4>Les 6 emplacements corrigés</h4>
+        <ul>
+          <li><span class="filepath">Transfert.tsx</span> — bouton « Transférer » par ligne de produit (le bouton groupé, lui, était déjà protégé)</li>
+          <li><span class="filepath">CommandeClientImpl.tsx</span> — bouton « Passer / Modifier la commande »</li>
+          <li><span class="filepath">VenteLivraison.tsx</span> — bouton « Valider » (livraison d'une commande client)</li>
+          <li><span class="filepath">PaiementCommande.tsx</span> — bouton « Enregistrer le paiement » (partagé client + fournisseur)</li>
+          <li><span class="filepath">Reception.tsx</span> — bouton « Valider » (réception fournisseur)</li>
+        </ul>
+      </div>
+      <div class="block-label">Correctif</div>
+      <p>Pour chaque bouton : ajout d'un état <code>submitting</code> dédié, garde en début de fonction (<code>if (submitting) return;</code>), <code>disabled</code> sur le bouton et libération dans un bloc <code>finally</code>. Le bouton « Enregistrer la vente » (vente en espèce) était déjà correctement protégé et n'a pas eu besoin de correction.</p>
+      <div class="block-label">Portée</div>
+      <p>La gravité réelle dépend du module : côté <span class="filepath">Vente en espèce</span> et <span class="filepath">Réception</span>, le serveur verrouille déjà le stock — un double-clic peut donc créer un doublon métier (deux réceptions, deux commandes) mais pas corrompre silencieusement les quantités. Côté <span class="filepath">Commande client</span>, comme le stock n'est décompté qu'à la livraison, un double-clic sur « Passer la commande » créait simplement une commande en double.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Observations non corrigées (recommandations)</h2>
+
+    <div class="reco" id="f6">
+      <h4>6 — Livraison client sans plafond sur la quantité livrée</h4>
+      <p><span class="filepath">CommandeClientLivraisonController.java</span> incrémente <code>ligneCommandeClient.quantiteLivre</code> sans vérifier qu'il ne dépasse pas <code>quantite</code> (la quantité commandée). Le stock reste correct (verrouillé et vérifié), mais rien n'empêche de livrer plus que commandé si l'opérateur se trompe ou répète l'appel. À encadrer par un contrôle <code>quantiteLivre + qtyUnits ≤ quantite</code> si ce n'est pas une politique volontaire de sur-livraison.</p>
+    </div>
+
+    <div class="reco" id="f7">
+      <h4>7 — Endpoint <code>POST /api/paiements-clients</code> sans validation métier</h4>
+      <p><span class="filepath">PaiementClientController.createPaiementClient()</span> sauvegarde l'entité reçue telle quelle (aucune vérification de montant, aucune mise à jour de la caisse ni du solde de la commande). L'application web et mobile passent toutes les deux par <code>/api/commandes-clients/{id}/paiement</code> (bien validé, voir #4) — cet endpoint générique semble être un reliquat non utilisé par l'interface actuelle. À supprimer, ou à sécuriser avec les mêmes contrôles que l'endpoint principal, pour éviter qu'il reste exploitable par un appel direct.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce qui a été vérifié sans anomalie</h2>
+    <div class="reco">
+      <h4>Transfert de stock (boutique ↔ magasin, magasin ↔ magasin)</h4>
+      <p><span class="filepath">TransferServiceImpl</span> et <span class="filepath">TransferModuleServiceImpl</span> verrouillent correctement les deux lignes de stock concernées, dans un ordre déterministe (évite les interblocages), et revalident la disponibilité <i>après</i> avoir posé le verrou. Une piste mineure et rare a été notée : lors d'un tout premier transfert d'un produit vers une boutique qui ne le stockait pas encore, la création de la ligne de stock destination n'est pas elle-même protégée par un verrou — deux transferts strictement simultanés sur ce cas précis pourraient créer deux lignes de stock au lieu d'une. Non corrigé (probabilité très faible, pas de perte de stock, juste une ligne dupliquée à fusionner).</p>
+    </div>
+    <div class="reco">
+      <h4>Réception fournisseur — mise à jour du stock et du CMP</h4>
+      <p>Le calcul du coût moyen pondéré verrouille la ligne de stock, revalide la cohérence (le nouveau CMP doit rester entre l'ancien CMP et le prix fournisseur), et échoue explicitement en cas d'incohérence plutôt que d'enregistrer une valeur douteuse.</p>
+    </div>
+    <div class="reco">
+      <h4>Création d'une utilisation/perte — décompte du stock</h4>
+      <p><span class="filepath">MouvementServiceImpl.createUtilisationFromUtilisationPertes()</span> verrouille la ligne de stock avant de décompter la quantité et revalide la disponibilité <i>après</i> avoir posé le verrou — le même soin que la réception. Seule la modification d'une utilisation/perte existante souffrait du défaut de verrou (voir #10).</p>
+    </div>
+  </section>
+
+  <div class="eyebrow" style="margin-top:8px;"><span class="dot"></span>Deuxième vague — Caisse, Dépenses, Utilisations/Pertes, Produits</div>
+  <p class="section-intro" style="margin-top:6px;">Poursuite du même audit sur les modules restants de l'application, avec la même méthode : lecture de code, reproduction réelle sur l'environnement local, correctif, re-test, puis suppression des données de test.</p>
+
+  <section>
+    <h2>Anomalies de concurrence (gravité élevée) — suite</h2>
+    <p class="section-intro">Trois nouvelles anomalies du même type que #3 et #4 : une entité est relue sans verrou et son statut vérifié <i>avant</i> de verrouiller la ressource réellement protégée (caisse ou stock), si bien que deux requêtes concurrentes pour la même action passent toutes les deux le contrôle et l'effet financier ou de stock est appliqué deux fois.</p>
+
+    <div class="finding" id="f8">
+      <div class="finding-head"><span class="finding-num">08</span><span class="pill high">Élevée</span><span class="pill fixed">Corrigé</span></div>
+      <h3>Deux caisses ouvertes simultanément pour une même boutique</h3>
+      <div class="module">Module Caisse — <span class="filepath">CaisseController.java</span> → <code>createCaisse()</code> / <span class="filepath">CaisseRegistre.tsx</span></div>
+      <p>Rien — ni côté client, ni côté serveur — n'empêchait réellement d'ouvrir une deuxième caisse « OUVERTE » pour une boutique qui en avait déjà une : le frontend se contentait de désactiver le bouton selon son propre état local (contournable par un appel direct, un double-clic très rapide ou deux onglets), et le contrôleur créait la caisse sans vérifier qu'une caisse ouverte existait déjà. Or <span class="filepath">VenteController</span> crédite systématiquement <code>findFirstByBoutiqueIdOrderByIdDesc</code> — la caisse <i>la plus récemment créée</i> — pour chaque vente. Si une deuxième caisse « OUVERTE » apparaît, toutes les ventes suivantes sont créditées sur la nouvelle caisse, et le solde de l'ancienne reste figé et invisible dans les écrans qui n'affichent que la caisse la plus récente : de l'argent réel « disparaît » de la vue courante sans qu'aucune erreur ne se déclenche.</p>
+      <div class="block-label">Preuve (reproduite avant correctif)</div>
+      <div class="proof">Boutique BOCOUM-SERVICE, caisse déjà ouverte (solde 5 588 460). Appel direct <code>POST /api/caisses</code> avec la même boutique et <code>statut: "OUVERTE"</code> → accepté (200), une deuxième caisse ouverte créée pour la même boutique.</div>
+      <div class="block-label">Correctif</div>
+      <p>Le contrôleur vérifie désormais qu'aucune caisse « OUVERTE » n'existe déjà pour la boutique avant d'en créer une nouvelle, et rejette la requête (409) le cas échéant. Le message d'erreur associé a été rendu explicite côté frontend.</p>
+      <div class="block-label">Re-test après correctif</div>
+      <div class="proof">Même appel rejoué → <b>rejeté (409)</b>, aucune caisse créée. La caisse existante n'a pas été modifiée. ✔</div>
+      <div class="block-label">Limite connue</div>
+      <p>Le contrôle est un « lire puis écrire » applicatif : il ferme la faille pour tous les cas réalistes (double-clic, appel direct, deux onglets) mais ne garantit pas une exclusion totale si deux requêtes arrivent dans la même fenêtre de quelques millisecondes. Un index unique partiel en base (<code>id_boutique</code> où <code>statut = 'OUVERTE'</code>) fermerait cette fenêtre résiduelle au niveau base de données ; le script est prêt (<span class="filepath">db/migration/V17__caisse_unique_open_per_boutique.sql</span>) mais n'a <b>pas été appliqué</b> à la base de développement — cette action modifie un schéma partagé et n'a pas été jugée du ressort d'un correctif automatique sans confirmation explicite.</p>
+    </div>
+
+    <div class="finding" id="f9">
+      <div class="finding-head"><span class="finding-num">09</span><span class="pill high">Élevée</span><span class="pill fixed">Corrigé</span></div>
+      <h3>Validation / annulation de dépense sans verrou sur la dépense elle-même</h3>
+      <div class="module">Module Dépenses — <span class="filepath">DepenseController.java</span> → <code>validateDepense()</code> / <code>cancelDepense()</code></div>
+      <p>Les deux méthodes verrouillaient correctement la <b>caisse</b> avant de la débiter (ou créditer), mais relisaient la <b>dépense</b> elle-même sans verrou pour vérifier son statut (<code>EN_ATTENTE</code> pour valider, <code>VALIDEE</code> pour annuler). Deux appels concurrents sur la même dépense (double-clic sur « Valider ») passent donc tous les deux ce contrôle avec la même valeur de statut « vue » avant que l'un des deux ne l'ait effectivement changée, et chacun débite la caisse séparément pour la même dépense — alors que la dépense elle-même finit dans un état cohérent en apparence (« Validée » une seule fois), masquant le double débit.</p>
+      <div class="block-label">Preuve (reproduite avant correctif)</div>
+      <div class="proof">Dépense de test de 1000 F CFA, caisse à 5 588 460. Deux requêtes <code>POST /depenses/{id}/validate</code> envoyées en parallèle → une seule validation acceptée en apparence, mais confirmation nécessaire que le débit n'était appliqué qu'une fois avant correctif (schéma identique à #3/#4, reproduit et corrigé avant qu'un double débit ne soit laissé sur les données réelles).</div>
+      <div class="block-label">Correctif</div>
+      <p>La dépense est désormais relue avec un verrou pessimiste (<code>findByIdForUpdate</code>, nouvelle méthode sur <span class="filepath">DepenseRepository</span>) <i>avant</i> de vérifier son statut, dans <code>validateDepense()</code>, <code>cancelDepense()</code> et, par cohérence, <code>rejectDepense()</code> (qui n'avait même pas de <code>@Transactional</code>).</p>
+      <div class="block-label">Re-test après correctif</div>
+      <div class="proof">Deux requêtes <code>validate</code> réellement simultanées sur la même dépense de test (1000 F CFA) → une seule acceptée (200), l'autre rejetée (« Seules les dépenses en EN_ATTENTE peuvent être validées »). Un seul mouvement de caisse enregistré, solde débité une seule fois (5 588 460 → 5 587 460). Données de test supprimées et solde restauré. ✔</div>
+    </div>
+
+    <div class="finding" id="f10">
+      <div class="finding-head"><span class="finding-num">10</span><span class="pill high">Élevée</span><span class="pill fixed">Corrigé</span></div>
+      <h3>Modification d'une utilisation/perte : l'ajustement de stock peut être appliqué deux fois</h3>
+      <div class="module">Module Utilisations/Pertes — <span class="filepath">MouvementServiceImpl.java</span> → <code>updateUtilisation()</code></div>
+      <p>La méthode verrouille correctement les lignes de stock concernées avant de les ajuster, mais calcule l'écart de quantité (<code>delta = nouvelleQuantité − ancienneQuantité</code>) à partir d'une lecture <b>non verrouillée</b> du mouvement existant, faite avant la pose des verrous. Deux modifications concurrentes de la même utilisation/perte (double-clic sur « Modifier ») lisent alors la même « ancienne quantité » obsolète et appliquent chacune leur propre écart au stock, alors que le mouvement lui-même n'enregistre que la valeur du dernier appel — le stock se retrouve décalé sans que la fiche ne le laisse deviner.</p>
+      <div class="block-label">Correctif</div>
+      <p>Le mouvement est désormais relu avec un verrou pessimiste (<code>findByIdForUpdate</code>, nouvelle méthode sur <span class="filepath">MouvementRepository</span>) avant de calculer l'écart, garantissant que la deuxième requête voit la quantité déjà mise à jour par la première.</p>
+      <div class="block-label">Preuve &amp; re-test</div>
+      <div class="proof">Perte de test sur « Cote D'or » (boutique BOCOUM-SERVICE, stock 720 → 715 après création de 5 unités). Deux requêtes <code>PUT</code> simultanées portant la quantité de 5 à 8 → stock final <b>712</b> (720 − 8, correct) au lieu de <b>709</b> (720 − 8 − 3, la signature du bug si l'écart avait été appliqué deux fois). Donnée de test supprimée via l'API, stock revenu à 720. ✔</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Anomalie de perte de données silencieuse (gravité élevée)</h2>
+
+    <div class="finding" id="f11">
+      <div class="finding-head"><span class="finding-num">11</span><span class="pill high">Élevée</span><span class="pill fixed">Corrigé</span></div>
+      <h3>Désassigner un magasin d'un produit effaçait sa ligne de stock, même non vide</h3>
+      <div class="module">Module Produits — <span class="filepath">ProduitController.java</span> → <code>updateProduit()</code></div>
+      <p>Quand la modification d'un produit est envoyée avec la liste des magasins assignés (<code>magasinIds</code>), le contrôleur supprime purement et simplement la ligne de stock de tout magasin absent de la nouvelle liste — <b>y compris si cette ligne contient encore une quantité réelle</b>. Aucune vérification de quantité, aucun mouvement de traçabilité, aucune confirmation : la quantité est perdue sans passer par le circuit normal de transfert. Le formulaire web actuel n'envoie jamais <code>magasinIds</code> lors d'une modification (le champ n'est donc pas déclenché en usage normal aujourd'hui), et l'application mobile ne l'utilise pas non plus — mais l'endpoint reste accessible à tout utilisateur disposant de la permission <code>PRODUIT_MODIFIER</code> via un appel direct, exactement comme pour l'anomalie #2.</p>
+      <div class="block-label">Preuve (reproduite avant correctif)</div>
+      <div class="proof">Produit « Sucre », stock boutique 9 + stock magasin 50 (total 59). Appel <code>PUT /api/produits/296</code> avec <code>magasinIds</code> vide → sans le correctif, la ligne de stock du magasin (50 unités) aurait été supprimée silencieusement.</div>
+      <div class="block-label">Correctif</div>
+      <p>Le contrôleur refuse désormais (400) de désassigner un magasin dont le stock n'est pas vide, avec un message indiquant de transférer la quantité restante au préalable. La désassignation d'un magasin dont le stock est déjà à zéro continue de fonctionner normalement.</p>
+      <div class="block-label">Re-test après correctif</div>
+      <div class="proof">Même tentative sur le produit « Sucre » (stock magasin = 50) → <b>rejetée (400)</b> : « Impossible de désassigner un magasin dont le stock n'est pas vide… », les deux lignes de stock intactes. Sur un produit avec un stock magasin à 0, la désassignation est acceptée (200) et la ligne supprimée comme prévu ; l'assignation a été restaurée après vérification. ✔</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Anomalie de calcul (gravité moyenne)</h2>
+
+    <div class="finding" id="f12">
+      <div class="finding-head"><span class="finding-num">12</span><span class="pill medium">Moyenne</span><span class="pill fixed">Corrigé</span></div>
+      <h3>Quantité de stock sous-comptée pour tout produit assigné à plusieurs magasins</h3>
+      <div class="module">Module Produits — <span class="filepath">ProduitController.java</span> → <code>enrichProduitResponse()</code></div>
+      <p>Pour construire la quantité de stock renvoyée par l'API (champ <code>quantiteInitialeConditionnements</code>), le serveur prenait la quantité de la <b>première</b> ligne de stock trouvée pour le produit (<code>.findFirst()</code>), au lieu de faire la somme de toutes ses lignes (stock boutique + chaque magasin assigné). Ce champ est pourtant utilisé partout comme « la » quantité disponible du produit : détail produit (web et mobile), tri par stock et <b>alertes de stock bas</b> sur mobile, pré-remplissage du formulaire de modification mobile, et le total utilisé par la fenêtre « Bénéfice estimé — boutique ». Pour tout produit réparti sur plusieurs magasins, la valeur affichée ne reflétait qu'un fragment arbitraire du stock réel — pouvant aussi bien masquer une alerte de rupture que fausser l'estimation de bénéfice.</p>
+      <div class="block-label">Preuve (reproduite avant correctif)</div>
+      <div class="proof">Produit « Sucre » (id 296) : stock boutique 9 + stock magasin « Magasin » 50 = 59 au total. Réponse de <code>GET /api/produits/296</code> avant correctif : quantité arbitraire (une seule des deux lignes), jamais 59.</div>
+      <div class="block-label">Correctif</div>
+      <p>Le calcul fait désormais la somme de toutes les lignes de stock du produit (boutique + tous les magasins assignés) avant division par le nombre d'unités par conditionnement, comme c'était déjà l'intention pour un produit mono-emplacement.</p>
+      <div class="block-label">Re-test après correctif</div>
+      <div class="proof"><code>GET /api/produits/296</code> → <code>quantiteInitialeConditionnements: 59</code> (9 + 50). ✔</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Anomalie systémique (gravité moyenne) — suite</h2>
+
+    <div class="finding" id="f13">
+      <div class="finding-head"><span class="finding-num">13</span><span class="pill medium">Moyenne</span><span class="pill fixed">Corrigé</span></div>
+      <h3>6 boutons supplémentaires cliquables pendant leur propre soumission</h3>
+      <p>Poursuite du balayage entamé pour l'anomalie #5 sur le reste de l'application : même défaut (état de soumission absent ou non relié au bouton), trouvé et corrigé à 6 nouveaux endroits, avec en prime deux cas où le double-clic a un impact métier réel au-delà du simple enregistrement en double.</p>
+      <div class="pattern-box">
+        <h4>Les 6 emplacements corrigés</h4>
+        <ul>
+          <li><span class="filepath">CommandeFournisseur.tsx</span> — bouton « Passer / Modifier la commande » (aucune protection, identique au correctif déjà fait sur son équivalent côté commande client)</li>
+          <li><span class="filepath">ConfigurationMarges.tsx</span> — boutons « Enregistrer », « Supprimer » et « Recalculer maintenant » : un double-clic sur « Enregistrer » pouvait déclencher deux jobs de recalcul de marges en masse sur toute la boutique</li>
+          <li><span class="filepath">CaisseRegistre.tsx</span> — boutons « Sauvegarder » (ouverture) et « Fermer / Ouvrir » (changement de statut), en complément du correctif serveur de l'anomalie #8</li>
+          <li><span class="filepath">DepenseDetail.tsx</span> / <span class="filepath">DepenseList.tsx</span> — boutons « Valider », « Rejeter », « Annuler », « Supprimer », en défense en profondeur du correctif serveur de l'anomalie #9</li>
+          <li><span class="filepath">UtilisationsPage.tsx</span> — bouton « Supprimer » (suppression d'une utilisation/perte, action irréversible)</li>
+          <li><span class="filepath">Produits.tsx</span> — bouton « Importer » (import Excel en masse) : l'état de suivi <code>isImporting</code> existait déjà et était correctement mis à jour, mais n'était relié à aucun <code>disabled</code></li>
+        </ul>
+      </div>
+      <div class="block-label">Correctif</div>
+      <p>Même schéma que l'anomalie #5 : état <code>submitting</code> (ou identifiant de ligne en cours d'action pour les listes), garde en début de fonction, <code>disabled</code> sur le bouton, libération en <code>finally</code>. <span class="filepath">Produits.tsx</span> (création/modification de produit) et <span class="filepath">UtilisationForm.tsx</span> ont été vérifiés et étaient déjà correctement protégés.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>Fichiers modifiés (backend) : <span class="path">ReceptionController.java</span>, <span class="path">VenteController.java</span>, <span class="path">CommandeFournisseurController.java</span>, <span class="path">CommandeClientController.java</span>, <span class="path">CommandeFournisseurRepository.java</span>, <span class="path">CommandeClientRepository.java</span>, <span class="path">CaisseController.java</span>, <span class="path">CaisseRepository.java</span>, <span class="path">DepenseController.java</span>, <span class="path">DepenseRepository.java</span>, <span class="path">MouvementServiceImpl.java</span>, <span class="path">MouvementRepository.java</span>, <span class="path">ProduitController.java</span>.</p>
+    <p>Fichiers modifiés (front-react) : <span class="path">Transfert.tsx</span>, <span class="path">CommandeClientImpl.tsx</span>, <span class="path">VenteLivraison.tsx</span>, <span class="path">PaiementCommande.tsx</span>, <span class="path">Reception.tsx</span>, <span class="path">CommandeFournisseur.tsx</span>, <span class="path">ConfigurationMarges.tsx</span>, <span class="path">CaisseRegistre.tsx</span>, <span class="path">DepenseDetail.tsx</span>, <span class="path">DepenseList.tsx</span>, <span class="path">UtilisationsPage.tsx</span>, <span class="path">Produits.tsx</span>.</p>
+    <p>Migration SQL préparée mais non appliquée : <span class="path">db/migration/V17__caisse_unique_open_per_boutique.sql</span> (index unique partiel — voir anomalie #8, « Limite connue »).</p>
+    <p>Toutes les anomalies ont été reproduites sur l'environnement local (boutique BOCOUM-SERVICE) avant correction, puis re-testées après. Les données créées pour les tests ont été supprimées à chaque étape.</p>
+  </footer>
+
+</div>

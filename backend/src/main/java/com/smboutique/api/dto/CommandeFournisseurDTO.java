@@ -66,6 +66,7 @@ public class CommandeFournisseurDTO {
         private Integer multiplicateur;
         private UniteDTO unite;
         private String depot;
+        private Long idEmballage;
 
         public Long getId() { return id; }
         public void setId(Long id) { this.id = id; }
@@ -89,6 +90,8 @@ public class CommandeFournisseurDTO {
         public void setUnite(UniteDTO unite) { this.unite = unite; }
         public String getDepot() { return depot; }
         public void setDepot(String depot) { this.depot = depot; }
+        public Long getIdEmballage() { return idEmballage; }
+        public void setIdEmballage(Long idEmballage) { this.idEmballage = idEmballage; }
 
         public static class UniteDTO {
             private Long id;

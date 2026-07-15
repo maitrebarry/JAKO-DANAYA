@@ -6,7 +6,16 @@ import useHasPermission from '../contexts/useHasPermission';
 import RequirePermission from './RequirePermission';
 import { useFormatMoney } from '../utils/currency';
 import { withApi, API, API_BASE } from '../config/api';
+import { createEmballage, updateEmballage, deleteEmballage } from '../api/produits';
 import '../assets/css/style_produit.css';
+
+interface EmballageRow {
+  tempId: string;
+  id?: number;
+  uniteId: string;
+  nombreUnites: string;
+  estParDefaut: boolean;
+}
 
 const Produits: React.FC = () => {
   const navigate = useNavigate();
@@ -90,6 +99,8 @@ const Produits: React.FC = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [showNombreUnites, setShowNombreUnites] = useState(false);
   const [showCaracteristique, setShowCaracteristique] = useState(false);
+  const [emballageRows, setEmballageRows] = useState<EmballageRow[]>([]);
+  const [originalEmballageIds, setOriginalEmballageIds] = useState<number[]>([]);
 
   const resetForm = () => {
     setNewProduit({
@@ -110,10 +121,26 @@ const Produits: React.FC = () => {
     setImageFile(null);
     setShowNombreUnites(false);
     setShowCaracteristique(false);
+    setEmballageRows([]);
+    setOriginalEmballageIds([]);
     // reset manual-edit flags
     setPrixEnGrosTouched(false);
     setPrixDetailTouched(false);
   };
+
+  // Keep the legacy single uniteConditionnementId/nombreUnitesParConditionnement fields
+  // (still used by quantiteInitiale's label/placeholder and by the multipart submit below)
+  // mirrored from whichever row in the new emballage list is marked "Par défaut".
+  useEffect(() => {
+    const def = emballageRows.find(r => r.estParDefaut) || emballageRows[0];
+    if (def) {
+      setNewProduit(prev => ({ ...prev, uniteConditionnementId: def.uniteId, nombreUnitesParConditionnement: def.nombreUnites }));
+      setShowNombreUnites(!!def.uniteId);
+    } else {
+      setNewProduit(prev => ({ ...prev, uniteConditionnementId: '', nombreUnitesParConditionnement: '' }));
+      setShowNombreUnites(false);
+    }
+  }, [emballageRows]);
 
   // Validate form in real-time: name, unit and price constraints
   useEffect(() => {
@@ -132,7 +159,7 @@ const Produits: React.FC = () => {
     }
     // conditionnement validation
     if (newProduit.uniteConditionnementId && (!newProduit.nombreUnitesParConditionnement || parseInt(newProduit.nombreUnitesParConditionnement) <= 0)) {
-      errors.push("Le nombre d'unités par conditionnement doit être supérieur à 0.");
+      errors.push("Le nombre d'unités dans cet emballage doit être supérieur à 0.");
     }
     if (!newProduit.quantiteInitiale || parseInt(newProduit.quantiteInitiale) < 0) {
       errors.push('La quantité initiale doit être >= 0.');
@@ -429,12 +456,23 @@ const Produits: React.FC = () => {
     }
     // Validation conditionnement
     if (newProduit.uniteConditionnementId && (!newProduit.nombreUnitesParConditionnement || parseInt(newProduit.nombreUnitesParConditionnement) <= 0)) {
-      setMessage(`Le nombre d'unités par conditionnement doit être supérieur à 0.`);
+      setMessage(`Le nombre d'unités dans cet emballage doit être supérieur à 0.`);
       return;
     }
     if (!newProduit.quantiteInitiale || parseInt(newProduit.quantiteInitiale) < 0) {
       setMessage('La quantité initiale doit être >= 0.');
       return;
+    }
+    if (emballageRows.some(r => !r.uniteId || !r.nombreUnites || parseInt(r.nombreUnites, 10) <= 0)) {
+      setMessage('Veuillez compléter chaque emballage (unité + nombre d\'unités) ou le retirer avec le bouton ×.');
+      return;
+    }
+    {
+      const uniteIdsUsed = emballageRows.map(r => r.uniteId);
+      if (new Set(uniteIdsUsed).size !== uniteIdsUsed.length) {
+        setMessage('Chaque emballage doit utiliser une unité différente.');
+        return;
+      }
     }
     // price relationships
     const prixAchatVal = newProduit.prixAchat ? parseInt(newProduit.prixAchat, 10) : null;
@@ -495,6 +533,33 @@ const Produits: React.FC = () => {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || `Erreur lors de la création`);
       }
+      const savedProduit = await res.json();
+      const produitId = editing ? editing.id : savedProduit.id;
+
+      try {
+        // Process the row marked "par défaut" first: the server clears any previous
+        // default as a side effect of setting a new one, so processing it first avoids
+        // a transient moment with zero defaults that would otherwise trip the server's
+        // own "a product must always have one default" safety net on the other rows.
+        const deletedIds = originalEmballageIds.filter(id => !emballageRows.some(r => r.id === id));
+        for (const id of deletedIds) {
+          await deleteEmballage(produitId, id);
+        }
+        const ordered = [...emballageRows].sort((a, b) => Number(b.estParDefaut) - Number(a.estParDefaut));
+        for (const row of ordered) {
+          const payload = { uniteId: Number(row.uniteId), nombreUnites: parseInt(row.nombreUnites, 10), estParDefaut: row.estParDefaut };
+          if (row.id != null) {
+            await updateEmballage(produitId, row.id, payload);
+          } else {
+            await createEmballage(produitId, payload);
+          }
+        }
+      } catch (embErr: any) {
+        setMessage(embErr.message || "Le produit a été enregistré, mais une erreur est survenue lors de l'enregistrement des emballages.");
+        fetchProduits();
+        return;
+      }
+
       setShowModal(false);
       resetForm();
       setEditing(null);
@@ -815,7 +880,8 @@ const Produits: React.FC = () => {
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowImportModal(false)}>Fermer</button>
-                <button type="button" className="btn btn-primary" disabled={!canImport} onClick={async () => {
+                <button type="button" className="btn btn-primary" disabled={!canImport || isImporting} onClick={async () => {
+                  if (isImporting) return;
                   if (!canImport) { setImportErrors(['Accès refusé : vous n\'avez pas les droits pour importer des produits.']); return; }
                   if (!importFile) { setMessage('Sélectionnez un fichier à importer'); return; }
                   setImportProgress(0);
@@ -909,7 +975,7 @@ const Produits: React.FC = () => {
                     setImportErrors([err.message || 'Erreur inconnue']);
                     setIsImporting(false);
                   }
-                }}>Importer</button>
+                }}>{isImporting ? 'Importation...' : 'Importer'}</button>
               </div>
             </div>
           </div>
@@ -1060,6 +1126,15 @@ const Produits: React.FC = () => {
                         nombreUnitesParConditionnement: produit.nombreUnitesParConditionnement?.toString() || '',
                         quantiteInitiale: produit.quantiteInitialeConditionnements?.toString() || ''
                       });
+                      const existingEmballages = (produit.emballages || []).map((e: any) => ({
+                        tempId: `existing-${e.id}`,
+                        id: e.id,
+                        uniteId: e.unite?.id != null ? e.unite.id.toString() : '',
+                        nombreUnites: e.nombreUnites != null ? e.nombreUnites.toString() : '',
+                        estParDefaut: !!e.estParDefaut
+                      }));
+                      setEmballageRows(existingEmballages);
+                      setOriginalEmballageIds(existingEmballages.map((e: EmballageRow) => e.id).filter((id: number | undefined): id is number => id != null));
                       // set selected magasins for editing using magasinIds provided by backend
                       if (produit.magasinIds && produit.magasinIds.length > 0) {
                         setSelectedMagasins(produit.magasinIds.filter((id: number | null | undefined) => Boolean(id)));
@@ -1228,44 +1303,91 @@ const Produits: React.FC = () => {
                 </div> 
               
 
-                {/* Unité de conditionnement + nombre + quantité initiale */}
+                {/* Emballages : le même produit peut se vendre de plusieurs façons (carton, sac...) */}
                 <div className="col-12">
-                  <label className="form-label">Unité de conditionnement</label>
-                  <div className="row g-2 mt-1">
-                    <div className="col-md-6">
-                      <select className="form-control" value={newProduit.uniteConditionnementId} onChange={(e) => {
-                        const value = e.target.value;
-                        setNewProduit({ ...newProduit, uniteConditionnementId: value });
-                        setShowNombreUnites(value !== '');
-                      }}>
-                        <option value="">Aucune (unité de base)</option>
-                        {unites.map((unite: any) => (
-                          <option key={unite.id} value={unite.id}>{unite.libelle}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {showNombreUnites && (
-                      <div className="col-md-6">
+                  <label className="form-label">Ça se vend aussi comment ? <span className="text-muted small">(ex: carton, sac, casier)</span></label>
+                  {emballageRows.length === 0 && (
+                    <p className="text-muted small mb-2">Non, juste à l'unité.</p>
+                  )}
+                  {emballageRows.map((row, idx) => (
+                    <div className="row g-2 mt-1 align-items-center" key={row.tempId}>
+                      <div className="col-6 col-md-5">
+                        <select
+                          className="form-control"
+                          value={row.uniteId}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setEmballageRows(rows => rows.map((r, i) => i === idx ? { ...r, uniteId: value } : r));
+                          }}
+                        >
+                          <option value="">Choisir une unité...</option>
+                          {unites.map((unite: any) => (
+                            <option key={unite.id} value={unite.id}>{unite.libelle}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-6 col-md-4">
                         <input
                           type="number"
                           className="form-control"
-                          placeholder={`Ex: 12 (1 ${selectedUnite ? selectedUnite.libelle.toLowerCase() : 'conditionnement'} = 12 unités)`}
-                          value={newProduit.nombreUnitesParConditionnement}
-                          onChange={(e) => setNewProduit({ ...newProduit, nombreUnitesParConditionnement: e.target.value })}
+                          placeholder="Ex: 12 unités"
                           min={1}
+                          value={row.nombreUnites}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setEmballageRows(rows => rows.map((r, i) => i === idx ? { ...r, nombreUnites: value } : r));
+                          }}
                         />
                       </div>
-                    )}
-                  </div>
+                      <div className="col-8 col-md-2 form-check">
+                        <input
+                          className="form-check-input"
+                          type="radio"
+                          name="emballageDefaut"
+                          id={`emballage-defaut-${idx}`}
+                          checked={row.estParDefaut}
+                          onChange={() => setEmballageRows(rows => rows.map((r, i) => ({ ...r, estParDefaut: i === idx })))}
+                        />
+                        <label className="form-check-label small" htmlFor={`emballage-defaut-${idx}`}>Par défaut</label>
+                      </div>
+                      <div className="col-4 col-md-1 text-end">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger"
+                          title="Retirer cet emballage"
+                          onClick={() => setEmballageRows(rows => {
+                            const next = rows.filter((_, i) => i !== idx);
+                            if (next.length > 0 && !next.some(r => r.estParDefaut)) {
+                              next[0] = { ...next[0], estParDefaut: true };
+                            }
+                            return next;
+                          })}
+                        >
+                          <i className="bx bx-x"></i>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-primary mt-2"
+                    onClick={() => setEmballageRows(rows => [...rows, {
+                      tempId: `new-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                      uniteId: '',
+                      nombreUnites: '',
+                      estParDefaut: rows.length === 0
+                    }])}
+                  >
+                    <i className="bx bx-plus"></i> Ajouter un emballage
+                  </button>
                 </div>
 
                 <div className="col-md-6">
-                  <label className="form-label">Quantité initiale {showNombreUnites ? `(${selectedUnite ? selectedUnite.libelle.toLowerCase() + 's' : 'conditionnements'})` : '(unités)'}</label>
+                  <label className="form-label">Quantité initiale {showNombreUnites ? `(${selectedUnite ? selectedUnite.libelle.toLowerCase() + 's' : 'emballages'})` : '(unités)'}</label>
                   <input
                     type="number"
                     className="form-control"
-                    placeholder={showNombreUnites ? `Nombre de ${selectedUnite ? selectedUnite.libelle.toLowerCase() + 's' : 'conditionnements'}` : 'Quantité en unités de base'}
+                    placeholder={showNombreUnites ? `Nombre de ${selectedUnite ? selectedUnite.libelle.toLowerCase() + 's' : 'emballages'}` : 'Quantité en unités de base'}
                     value={newProduit.quantiteInitiale}
                     onChange={(e) => setNewProduit({ ...newProduit, quantiteInitiale: e.target.value })}
                     min={0}
@@ -1320,7 +1442,11 @@ const Produits: React.FC = () => {
                     <p><strong>Prix en gros :</strong> {fmt(detailProduit.prixEnGros ?? 0)}</p>
                     <p><strong>Prix détail :</strong> {fmt(detailProduit.prixDetail ?? 0)}</p>
                     <p><strong>Alerte stock :</strong> {detailProduit.alerteStock ?? 0}</p>
-                    <p><strong>Unité de conditionnement :</strong> {detailProduit.unite?.libelle ? `${detailProduit.unite.libelle} (${detailProduit.nombreUnitesParConditionnement ?? 1} unités)` : 'Unité de base'}</p>
+                    {detailProduit.emballages && detailProduit.emballages.length > 1 ? (
+                      <p><strong>Vendu aussi en :</strong> {detailProduit.emballages.map((e: any) => `${e.uniteLibelle || e.unite?.libelle} (${e.nombreUnites} unités)${e.estParDefaut ? ' — par défaut' : ''}`).join(', ')}</p>
+                    ) : (
+                      <p><strong>Vendu aussi en :</strong> {detailProduit.unite?.libelle ? `${detailProduit.unite.libelle} (${detailProduit.nombreUnitesParConditionnement ?? 1} unités)` : 'Juste à l\'unité'}</p>
+                    )}
                     <p><strong>Quantité initiale :</strong> {detailProduit.quantiteInitialeConditionnements !== undefined && detailProduit.quantiteInitialeConditionnements !== null ? detailProduit.quantiteInitialeConditionnements : 'N/A'} {detailProduit.unite?.libelle ? detailProduit.unite.libelle.toLowerCase() + 's' : 'unités'}</p>
                     {detailProduit.caracteristique && (
                       <div style={{ whiteSpace: 'pre-wrap', marginTop: 12 }}>

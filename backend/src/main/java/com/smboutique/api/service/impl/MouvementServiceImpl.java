@@ -389,7 +389,11 @@ public class MouvementServiceImpl implements MouvementService {
     @Override
     @org.springframework.transaction.annotation.Transactional
     public com.smboutique.api.model.Mouvement updateUtilisation(Long id, com.smboutique.api.model.Mouvement mouvementDetails, com.smboutique.api.model.Utilisateur currentUser) {
-        java.util.Optional<Mouvement> existingOpt = mouvementRepository.findById(id);
+        // Lock the mouvement row first: a concurrent/duplicate update for the same
+        // mouvement must see the previous update's committed quantity (oldQty) rather
+        // than a stale value, otherwise both requests compute their stock delta from
+        // the same original quantity and the stock ends up double-adjusted.
+        java.util.Optional<Mouvement> existingOpt = mouvementRepository.findByIdForUpdate(id);
         if (existingOpt.isEmpty()) throw new IllegalArgumentException("Mouvement introuvable");
         Mouvement existing = existingOpt.get();
         if (!"UTILISATION".equalsIgnoreCase(existing.getTypeMouvement())) {

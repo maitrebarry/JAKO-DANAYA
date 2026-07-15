@@ -6,6 +6,7 @@ const ConfigurationMarges: React.FC = () => {
   const { currentBoutique, permissions } = useUser();
   const [config, setConfig] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [editing, setEditing] = useState(false);
 
@@ -64,9 +65,11 @@ const ConfigurationMarges: React.FC = () => {
   };
 
   const handleSave = async () => {
+    if (submitting) return;
     if (!isAllowed) { setMessage('Accès refusé'); return; }
     // hide recompute button while saving
     setShowRecompute(false);
+    setSubmitting(true);
     try {
       const token = localStorage.getItem('smb_token');
       const payload = {
@@ -116,11 +119,15 @@ const ConfigurationMarges: React.FC = () => {
       setTimeout(() => setMessage(''), 6000);
     } catch (err: any) {
       setMessage(err.message || 'Erreur');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleDelete = async () => {
+    if (submitting) return;
     if (!isAllowed || !config) return;
+    setSubmitting(true);
     try {
       const token = localStorage.getItem('smb_token');
       const res = await fetch(`${API}/configuration-marge/${config.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
@@ -130,11 +137,15 @@ const ConfigurationMarges: React.FC = () => {
       setTimeout(() => setMessage(''), 3000);
     } catch (err: any) {
       setMessage(err.message || 'Erreur');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleRecomputeNow = async () => {
+    if (submitting) return;
     if (!isAllowed || !config) return;
+    setSubmitting(true);
     try {
       const token = localStorage.getItem('smb_token');
       const res = await fetch(`${API}/configuration-marge/boutique/${currentBoutique!.id}/recompute-job`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
@@ -150,6 +161,8 @@ const ConfigurationMarges: React.FC = () => {
       }
     } catch (err: any) {
       setMessage(err.message || 'Erreur');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -263,10 +276,10 @@ const ConfigurationMarges: React.FC = () => {
 
                 {isAllowed && (
                   <div>
-                    <button className="btn btn-sm btn-primary me-2" onClick={() => setEditing(true)}>Modifier</button>
-                    <button className="btn btn-sm btn-danger me-2" onClick={handleDelete}>Supprimer</button>
+                    <button className="btn btn-sm btn-primary me-2" onClick={() => setEditing(true)} disabled={submitting}>Modifier</button>
+                    <button className="btn btn-sm btn-danger me-2" onClick={handleDelete} disabled={submitting}>{submitting ? '...' : 'Supprimer'}</button>
                     {showRecompute && (
-                      <button className="btn btn-sm btn-secondary me-2" onClick={handleRecomputeNow}>Recalculer maintenant</button>
+                      <button className="btn btn-sm btn-secondary me-2" onClick={handleRecomputeNow} disabled={submitting}>{submitting ? '...' : 'Recalculer maintenant'}</button>
                     )}
                     {jobId && <button className="btn btn-sm btn-link" onClick={() => handleViewJob(jobId)}>Voir le job</button>}
                   </div>
@@ -306,8 +319,8 @@ const ConfigurationMarges: React.FC = () => {
                 )}
                 {isAllowed ? (
                   <div>
-                    <button className="btn btn-primary me-2" onClick={handleSave}>Enregistrer</button>
-                    {config && <button className="btn btn-secondary" onClick={() => { setEditing(false); setForm({ typeMarge: config.typeMarge, valeurDetail: config.valeurDetail, valeurGros: config.valeurGros, margeMinimaleDetail: config.margeMinimaleDetail ?? '', margeMinimaleGros: config.margeMinimaleGros ?? '' }); }}>Annuler</button>}
+                    <button className="btn btn-primary me-2" onClick={handleSave} disabled={submitting}>{submitting ? 'Enregistrement...' : 'Enregistrer'}</button>
+                    {config && <button className="btn btn-secondary" onClick={() => { setEditing(false); setForm({ typeMarge: config.typeMarge, valeurDetail: config.valeurDetail, valeurGros: config.valeurGros, margeMinimaleDetail: config.margeMinimaleDetail ?? '', margeMinimaleGros: config.margeMinimaleGros ?? '' }); }} disabled={submitting}>Annuler</button>}
                   </div>
                 ) : (
                   <div className="alert alert-warning">Accès lecture seule (permissions insuffisantes)</div>

@@ -65,6 +65,10 @@ public class ReceptionDTO {
         private Integer quantiteConditionnementRestante; // remaining quantity expressed in conditionnements when divisible
         private Integer nombreUnitesParConditionnement; // optional: multiplier (units per cond)
         private String uniteConditionnementLibelle; // optional: unit label for cond
+        private Long idEmballage; // which emballage (carton, sac...) was received; required only when the product has 2+
+
+        public Long getIdEmballage() { return idEmballage; }
+        public void setIdEmballage(Long idEmballage) { this.idEmballage = idEmballage; }
 
         public Long getId() { return id; }
         public void setId(Long id) { this.id = id; }

@@ -34,6 +34,8 @@ interface ArticleData {
   useConditionnement?: boolean;
   nombreUnitesParConditionnement?: number | null;
   uniteConditionnementLibelle?: string | null;
+  emballages?: { id: number; uniteId: number; uniteLibelle: string; nombreUnites: number; estParDefaut: boolean }[];
+  idEmballage?: number | null;
 }
 
 const Reception: React.FC = () => {
@@ -47,6 +49,7 @@ const Reception: React.FC = () => {
   const [selectedCommande, setSelectedCommande] = useState<CommandeData | null>(null);
   const [articles, setArticles] = useState<ArticleData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   // Location state (Achat defaults to MAGASIN if any exist)
@@ -281,6 +284,8 @@ const Reception: React.FC = () => {
         const stockInfo = (stocksForLoc || []).find((s: any) => (s.produit && s.produit.id === productId) || s.produitId === productId || s.id_produit === productId);
         const nombreUnitesParConditionnement = stockInfo?.produit?.nombreUnitesParConditionnement ?? a.nombreUnitesParConditionnement ?? null;
         const uniteConditionnementLibelle = stockInfo?.produit?.unite?.libelle ?? a.uniteConditionnementLibelle ?? null;
+        const emballages = stockInfo?.produit?.emballages ?? null;
+        const defaultEmballage = Array.isArray(emballages) ? emballages.find((e: any) => e.estParDefaut) : null;
 
         // Compute sensible defaults for conditionnement display and reception
 
@@ -310,6 +315,8 @@ const Reception: React.FC = () => {
           quantiteConditionnement: defaultQuantiteConditionnement ?? null,
           nombreUnitesParConditionnement: nombreUnitesParConditionnement,
           uniteConditionnementLibelle: uniteConditionnementLibelle,
+          emballages: emballages,
+          idEmballage: defaultEmballage ? defaultEmballage.id : null,
           receptionActuelle: defaultReceptionActuelle
         } as ArticleData;
       });
@@ -322,8 +329,10 @@ const Reception: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return; // guard against double-click / duplicate submission
     if (!selectedCommande) return;
 
+    setSubmitting(true);
     try {
       const token = localStorage.getItem('smb_token');
       const receptionData = {
@@ -342,7 +351,8 @@ const Reception: React.FC = () => {
           qteCommande: article.qteCommande,
           qteRecue: article.qteRecue,
           receptionActuelle: article.receptionActuelle,
-          quantiteConditionnement: article.quantiteConditionnement !== undefined ? article.quantiteConditionnement : null
+          quantiteConditionnement: article.quantiteConditionnement !== undefined ? article.quantiteConditionnement : null,
+          idEmballage: article.useConditionnement ? (article.idEmballage ?? null) : null
         }))
       };
 
@@ -390,6 +400,8 @@ const Reception: React.FC = () => {
       const message = err && err.message ? err.message : 'Erreur inconnue';
       setServerError({ message, details: null });
       Swal.fire('Erreur', message, 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -636,8 +648,29 @@ const Reception: React.FC = () => {
                                     }
                                     setArticles(newArticles);
                                   }} />
-                                  <label className="form-check-label ms-2" htmlFor={`cond_switch_${index}`}>Par conditionnement</label>
+                                  <label className="form-check-label ms-2" htmlFor={`cond_switch_${index}`}>Par emballage</label>
                                 </div>
+                                {article.useConditionnement && Array.isArray(article.emballages) && article.emballages.length > 1 && (
+                                  <select
+                                    className="form-select form-select-sm mb-1"
+                                    value={article.idEmballage ?? ''}
+                                    onChange={e => {
+                                      const newId = e.target.value === '' ? null : Number(e.target.value);
+                                      const chosen = article.emballages!.find(em => em.id === newId);
+                                      const newMul = chosen ? chosen.nombreUnites : (article.nombreUnitesParConditionnement || 1);
+                                      const newArticles = [...articles];
+                                      newArticles[index].idEmballage = newId;
+                                      newArticles[index].nombreUnitesParConditionnement = newMul;
+                                      newArticles[index].uniteConditionnementLibelle = chosen ? chosen.uniteLibelle : newArticles[index].uniteConditionnementLibelle;
+                                      newArticles[index].receptionActuelle = (newArticles[index].quantiteConditionnement || 0) * newMul;
+                                      setArticles(newArticles);
+                                    }}
+                                  >
+                                    {article.emballages.map(em => (
+                                      <option key={em.id} value={em.id}>{em.uniteLibelle} ({em.nombreUnites}u)</option>
+                                    ))}
+                                  </select>
+                                )}
                                 {article.useConditionnement ? (
                                   <div className="d-flex align-items-center">
                                     <input type="number" className="form-control me-2" min={0} value={article.quantiteConditionnement ?? 0} onChange={e => {
@@ -698,9 +731,10 @@ const Reception: React.FC = () => {
                         name="valider"
                         className="btn btn-primary float-end"
                         type="submit"
+                        disabled={submitting}
                         style={{ display: articles.length > 0 ? 'block' : 'none' }}
                       >
-                        Valider
+                        {submitting ? (<><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Validation...</>) : 'Valider'}
                       </button>
                     ) : (
                       <div className="text-muted float-end" style={{ display: articles.length > 0 ? 'block' : 'none' }}>Vous n'avez pas la permission de valider cette réception</div>

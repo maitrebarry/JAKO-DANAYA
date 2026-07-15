@@ -70,7 +70,7 @@
             <br th:if="${li.produit != null and li.produit.nombreUnitesParConditionnement != null and li.produit.nombreUnitesParConditionnement > 0}"/>
             <small th:if="${li.produit != null and li.produit.nombreUnitesParConditionnement != null and li.produit.nombreUnitesParConditionnement > 0}">
                 (≈ <span th:text="${#numbers.formatInteger((li.quantitePhysique != null ? li.quantitePhysique : 0) / li.produit.nombreUnitesParConditionnement,0)}">0</span>
-                <span th:text="${li.produit.unite != null ? li.produit.unite.libelle : 'carton'}"></span>)
+                <span th:text="${li.produit.uniteConditionnement != null and !#strings.isEmpty(li.produit.uniteConditionnement) ? li.produit.uniteConditionnement : (li.produit.unite != null ? li.produit.unite.libelle : 'carton')}"></span>)
             </small>
         </td>
         <td th:text="${li.ecartStock != null ? li.ecartStock : '-'}"></td>

@@ -27,6 +27,13 @@ public class LigneReception {
     @JoinColumn(name = "id_produit")
     private Produit produit;
 
+    // Which specific emballage (carton, sac...) was received, when the product has 2+ and the
+    // caller disambiguated. Null for unit receptions, single/zero-emballage products, and lines
+    // predating this feature.
+    @ManyToOne
+    @JoinColumn(name = "id_emballage")
+    private ProduitEmballage emballage;
+
     // Snapshots to allow safe rollback on cancellation (MVP)
     @Column(name = "before_stock_quantite")
     private Integer beforeStockQuantite;

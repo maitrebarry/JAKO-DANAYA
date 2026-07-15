@@ -22,4 +22,10 @@ public class LigneLivraison {
     @ManyToOne
     @JoinColumn(name = "id_produit")
     private Produit produit;
+
+    // Which specific emballage (carton, sac...) was delivered — mirrors the emballage recorded on
+    // the originating LigneVente/LigneCommandeClient at the time the order was placed.
+    @ManyToOne
+    @JoinColumn(name = "id_emballage")
+    private ProduitEmballage emballage;
 }

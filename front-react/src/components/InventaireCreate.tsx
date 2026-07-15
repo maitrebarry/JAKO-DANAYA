@@ -8,9 +8,9 @@ import { withApi } from '../config/api';
 const AUTH_HEADER = () => ({ Authorization: `Bearer ${localStorage.getItem('smb_token')}` });
 
 const InventaireCreate: React.FC = () => {
-  // inventory is boutique-only (magasin-level inventories are deprecated)
-  // Scope is fixed to 'boutique' — removed magasin-state/branches to avoid impossible comparisons
-  const [, setMagasins] = useState<any[]>([]);
+  const [magasins, setMagasins] = useState<any[]>([]);
+  // '' = boutique scope; otherwise the string id of the selected magasin
+  const [selectedMagasinId, setSelectedMagasinId] = useState<string>('');
   const [products, setProducts] = useState<any[]>([]);
   const [temps, setTemps] = useState<Record<number, { condCount?: number; unitCount?: number; qtePhysique?: number; ecart?: number }>>({});
   const [reference, setReference] = useState('');
@@ -20,7 +20,6 @@ const InventaireCreate: React.FC = () => {
 
   useEffect(() => {
     fetchMagasins();
-    loadProductsForScope();
     // fetch preview reference
     (async () => {
       try {
@@ -34,7 +33,8 @@ const InventaireCreate: React.FC = () => {
 
   useEffect(() => {
     loadProductsForScope();
-  }, [currentBoutique?.id]);
+    setTemps({});
+  }, [currentBoutique?.id, selectedMagasinId]);
 
   const fetchMagasins = async () => {
     try {
@@ -49,21 +49,22 @@ const InventaireCreate: React.FC = () => {
 
   const loadProductsForScope = async () => {
     try {
-      // Boutique-only path: ask the backend explicitly for boutique-level stocks
-      const res = await fetch(withApi('stocks?level=boutique'), { headers: AUTH_HEADER() });
-      if (!res.ok) throw new Error('Erreur chargement stocks boutique');
+      const url = selectedMagasinId
+        ? withApi(`stocks?magasinId=${selectedMagasinId}`)
+        : withApi('stocks?level=boutique');
+      const res = await fetch(url, { headers: AUTH_HEADER() });
+      if (!res.ok) throw new Error('Erreur chargement stocks');
       const stocks = await res.json();
-      const boutiqueStocks = (stocks || []);
-      const items = boutiqueStocks.map((s: any) => ({
+      const items = (stocks || []).map((s: any) => ({
         id: s.produit?.id,
         nom: s.produit?.nomProduit || s.produit?.nom,
         quantiteVirtuelle: s.quantiteDisponible || 0,
         produit: s.produit,
-        magasin: null,
+        magasin: s.magasin || null,
         packagingLabel: (() => {
           const mult = s.produit?.nombreUnitesParConditionnement || 1;
           const u = Number(s.quantiteDisponible || 0);
-          const unitLibelle = s.produit?.uniteConditionnement || s.produit?.unite?.libelle || 'conditionnement';
+          const unitLibelle = s.produit?.uniteConditionnement || s.produit?.unite?.libelle || 'emballage';
           if (!mult || mult <= 1) return `${u} unité${u > 1 ? 's' : ''}`;
           const full = Math.floor(u / mult);
           const rem = u % mult;
@@ -83,50 +84,40 @@ const InventaireCreate: React.FC = () => {
 
   const handleSubmit = async () => {
     // Create inventaire minimal then create lignes for non-zero entries.
-    // If an active inventaire already exists for the boutique, offer to reuse/open it
-    // because the backend enforces a single active inventaire per boutique.
+    // If an active inventaire already exists for the same scope (boutique, or the
+    // selected magasin), offer to reuse/open it — the backend enforces a single
+    // active inventaire per scope.
     try {
       if (!currentBoutique || !currentBoutique.id) {
         await Swal.fire('Erreur', 'Boutique courante introuvable. Veuillez vous reconnecter.', 'error');
         return;
       }
 
-      // check for an existing active inventaire for this boutique
+      const wantedMagasinId = selectedMagasinId ? Number(selectedMagasinId) : null;
+
+      // check for an existing active inventaire matching this exact scope
       const existing = await inventaireApi.listInventaires(currentBoutique.id).catch(() => []);
-      const active = (existing || []).find((i: any) => !i.regulariser);
+      const active = (existing || []).find((i: any) => !i.regulariser && ((i.magasin?.id ?? null) === wantedMagasinId));
       let inventaireId: number | null = null;
 
       if (active) {
-        // Ask user whether to open the active inventaire instead of creating a new one
+        const scopeLabel = wantedMagasinId ? (magasins.find(m => m.id === wantedMagasinId)?.nom || 'ce magasin') : 'la boutique';
         const choice = await Swal.fire({
           title: 'Inventaire actif détecté',
-          html: `Un inventaire actif existe déjà (${active.reference || active.referenceInventaire || '—'}).<br/>Voulez-vous l'ouvrir pour y ajouter vos lignes ?`,
+          html: `Un inventaire actif existe déjà pour ${scopeLabel} (${active.reference || active.referenceInventaire || '—'}).<br/>Voulez-vous l'ouvrir pour y ajouter vos lignes ?`,
           icon: 'info',
           showCancelButton: true,
           confirmButtonText: 'Ouvrir inventaire actif',
           cancelButtonText: 'Annuler'
         });
         if (!choice.isConfirmed) return;
-
-        // verify compatibility of scopes when possible (if inventaire already has lignes)
-        const activeId = active.idInventaire || active.id;
-        inventaireId = activeId;
-        const lignes = await inventaireApi.listLignes(activeId).catch(() => []);
-        const invHasMagasinLines = (lignes || []).some((l: any) => (l.stock && l.stock.magasin) || l.magasin);
-        // boutique-level lines are acceptable for reuse; no explicit check needed here.
-
-          // If the active inventaire contains magasin-scoped lines (historical), we cannot reuse it — user must regularize or create a new boutique inventaire
-        if (invHasMagasinLines) {
-          await Swal.fire('Inventaire historique magasin', "Cet inventaire contient des lignes liées à un magasin (historique). Les nouveaux inventaires doivent être créés pour la boutique uniquement. Régularisez l'inventaire existant ou créez un nouvel inventaire boutique.", 'warning');
-          return;
-        }
-        // reuse existing inventaireId (empty inventaire can accept any scope)
+        inventaireId = active.idInventaire || active.id;
       }
 
-      // If no active inventaire -> create new one
+      // If no active inventaire for this scope -> create new one
       if (!inventaireId) {
         const payload = { boutique: { id: currentBoutique.id }, dateInventaire } as any;
-        // inventory is boutique-only: do not send any magasin in the payload
+        if (wantedMagasinId) payload.magasin = { id: wantedMagasinId };
         const inv = await inventaireApi.createInventaire(payload);
         inventaireId = inv.idInventaire || inv.id;
       }
@@ -188,8 +179,13 @@ const InventaireCreate: React.FC = () => {
         <div className="card-body">
           <div className="row g-2 align-items-center">
             <div className="col-md-3">
-              <label className="form-label">Portée</label>
-              <div className="form-control-plaintext">Boutique </div>
+              <label className="form-label">Portée — où comptez-vous ?</label>
+              <select className="form-control" value={selectedMagasinId} onChange={(e) => setSelectedMagasinId(e.target.value)}>
+                <option value="">Boutique</option>
+                {magasins.map((m: any) => (
+                  <option key={m.id} value={m.id}>{m.nom || `Magasin #${m.id}`}</option>
+                ))}
+              </select>
             </div>
             <div className="col-md-3">
               <label className="form-label">Référence</label>
@@ -228,7 +224,7 @@ const InventaireCreate: React.FC = () => {
                         {p.nom}
                         {((temps[p.id]?.condCount ?? 0) > 0) && (() => {
                           const per = p.produit?.nombreUnitesParConditionnement ?? p.nombreUnitesParConditionnement ?? 1;
-                          const unitLib = p.produit?.uniteConditionnement || p.produit?.unite?.libelle || 'conditionnement';
+                          const unitLib = p.produit?.uniteConditionnement || p.produit?.unite?.libelle || 'emballage';
                           const cond = temps[p.id]?.condCount || 0;
                           const extra = temps[p.id]?.unitCount || 0;
                           const total = cond * per + extra;
@@ -240,22 +236,22 @@ const InventaireCreate: React.FC = () => {
                       <td>
                         { (nombreParCond && nombreParCond > 1) ? (
                           <div>
-                            <div className="small text-muted mb-1">1 { (p.produit?.uniteConditionnement || p.produit?.unite?.libelle || 'conditionnement') } = {nombreParCond} unités</div>
+                            <div className="small text-muted mb-1">1 { (p.produit?.uniteConditionnement || p.produit?.unite?.libelle || 'emballage') } = {nombreParCond} unités</div>
                             <div className="row g-1">
                               <div className="col-4">
-                                <input type="number" min={0} className="form-control" placeholder={p.produit?.uniteConditionnement || p.produit?.unite?.libelle || 'Conditionnements'} value={tmp.condCount ?? ''} onChange={(e) => {
+                                <input type="number" min={0} className="form-control" placeholder={p.produit?.uniteConditionnement || p.produit?.unite?.libelle || 'Emballages'} value={tmp.condCount ?? ''} onChange={(e) => {
                                   const cond = Number(e.target.value || 0);
                                   setTemps(prev => ({...prev, [p.id]: {...prev[p.id], condCount: cond}}));
                                 }} />
-                                <div className="small text-muted mt-1">Conditionnements</div>
+                                <div className="small text-muted mt-1">Emballages</div>
                               </div>
                               <div className="col-4">
                                 <input type="number" min={0} className="form-control" placeholder="Unités supplémentaires" value={tmp.unitCount ?? ''} onChange={(e) => setTemps(prev => ({...prev, [p.id]: {...prev[p.id], unitCount: Number(e.target.value || 0)}}))} />
-                                <div className="small text-muted mt-1">Unités supplémentaires (ajoutées aux unités issues des conditionnements)</div>
+                                <div className="small text-muted mt-1">Unités supplémentaires (ajoutées aux unités issues des emballages)</div>
                               </div>
                               <div className="col-4">
                                 <div className="form-control" aria-readonly>{(tmp.condCount || 0) * (nombreParCond || 1)} + {(tmp.unitCount || 0)} = {(tmp.condCount || 0) * (nombreParCond || 1) + (tmp.unitCount || 0)} unités</div>
-                                <div className="small text-muted mt-1">Unités depuis conditionnements + unités supplémentaires</div>
+                                <div className="small text-muted mt-1">Unités depuis emballages + unités supplémentaires</div>
                               </div>
                             </div>
                             <div className="mt-1 small text-muted">{(tmp.condCount || 0)} × {nombreParCond || 1} = {(tmp.condCount || 0) * (nombreParCond || 1)} unités — + {(tmp.unitCount || 0)} unités supplémentaires — Total: {(tmp.condCount || 0) * (nombreParCond || 1) + (tmp.unitCount || 0)} unités</div>

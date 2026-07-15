@@ -11,6 +11,7 @@ const DepenseList: React.FC = () => {
   const [depenses, setDepenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('EN_ATTENTE');
+  const [actingId, setActingId] = useState<number | null>(null);
   const canValidate = useHasPermission('DEPENSE_VALIDATION');
   const canCreate = useHasPermission('DEPENSE_CREER');
   const canCancel = useHasPermission('DEPENSE_ANNULATION');
@@ -31,16 +32,20 @@ const DepenseList: React.FC = () => {
   useEffect(() => { fetchList(); /* eslint-disable-next-line */ }, [statusFilter, canRead]);
 
   const handleDelete = async (d: any) => {
+    if (actingId !== null) return;
     const ok = await Swal.fire({ title: 'Confirmer', text: 'Supprimer cette dépense ?', icon: 'warning', showCancelButton: true });
     if (!ok.isConfirmed) return;
+    setActingId(d.id);
     try {
       await deleteDepense(d.id);
       Swal.fire('Supprimé', 'Dépense supprimée', 'success');
       fetchList();
     } catch (err: any) { Swal.fire('Erreur', err.message || 'Erreur lors de la suppression', 'error'); }
+    finally { setActingId(null); }
   };
 
   const handleValidate = async (d: any) => {
+    if (actingId !== null) return;
     const { value: ref } = await Swal.fire({
       title: 'Valider dépense',
       input: 'text',
@@ -49,24 +54,30 @@ const DepenseList: React.FC = () => {
       showCancelButton: true
     });
     if (ref === undefined) return; // cancelled
+    setActingId(d.id);
     try {
       await validateDepense(d.id, (ref && ref.trim()) ? ref.trim() : undefined);
       Swal.fire('Validée', 'Dépense validée avec succès', 'success');
       fetchList();
     } catch (err: any) { Swal.fire('Erreur', err.message || 'Erreur lors de la validation', 'error'); }
+    finally { setActingId(null); }
   };
 
   const handleReject = async (d: any) => {
+    if (actingId !== null) return;
     const ok = await Swal.fire({ title: 'Confirmer', text: 'Rejeter cette dépense ?', icon: 'warning', showCancelButton: true });
     if (!ok.isConfirmed) return;
+    setActingId(d.id);
     try {
       await rejectDepense(d.id);
       Swal.fire('Rejetée', 'Dépense rejetée', 'success');
       fetchList();
     } catch (err: any) { Swal.fire('Erreur', err.message || 'Erreur lors du rejet', 'error'); }
+    finally { setActingId(null); }
   };
 
   const handleCancel = async (d: any) => {
+    if (actingId !== null) return;
     const { value: reason } = await Swal.fire({
       title: 'Annuler dépense',
       input: 'text',
@@ -75,11 +86,13 @@ const DepenseList: React.FC = () => {
       showCancelButton: true
     });
     if (reason === undefined) return;
+    setActingId(d.id);
     try {
       await cancelDepense(d.id, (reason && reason.trim()) ? reason.trim() : undefined);
       Swal.fire('Annulée', 'Dépense annulée', 'success');
       fetchList();
     } catch (err: any) { Swal.fire('Erreur', err.message || 'Erreur lors de l\'annulation', 'error'); }
+    finally { setActingId(null); }
   };
 
   return (
@@ -133,6 +146,7 @@ const DepenseList: React.FC = () => {
                           <button
                             className={`btn btn-sm btn-success me-1`}
                             onClick={(e) => { e.stopPropagation(); handleValidate(d); }}
+                            disabled={actingId === d.id}
                             title="Valider"
                           ><i className="ri-check-line me-1"></i><span className="d-none d-sm-inline">Valider</span></button>
                         )}
@@ -140,6 +154,7 @@ const DepenseList: React.FC = () => {
                           <button
                             className={`btn btn-sm btn-danger me-1`}
                             onClick={(e) => { e.stopPropagation(); handleReject(d); }}
+                            disabled={actingId === d.id}
                             title="Rejeter"
                           ><i className="ri-close-circle-line me-1"></i><span className="d-none d-sm-inline">Rejeter</span></button>
                         )}
@@ -147,6 +162,7 @@ const DepenseList: React.FC = () => {
                           <button
                             className={`btn btn-sm btn-warning me-1`}
                             onClick={(e) => { e.stopPropagation(); handleCancel(d); }}
+                            disabled={actingId === d.id}
                             title="Annuler"
                           ><i className="ri-history-line me-1"></i><span className="d-none d-sm-inline">Annuler</span></button>
                         )}
@@ -154,6 +170,7 @@ const DepenseList: React.FC = () => {
                           <button
                             className={`btn btn-sm btn-outline-danger`}
                             onClick={(e) => { e.stopPropagation(); handleDelete(d); }}
+                            disabled={actingId === d.id}
                             title="Supprimer"
                           ><i className="ri-delete-bin-5-fill me-1"></i><span className="d-none d-sm-inline">Supprimer</span></button>
                         )}

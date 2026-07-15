@@ -42,6 +42,13 @@ public class LigneVente {
     @Column(name = "reste_unites_dans_carton_apres_vente")
     private Integer resteUnitesDansCartonApresVente;
 
+    // Which specific emballage (carton, sac...) was sold on this line, when the product has
+    // more than one and the caller disambiguated. Null for unit sales, single/zero-emballage
+    // products, and any historical line predating this feature.
+    @ManyToOne
+    @JoinColumn(name = "id_emballage")
+    private ProduitEmballage emballage;
+
     // Price mode must be set at creation and cannot be changed afterwards
     public void setPriceMode(PriceMode mode) {
         if (this.id != null && this.priceMode != null && !this.priceMode.equals(mode)) {

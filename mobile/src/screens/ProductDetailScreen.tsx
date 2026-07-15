@@ -87,8 +87,16 @@ export default function ProductDetailScreen({ route, navigation }: any) {
       </View>
 
       <View style={{ marginTop: 12 }}>
-        <Text style={{ color: theme.muted }}>Unité de conditionnement</Text>
-        <Text style={{ color: theme.text, fontWeight: '700' }}>{product?.unite?.libelle ? `${product.unite.libelle} (${product.nombreUnitesParConditionnement ?? 1} unités)` : 'Unité de base'}</Text>
+        <Text style={{ color: theme.muted }}>Vendu aussi en</Text>
+        {Array.isArray(product?.emballages) && product.emballages.length > 1 ? (
+          product.emballages.map((e: any) => (
+            <Text key={e.id} style={{ color: theme.text, fontWeight: '700' }}>
+              {e.uniteLibelle} ({e.nombreUnites} unités){e.estParDefaut ? ' — par défaut' : ''}
+            </Text>
+          ))
+        ) : (
+          <Text style={{ color: theme.text, fontWeight: '700' }}>{product?.unite?.libelle ? `${product.unite.libelle} (${product.nombreUnitesParConditionnement ?? 1} unités)` : 'Juste à l\'unité'}</Text>
+        )}
 
         <Text style={{ color: theme.muted, marginTop: 8 }}>Quantité initiale</Text>
         <Text style={{ color: theme.text, fontWeight: '700' }}>

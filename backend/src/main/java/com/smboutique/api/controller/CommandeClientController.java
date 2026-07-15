@@ -20,6 +20,9 @@ public class CommandeClientController {
     private CommandeClientService commandeClientService;
 
     @Autowired
+    private com.smboutique.api.repository.CommandeClientRepository commandeClientRepository;
+
+    @Autowired
     private com.smboutique.api.service.PdfService pdfService;
 
     @Autowired
@@ -354,9 +357,6 @@ public class CommandeClientController {
     @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<?> enregistrerPaiement(@PathVariable Long id, @RequestBody PaiementRequest request) {
         try {
-            java.util.Optional<CommandeClient> cmdOpt = commandeClientService.findById(id);
-            if (!cmdOpt.isPresent()) return ResponseEntity.notFound().build();
-            CommandeClient cmd = cmdOpt.get();
             int montant = request.getMontant() != null ? request.getMontant() : 0;
             logger.info("Paiement client incoming: commandeId={}, montant={}", id, montant);
             // Permission check: require PAIEMENT_CREER or SUPERADMIN
@@ -370,6 +370,17 @@ public class CommandeClientController {
                 logger.warn("Unauthorized payment creation attempt by {} for commandeId={}", authentication.getName(), id);
                 return ResponseEntity.status(403).body(java.util.Map.of("error", "Accès refusé : permission PAIEMENT_CREER requise."));
             }
+
+            // Lock the commande row for the duration of the transaction: without this, two
+            // concurrent payments (double-click, or two staff members recording a payment at the
+            // same time) could both read the same "paie" value, both pass the overpayment check,
+            // and the second save would silently overwrite the first's update to cmd.paie — even
+            // though both payments were correctly credited to the caisse. That desyncs "amount paid
+            // on the order" from "amount actually received", which can cause double-billing or a
+            // commande client that never shows as fully paid.
+            java.util.Optional<CommandeClient> cmdOpt = commandeClientRepository.findByIdForUpdate(id);
+            if (!cmdOpt.isPresent()) return ResponseEntity.notFound().build();
+            CommandeClient cmd = cmdOpt.get();
 
             Integer paieExistante = cmd.getPaie() != null ? cmd.getPaie() : 0;
             Integer totalCommande = cmd.getTotal() != null ? cmd.getTotal() : 0;

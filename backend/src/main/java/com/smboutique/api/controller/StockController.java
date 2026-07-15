@@ -40,6 +40,9 @@ public class StockController {
     @Autowired
     private UtilisateurService utilisateurService;
 
+    @Autowired
+    private com.smboutique.api.repository.ProduitEmballageRepository produitEmballageRepository;
+
     private Utilisateur getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -82,6 +85,18 @@ public class StockController {
                 u.setCode(stock.getProduit().getUnite().getCode());
                 produitDTO.setUnite(u);
             }
+            java.util.List<com.smboutique.api.model.ProduitEmballage> embs = produitEmballageRepository.findByProduitId(stock.getProduit().getId());
+            produitDTO.setEmballages(embs.stream().map(pe -> {
+                com.smboutique.api.dto.ProduitEmballageDTO d = new com.smboutique.api.dto.ProduitEmballageDTO();
+                d.setId(pe.getId());
+                d.setNombreUnites(pe.getNombreUnites());
+                d.setEstParDefaut(pe.getEstParDefaut());
+                if (pe.getUnite() != null) {
+                    d.setUniteId(pe.getUnite().getId());
+                    d.setUniteLibelle(pe.getUnite().getLibelle());
+                }
+                return d;
+            }).collect(java.util.stream.Collectors.toList()));
             dto.setProduit(produitDTO);
             dto.setPrixAchat(stock.getProduit().getPrixAchat());
         }
@@ -98,14 +113,27 @@ public class StockController {
     }
 
     @GetMapping
-    public List<StockDTO> getAllStocks(@RequestParam(value = "level", required = false) String level) {
+    public List<StockDTO> getAllStocks(@RequestParam(value = "level", required = false) String level,
+                                        @RequestParam(value = "magasinId", required = false) Long magasinId) {
         Utilisateur current = getCurrentUser();
         if (!hasPermission(current, "INVENTAIRE_LECTURE")) {
             return List.of(); // Return empty list if no permission
         }
 
         List<Stock> stocks;
-        if (isSuperAdmin(current)) {
+        if (magasinId != null) {
+            // Scoped to one specific magasin: verify it belongs to the caller's boutique
+            // (superadmin may query any magasin).
+            com.smboutique.api.model.Magasin magasin = magasinRepository.findById(magasinId).orElse(null);
+            if (magasin == null) {
+                stocks = List.of();
+            } else if (!isSuperAdmin(current) && (current.getBoutique() == null || magasin.getBoutique() == null
+                    || !magasin.getBoutique().getId().equals(current.getBoutique().getId()))) {
+                stocks = List.of();
+            } else {
+                stocks = stockService.getStocksByMagasin(magasinId);
+            }
+        } else if (isSuperAdmin(current)) {
             stocks = stockService.getAllStocks();
         } else if (current.getBoutique() != null) {
             if ("boutique".equalsIgnoreCase(level)) {

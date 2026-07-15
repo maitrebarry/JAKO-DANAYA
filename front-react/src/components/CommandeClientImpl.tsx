@@ -23,6 +23,7 @@ interface Stock {
     prixEnGros?: number;
     // number of base units per conditionnement (e.g., carton = 12)
     nombreUnitesParConditionnement?: number;
+    emballages?: { id: number; uniteId: number; uniteLibelle: string; nombreUnites: number; estParDefaut: boolean }[];
   };
   magasin?: {
     id?: number;
@@ -49,6 +50,7 @@ interface CartItem {
   quantite: number | string; // units when selling by unit (allow empty string during edit)
   venteParConditionnement?: boolean;
   quantiteConditionnement?: number | string; // number of conditionnements when selling by conditionnement (allow empty during edit)
+  id_emballage?: number; // which emballage (carton, sac...) was picked, when the product has 2+
   multiplicateur?: number; // cached nombre d'unités par conditionnement
   prix: number;
   montant: number;
@@ -82,6 +84,7 @@ const CommandeClient: React.FC = () => {
   const [reference, setReference] = useState('');
   const [dateCommande, setDateCommande] = useState('');
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [selectedStockOption, setSelectedStockOption] = useState<string | number | null>(null);
 
@@ -116,6 +119,17 @@ const CommandeClient: React.FC = () => {
       }
     }
     return 0;
+  };
+
+  // Emballage-aware multiplier for a cart item: the selected emballage's own nombreUnites when
+  // the product has 2+ and one was chosen, otherwise the product's legacy flat field.
+  const multiplierForItem = (item: { id_emballage?: number }, stock?: Stock): number => {
+    const embList = stock?.produit?.emballages;
+    if (item.id_emballage != null && Array.isArray(embList)) {
+      const chosen = embList.find(e => e.id === item.id_emballage);
+      if (chosen) return chosen.nombreUnites || 1;
+    }
+    return getProduitMultiplicateur(stock) || 1;
   };
 
   // Robust product display name resolver: handles different product field shapes
@@ -403,6 +417,10 @@ const CommandeClient: React.FC = () => {
             const miniProd: any = { produit: l.produit };
             multiplicateur = getProduitMultiplicateur(miniProd as any);
           }
+          // If the saved ligne recorded a specific emballage, that emballage's own nombreUnites
+          // is authoritative — the product's flat field only reflects its current default.
+          const savedEmballageId: number | undefined = l.emballage?.id;
+          if (l.emballage?.nombreUnites) multiplicateur = l.emballage.nombreUnites;
 
           // Determine if the saved ligne was entered by conditionnement and restore it for editing
           let savedQuantiteConditionnement = undefined as number | undefined;
@@ -412,7 +430,7 @@ const CommandeClient: React.FC = () => {
           const venteParConditionnement = savedQuantiteConditionnement !== undefined && savedQuantiteConditionnement > 0;
           const qCond = savedQuantiteConditionnement || 1;
 
-          return { uid: uidVal, id_stock: stockId || null, ligneId: l.id || null, produitId: l.produit?.id || null, nom: nomProduit, quantite: quantite, prix, montant: prix * quantite, multiplicateur, venteParConditionnement, quantiteConditionnement: venteParConditionnement ? qCond : undefined };
+          return { uid: uidVal, id_stock: stockId || null, ligneId: l.id || null, produitId: l.produit?.id || null, nom: nomProduit, quantite: quantite, prix, montant: prix * quantite, multiplicateur, venteParConditionnement, quantiteConditionnement: venteParConditionnement ? qCond : undefined, id_emballage: savedEmballageId };
         });
         setCart(loadedCart);
       }
@@ -487,6 +505,7 @@ const CommandeClient: React.FC = () => {
       // Default: checkbox unchecked for ventes
       const defaultVenteParConditionnement = false;
       const initialQuantiteUnits = 1;
+      const defaultEmballage = Array.isArray(stock.produit?.emballages) ? stock.produit!.emballages!.find(e => e.estParDefaut) : undefined;
       const newItem: CartItem = {
         uid: nextUid(),
         id_stock: stock.id,
@@ -499,7 +518,8 @@ const CommandeClient: React.FC = () => {
         multiplicateur: multiplicateur,
         // Default to unit input for ventes
         venteParConditionnement: defaultVenteParConditionnement,
-        quantiteConditionnement: undefined
+        quantiteConditionnement: undefined,
+        id_emballage: defaultEmballage?.id
       };
 
       setCart(prev => [...prev, newItem]);
@@ -527,7 +547,7 @@ const CommandeClient: React.FC = () => {
       if (item.uid !== uid) return item;
       if (!item.venteParConditionnement) return item;
       const stock = stocks.find(s => s.id === item.id_stock);
-      const multiplier = getProduitMultiplicateur(stock);
+      const multiplier = multiplierForItem(item, stock);
       const realQ = quantiteConditionnement * (multiplier || 1);
       const newMontant = item.prix * realQ;
       // Keep quantite in units for stock-impact and history
@@ -541,7 +561,11 @@ const CommandeClient: React.FC = () => {
     setCart(prev => prev.map(item => {
       if (item.uid !== uid) return item;
       const stock = stocks.find(s => s.id === item.id_stock);
-      const multiplier = getProduitMultiplicateur(stock);
+      const embList = stock?.produit?.emballages;
+      const idEmballage = venteParConditionnement
+        ? (item.id_emballage ?? (Array.isArray(embList) ? embList.find(e => e.estParDefaut)?.id : undefined))
+        : item.id_emballage;
+      const multiplier = multiplierForItem({ id_emballage: idEmballage }, stock);
       console.debug('toggleVenteParConditionnement called', { uid, venteParConditionnement, multiplier });
       // initialize quantiteConditionnement to 1 when turning on
       const qCond = venteParConditionnement ? (Number(item.quantiteConditionnement || 1)) : (Number(item.quantite || 1));
@@ -557,14 +581,14 @@ const CommandeClient: React.FC = () => {
       } else {
         // Achat flows: disallow switching to unit input when product is not fractionnable
         if (!venteParConditionnement && (!multiplier || multiplier <= 1)) {
-          Swal.fire('Interdit', 'La saisie à l\'unité n\'est autorisée que si le produit est fractionnable (nombre_unites_par_conditionnement > 1).', 'error');
+          Swal.fire('Interdit', 'La saisie à l\'unité n\'est possible que pour un produit qui se vend aussi par emballage (carton, sac, etc.).', 'error');
           return item;
         }
       }
 
       // Update stored unit quantity when conditionnement changes so stock-impacting quantity is always in units
       const updatedQuantite = venteParConditionnement ? (qCond * (multiplier || 1)) : (Number(item.quantite || 1));
-      return { ...item, venteParConditionnement, quantiteConditionnement: venteParConditionnement ? qCond : undefined, quantite: updatedQuantite, montant: item.prix * (updatedQuantite || 0) };
+      return { ...item, venteParConditionnement, quantiteConditionnement: venteParConditionnement ? qCond : undefined, id_emballage: idEmballage, quantite: updatedQuantite, montant: item.prix * (updatedQuantite || 0) };
     }));
   };
 
@@ -635,7 +659,7 @@ const CommandeClient: React.FC = () => {
   // recompute total based on effective quantities
   const total = cart.reduce((sum, item) => {
     const stock = stocks.find(s => s.id === item.id_stock);
-    const multiplier = stock?.produit?.nombreUnitesParConditionnement || 0;
+    const multiplier = multiplierForItem(item, stock);
     const realQ = item.venteParConditionnement ? ((Number(item.quantiteConditionnement) || 0) * multiplier) : (Number(item.quantite) || 0);
     const montant = (item.prix || 0) * (realQ || 0);
     return sum + montant;
@@ -643,7 +667,9 @@ const CommandeClient: React.FC = () => {
   const zeroStockDetails = stocks.filter(stock => (stock.quantiteDisponible ?? 0) === 0);
 
   const handleSubmit = async () => {
-
+    if (submitting) return; // guard against double-click / duplicate submission
+    setSubmitting(true);
+    try {
 
     if (isVente && !selectedClientId) {
       Swal.fire('Erreur', 'Veuillez sélectionner un client', 'error');
@@ -665,12 +691,17 @@ const CommandeClient: React.FC = () => {
     const blockedForStock: number[] = [];
     for (const item of cart) {
       const stock = stocks.find(s => s.id === item.id_stock);
-      const multiplier = getProduitMultiplicateur(stock);
+      const multiplier = multiplierForItem(item, stock);
 
       // Client-side validations: ensure quantities make sense
       if (item.venteParConditionnement) {
         if ((Number(item.quantiteConditionnement || 0)) <= 0) {
-          Swal.fire('Erreur', `Quantité conditionnement invalide pour ${item.nom}`, 'error');
+          Swal.fire('Erreur', `Quantité d'emballages invalide pour ${item.nom}`, 'error');
+          return;
+        }
+        const embCount = Array.isArray(stock?.produit?.emballages) ? stock!.produit!.emballages!.length : 0;
+        if (embCount > 1 && item.id_emballage == null) {
+          Swal.fire('Erreur', `Veuillez préciser l'emballage pour ${item.nom}`, 'error');
           return;
         }
       } else {
@@ -687,9 +718,9 @@ const CommandeClient: React.FC = () => {
       // Only enforce stock availability for sales
       if (isVente) {
         // Check conditionnement activation rules: multiplicateur must be >1
-        const effMultiplier = (item.multiplicateur || getProduitMultiplicateur(stock));
+        const effMultiplier = multiplier;
         if (item.venteParConditionnement && (!effMultiplier || effMultiplier <= 1)) {
-          Swal.fire('Erreur', `Conditionnement non autorisé pour ${item.nom} : nombre_unites_par_conditionnement doit être > 1.`, 'error');
+          Swal.fire('Erreur', `Vente par emballage impossible pour ${item.nom} : ce produit n'a pas d'emballage défini (carton, sac...).`, 'error');
           return;
         }
 
@@ -708,7 +739,7 @@ const CommandeClient: React.FC = () => {
       };
 
       if (item.venteParConditionnement) {
-        produitsSelectionnes.push({ ...baseObj, venteParConditionnement: true, quantiteConditionnement: Number(item.quantiteConditionnement) });
+        produitsSelectionnes.push({ ...baseObj, venteParConditionnement: true, quantiteConditionnement: Number(item.quantiteConditionnement), id_emballage: item.id_emballage });
       } else {
         produitsSelectionnes.push({ ...baseObj, quantite: Number(item.quantite) });
       }
@@ -854,6 +885,9 @@ const CommandeClient: React.FC = () => {
       }
     } catch (err: any) {
       Swal.fire('Erreur', err.message || 'Erreur inconnue', 'error');
+    }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1024,8 +1058,8 @@ const CommandeClient: React.FC = () => {
               </div>
               </div>
 
-              <div className="row">
-                <div className="col-6">
+              <div className="row g-3">
+                <div className="col-12">
                   <div className="card">
                     <div className="card-header bg-primary text-white">
                       <h6>Produits disponibles</h6>
@@ -1136,7 +1170,12 @@ const CommandeClient: React.FC = () => {
                           <div className="row">
                             {zeroStockDetails.slice(0, 6).map(stock => (
                               <div key={stock.id} className="col-md-6 mb-2">
-                                <div className="d-flex justify-content-between align-items-center p-2 border rounded">
+                                <button
+                                  type="button"
+                                  className="btn btn-light w-100 d-flex justify-content-between align-items-center p-2 border rounded text-start"
+                                  onClick={() => handleProductSelect(String(stock.id))}
+                                  title="Ajouter au panier"
+                                >
                                   <div>
                                     <strong>{getProductDisplayName(stock)}</strong>
                                     <br />
@@ -1147,8 +1186,9 @@ const CommandeClient: React.FC = () => {
                                     <span className="badge bg-danger">
                                       Stock: {stock.quantiteDisponible ?? 0}
                                     </span>
+                                    <span className="badge bg-success ms-1">Ajouter</span>
                                   </div>
-                                </div>
+                                </button>
                               </div>
                             ))}
                           </div>
@@ -1160,7 +1200,7 @@ const CommandeClient: React.FC = () => {
                       )}
                     </div>
                 </div>
-                <div className="col-6">
+                <div className="col-12">
                   <div className="card">
                     <div className="card-header bg-primary text-white">
                       <h6>Panier</h6>
@@ -1180,9 +1220,12 @@ const CommandeClient: React.FC = () => {
                         <tbody>
                           {cart.map(item => {
                             const stock = stocks.find(s => s.id === item.id_stock);
-                            const multiplier = (item.multiplicateur || getProduitMultiplicateur(stock));
+                            const multiplier = multiplierForItem(item, stock);
                             const realQ = item.venteParConditionnement ? ((Number(item.quantiteConditionnement) || 0) * multiplier) : (Number(item.quantite) || 0);
                             const montant = (item.prix || 0) * (realQ || 0);
+                            const embList = stock?.produit?.emballages;
+                            const chosenEmb = Array.isArray(embList) ? embList.find(e => e.id === item.id_emballage) : undefined;
+                            const itemUnitLabel = chosenEmb?.uniteLibelle ?? ((stock?.produit as any)?.unite?.libelle) ?? 'carton';
                             return (
                               <tr key={item.uid}>
                                 <td>{item.nom}</td>
@@ -1204,17 +1247,35 @@ const CommandeClient: React.FC = () => {
 
                                         <div className="form-check form-check-inline" style={{ marginLeft: 8 }}>
                                           <input className="form-check-input" type="checkbox" id={`vente_cond_${item.uid}`} checked={!!item.venteParConditionnement} onChange={(e) => toggleVenteParConditionnement(item.uid, e.target.checked)} disabled={multiplier <= 1} />
-                                          {(() => { const unitLabelRaw = ((stock?.produit as any)?.unite?.libelle) ?? 'emballage'; const unitLabel = typeof unitLabelRaw === 'string' ? unitLabelRaw : String(unitLabelRaw); return <label className="form-check-label small" htmlFor={`vente_cond_${item.uid}`}>Par {unitLabel} {multiplier > 1 ? `(${multiplier}u)` : ''}</label>; })()} 
-                                        </div> 
+                                          <label className="form-check-label small" htmlFor={`vente_cond_${item.uid}`}>Par {itemUnitLabel} {multiplier > 1 ? `(${multiplier}u)` : ''}</label>
+                                        </div>
 
                                         {item.venteParConditionnement ? (
                                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                            {(() => { const unitLabelRaw = ((stock?.produit as any)?.unite?.libelle) ?? 'carton'; const unitLabel = typeof unitLabelRaw === 'string' ? unitLabelRaw : String(unitLabelRaw); return (<><label className="small">Qté ({unitLabel})</label><input type="number" className="form-control" value={item.quantiteConditionnement ?? 1} min={1} onChange={(e) => updateConditionnementQuantity(item.uid, parseInt(e.target.value) || 1)} style={{ width: 80 }} disabled={multiplier <= 1} /></>); })()} 
-                                            <div className="text-muted small">{`${Number(item.quantiteConditionnement || 0)} ${(((stock?.produit as any)?.unite?.libelle) ?? 'carton')}${((Number(item.quantiteConditionnement || 0)) > 1 && !((((stock?.produit as any)?.unite?.libelle) ?? 'carton') as string).toLowerCase().endsWith('s') ? 's' : '')} ≈ ${((Number(item.quantiteConditionnement || 0)) * multiplier)} unités`}</div>
-                                            <div className="text-muted small">1 {((stock?.produit as any)?.unite?.libelle) ?? 'carton'} = {multiplier} u</div>
+                                            {Array.isArray(embList) && embList.length > 1 && (
+                                              <select
+                                                className="form-select form-select-sm"
+                                                style={{ width: 150 }}
+                                                value={item.id_emballage ?? ''}
+                                                onChange={(e) => setCart(prev => prev.map(it => {
+                                                  if (it.uid !== item.uid) return it;
+                                                  const newIdEmb = e.target.value === '' ? undefined : Number(e.target.value);
+                                                  const newMul = multiplierForItem({ id_emballage: newIdEmb }, stock);
+                                                  const newQ = (Number(it.quantiteConditionnement) || 0) * newMul;
+                                                  return { ...it, id_emballage: newIdEmb, quantite: newQ, montant: it.prix * newQ };
+                                                }))}
+                                              >
+                                                {embList.map(e => (
+                                                  <option key={e.id} value={e.id}>{e.uniteLibelle} ({e.nombreUnites}u)</option>
+                                                ))}
+                                              </select>
+                                            )}
+                                            <label className="small">Qté ({itemUnitLabel})</label><input type="number" className="form-control" value={item.quantiteConditionnement ?? 1} min={1} onChange={(e) => updateConditionnementQuantity(item.uid, parseInt(e.target.value) || 1)} style={{ width: 80 }} disabled={multiplier <= 1} />
+                                            <div className="text-muted small">{`${Number(item.quantiteConditionnement || 0)} ${itemUnitLabel}${((Number(item.quantiteConditionnement || 0)) > 1 && !itemUnitLabel.toLowerCase().endsWith('s') ? 's' : '')} ≈ ${((Number(item.quantiteConditionnement || 0)) * multiplier)} unités`}</div>
+                                            <div className="text-muted small">1 {itemUnitLabel} = {multiplier} u</div>
                                             <button type="button" className="btn btn-link btn-sm" onClick={() => { toggleVenteParConditionnement(item.uid, false); setTimeout(() => { const el = document.getElementById(`qty_${item.uid}`) as HTMLInputElement | null; if (el) el.focus(); }, 60); }}>Saisir en unités</button>
                                           </div>
-                                        ) : ( 
+                                        ) : (
                                           (() => {
                                             if (!stock) return <div style={{ marginLeft: 6 }} className="text-muted small">{`${Number(item.quantite || 0)} unité${(Number(item.quantite || 0) > 1) ? 's' : ''}`}</div>;
                                             const prodId = item.produitId;
@@ -1289,8 +1350,8 @@ const CommandeClient: React.FC = () => {
                 <div className="col-12 text-center">
                   {cart.length > 0 && (
                     <RequirePermission permission={isEditMode ? 'COMMANDE_MODIFIER' : 'COMMANDE_CREER'} fallback={<button className="btn btn-secondary" disabled title="Permission requise">{isEditMode ? 'Modifier la commande' : 'Passer la commande'}</button>}>
-                      <button className="btn btn-primary" onClick={handleSubmit}>
-                        {isEditMode ? 'Modifier la commande' : 'Passer la commande'}
+                      <button className="btn btn-primary" onClick={handleSubmit} disabled={submitting}>
+                        {submitting ? (<><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Enregistrement...</>) : (isEditMode ? 'Modifier la commande' : 'Passer la commande')}
                       </button>
                     </RequirePermission>
                   )}

@@ -341,7 +341,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           {[
             { id: 0, number: '1', label: 'Produit' },
-            { id: 1, number: '2', label: 'Conditionnement' },
+            { id: 1, number: '2', label: 'Emballage' },
             { id: 2, number: '3', label: 'Prix & Stock' }
           ].map((tab) => (
             <TouchableOpacity
@@ -523,7 +523,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
                   alignItems: 'center'
                 }}
               >
-                <Text style={{ color: '#fff', fontWeight: '800' }}>Suivant: Conditionnement</Text>
+                <Text style={{ color: '#fff', fontWeight: '800' }}>Suivant: Emballage</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -531,7 +531,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
           {activeTab === 1 && (
             <View>
 
-              <Field theme={theme} label="Unité de conditionnement">
+              <Field theme={theme} label="Ça se vend aussi comment ? (ex: carton, sac, casier)">
                 <TouchableOpacity 
                   onPress={() => setShowUnitsModal(s => !s)} 
                   style={{ 
@@ -598,12 +598,12 @@ export default function ProductFormScreen({ route, navigation }: any) {
                 )}
               </Field>
 
-              <Field theme={theme} label="Nombre d'unités par conditionnement">
-                <TextInput 
-                  placeholder={selectedUniteId ? 
-                    `Ex: 12 pour 1 carton = 12 unités` : 
-                    'Nombre d\'unités par conditionnement'
-                  } 
+              <Field theme={theme} label="Combien d'unités dans un emballage ?">
+                <TextInput
+                  placeholder={selectedUniteId ?
+                    `Ex: 12 pour 1 carton = 12 unités` :
+                    'Ex: 12 (1 emballage = 12 unités)'
+                  }
                   keyboardType="numeric" 
                   placeholderTextColor={theme.muted} 
                   value={nombreUnitesParConditionnement} 

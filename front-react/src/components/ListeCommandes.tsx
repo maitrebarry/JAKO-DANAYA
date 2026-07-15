@@ -19,6 +19,60 @@ swalWideStyle.textContent = `
 `;
 document.head.appendChild(swalWideStyle);
 
+// Ligne "à traiter" (ni reçue/livrée, ni payée) : fond rouge + indice incitant au clic.
+// La main ne reste pas affichée en permanence : toutes les 30s elle surgit depuis un bord
+// aléatoire (haut/bas/gauche/droite), se pose sur la ligne, puis repart par où elle est venue.
+const urgentRowStyle = document.createElement('style');
+urgentRowStyle.textContent = `
+  tr.commande-a-traiter > td {
+    background-color: #f8d7da !important;
+  }
+  tr.commande-a-traiter:hover > td {
+    background-color: #f1aeb5 !important;
+  }
+  .click-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #842029;
+    white-space: nowrap;
+  }
+  .click-hint .hand-icon {
+    display: inline-block;
+    font-size: 18px;
+    opacity: 0;
+    animation: hand-visit 3s ease-in-out;
+  }
+  @keyframes hand-visit {
+    0%   { opacity: 0; transform: translate(var(--hx, 0), var(--hy, 0)) scale(0.5) rotate(-15deg); }
+    18%  { opacity: 1; transform: translate(0, 0) scale(1.25) rotate(8deg); }
+    28%  { opacity: 1; transform: translate(0, 0) scale(1) rotate(0deg); }
+    80%  { opacity: 1; transform: translate(0, 0) scale(1) rotate(0deg); }
+    100% { opacity: 0; transform: translate(var(--hx, 0), var(--hy, 0)) scale(0.5) rotate(-15deg); }
+  }
+  .click-hint .hint-text {
+    display: inline-block;
+    opacity: 0;
+    animation: hint-fade 3s ease-in-out;
+  }
+  @keyframes hint-fade {
+    0%   { opacity: 0; }
+    18%  { opacity: 1; }
+    80%  { opacity: 1; }
+    100% { opacity: 0; }
+  }
+`;
+document.head.appendChild(urgentRowStyle);
+
+const HAND_DIRECTIONS: Record<string, { hx: string; hy: string }> = {
+  top: { hx: '0px', hy: '-42px' },
+  bottom: { hx: '0px', hy: '42px' },
+  left: { hx: '-42px', hy: '0px' },
+  right: { hx: '42px', hy: '0px' },
+};
+
 interface CommandeData {
   id_commande_fournisseur: number;
   reference: string;
@@ -41,6 +95,21 @@ const ListeCommandes: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  // La main d'invite (👆) sur les lignes "à traiter" ne reste pas affichée en continu :
+  // toutes les 30s elle surgit depuis un bord tiré au sort, puis repart.
+  const [handTick, setHandTick] = useState(0);
+  const [handDirection, setHandDirection] = useState<keyof typeof HAND_DIRECTIONS>('bottom');
+
+  useEffect(() => {
+    const directions = Object.keys(HAND_DIRECTIONS) as Array<keyof typeof HAND_DIRECTIONS>;
+    const trigger = () => {
+      setHandDirection(directions[Math.floor(Math.random() * directions.length)]);
+      setHandTick(t => t + 1);
+    };
+    const firstRun = window.setTimeout(trigger, 1500);
+    const interval = window.setInterval(trigger, 30000);
+    return () => { window.clearTimeout(firstRun); window.clearInterval(interval); };
+  }, []);
 
   // Detect if we are in 'ventes' context by checking the current path or query param ?mode=vente
   const urlParams = new URLSearchParams(location.search || '');
@@ -434,15 +503,31 @@ const ListeCommandes: React.FC = () => {
                   <tbody>
                     {filteredCommandes.length > 0 ? (
                       <>
-                        {filteredCommandes.map((commande) => (
+                        {filteredCommandes.map((commande) => {
+                          const needsAttention = (commande.pourcentage_recu ?? 0) === 0 && (commande.pourcentage_paye ?? 0) === 0;
+                          const actionHint = isVenteMode ? 'Cliquez : livraison ou paiement' : 'Cliquez : réception ou paiement';
+                          return (
                           <tr
                             key={commande.id_commande_fournisseur}
-                            className="table-row"
+                            className={`table-row${needsAttention ? ' commande-a-traiter' : ''}`}
                             style={{ cursor: 'pointer' }}
                             onClick={() => handleRowClick(commande)}
                           >
                             <td>{formatServerDate(commande.date_de_commande)}</td>
-                            <td>{commande.reference}</td>
+                            <td>
+                              {commande.reference}
+                              {needsAttention && handTick > 0 && (
+                                <div className="click-hint mt-1">
+                                  <span
+                                    key={`hand-${handTick}`}
+                                    className="hand-icon"
+                                    aria-hidden="true"
+                                    style={{ '--hx': HAND_DIRECTIONS[handDirection].hx, '--hy': HAND_DIRECTIONS[handDirection].hy } as React.CSSProperties}
+                                  >👆</span>
+                                  <span key={`text-${handTick}`} className="hint-text">{actionHint}</span>
+                                </div>
+                              )}
+                            </td>
                             <td>{commande.prenom_fournisseur} {commande.nom_fournisseur}</td>
                             <td>
                               <div className="progress" style={{ height: '35px' }}>
@@ -475,7 +560,8 @@ const ListeCommandes: React.FC = () => {
                             <td>{fmt(Number(commande.total))}</td>
                             <td>{fmt(Number(commande.paie))}</td>
                           </tr>
-                        ))}
+                          );
+                        })}
                         <tr>
                           <td colSpan={5} className="text-end">
                             <span className="text-primary">Total Général :</span>

@@ -35,6 +35,7 @@ const VenteLivraison: React.FC = () => {
   const [lignes, setLignes] = useState<VenteLine[]>([]);
   const [stocks, setStocks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [isClientCommande, setIsClientCommande] = useState(false);
 
   // Location state
@@ -458,12 +459,14 @@ const VenteLivraison: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return; // guard against double-click / duplicate submission
     const targetId = selectedVenteId || venteId;
     if (!targetId) {
       Swal.fire('Erreur', 'Aucun identifiant de vente sélectionné', 'warning');
       return;
     }
 
+    setSubmitting(true);
     try {
       const token = getAuthToken();
       if (!token) {
@@ -558,6 +561,8 @@ const VenteLivraison: React.FC = () => {
     } catch (e: any) {
       setServerError({ message: e.message || 'Erreur inconnue' });
       Swal.fire('Erreur', e.message || 'Erreur inconnue', 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -767,9 +772,10 @@ const VenteLivraison: React.FC = () => {
                       name="valider"
                       className="btn btn-primary float-end"
                       type="submit"
+                      disabled={submitting}
                       style={{ display: lignes.length > 0 ? 'block' : 'none' }}
                     >
-                      Valider
+                      {submitting ? (<><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Validation...</>) : 'Valider'}
                     </button>
                   </div>
                 </div>

@@ -12,6 +12,7 @@ export type AchatLinePayload = {
   id_stock: number;
   quantite: number; // units
   quantiteConditionnement?: number | null;
+  id_emballage?: number | null;
   prix: number; // unit purchase price
 };
 
@@ -36,6 +37,7 @@ export type CommandeFournisseurDTO = {
     multiplicateur?: number | null;
     depot?: string | null;
     unite?: { id?: number; libelle?: string; symbole?: string; code?: string } | null;
+    idEmballage?: number | null;
   }>;
 };
 
@@ -51,6 +53,7 @@ export type ReceptionCommandeFournisseurPayload = {
     ligneId: number;
     quantiteLivre?: number | null;
     quantiteConditionnement?: number | null;
+    id_emballage?: number | null;
   }>;
 };
 
@@ -81,6 +84,7 @@ export type CreateReceptionPayload = {
     qteRecue?: number | null;
     receptionActuelle: number; // units received now
     quantiteConditionnement?: number | null;
+    idEmballage?: number | null;
   }>;
 };
 

@@ -14,10 +14,23 @@ interface Line {
   quantite?: number; // units
   venteParConditionnement?: boolean;
   quantiteConditionnement?: number; // number of packs
+  id_emballage?: number; // which emballage (carton, sac...) was picked, when the product has 2+
   prix?: number;
   priceMode?: string;
   quantiteReelle?: number; // computed
 }
+
+// Emballage multiplier for a line: the selected emballage's own nombreUnites when the
+// product has 2+ and one was chosen, otherwise the product's legacy flat field (unchanged
+// behavior for the common case of 0 or 1 emballage).
+const lineMultiplier = (l: Line): number => {
+  const embs = l.produit?.emballages;
+  if (l.id_emballage != null && Array.isArray(embs)) {
+    const chosen = embs.find((e: any) => e.id === l.id_emballage);
+    if (chosen) return chosen.nombreUnites || 1;
+  }
+  return l.produit?.nombreUnitesParConditionnement || 1;
+};
 
 const VenteEnEspece: React.FC = () => {
   const navigate = useNavigate();
@@ -25,7 +38,7 @@ const VenteEnEspece: React.FC = () => {
   const [lines, setLines] = useState<Line[]>([]);
   const [nomClient, setNomClient] = useState<string>('Clients divers');
   const [montantRecu, setMontantRecu] = useState<number | null>(null);
-  const [remise, setRemise] = useState<number>(0);
+  const [remise, setRemise] = useState<number | null>(0);
   const [loading, setLoading] = useState(false);
   const fmt = useFormatMoney();
 
@@ -157,6 +170,7 @@ const VenteEnEspece: React.FC = () => {
     // Default: checkbox should be unchecked (user explicitly requested checkbox default unchecked)
     const defaultVenteParConditionnement = false;
     const initialQuantiteUnits = 1;
+    const defaultEmballage = Array.isArray(prod.emballages) ? prod.emballages.find((e: any) => e.estParDefaut) : null;
 
     const newLine: Line = {
       id_stock: id,
@@ -165,6 +179,7 @@ const VenteEnEspece: React.FC = () => {
       quantite: initialQuantiteUnits,
       venteParConditionnement: defaultVenteParConditionnement,
       quantiteConditionnement: undefined,
+      id_emballage: defaultEmballage ? defaultEmballage.id : undefined,
       prix: Number(defaultPrice),
       priceMode: priceModeDefault
     };
@@ -172,22 +187,24 @@ const VenteEnEspece: React.FC = () => {
   };
 
   const formatFCFA = (n: number) => fmt(n); 
+  const computeSubtotal = () => {
+    return lines.reduce((acc, l) => {
+      const q = computeLineQuantiteReelle(l);
+      const p = l.prix || 0;
+      return acc + q * p;
+    }, 0);
+  };
+
   const computeLineQuantiteReelle = (l: Line) => {
     if (l.venteParConditionnement) {
-      const stock = stocks.find(s => s.id === l.id_stock);
-      const mul = stock && stock.produit && stock.produit.nombreUnitesParConditionnement ? stock.produit.nombreUnitesParConditionnement : 1;
-      return (l.quantiteConditionnement || 0) * mul;
+      return (l.quantiteConditionnement || 0) * lineMultiplier(l);
     }
     return l.quantite || 0;
   };
 
   const computeTotal = () => {
-    const subtotal = lines.reduce((acc, l) => {
-      const q = computeLineQuantiteReelle(l);
-      const p = l.prix || 0;
-      return acc + q * p;
-    }, 0);
-    return subtotal - (remise || 0);
+    const subtotal = computeSubtotal();
+    return subtotal - (remise ?? 0);
   };
 
   // Client-side submission validation
@@ -216,9 +233,13 @@ const VenteEnEspece: React.FC = () => {
 
       // If sale is issued from a conditionnement, enforce rules
       if (l.venteParConditionnement) {
-        const mult = stock.produit?.nombreUnitesParConditionnement || 1;
+        const mult = lineMultiplier(l);
         if (!mult || mult <= 1) {
           errors.push(`Conditionnement non autorisé pour ${(stock.produit && (stock.produit.nomProduit || stock.produit.nom)) || ''}.`);
+        }
+        const embCount = Array.isArray(stock.produit?.emballages) ? stock.produit.emballages.length : 0;
+        if (embCount > 1 && l.id_emballage == null) {
+          errors.push(`Veuillez préciser l'emballage vendu pour ${(stock.produit && (stock.produit.nomProduit || stock.produit.nom)) || ''}.`);
         }
         if (l.quantiteConditionnement == null || l.quantiteConditionnement < 1) {
           errors.push(`Quantité de conditionnements invalide pour ${(stock.produit && (stock.produit.nomProduit || stock.produit.nom)) || ''}.`);
@@ -287,18 +308,22 @@ const VenteEnEspece: React.FC = () => {
         return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}${sign}${pad(oh)}:${pad(om)}`;
       })(),
       nomClient: nomClient || 'Clients divers',
-      total: computeTotal(),
+      total: computeSubtotal(),
       montantRecu: montantRecu || 0,
       monnaieRembourse: monnaieRembourse(),
-      remise: remise || 0,
-      produitsSelectionnes: validLines.map(l => ({
-        id_stock: l.id_stock,
-        quantite: l.quantite,
-        venteParConditionnement: l.venteParConditionnement || false,
-        quantiteConditionnement: l.venteParConditionnement ? l.quantiteConditionnement : undefined,
-        prix: l.prix || 0,
-        priceMode: l.priceMode || priceModeDefault
-      }))
+      remise: remise ?? 0,
+      produitsSelectionnes: validLines.map(l => {
+        const quantiteReelle = computeLineQuantiteReelle(l);
+        return {
+          id_stock: l.id_stock,
+          quantite: quantiteReelle,
+          venteParConditionnement: l.venteParConditionnement || false,
+          quantiteConditionnement: l.venteParConditionnement ? l.quantiteConditionnement : undefined,
+          id_emballage: l.venteParConditionnement ? l.id_emballage : undefined,
+          prix: l.prix || 0,
+          priceMode: l.priceMode || priceModeDefault
+        };
+      })
     };
 
     setLoading(true);
@@ -384,8 +409,8 @@ const VenteEnEspece: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="row">
-                  <div className="col-md-6">
+                <div className="row g-3">
+                  <div className="col-12">
                     <div className="card">
                       <div className="card-header bg-dark text-white">Produits Disponible</div>
                       <div className="card-body">
@@ -448,7 +473,7 @@ const VenteEnEspece: React.FC = () => {
                               options={stocks.map(s => {
                                 const prodName = (s.produit && (s.produit.nomProduit || s.produit.nom)) || (`Stock ${s.id}`);
                                 const mult = s.produit?.nombreUnitesParConditionnement || 0;
-                                const unitLabel = s.produit?.unite?.libelle || 'conditionnement';
+                                const unitLabel = s.produit?.unite?.libelle || 'emballage';
                                 const multPart = mult && mult > 1 ? ` — 1 ${unitLabel} = ${mult} unités` : '';
                                 const packagingLabel = (() => {
                                   const u = Number(s.quantiteDisponible || 0);
@@ -470,30 +495,50 @@ const VenteEnEspece: React.FC = () => {
                           </div>
                         </div>
                       </div>
+                      {stocks.filter(s => (s.quantiteDisponible || 0) === 0).length > 0 ? (
+                        <div className="mt-3">
+                          <h6 className="text-muted mb-2">Détails produits en rupture de stock :</h6>
+                          <div className="row">
+                            {stocks.filter(s => (s.quantiteDisponible || 0) === 0).slice(0, 6).map(s => (
+                              <div key={s.id} className="col-md-6 mb-2">
+                                <button
+                                  type="button"
+                                  className="btn btn-light w-100 d-flex justify-content-between align-items-center p-2 border rounded text-start"
+                                  onClick={() => handleProductSelect(String(s.id))}
+                                  title="Ajouter au panier"
+                                >
+                                  <div>
+                                    <strong>{s.produit?.nomProduit || s.produit?.nom || `Stock ${s.id}`}</strong>
+                                    <br />
+                                    <small className="text-muted">Stock indisponible</small>
+                                  </div>
+                                  <div>
+                                    <span className="badge bg-danger">Stock: {s.quantiteDisponible ?? 0}</span>
+                                    <span className="badge bg-success ms-1">Ajouter</span>
+                                  </div>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-3">
+                          <h6 className="text-muted mb-2">Aucun produit en rupture de stock</h6>
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  <div className="col-md-6">
+                  <div className="col-12">
                     <div className="card">
                       <div className="card-header bg-dark text-white">Panier</div>
                       <div className="card-body">
-                        {stocks.filter(s => (s.quantiteDisponible || 0) === 0).length > 0 && (
-                          <div className="alert alert-warning">
-                            <strong>Ruptures de stock :</strong>
-                            <ul className="mb-0 mt-2">
-                              {stocks.filter(s => (s.quantiteDisponible || 0) === 0).map(s => (
-                                <li key={s.id}>{s.produit?.nomProduit || s.produit?.nom || `Stock ${s.id}`}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
                         <div className="table-responsive">
                           <table className="table">
                             <thead>
                               <tr>
                                 <th>Produit</th>
-                                <th>Conditionnement</th>
+                                <th>Emballage</th>
                                 <th>Quantité</th>
                                 <th>Prix (unité)</th>
                                 <th>Montant</th>
@@ -508,29 +553,50 @@ const VenteEnEspece: React.FC = () => {
                                   <tr key={idx}>
                                     <td>{l.designation || (l.produit && (l.produit.nomProduit || l.produit.nom)) || '—'}</td>
                                     <td>
-                                      <div className="form-check">
-                                        <input className="form-check-input" type="checkbox" checked={!!l.venteParConditionnement} onChange={e => {
-                                          const checked = e.target.checked;
-                                          const stock = stocks.find(s => s.id === l.id_stock);
-                                          const mult = stock?.produit?.nombreUnitesParConditionnement || 1;
-                                          if (checked && (!mult || mult <= 1)) {
-                                            Swal.fire('Interdit', 'La vente issue d\'un conditionnement n\'est pas autorisée pour ce produit.', 'error');
-                                            return;
-                                          }
-                                          // When enabling, set default quantiteConditionnement and adjust unit quantity
-                                          if (checked) {
-                                            const defaultQCond = l.quantiteConditionnement || 1;
-                                            const totalOpen = defaultQCond * (mult || 1);
-                                            const newQuant = Math.min(l.quantite || 0, totalOpen) || Math.min(1, totalOpen);
-                                            handleLineChange(idx, 'quantiteConditionnement', defaultQCond);
-                                            handleLineChange(idx, 'quantite', newQuant);
-                                          } else {
-                                            handleLineChange(idx, 'quantiteConditionnement', undefined);
-                                          }
-                                          handleLineChange(idx, 'venteParConditionnement', checked);
-                                        }} id={`cond-${idx}`} />
-                                        <label className="form-check-label" htmlFor={`cond-${idx}`}>Par conditionnement</label>
-                                      </div>
+                                      {(() => {
+                                        const embList: any[] = Array.isArray(l.produit?.emballages) ? l.produit.emballages : [];
+                                        const legacyMult = l.produit?.nombreUnitesParConditionnement || 1;
+                                        const canPack = embList.length > 1 ? true : (!!legacyMult && legacyMult > 1);
+                                        return (
+                                          <>
+                                            <div className="form-check">
+                                              <input className="form-check-input" type="checkbox" disabled={!canPack} checked={!!l.venteParConditionnement} onChange={e => {
+                                                const checked = e.target.checked;
+                                                if (checked && !canPack) {
+                                                  Swal.fire('Interdit', 'Ce produit n\'a pas d\'emballage défini (carton, sac...) — impossible de vendre par emballage.', 'error');
+                                                  return;
+                                                }
+                                                // When enabling, set default quantiteConditionnement and adjust unit quantity
+                                                if (checked) {
+                                                  const defaultEmb = embList.length > 1 ? (embList.find(e => e.estParDefaut) || embList[0]) : null;
+                                                  const mult = defaultEmb ? defaultEmb.nombreUnites : legacyMult;
+                                                  const defaultQCond = l.quantiteConditionnement || 1;
+                                                  const totalOpen = defaultQCond * (mult || 1);
+                                                  const newQuant = Math.min(l.quantite || 0, totalOpen) || Math.min(1, totalOpen);
+                                                  handleLineChange(idx, 'quantiteConditionnement', defaultQCond);
+                                                  handleLineChange(idx, 'quantite', newQuant);
+                                                  if (defaultEmb) handleLineChange(idx, 'id_emballage', defaultEmb.id);
+                                                } else {
+                                                  handleLineChange(idx, 'quantiteConditionnement', undefined);
+                                                }
+                                                handleLineChange(idx, 'venteParConditionnement', checked);
+                                              }} id={`cond-${idx}`} />
+                                              <label className="form-check-label" htmlFor={`cond-${idx}`}>Par emballage</label>
+                                            </div>
+                                            {l.venteParConditionnement && embList.length > 1 && (
+                                              <select
+                                                className="form-select form-select-sm mt-1"
+                                                value={l.id_emballage ?? ''}
+                                                onChange={e => handleLineChange(idx, 'id_emballage', e.target.value === '' ? undefined : Number(e.target.value))}
+                                              >
+                                                {embList.map(emb => (
+                                                  <option key={emb.id} value={emb.id}>{emb.uniteLibelle} ({emb.nombreUnites} unités)</option>
+                                                ))}
+                                              </select>
+                                            )}
+                                          </>
+                                        );
+                                      })()}
                                     </td>
                                     <td style={{ minWidth: 'min(200px, 90vw)' }}>
                                       <div style={{ display: 'flex', gap: 8 }}>
@@ -541,13 +607,21 @@ const VenteEnEspece: React.FC = () => {
                                           </div>
                                         ) : (
                                           <div style={{ width: 140 }}>
-                                            {(() => { const unitRaw = l.produit?.unite?.libelle ?? 'emballage'; const unitLabel = typeof unitRaw === 'string' ? unitRaw : String(unitRaw); return (<><label className="form-label small mb-1">Quantité ({unitLabel})</label><input type="number" min={0} className="form-control" value={l.quantiteConditionnement ?? ''} onChange={e => handleLineChange(idx, 'quantiteConditionnement', e.target.value === '' ? undefined : Number(e.target.value))} /></>); })()}
+                                            {(() => {
+                                              const embList: any[] = Array.isArray(l.produit?.emballages) ? l.produit.emballages : [];
+                                              const chosen = embList.find(e => e.id === l.id_emballage);
+                                              const unitRaw = chosen?.uniteLibelle ?? l.produit?.unite?.libelle ?? 'emballage';
+                                              const unitLabel = typeof unitRaw === 'string' ? unitRaw : String(unitRaw);
+                                              return (<><label className="form-label small mb-1">Quantité ({unitLabel})</label><input type="number" min={0} className="form-control" value={l.quantiteConditionnement ?? ''} onChange={e => handleLineChange(idx, 'quantiteConditionnement', e.target.value === '' ? undefined : Number(e.target.value))} /></>);
+                                            })()}
                                           </div>
                                         )}
                                       </div>
                                       <small className="text-muted">{l.venteParConditionnement && (l.quantiteConditionnement ?? 0) > 0 ? (() => {
                                         const q = l.quantiteConditionnement || 0;
-                                        const unitRaw = l.produit?.unite?.libelle ?? 'cond';
+                                        const embList: any[] = Array.isArray(l.produit?.emballages) ? l.produit.emballages : [];
+                                        const chosen = embList.find(e => e.id === l.id_emballage);
+                                        const unitRaw = chosen?.uniteLibelle ?? l.produit?.unite?.libelle ?? 'cond';
                                         const unit = typeof unitRaw === 'string' ? unitRaw : String(unitRaw);
                                         const unitPlural = (q > 1 && !unit.toLowerCase().endsWith('s')) ? `${unit}s` : unit;
                                         return `${q} ${unitPlural} ≈ ${qreelle} unités — Vendu: ${l.quantite || 0} unités`;
@@ -569,9 +643,13 @@ const VenteEnEspece: React.FC = () => {
                                     </td>
                                     <td>
                                       <div className="input-group">
-                                        {l.venteParConditionnement && (l.quantiteConditionnement || 0) > 0 ? (
-                                          <input type="text" className="form-control" value={`${formatFCFA((l.prix||0) * (l.produit?.nombreUnitesParConditionnement ?? 1))} / ${l.produit?.unite?.libelle || l.produit?.uniteConditionnement || 'carton'}`} readOnly />
-                                        ) : (
+                                        {l.venteParConditionnement && (l.quantiteConditionnement || 0) > 0 ? (() => {
+                                          const embList: any[] = Array.isArray(l.produit?.emballages) ? l.produit.emballages : [];
+                                          const chosen = embList.find(e => e.id === l.id_emballage);
+                                          const mult = lineMultiplier(l);
+                                          const unitLabel = chosen?.uniteLibelle || l.produit?.unite?.libelle || l.produit?.uniteConditionnement || 'carton';
+                                          return <input type="text" className="form-control" value={`${formatFCFA((l.prix||0) * mult)} / ${unitLabel}`} readOnly />;
+                                        })() : (
                                           <input type="number" min={0} className="form-control" value={l.prix || 0} onChange={e => handleLineChange(idx, 'prix', Number(e.target.value))} disabled />
                                         )}
                                         <span className="input-group-text" title="Prix automatique"><i className="bx bx-lock"></i></span>
@@ -607,7 +685,7 @@ const VenteEnEspece: React.FC = () => {
                         <div className="row">
                           <div className="col-md-4">
                             <label className="form-label">Remise</label>
-                            <input className="form-control" type="number" value={remise} onChange={e => setRemise(Number(e.target.value))} />
+                            <input className="form-control" type="number" value={remise == null ? '' : remise} onChange={e => setRemise(e.target.value === '' ? null : Number(e.target.value))} />
                           </div>
                           <div className="col-md-4">
                             <label className="form-label">Montant Reçu</label>

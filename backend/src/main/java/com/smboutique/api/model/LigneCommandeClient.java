@@ -30,9 +30,16 @@ public class LigneCommandeClient {
     
     @Column(name = "qte_livre")
     private Integer quantiteLivre;
-    
+
     @Column(name = "new_price_cmndClient")
     private Integer newPrice;
+
+    // Which specific emballage (carton, sac...) was ordered, when the product has 2+ and the
+    // caller disambiguated. Null for unit orders, single/zero-emballage products, and lines
+    // predating this feature.
+    @ManyToOne
+    @JoinColumn(name = "id_emballage")
+    private ProduitEmballage emballage;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "price_mode")

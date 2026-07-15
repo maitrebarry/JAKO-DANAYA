@@ -12,6 +12,7 @@ const DepenseDetail: React.FC = () => {
   const [depense, setDepense] = useState<any | null>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const canValidate = useHasPermission('DEPENSE_VALIDATION');
   const canCancel = useHasPermission('DEPENSE_ANNULATION');
   const canRead = useHasPermission('DEPENSE_LECTURE');
@@ -46,6 +47,7 @@ const DepenseDetail: React.FC = () => {
   };
 
   const doValidate = async () => {
+    if (submitting) return;
     const { value: ref } = await Swal.fire({
       title: 'Valider dépense',
       input: 'text',
@@ -54,26 +56,32 @@ const DepenseDetail: React.FC = () => {
       showCancelButton: true
     });
     if (ref === undefined) return;
+    setSubmitting(true);
     try {
       await validateDepense(depense.id, (ref && ref.trim()) ? ref.trim() : undefined);
       Swal.fire('Succès', 'Dépense validée', 'success');
       const d = await getDepense(depense.id);
       setDepense(d);
     } catch (err: any) { Swal.fire('Erreur', err.message || 'Erreur lors de la validation', 'error'); }
+    finally { setSubmitting(false); }
   };
 
   const doReject = async () => {
+    if (submitting) return;
     const ok = await Swal.fire({ title: 'Confirmer', text: 'Rejeter cette dépense ?', icon: 'warning', showCancelButton: true });
     if (!ok.isConfirmed) return;
+    setSubmitting(true);
     try {
       await rejectDepense(depense.id);
       Swal.fire('Succès', 'Dépense rejetée', 'success');
       const d = await getDepense(depense.id);
       setDepense(d);
     } catch (err: any) { Swal.fire('Erreur', err.message || 'Erreur lors du rejet', 'error'); }
+    finally { setSubmitting(false); }
   };
 
   const doCancel = async () => {
+    if (submitting) return;
     const { value: reason } = await Swal.fire({
       title: 'Annuler dépense',
       input: 'text',
@@ -82,12 +90,14 @@ const DepenseDetail: React.FC = () => {
       showCancelButton: true
     });
     if (reason === undefined) return;
+    setSubmitting(true);
     try {
       await cancelDepense(depense.id, (reason && reason.trim()) ? reason.trim() : undefined);
       Swal.fire('Succès', 'Dépense annulée', 'success');
       const d = await getDepense(depense.id);
       setDepense(d);
     } catch (err: any) { Swal.fire('Erreur', err.message || 'Erreur lors de l\'annulation', 'error'); }
+    finally { setSubmitting(false); }
   };
 
   const doPrint = async () => {
@@ -112,9 +122,9 @@ const DepenseDetail: React.FC = () => {
           <div className="d-flex gap-2">
             <button className="btn btn-outline-secondary" onClick={() => navigate(-1)} title="Retour"><i className="ri-arrow-left-line me-1"></i>Retour</button>
             <button className="btn btn-outline-primary" onClick={doPrint}><i className="ri-file-pdf-line me-1"></i>Imprimer</button>
-            {depense.status === 'EN_ATTENTE' && canValidate && <button className="btn btn-success" onClick={doValidate}><i className="ri-check-line me-1"></i>Valider</button>}
-            {depense.status === 'EN_ATTENTE' && canValidate && <button className="btn btn-danger" onClick={doReject}><i className="ri-close-circle-line me-1"></i>Rejeter</button>}
-            {depense.status === 'VALIDEE' && canCancel && <button className="btn btn-warning" onClick={doCancel}><i className="ri-history-line me-1"></i>Annuler</button>}
+            {depense.status === 'EN_ATTENTE' && canValidate && <button className="btn btn-success" onClick={doValidate} disabled={submitting}><i className="ri-check-line me-1"></i>Valider</button>}
+            {depense.status === 'EN_ATTENTE' && canValidate && <button className="btn btn-danger" onClick={doReject} disabled={submitting}><i className="ri-close-circle-line me-1"></i>Rejeter</button>}
+            {depense.status === 'VALIDEE' && canCancel && <button className="btn btn-warning" onClick={doCancel} disabled={submitting}><i className="ri-history-line me-1"></i>Annuler</button>}
           </div>
         </div>
 

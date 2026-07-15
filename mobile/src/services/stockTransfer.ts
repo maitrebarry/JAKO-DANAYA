@@ -21,6 +21,7 @@ export type LocationTransferItem = {
   produitId: number;
   quantite?: number;
   quantiteConditionnement?: number;
+  idEmballage?: number;
 };
 
 export type LocationTransferRequest = {

@@ -21,6 +21,7 @@ const InventaireDetail: React.FC = () => {
   const [condCount, setCondCount] = useState<number>(0);
   const [unitCount, setUnitCount] = useState<number>(0);
   const [adding, setAdding] = useState<boolean>(false);
+  const [regularizing, setRegularizing] = useState<boolean>(false);
   const canDelete = useHasPermission('INVENTAIRE_SUPPRIMER');
   const formatMoney = useFormatMoney();
 
@@ -87,7 +88,7 @@ const InventaireDetail: React.FC = () => {
         const prod = s.produit || {};
         const mult = prod.nombreUnitesParConditionnement || 1;
         const u = Number(s.quantiteDisponible || 0);
-        const unitLibelle = prod.uniteConditionnement || prod.unite?.libelle || 'conditionnement';
+        const unitLibelle = prod.uniteConditionnement || prod.unite?.libelle || 'emballage';
         let packagingLabel = `${u} unité${u > 1 ? 's' : ''}`;
         if (mult && mult > 1) {
           const full = Math.floor(u / mult);
@@ -214,6 +215,7 @@ const InventaireDetail: React.FC = () => {
         <div>
           <div className="mb-3">
             <strong>Référence:</strong> {inventaire.referenceInventaire || inventaire.reference}
+            <span className="ms-3"><strong>Emplacement:</strong> {inventaire.magasin?.nom || 'Boutique'}</span>
             <span className="ms-3"><strong>Date:</strong> {formatServerDate(inventaire.dateInventaire || inventaire.date || '')}</span>
             <span className="ms-3"><strong>Régularisé:</strong> {inventaire.regulariser ? 'Oui' : 'Non'}</span>
           </div>
@@ -251,7 +253,7 @@ const InventaireDetail: React.FC = () => {
                     {products.map(p => <option key={p.id} value={p.id}>{`${p.nom} — ${(p.magasin?.nom || p.magasin?.nomMagasin || p.magasinId || 'Dépôt boutique')} — Stock: ${p.packagingLabel || (p.quantiteVirtuelle + ' unités')}`}</option>)}
                   </select>
                   {selectedProduct && condCount > 0 && (() => {
-                    const unitLib = selectedProduct?.produit?.uniteConditionnement || selectedProduct?.produit?.unite?.libelle || 'conditionnement';
+                    const unitLib = selectedProduct?.produit?.uniteConditionnement || selectedProduct?.produit?.unite?.libelle || 'emballage';
                     const total = condCount * (nombreUnitesParConditionnement || 1) + (unitCount || 0);
                     const label = condCount > 1 && !unitLib.endsWith('s') ? unitLib + 's' : unitLib;
                     return <div className="small text-muted mt-1">{condCount} {label} {selectedProduct?.nom} — Total unités: {total}</div>;
@@ -260,7 +262,7 @@ const InventaireDetail: React.FC = () => {
                 {(nombreUnitesParConditionnement && nombreUnitesParConditionnement > 1) ? (
                   <>
                     <div className="col-md-2">
-                      <label className="form-label">{selectedProduct?.produit?.uniteConditionnement || selectedProduct?.produit?.unite?.libelle || 'Conditionnement'}</label>
+                      <label className="form-label">{selectedProduct?.produit?.uniteConditionnement || selectedProduct?.produit?.unite?.libelle || 'Emballage'}</label>
                       <input type="number" className="form-control" min={0} value={condCount} onChange={(e) => {
                         const cond = Number(e.target.value);
                                             setCondCount(cond);
@@ -284,7 +286,7 @@ const InventaireDetail: React.FC = () => {
                 <div className="col-12 mb-2"><small>{condCount} × {nombreUnitesParConditionnement || 1} = {condCount * (nombreUnitesParConditionnement || 1)} unités — + {unitCount || 0} unités supplémentaires — Total: {condCount * (nombreUnitesParConditionnement || 1) + (unitCount || 0)} unités</small></div>
               </div>
               {selectedProduct && nombreUnitesParConditionnement > 1 && (
-                <div className="mt-2 small text-muted">1 {selectedProduct?.produit?.uniteConditionnement || selectedProduct?.produit?.unite?.libelle || 'conditionnement'} = {nombreUnitesParConditionnement} unités</div>
+                <div className="mt-2 small text-muted">1 {selectedProduct?.produit?.uniteConditionnement || selectedProduct?.produit?.unite?.libelle || 'emballage'} = {nombreUnitesParConditionnement} unités</div>
               )}
             </div>
           </div>
@@ -313,7 +315,7 @@ const InventaireDetail: React.FC = () => {
                       if (!per || per <= 1) return `${q} unité${q > 1 ? 's' : ''}`;
                       const full = Math.floor(q / per);
                       const rem = q % per;
-                      const unitLabel = li.produit?.uniteConditionnement || li.produit?.unite?.libelle || 'conditionnement';
+                      const unitLabel = li.produit?.uniteConditionnement || li.produit?.unite?.libelle || 'emballage';
                       if (rem === 0) return `${q} unités (${full} ${unitLabel}${full > 1 && !unitLabel.endsWith('s') ? 's' : ''})`;
                       const fullPart = full > 0 ? `${full} ${unitLabel}${full > 1 && !unitLabel.endsWith('s') ? 's' : ''} + ` : '';
                       return `${fullPart}${rem} unité${rem > 1 ? 's' : ''} (${q} unités)`;
@@ -351,15 +353,27 @@ const InventaireDetail: React.FC = () => {
           <div className="mt-3">
             <button className="btn btn-outline-secondary me-2" onClick={handleExport}>Exporter CSV</button>                       {/* Le bouton Régulariser est sur la page liste aussi, mais on peut le proposer ici */}
             {!inventaire.regulariser && (
-              <button className="btn btn-success" onClick={async () => {
-                const resp = await Swal.fire({title: 'Confirmation', text: 'Confirmer la régularisation ? Cette action est irréversible.', icon: 'warning', showCancelButton: true});
-                if (!resp.isConfirmed) return;
-                try {
-                  await inventaireApi.regularizeInventaire(Number(id));
-                  await Swal.fire('Succès', 'Inventaire régularisé', 'success');
-                  load();
-                } catch (e: any) { await Swal.fire('Erreur', e && e.message ? e.message : 'Erreur', 'error'); }
-              }}>Régulariser</button>
+              <button
+                className="btn btn-success"
+                disabled={regularizing}
+                onClick={async () => {
+                  if (regularizing) return; // guard against double-click / duplicate submission
+                  const resp = await Swal.fire({title: 'Confirmation', text: 'Confirmer la régularisation ? Cette action est irréversible.', icon: 'warning', showCancelButton: true});
+                  if (!resp.isConfirmed) return;
+                  setRegularizing(true);
+                  try {
+                    await inventaireApi.regularizeInventaire(Number(id));
+                    await Swal.fire('Succès', 'Inventaire régularisé', 'success');
+                    await load();
+                  } catch (e: any) {
+                    await Swal.fire('Erreur', e && e.message ? e.message : 'Erreur', 'error');
+                  } finally {
+                    setRegularizing(false);
+                  }
+                }}
+              >
+                {regularizing ? (<><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Régularisation...</>) : 'Régulariser'}
+              </button>
             )}
           </div>
         </div>

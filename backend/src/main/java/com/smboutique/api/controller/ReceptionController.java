@@ -73,6 +73,20 @@ public class ReceptionController {
     private UtilisateurService utilisateurService;
 
     @Autowired
+    private com.smboutique.api.repository.ProduitEmballageRepository produitEmballageRepository;
+
+    // Resolves which emballage (carton, sac...) a reception line refers to, validating it
+    // belongs to the received product. Unlike the achat/vente flows, the quantity itself is
+    // always sent pre-converted to units by the frontend, so this is purely for recording which
+    // emballage was received (label/audit), not for quantity math.
+    private com.smboutique.api.model.ProduitEmballage resolveEmballageForReception(Long idEmballage, com.smboutique.api.model.Produit produit) {
+        if (idEmballage == null || produit == null) return null;
+        com.smboutique.api.model.ProduitEmballage emb = produitEmballageRepository.findById(idEmballage).orElse(null);
+        if (emb == null || emb.getProduit() == null || !emb.getProduit().getId().equals(produit.getId())) return null;
+        return emb;
+    }
+
+    @Autowired
     private com.smboutique.api.service.MouvementService mouvementService;
 
     @Autowired
@@ -750,6 +764,7 @@ public class ReceptionController {
                 ligneReception.setQuantiteRecu(receptionActuelle);
                 if (savedLigne.getStock() != null && savedLigne.getStock().getProduit() != null) {
                     ligneReception.setProduit(savedLigne.getStock().getProduit());
+                    ligneReception.setEmballage(resolveEmballageForReception(ligneDTO.getIdEmballage(), savedLigne.getStock().getProduit()));
                 }
 
                 // Save snapshot of stock/product state BEFORE the update (to allow safe rollback)
@@ -854,10 +869,17 @@ public class ReceptionController {
         // Update produit.prix_achat with CMP (rounded to integer)
         produit.setPrixAchat(costAverage.setScale(0, RoundingMode.HALF_UP).intValue());
 
-        // Find margin config for boutique (prefer stock.magasin.boutique if available)
+        // Find margin config for boutique. Most receptions target boutique-level stock
+        // (stock.magasin == null, stock.boutique set directly) — that case was previously
+        // missed here, which silently reset prixEnGros/prixDetail down to the CMP (zero
+        // margin) on every such reception because no ConfigurationMarge could be resolved.
         Long boutiqueId = null;
-        if (stock != null && stock.getMagasin() != null && stock.getMagasin().getBoutique() != null) {
-            boutiqueId = stock.getMagasin().getBoutique().getId();
+        if (stock != null) {
+            if (stock.getMagasin() != null && stock.getMagasin().getBoutique() != null) {
+                boutiqueId = stock.getMagasin().getBoutique().getId();
+            } else if (stock.getBoutique() != null) {
+                boutiqueId = stock.getBoutique().getId();
+            }
         }
 
         com.smboutique.api.model.ConfigurationMarge config = null;

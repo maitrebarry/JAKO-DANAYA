@@ -26,6 +26,9 @@ public class TransferController {
     @Autowired
     private com.smboutique.api.repository.StockRepository stockRepository;
 
+    @Autowired
+    private com.smboutique.api.repository.ProduitEmballageRepository produitEmballageRepository;
+
     private Utilisateur getCurrentUser() {
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
@@ -68,7 +71,7 @@ public class TransferController {
     }
 
     // High level transfer between locations (boutique/magasin)
-    public static class LocationTransferItem { public Long produitId; public Integer quantite; public Integer quantiteConditionnement; }
+    public static class LocationTransferItem { public Long produitId; public Integer quantite; public Integer quantiteConditionnement; public Long idEmballage; }
     public static class LocationTransferRequest { public String sourceType; public Long sourceId; public String destType; public Long destId; public java.util.List<LocationTransferItem> items; }
 
     @PostMapping("/locations")
@@ -89,7 +92,20 @@ public class TransferController {
                     java.util.List<com.smboutique.api.model.Stock> stocks = stockRepository.findByProduitId(i.produitId);
                     if (stocks != null && !stocks.isEmpty() && stocks.get(0).getProduit() != null) prodOpt = java.util.Optional.of(stocks.get(0).getProduit());
                     int mul = 1;
-                    if (prodOpt.isPresent() && prodOpt.get().getNombreUnitesParConditionnement() != null) mul = prodOpt.get().getNombreUnitesParConditionnement();
+                    if (i.idEmballage != null) {
+                        com.smboutique.api.model.ProduitEmballage emb = produitEmballageRepository.findById(i.idEmballage)
+                                .orElseThrow(() -> new IllegalArgumentException("Emballage introuvable"));
+                        if (!prodOpt.isPresent() || !emb.getProduit().getId().equals(prodOpt.get().getId())) {
+                            throw new IllegalArgumentException("Cet emballage n'appartient pas au produit sélectionné");
+                        }
+                        mul = emb.getNombreUnites();
+                    } else {
+                        java.util.List<com.smboutique.api.model.ProduitEmballage> all = produitEmballageRepository.findByProduitId(i.produitId);
+                        if (all.size() > 1) {
+                            throw new IllegalArgumentException("Veuillez préciser l'emballage à transférer pour ce produit");
+                        }
+                        if (prodOpt.isPresent() && prodOpt.get().getNombreUnitesParConditionnement() != null) mul = prodOpt.get().getNombreUnitesParConditionnement();
+                    }
                     q = i.quantiteConditionnement * mul;
                 }
                 items.add(new com.smboutique.api.service.TransferModuleService.TransferItem(i.produitId, q));

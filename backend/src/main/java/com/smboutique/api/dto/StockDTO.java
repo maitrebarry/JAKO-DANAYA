@@ -32,6 +32,7 @@ public class StockDTO {
         // nombre d'unités par conditionnement (ex: carton = 12)
         private Integer nombreUnitesParConditionnement;
         private UniteDTO unite;
+        private java.util.List<ProduitEmballageDTO> emballages;
 
         public Long getId() { return id; }
         public void setId(Long id) { this.id = id; }
@@ -53,6 +54,9 @@ public class StockDTO {
 
         public UniteDTO getUnite() { return unite; }
         public void setUnite(UniteDTO unite) { this.unite = unite; }
+
+        public java.util.List<ProduitEmballageDTO> getEmballages() { return emballages; }
+        public void setEmballages(java.util.List<ProduitEmballageDTO> emballages) { this.emballages = emballages; }
 
         public static class UniteDTO {
             private Long id;

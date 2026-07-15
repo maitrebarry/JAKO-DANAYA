@@ -386,7 +386,7 @@ const Transfert: React.FC = () => {
                           })() : ''}
                         </small>
                       </div>
-                      <button className="btn btn-sm btn-primary" onClick={() => handleIndividualTransfer(s.produitId)}>Transférer</button>
+                      <button className="btn btn-sm btn-primary" disabled={loading} onClick={() => handleIndividualTransfer(s.produitId)}>{loading ? '...' : 'Transférer'}</button>
                     </label>
                   ))}
                   {transferStocks.length === 0 && <div className="text-muted small p-3">{sourceType === 'MAGASIN' ? 'Aucun produit trouvé pour ce magasin.' : 'Aucun produit trouvé pour cette boutique.'}</div>}
