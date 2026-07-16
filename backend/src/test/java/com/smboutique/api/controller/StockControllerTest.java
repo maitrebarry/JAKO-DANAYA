@@ -87,7 +87,7 @@ public class StockControllerTest {
         Stock boutiqueStock = new Stock(); boutiqueStock.setId(100L); boutiqueStock.setQuantiteDisponible(7);
         when(stockService.getBoutiqueLevelStocks(10L)).thenReturn(java.util.List.of(boutiqueStock));
 
-        java.util.List<?> resp = stockController.getAllStocks("boutique");
+        java.util.List<?> resp = stockController.getAllStocks("boutique", null);
         assertEquals(1, resp.size());
     }
 }
