@@ -99,12 +99,14 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }, msUntilExpiry);
   }, [clearTokenTimeout, logout]);
 
-  const setUserData = useCallback((data: any) => {
+  // Shared by setUserData (fresh login) and refreshUserData (background re-sync): normalizes
+  // permissions/roles to uppercase and folds typeUtilisateur in as an implicit role. Boutique is
+  // updated only on login — a background refresh must never clobber a SUPERADMIN's manually
+  // switched boutique (see switchBoutique below), since /auth/me always reports their own (none).
+  const applyProfileData = useCallback((data: any, updateBoutique: boolean) => {
     setUser(data.user || null);
-    // normalize permissions and roles to uppercase for consistent checks
     setPermissions(Array.isArray(data.permissions) ? data.permissions.map((p:any) => p.toString().toUpperCase()) : []);
     const incomingRoles: string[] = Array.isArray(data.roles) ? data.roles.map((r:any) => r.toString().toUpperCase()) : [];
-    // also include the typeUtilisateur as an implicit role (e.g., PROPRIETAIRE)
     try {
       const tu = data?.user?.typeUtilisateur;
       if (tu && typeof tu === 'string') {
@@ -115,9 +117,43 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // ignore
     }
     setRoles(incomingRoles);
-    setCurrentBoutique(data.currentBoutique || null);
+    if (updateBoutique) {
+      setCurrentBoutique(data.currentBoutique || null);
+    }
+  }, []);
+
+  const setUserData = useCallback((data: any) => {
+    applyProfileData(data, true);
     scheduleTokenExpiry(localStorage.getItem('smb_token'));
-  }, [scheduleTokenExpiry]);
+  }, [applyProfileData, scheduleTokenExpiry]);
+
+  // Cached permissions/roles otherwise never change after login — if an account was granted or
+  // fixed on the server (e.g. a role assigned after being created with none), a session that's
+  // stayed open since before that fix would keep showing the stale, broken cached permissions
+  // indefinitely. Re-syncing from /auth/me in the background self-heals that without forcing a
+  // manual logout/login.
+  const refreshUserData = useCallback(async () => {
+    const token = localStorage.getItem('smb_token');
+    if (!token) return;
+    try {
+      const res = await fetch(withApi('auth/me'), { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return;
+      const fresh = await res.json();
+      applyProfileData(fresh, false);
+      try {
+        const stored = localStorage.getItem('smb_user_data');
+        const merged = stored ? JSON.parse(stored) : {};
+        merged.user = fresh.user || null;
+        merged.permissions = fresh.permissions || [];
+        merged.roles = fresh.roles || [];
+        localStorage.setItem('smb_user_data', JSON.stringify(merged));
+      } catch (e) {
+        // ignore
+      }
+    } catch (e) {
+      // network error refreshing permissions — keep using cached data, not fatal
+    }
+  }, [applyProfileData]);
 
   useEffect(() => {
     const token = localStorage.getItem('smb_token');
@@ -129,8 +165,10 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       } catch (error) {
         console.error('Error parsing user data from localStorage:', error);
       }
+      refreshUserData();
     }
-  }, [setUserData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // If currentBoutique is present but missing detailed data (eg. pays), fetch it from API
   useEffect(() => {

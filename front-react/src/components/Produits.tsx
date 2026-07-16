@@ -1036,7 +1036,10 @@ const Produits: React.FC = () => {
       {showAssignModal && <div className="modal-backdrop fade show"></div>}
 
       {/* Profit modal (boutique) */}
-      {showProfitModal && (
+      {showProfitModal && (() => {
+        const beneficeDetail = profitTotals.totalDetail - profitTotals.totalAchat;
+        const beneficeGros = profitTotals.totalGros - profitTotals.totalAchat;
+        return (
         <div className="modal show d-block" tabIndex={-1} role="dialog" data-testid="profit-modal">
           <div className="modal-dialog modal-md modal-fullscreen-sm-down" role="document">
             <div className="modal-content">
@@ -1069,13 +1072,18 @@ const Produits: React.FC = () => {
                   <div className="col-12 col-md-6">
                     <div className="card p-3 mt-2">
                       <div className="text-muted small">Bénéfice estimé (détail)</div>
-                      <div className="h5 fw-bold" data-testid="profit-estime-detail">{useFormatMoney()(Math.max(0, profitTotals.totalDetail - profitTotals.totalAchat))}</div>
+                      <div className={`h5 fw-bold ${beneficeDetail < 0 ? 'text-danger' : ''}`} data-testid="profit-estime-detail">{useFormatMoney()(beneficeDetail)}</div>
                       <div className="text-muted small">Bénéfice estimé (gros)</div>
-                      <div className="h6 fw-semibold" data-testid="profit-estime-gros">{useFormatMoney()(Math.max(0, profitTotals.totalGros - profitTotals.totalAchat))}</div>
+                      <div className={`h6 fw-semibold ${beneficeGros < 0 ? 'text-danger' : ''}`} data-testid="profit-estime-gros">{useFormatMoney()(beneficeGros)}</div>
                     </div>
                   </div>
                 </div>
 
+                {(beneficeDetail < 0 || beneficeGros < 0) && (
+                  <div className="alert alert-warning small">
+                    Attention : le bénéfice estimé est négatif — la valeur du stock au prix d'achat dépasse sa valeur aux prix de vente enregistrés (vérifiez les prix produits ou un écart d'inventaire récent).
+                  </div>
+                )}
                 <div className="alert alert-info small">Note: valeurs estimées à partir des prix stockés — n'inclut pas remises ni coûts additionnels.</div>
               </div>
               <div className="modal-footer">
@@ -1084,7 +1092,8 @@ const Produits: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Transfer modal */}
 
