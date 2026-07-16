@@ -63,6 +63,56 @@ public class ProduitServiceImpl implements ProduitService {
         }
     }
 
+    // Parses the "emballages" Excel column: "Libelle1:Nombre1;Libelle2:Nombre2;..." (e.g.
+    // "Carton:24;Sac:6") into resolved (Unite, nombre) pairs, one per product row. Each libelle
+    // is resolved/auto-created scoped to the boutique with the same rules as the legacy single
+    // id_unite/symbole/unite_name columns. The first pair becomes the product's default emballage.
+    private List<Object[]> parseEmballagesColumn(String raw, Long boutiqueId, boolean canAutoCreate, int rowNumberForError, List<String> errors) throws com.smboutique.api.exception.ImportValidationException {
+        List<Object[]> result = new java.util.ArrayList<>();
+        java.util.Set<String> seenLibelles = new java.util.HashSet<>();
+        for (String part : raw.split(";")) {
+            String p = part.trim();
+            if (p.isEmpty()) continue;
+            int idx = p.lastIndexOf(':');
+            if (idx <= 0 || idx == p.length() - 1) {
+                errors.add("Ligne " + rowNumberForError + ": format invalide dans 'emballages' pour \"" + p + "\" (attendu: Libelle:Nombre, ex: Carton:24)");
+                throw new com.smboutique.api.exception.ImportValidationException(errors);
+            }
+            String libelle = p.substring(0, idx).trim();
+            String nombreStr = p.substring(idx + 1).trim();
+            int nombre;
+            try {
+                nombre = Integer.parseInt(nombreStr);
+            } catch (NumberFormatException ex) {
+                errors.add("Ligne " + rowNumberForError + ": nombre invalide dans 'emballages' pour \"" + p + "\"");
+                throw new com.smboutique.api.exception.ImportValidationException(errors);
+            }
+            if (nombre <= 0) {
+                errors.add("Ligne " + rowNumberForError + ": le nombre d'unités doit être supérieur à 0 dans 'emballages' pour \"" + p + "\"");
+                throw new com.smboutique.api.exception.ImportValidationException(errors);
+            }
+            if (!seenLibelles.add(libelle.toLowerCase(Locale.ROOT))) {
+                errors.add("Ligne " + rowNumberForError + ": emballage \"" + libelle + "\" répété plusieurs fois dans 'emballages'");
+                throw new com.smboutique.api.exception.ImportValidationException(errors);
+            }
+            Unite unite = uniteService.findByBoutiqueIdAndLibelleIgnoreCase(boutiqueId, libelle).orElse(null);
+            if (unite == null) {
+                if (canAutoCreate) {
+                    unite = uniteService.createIfNotExistsForBoutique(boutiqueId, libelle, libelle, null);
+                } else {
+                    errors.add("Ligne " + rowNumberForError + ": unité \"" + libelle + "\" introuvable dans 'emballages' et vous n'avez pas la permission de créer des unités");
+                    throw new com.smboutique.api.exception.ImportValidationException(errors);
+                }
+            }
+            result.add(new Object[]{unite, nombre});
+        }
+        if (result.isEmpty()) {
+            errors.add("Ligne " + rowNumberForError + ": colonne 'emballages' vide ou mal formée");
+            throw new com.smboutique.api.exception.ImportValidationException(errors);
+        }
+        return result;
+    }
+
     @PersistenceContext
     private EntityManager em;
 
@@ -426,6 +476,20 @@ public class ProduitServiceImpl implements ProduitService {
                     produit.setAlerteStock(alerteStock);
 
                     // Définir les conditionnements si fournis
+                    // Nouvelle colonne "emballages" : permet plusieurs conditionnements simultanés
+                    // pour un même produit (ex: "Carton:24;Sac:6"). Prioritaire sur les anciennes
+                    // colonnes id_unite/symbole/unite_name quand elle est renseignée sur la ligne ;
+                    // sinon, comportement inchangé pour rester rétrocompatible avec les anciens fichiers.
+                    String emballagesRaw = getStringCell(row, colIndex.getOrDefault("emballages", -1));
+                    Long boutiqueIdForUnite = currentUser != null && currentUser.getBoutique() != null ? currentUser.getBoutique().getId() : null;
+                    boolean canAutoCreateUnite = (currentUser != null && (currentUser.getRoles() != null && currentUser.getRoles().stream().anyMatch(role -> "SUPERADMIN".equalsIgnoreCase(role.getName()))))
+                            || (currentUser != null && currentUser.getPermissions() != null && currentUser.getPermissions().stream().anyMatch(perm -> "UNITE_CREER".equalsIgnoreCase(perm.getName())))
+                            || isExportedFile;
+                    List<Object[]> multiEmballages = null;
+
+                    if (emballagesRaw != null && !emballagesRaw.trim().isEmpty()) {
+                        multiEmballages = parseEmballagesColumn(emballagesRaw.trim(), boutiqueIdForUnite, canAutoCreateUnite, r + 1, errors);
+                    } else {
                     // accept both legacy `unite_code` and the preferred `symbole` (backwards-compatible)
                     String uniteCode = getStringCell(row, colIndex.getOrDefault("unite_code", -1));
                     String uniteSymbole = getStringCell(row, colIndex.getOrDefault("symbole", -1));
@@ -495,15 +559,30 @@ public class ProduitServiceImpl implements ProduitService {
                             }
                         }
                     }
+                    }
 
                     Produit saved = produitRepository.save(produit);
-                    createDefaultEmballageIfConditionnementSet(saved);
+                    if (multiEmballages != null) {
+                        boolean firstEmballage = true;
+                        for (Object[] pair : multiEmballages) {
+                            Unite u = (Unite) pair[0];
+                            Integer n = (Integer) pair[1];
+                            produitEmballageService.create(saved, u, n, firstEmballage);
+                            firstEmballage = false;
+                        }
+                    } else {
+                        createDefaultEmballageIfConditionnementSet(saved);
+                    }
 
-                    // Calculer la quantité réelle initiale
+                    // Calculer la quantité réelle initiale : exprimée en unités du conditionnement
+                    // par défaut (premier "emballages" listé, ou l'ancienne colonne nombreUnitesParConditionnement)
                     int quantiteReel = 0;
+                    Integer effectiveMultiplierForStock = (multiEmballages != null && !multiEmballages.isEmpty())
+                            ? (Integer) multiEmballages.get(0)[1]
+                            : nombreUnitesParConditionnement;
                     if (quantiteInitiale != null && quantiteInitiale > 0) {
-                        if (nombreUnitesParConditionnement != null && nombreUnitesParConditionnement > 0) {
-                            quantiteReel = quantiteInitiale * nombreUnitesParConditionnement;
+                        if (effectiveMultiplierForStock != null && effectiveMultiplierForStock > 0) {
+                            quantiteReel = quantiteInitiale * effectiveMultiplierForStock;
                         } else {
                             quantiteReel = quantiteInitiale;
                         }
@@ -569,12 +648,17 @@ public class ProduitServiceImpl implements ProduitService {
             Map.entry("unitenom", "unite_name"),
             Map.entry("unite_name", "unite_name"),
             Map.entry("nombreunitesparconditionnement", "nombreUnitesParConditionnement"),
+            Map.entry("quantiteinitiale", "quantiteInitiale"),
+            Map.entry("idunite", "id_unite"),
             Map.entry("unitescond", "nombreUnitesParConditionnement"),
             Map.entry("unitscond", "nombreUnitesParConditionnement"),
             Map.entry("alerte", "alerteStock"),
             Map.entry("alertestock", "alerteStock"),
             Map.entry("productimage", "productImage"),
-            Map.entry("caracteristique", "caracteristique")
+            Map.entry("caracteristique", "caracteristique"),
+            Map.entry("emballages", "emballages"),
+            Map.entry("emballage", "emballages"),
+            Map.entry("conditionnements", "emballages")
     );
 
     private static String normalizeHeader(String header) {

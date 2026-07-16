@@ -843,7 +843,8 @@ const Produits: React.FC = () => {
                     <li><code>id_unite</code> - ID de l'unité de conditionnement (optionnel)</li>
                     <li><code>symbole</code> - Symbole / code de l'unité (préféré). *Alias historique*: <code>unite_code</code> est toujours accepté.</li>
                     <li><code>nombreUnitesParConditionnement</code> - Nombre d'unités par conditionnement (requis si une unité est fournie)</li>
-                    <li><code>quantiteInitiale</code> - Quantité initiale en conditionnements</li>
+                    <li><code>emballages</code> - (optionnel) Pour un produit vendu de <strong>plusieurs façons à la fois</strong> (ex: en carton ET en sac) : liste séparée par des points-virgules, format <code>Libelle:Nombre</code>. Exemple : <code>Carton:24;Sac:6</code>. Le premier emballage listé devient celui par défaut. Quand cette colonne est renseignée, elle remplace <code>id_unite</code>/<code>symbole</code>/<code>nombreUnitesParConditionnement</code> pour cette ligne.</li>
+                    <li><code>quantiteInitiale</code> - Quantité initiale (dans l'unité de l'emballage par défaut)</li>
                     <li><code>productImage</code> - URL de l'image ou nom du fichier (optionnel)</li>
                     <li><code>caracteristique</code> - Caractéristiques du produit (optionnel)</li>
                     <li><code>prixDetail</code> - Prix de détail (nombre entier)</li>
