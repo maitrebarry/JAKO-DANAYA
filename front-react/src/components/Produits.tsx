@@ -836,22 +836,19 @@ const Produits: React.FC = () => {
                   <a className="btn btn-sm btn-outline-secondary" href="/produits_template_example.csv" download> Télécharger un exemple (.csv)</a>
                 </div>
                 <div className="alert alert-info small" role="note">
-                  <p className="mb-1 fw-bold">Colonnes attendues (respecter l'ordre et les noms) :</p>
+                  <p className="mb-1 fw-bold">Colonnes attendues :</p>
                   <ol className="mb-0 ps-3">
                     <li><code>nomProduit</code> (obligatoire) - Nom du produit</li>
                     <li><code>prixAchat</code> - Prix d'achat (nombre entier)</li>
-                    <li><code>id_unite</code> - ID de l'unité de conditionnement (optionnel)</li>
-                    <li><code>symbole</code> - Symbole / code de l'unité (préféré). *Alias historique*: <code>unite_code</code> est toujours accepté.</li>
-                    <li><code>nombreUnitesParConditionnement</code> - Nombre d'unités par conditionnement (requis si une unité est fournie)</li>
-                    <li><code>emballages</code> - (optionnel) Pour un produit vendu de <strong>plusieurs façons à la fois</strong> (ex: en carton ET en sac) : liste séparée par des points-virgules, format <code>Libelle:Nombre</code>. Exemple : <code>Carton:24;Sac:6</code>. Le premier emballage listé devient celui par défaut. Quand cette colonne est renseignée, elle remplace <code>id_unite</code>/<code>symbole</code>/<code>nombreUnitesParConditionnement</code> pour cette ligne.</li>
-                    <li><code>quantiteInitiale</code> - Quantité initiale (dans l'unité de l'emballage par défaut)</li>
-                    <li><code>productImage</code> - URL de l'image ou nom du fichier (optionnel)</li>
-                    <li><code>caracteristique</code> - Caractéristiques du produit (optionnel)</li>
                     <li><code>prixDetail</code> - Prix de détail (nombre entier)</li>
                     <li><code>prixEnGros</code> - Prix en gros (nombre entier)</li>
                     <li><code>alerteStock</code> - Seuil d'alerte stock (nombre entier)</li>
+                    <li><code>quantiteInitiale</code> - Quantité initiale (dans l'unité du premier emballage, ou en unités simples si le produit n'a pas d'emballage)</li>
+                    <li><code>emballages</code> - (optionnel) Comment ce produit se vend aussi, ex: en carton ET en sac. Format : <code>Libelle:Nombre</code>, plusieurs emballages séparés par un point-virgule. Exemple : <code>Carton:24;Sac:6</code>. Le premier emballage listé devient celui par défaut. Laisser vide si le produit se vend uniquement à l'unité.</li>
+                    <li><code>productImage</code> - URL de l'image (optionnel)</li>
+                    <li><code>caracteristique</code> - Caractéristiques du produit (optionnel)</li>
                   </ol>
-                  <p className="mt-2 mb-0"><strong>Note:</strong> Les colonnes doivent être dans cet ordre exact. Les champs marqués comme optionnels peuvent être laissés vides.</p>
+                  <p className="mt-2 mb-0"><strong>Note:</strong> Les noms de colonnes doivent être respectés (l'ordre n'a pas d'importance). Les champs marqués comme optionnels peuvent être laissés vides.</p>
                 </div>
                 <div className="mb-3">
                   <input type="file" accept=".xlsx,.xls" onChange={(e) => setImportFile(e.target.files ? e.target.files[0] : null)} />

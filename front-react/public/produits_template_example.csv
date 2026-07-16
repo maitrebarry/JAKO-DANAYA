@@ -1,6 +1,11 @@
-nomProduit,prixAchat,id_unite,symbole,unite_name,nombreUnitesParConditionnement,quantiteInitiale,productImage,caracteristique,prixDetail,prixEnGros,alerteStock,emballages
-"Savon A",500,,BOX,Carton,12,5,https://example.com/savon-a.jpg,"Parfum: citron",1200,1000,10,
-"Brosse B",150, ,BOÎTE,Boîte,6,10,,"Couleur: rouge",400,350,5,
-"Clou C",50,42,,, ,100,,,80,60,20,
-"Stylo D",100,,,,,50,,"Encre bleue",200,150,5,
-"Riz 25kg",8000,,,,,3,,,10000,9000,5,"Carton:24;Sac:6"
+nomProduit,prixAchat,prixDetail,prixEnGros,alerteStock,quantiteInitiale,emballages,productImage,caracteristique
+Riz 25kg,8000,10000,9000,5,3,Carton:24;Sac:6,,Riz local
+Huile végétale 1L,500,700,600,10,4,Carton:12,,
+Savon de lessive,150,250,200,20,5,Carton:48;Paquet:6,,Parfum citron
+Sucre en poudre 1kg,400,600,500,15,5,Sac:50,,
+Lait en poudre 400g,1200,1600,1400,8,3,Carton:24,,
+Biscuits sucrés,100,180,150,20,6,Carton:20;Paquet:5,,Goût vanille
+Boîte d'allumettes,25,50,40,30,10,Carton:100,,
+Sel fin 1kg,200,350,300,15,5,Sac:25,,
+Thé vert (boîte),800,1200,1000,10,4,Carton:12,,25 sachets par boîte
+Stylo à bille,50,100,75,25,50,,,"Bleu, vendu à l'unité"
