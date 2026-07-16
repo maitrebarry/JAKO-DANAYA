@@ -20,6 +20,7 @@ interface UserContextType {
   roles: string[];
   currentBoutique: any | null;
   setUserData: (data: any) => void;
+  switchBoutique: (boutique: any) => void;
   logout: () => void;
 }
 
@@ -161,8 +162,26 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     ensureFullBoutique();
   }, [currentBoutique]);
 
+  // Lets a SUPERADMIN pick which single boutique's data they're viewing (they have no
+  // `boutique` of their own, so every boutique-scoped screen otherwise stays empty). Persists
+  // the choice into the stored session so it survives a page refresh, without touching
+  // user/permissions/roles (unlike setUserData, which replaces the whole session).
+  const switchBoutique = useCallback((boutique: any) => {
+    setCurrentBoutique(boutique || null);
+    try {
+      const userDataStr = localStorage.getItem('smb_user_data');
+      if (userDataStr) {
+        const ud = JSON.parse(userDataStr);
+        ud.currentBoutique = boutique || null;
+        localStorage.setItem('smb_user_data', JSON.stringify(ud));
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
   return (
-    <UserContext.Provider value={{ user, permissions, roles, currentBoutique, setUserData, logout }}>
+    <UserContext.Provider value={{ user, permissions, roles, currentBoutique, setUserData, switchBoutique, logout }}>
       {children}
     </UserContext.Provider>
   );

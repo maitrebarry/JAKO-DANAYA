@@ -49,6 +49,20 @@ public class ProduitServiceImpl implements ProduitService {
     @Autowired
     private com.smboutique.api.repository.BoutiqueRepository boutiqueRepository;
 
+    @Autowired
+    private com.smboutique.api.service.ProduitEmballageService produitEmballageService;
+
+    // Mirrors a produit's flat unite/nombreUnitesParConditionnement fields into a real
+    // ProduitEmballage row (flagged default) so products created outside the Produits.tsx
+    // list-manager (Excel import, the legacy DTO-based create endpoint) aren't invisible to
+    // the multi-emballage system — without this, opening such a product in the new UI later
+    // would show an empty emballage list and silently wipe the conditionnement on save.
+    private void createDefaultEmballageIfConditionnementSet(Produit produit) {
+        if (produit.getUnite() != null && produit.getNombreUnitesParConditionnement() != null && produit.getNombreUnitesParConditionnement() > 0) {
+            produitEmballageService.create(produit, produit.getUnite(), produit.getNombreUnitesParConditionnement(), true);
+        }
+    }
+
     @PersistenceContext
     private EntityManager em;
 
@@ -211,6 +225,8 @@ public class ProduitServiceImpl implements ProduitService {
         } catch (Exception ex) {
             org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).warn("Erreur post-save calcul marge automatique: {}", ex.getMessage());
         }
+
+        createDefaultEmballageIfConditionnementSet(savedProduit);
 
         // Créer le stock initial au niveau BOUTIQUE (magasin = NULL). Le magasin n'intervient pas à la création de produit.
         Stock boutiqueStock = new Stock();
@@ -481,6 +497,7 @@ public class ProduitServiceImpl implements ProduitService {
                     }
 
                     Produit saved = produitRepository.save(produit);
+                    createDefaultEmballageIfConditionnementSet(saved);
 
                     // Calculer la quantité réelle initiale
                     int quantiteReel = 0;

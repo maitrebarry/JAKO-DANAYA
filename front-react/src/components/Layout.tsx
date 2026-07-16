@@ -7,6 +7,7 @@ import { API_BASE, API } from '../config/api';
 import Swal from 'sweetalert2';
 import { fetchCurrentSubscriptionStatus } from '../api/admin';
 import { fetchSubscriptionPlansForOwner, submitManualSubscriptionPayment } from '../api/subscription';
+import { getBoutiques, type Boutique } from '../api/dashboardClient';
 
 // responsive layout styles (mobile overlay, transitions)
 import '../styles/layout-responsive.css';
@@ -371,7 +372,25 @@ const Footer = () => {
 
 const Topbar = ({ toggleSidebar, isMobile, sidebarOpen }: { toggleSidebar?: () => void, isMobile?: boolean, sidebarOpen?: boolean }) => {
   const navigate = useNavigate();
-  const { user, logout, roles = [] } = useUser();
+  const { user, logout, roles = [], currentBoutique, switchBoutique } = useUser();
+
+  const isSuperAdmin = React.useMemo(
+    () => (roles || []).some((r: any) => (typeof r === 'string' ? r : (r?.name || '')).toUpperCase().includes('SUPERADMIN')),
+    [roles]
+  );
+
+  // A SUPERADMIN has no boutique of their own, so every boutique-scoped screen (ventes,
+  // caisses, réceptions, etc.) otherwise stays empty for them. This lets them pick which
+  // single boutique's data to view — same pattern already used elsewhere in the app.
+  const [boutiquesList, setBoutiquesList] = React.useState<Boutique[]>([]);
+  React.useEffect(() => {
+    if (!isSuperAdmin) return;
+    let mounted = true;
+    getBoutiques()
+      .then((list) => { if (mounted) setBoutiquesList(list || []); })
+      .catch(() => { /* ignore - switcher just stays empty */ });
+    return () => { mounted = false; };
+  }, [isSuperAdmin]);
 
   const [notifications, setNotifications] = React.useState<any[]>([]);
 
@@ -501,6 +520,24 @@ const Topbar = ({ toggleSidebar, isMobile, sidebarOpen }: { toggleSidebar?: () =
             <span className="topbar-role text-primary fw-semibold d-none d-lg-inline">
               {displayRoles}
             </span>
+          )}
+          {isSuperAdmin && (
+            <select
+              className="form-select form-select-sm d-none d-md-inline-block"
+              style={{ width: 'auto', maxWidth: 220 }}
+              value={currentBoutique?.id ?? ''}
+              onChange={(e) => {
+                const id = e.target.value ? Number(e.target.value) : null;
+                const selected = id ? boutiquesList.find((b) => b.id === id) || null : null;
+                switchBoutique(selected);
+              }}
+              title="Boutique consultée (compte administrateur)"
+            >
+              <option value="">Choisir une boutique...</option>
+              {boutiquesList.map((b) => (
+                <option key={b.id} value={b.id}>{b.nom}</option>
+              ))}
+            </select>
           )}
         </div>
         <div className="d-flex align-items-center gap-2">
