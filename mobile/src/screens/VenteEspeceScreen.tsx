@@ -57,8 +57,8 @@ function formatStock(units: number, mult: number) {
   const full = Math.floor(u / mult);
   const rem = u % mult;
   if (full <= 0) return `${u} U`;
-  if (rem === 0) return `${u} U (${full} carton${full > 1 ? 's' : ''})`;
-  return `${u} U (${full} carton${full > 1 ? 's' : ''} + ${rem} U)`;
+  if (rem === 0) return `${u} U (${full} emballage${full > 1 ? 's' : ''})`;
+  return `${u} U (${full} emballage${full > 1 ? 's' : ''} + ${rem} U)`;
 }
 
 function productNameFromStock(s: any) {
@@ -84,6 +84,12 @@ function defaultEmballageId(s: any): number | undefined {
   const list = emballageList(s);
   const def = list.find((e: any) => e.estParDefaut);
   return def ? def.id : undefined;
+}
+
+function emballageLabel(s: any, idEmballage?: number) {
+  const list = emballageList(s);
+  const chosen = idEmballage != null ? list.find((e: any) => e.id === idEmballage) : list.find((e: any) => e.estParDefaut);
+  return String(chosen?.uniteLibelle || s?.produit?.unite?.libelle || 'emballage');
 }
 
 function defaultUnitPrice(prod: any, mode: PriceMode) {
@@ -245,56 +251,98 @@ const CartLineItem = React.memo(function CartLineItem({
   const available = Number(stock?.quantiteDisponible) || 0;
   const stockLabel = formatStock(available, mult);
 
-  const unitsSold = parseIntFromDigits(line.quantite);
+  const packsOpen = parseIntFromDigits(line.quantiteConditionnement);
+  const unitsSold = line.venteParConditionnement ? Math.max(0, packsOpen * mult) : parseIntFromDigits(line.quantite);
+  const unitLabel = emballageLabel(stockOrProduit, line.idEmballage);
+  const unitLabelPlural = packsOpen > 1 && !unitLabel.toLowerCase().endsWith('s') ? `${unitLabel}s` : unitLabel;
   const lineTotal = unitsSold * (Number(line.prixUnit) || 0);
+  const borderColor = theme.isDark ? '#1f2937' : '#dbeafe';
+  const mutedBorder = theme.isDark ? '#1f2937' : '#e5e7eb';
+  const softPrimary = theme.isDark ? '#0b3b57' : '#d9f3ff';
+  const inputBackground = theme.isDark ? '#0f1724' : '#f8fbff';
 
   return (
     <View
       style={{
         backgroundColor: theme.card,
-        borderRadius: 14,
-        padding: 12,
-        marginBottom: 10,
+        borderRadius: 18,
+        padding: 14,
+        marginBottom: 12,
         borderWidth: 1,
-        borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+        borderColor,
+        shadowColor: '#0f172a',
+        shadowOpacity: theme.isDark ? 0 : 0.08,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 2,
       }}
     >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <View style={{ flex: 1, paddingRight: 10 }}>
-          <Text style={{ color: theme.text, fontWeight: '800' }} numberOfLines={2}>
+          <Text style={{ color: theme.text, fontWeight: '900', fontSize: 16 }} numberOfLines={2}>
             {name}
           </Text>
-          <Text style={{ color: theme.muted, marginTop: 2 }}>Stock: {stockLabel}</Text>
-          <Text style={{ color: theme.muted, marginTop: 2 }}>Prix unité: {formatThousandsFromDigits(String(line.prixUnit))}</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+            <View style={{ backgroundColor: softPrimary, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+              <Text style={{ color: theme.isDark ? '#bae6fd' : '#0369a1', fontWeight: '800', fontSize: 12 }}>Stock: {stockLabel}</Text>
+            </View>
+            <View style={{ backgroundColor: theme.isDark ? '#172033' : '#f1f5f9', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+              <Text style={{ color: theme.text, fontWeight: '800', fontSize: 12 }}>Prix: {formatThousandsFromDigits(String(line.prixUnit))}</Text>
+            </View>
+          </View>
         </View>
-        <Pressable onPress={() => onRemove(line.stockId)} hitSlop={12}>
+        <Pressable
+          onPress={() => onRemove(line.stockId)}
+          hitSlop={12}
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: 14,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: theme.isDark ? '#2a1620' : '#fff1f2',
+          }}
+        >
           <Ionicons name="trash-outline" size={20} color={theme.danger} />
         </Pressable>
       </View>
 
       {mult > 1 && (
-        <Pressable
-          onPress={() => onToggleConditionnement(line.stockId, !line.venteParConditionnement)}
-          style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}
-        >
-          <View
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 6,
-              borderWidth: 2,
-              borderColor: line.venteParConditionnement ? theme.primary : theme.muted,
-              backgroundColor: line.venteParConditionnement ? theme.primary : 'transparent',
-              marginRight: 10,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {line.venteParConditionnement ? <Ionicons name="checkmark" size={16} color="white" /> : null}
+        <View style={{ marginTop: 14 }}>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Pressable
+              onPress={() => onToggleConditionnement(line.stockId, false)}
+              style={{
+                flex: 1,
+                minHeight: 48,
+                borderRadius: 14,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: !line.venteParConditionnement ? theme.primary : inputBackground,
+                borderWidth: 1,
+                borderColor: !line.venteParConditionnement ? theme.primary : mutedBorder,
+              }}
+            >
+              <Text style={{ color: !line.venteParConditionnement ? '#fff' : theme.text, fontWeight: '900' }}>Unités</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => onToggleConditionnement(line.stockId, true)}
+              style={{
+                flex: 1,
+                minHeight: 48,
+                borderRadius: 14,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: line.venteParConditionnement ? theme.primary : inputBackground,
+                borderWidth: 1,
+                borderColor: line.venteParConditionnement ? theme.primary : mutedBorder,
+              }}
+            >
+              <Text style={{ color: line.venteParConditionnement ? '#fff' : theme.text, fontWeight: '900' }}>{unitLabel}</Text>
+            </Pressable>
           </View>
-          <Text style={{ color: theme.text, fontWeight: '700' }}>Par emballage</Text>
-          <Text style={{ color: theme.muted, marginLeft: 8 }}>1 carton = {mult} U</Text>
-        </Pressable>
+          <Text style={{ color: theme.muted, marginTop: 8, fontSize: 12 }}>1 {unitLabel} = {mult} unité(s)</Text>
+        </View>
       )}
 
       {line.venteParConditionnement && embList.length > 1 && (
@@ -311,7 +359,7 @@ const CartLineItem = React.memo(function CartLineItem({
                   borderRadius: 12,
                   backgroundColor: selected ? theme.primary : theme.surface,
                   borderWidth: 1,
-                  borderColor: selected ? theme.primary : (theme.isDark ? '#1f2937' : '#e5e7eb'),
+                  borderColor: selected ? theme.primary : mutedBorder,
                 }}
               >
                 <Text style={{ color: selected ? 'white' : theme.text, fontWeight: '700' }}>
@@ -325,49 +373,30 @@ const CartLineItem = React.memo(function CartLineItem({
 
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
         {line.venteParConditionnement ? (
-          <>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: theme.muted, marginBottom: 6 }}>Cartons ouverts</Text>
-              <TextInput
-                value={line.quantiteConditionnement}
-                onChangeText={(t) => onChangeQuantiteConditionnement(line.stockId, digitsOnly(t))}
-                keyboardType="number-pad"
-                placeholder="1"
-                placeholderTextColor={theme.muted}
-                style={{
-                  backgroundColor: theme.surface,
-                  color: theme.text,
-                  borderRadius: 12,
-                  paddingHorizontal: 12,
-                  paddingVertical: 10,
-                  borderWidth: 1,
-                  borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
-                }}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: theme.muted, marginBottom: 6 }}>Unités vendues</Text>
-              <TextInput
-                value={line.quantite}
-                onChangeText={(t) => onChangeQuantite(line.stockId, digitsOnly(t))}
-                keyboardType="number-pad"
-                placeholder="1"
-                placeholderTextColor={theme.muted}
-                style={{
-                  backgroundColor: theme.surface,
-                  color: theme.text,
-                  borderRadius: 12,
-                  paddingHorizontal: 12,
-                  paddingVertical: 10,
-                  borderWidth: 1,
-                  borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
-                }}
-              />
-            </View>
-          </>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: theme.muted, marginBottom: 6, fontWeight: '700' }}>Quantité ({unitLabel})</Text>
+            <TextInput
+              value={line.quantiteConditionnement}
+              onChangeText={(t) => onChangeQuantiteConditionnement(line.stockId, digitsOnly(t))}
+              keyboardType="number-pad"
+              placeholder="1"
+              placeholderTextColor={theme.muted}
+              style={{
+                backgroundColor: inputBackground,
+                color: theme.text,
+                borderRadius: 14,
+                paddingHorizontal: 12,
+                paddingVertical: Platform.OS === 'android' ? 8 : 10,
+                minHeight: 50,
+                borderWidth: 1,
+                borderColor: mutedBorder,
+                fontWeight: '800',
+              }}
+            />
+          </View>
         ) : (
           <View style={{ flex: 1 }}>
-            <Text style={{ color: theme.muted, marginBottom: 6 }}>Quantité (U)</Text>
+            <Text style={{ color: theme.muted, marginBottom: 6, fontWeight: '700' }}>Quantité (unités)</Text>
             <TextInput
               value={line.quantite}
               onChangeText={(t) => onChangeQuantite(line.stockId, digitsOnly(t))}
@@ -375,22 +404,32 @@ const CartLineItem = React.memo(function CartLineItem({
               placeholder="1"
               placeholderTextColor={theme.muted}
               style={{
-                backgroundColor: theme.surface,
+                backgroundColor: inputBackground,
                 color: theme.text,
-                borderRadius: 12,
+                borderRadius: 14,
                 paddingHorizontal: 12,
-                paddingVertical: 10,
+                paddingVertical: Platform.OS === 'android' ? 8 : 10,
+                minHeight: 50,
                 borderWidth: 1,
-                borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+                borderColor: mutedBorder,
+                fontWeight: '800',
               }}
             />
           </View>
         )}
       </View>
 
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
-        <Text style={{ color: theme.muted }}>Montant</Text>
-        <Text style={{ color: theme.text, fontWeight: '800' }}>{formatThousandsFromDigits(String(lineTotal))}</Text>
+      {line.venteParConditionnement ? (
+        <View style={{ marginTop: 10, backgroundColor: theme.isDark ? '#101827' : '#eef9ff', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 }}>
+          <Text style={{ color: theme.muted, fontSize: 12 }}>
+            {packsOpen || 0} {unitLabelPlural} ≈ {unitsSold} unité(s)
+          </Text>
+        </View>
+      ) : null}
+
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: mutedBorder }}>
+        <Text style={{ color: theme.muted, fontWeight: '800' }}>Montant</Text>
+        <Text style={{ color: theme.text, fontWeight: '900', fontSize: 18 }}>{formatThousandsFromDigits(String(lineTotal))}</Text>
       </View>
     </View>
   );
@@ -490,27 +529,44 @@ export default function VenteEspeceScreen() {
     setLines((prev) =>
       prev.map((l) => {
         if (l.stockId !== stockId) return l;
+        const stock = stockById.get(stockId) || { produit: l.produit };
+        const idEmballage = enabled ? (l.idEmballage ?? defaultEmballageId(stock)) : l.idEmballage;
+        const packs = enabled ? parseIntFromDigits(l.quantiteConditionnement || '1') || 1 : 0;
+        const mult = packMultiplier(stock, idEmballage);
         return {
           ...l,
           venteParConditionnement: enabled,
-          quantiteConditionnement: enabled ? (l.quantiteConditionnement || '1') : l.quantiteConditionnement,
-          quantite: l.quantite || '1',
+          idEmballage,
+          quantiteConditionnement: enabled ? String(packs) : l.quantiteConditionnement,
+          quantite: enabled ? String(packs * mult) : (l.quantite || '1'),
         };
       })
     );
-  }, []);
+  }, [stockById]);
 
   const changeQuantite = useCallback((stockId: number, v: string) => {
     setLines((prev) => prev.map((l) => (l.stockId === stockId ? { ...l, quantite: v } : l)));
   }, []);
 
   const changeQuantiteConditionnement = useCallback((stockId: number, v: string) => {
-    setLines((prev) => prev.map((l) => (l.stockId === stockId ? { ...l, quantiteConditionnement: v } : l)));
-  }, []);
+    setLines((prev) => prev.map((l) => {
+      if (l.stockId !== stockId) return l;
+      const stock = stockById.get(stockId) || { produit: l.produit };
+      const packs = parseIntFromDigits(v);
+      const mult = packMultiplier(stock, l.idEmballage);
+      return { ...l, quantiteConditionnement: v, quantite: l.venteParConditionnement ? String(packs * mult) : l.quantite };
+    }));
+  }, [stockById]);
 
   const changeEmballage = useCallback((stockId: number, idEmballage: number) => {
-    setLines((prev) => prev.map((l) => (l.stockId === stockId ? { ...l, idEmballage } : l)));
-  }, []);
+    setLines((prev) => prev.map((l) => {
+      if (l.stockId !== stockId) return l;
+      const stock = stockById.get(stockId) || { produit: l.produit };
+      const packs = parseIntFromDigits(l.quantiteConditionnement);
+      const mult = packMultiplier(stock, idEmballage);
+      return { ...l, idEmballage, quantite: l.venteParConditionnement ? String(packs * mult) : l.quantite };
+    }));
+  }, [stockById]);
 
   const { subtotal, totalNet, remise, montantRecu, monnaie, submissionErrors, canSubmit } = useMemo(() => {
     const errors: string[] = [];
@@ -535,10 +591,9 @@ export default function VenteEspeceScreen() {
       let units = parseIntFromDigits(l.quantite);
       if (l.venteParConditionnement) {
         const packs = parseIntFromDigits(l.quantiteConditionnement);
-        if (packs < 1) errors.push(`Quantité de cartons invalide pour ${l.designation}.`);
-        const totalOpen = packs * mult;
-        if (units < 1) errors.push(`Quantité (unités) invalide pour ${l.designation}.`);
-        if (units > totalOpen) errors.push(`Unités vendues trop élevées pour ${l.designation} (max ${totalOpen}).`);
+        if (packs < 1) errors.push(`Quantité d'emballages invalide pour ${l.designation}.`);
+        units = packs * mult;
+        if (units < 1) errors.push(`Quantité invalide pour ${l.designation}.`);
         if (emballageList(stock).length > 1 && l.idEmballage == null) {
           errors.push(`Veuillez préciser l'emballage vendu pour ${l.designation}.`);
         }
@@ -599,7 +654,8 @@ export default function VenteEspeceScreen() {
         remise,
         produitsSelectionnes: lines.map((l) => {
           const packs = l.venteParConditionnement ? parseIntFromDigits(l.quantiteConditionnement) : 0;
-          const units = parseIntFromDigits(l.quantite);
+          const mult = packMultiplier(stockById.get(l.stockId) || { produit: l.produit }, l.idEmballage);
+          const units = l.venteParConditionnement ? packs * mult : parseIntFromDigits(l.quantite);
           return {
             id_stock: l.stockId,
             quantite: units,

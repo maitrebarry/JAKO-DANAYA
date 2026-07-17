@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -337,28 +338,47 @@ export default function CommandeClientLivraisonScreen() {
               const inp = inputs[l.ligneCommandeId] || { units: '' };
               const maxPossible = Math.max(0, Math.min(l.remainingUnits, l.availableUnits));
               const stockOk = l.stockId != null;
+              const lineBorder = theme.isDark ? '#1f2937' : '#dbeafe';
+              const mutedBorder = theme.isDark ? '#1f2937' : '#e5e7eb';
+              const inputBackground = theme.isDark ? '#0f1724' : '#f8fbff';
+              const softPrimary = theme.isDark ? '#0b3b57' : '#d9f3ff';
               return (
                 <View
                   key={String(l.ligneCommandeId)}
                   style={{
                     backgroundColor: theme.card,
-                    borderRadius: 16,
-                    padding: 12,
-                    marginBottom: 10,
+                    borderRadius: 18,
+                    padding: 14,
+                    marginBottom: 12,
                     borderWidth: 1,
-                    borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+                    borderColor: lineBorder,
+                    shadowColor: '#0f172a',
+                    shadowOpacity: theme.isDark ? 0 : 0.08,
+                    shadowRadius: 10,
+                    shadowOffset: { width: 0, height: 4 },
+                    elevation: 2,
                     opacity: l.remainingUnits <= 0 ? 0.6 : 1,
                   }}
                 >
-                  <Text style={{ color: theme.text, fontWeight: '900' }} numberOfLines={2}>
+                  <Text style={{ color: theme.text, fontWeight: '900', fontSize: 16 }} numberOfLines={2}>
                     {l.designation}
                   </Text>
-                  <Text style={{ color: theme.muted, marginTop: 4 }}>
-                    Commandé: {l.orderedUnits} • Livré: {l.deliveredUnits} • Reste: {l.remainingUnits}
-                  </Text>
-                  <Text style={{ color: theme.muted, marginTop: 4 }}>
-                    Stock dispo: {formatThousands(l.availableUnits)} {stockOk ? '' : '• (stock boutique introuvable)'}
-                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                    <View style={{ backgroundColor: theme.isDark ? '#172033' : '#f1f5f9', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                      <Text style={{ color: theme.text, fontWeight: '800', fontSize: 12 }}>Commandé: {formatThousands(l.orderedUnits)}</Text>
+                    </View>
+                    <View style={{ backgroundColor: theme.isDark ? '#172033' : '#f1f5f9', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                      <Text style={{ color: theme.text, fontWeight: '800', fontSize: 12 }}>Livré: {formatThousands(l.deliveredUnits)}</Text>
+                    </View>
+                    <View style={{ backgroundColor: softPrimary, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                      <Text style={{ color: theme.isDark ? '#bae6fd' : '#0369a1', fontWeight: '800', fontSize: 12 }}>Reste: {formatThousands(l.remainingUnits)}</Text>
+                    </View>
+                    <View style={{ backgroundColor: stockOk ? (theme.isDark ? '#063423' : '#dcfce7') : (theme.isDark ? '#3f1d1d' : '#fee2e2'), borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                      <Text style={{ color: stockOk ? '#16a34a' : theme.danger, fontWeight: '800', fontSize: 12 }}>
+                        Stock: {formatThousands(l.availableUnits)}{stockOk ? '' : ' introuvable'}
+                      </Text>
+                    </View>
+                  </View>
 
                   <View style={{ flexDirection: 'row', gap: 10, marginTop: 10, alignItems: 'center' }}>
                     <View style={{ flex: 1 }}>
@@ -372,13 +392,15 @@ export default function CommandeClientLivraisonScreen() {
                         editable={canDeliver && l.remainingUnits > 0 && stockOk}
                         style={{
                           marginTop: 6,
-                          backgroundColor: theme.surface,
-                          borderRadius: 12,
+                          backgroundColor: inputBackground,
+                          borderRadius: 14,
                           paddingHorizontal: 12,
-                          paddingVertical: 10,
+                          paddingVertical: Platform.OS === 'android' ? 8 : 10,
+                          minHeight: 50,
                           color: theme.text,
                           borderWidth: 1,
-                          borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+                          borderColor: mutedBorder,
+                          fontWeight: '800',
                         }}
                       />
                     </View>
@@ -389,10 +411,10 @@ export default function CommandeClientLivraisonScreen() {
                       style={{
                         paddingHorizontal: 12,
                         paddingVertical: 10,
-                        borderRadius: 12,
-                        backgroundColor: theme.surface,
+                        borderRadius: 14,
+                        backgroundColor: inputBackground,
                         borderWidth: 1,
-                        borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+                        borderColor: mutedBorder,
                         opacity: !canDeliver || l.remainingUnits <= 0 || !stockOk ? 0.6 : 1,
                       }}
                     >

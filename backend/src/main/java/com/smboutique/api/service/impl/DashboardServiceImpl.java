@@ -23,9 +23,23 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class DashboardServiceImpl implements DashboardService {
+    private static final long DASHBOARD_CACHE_TTL_MS = 45_000L;
+
+    private static class DashboardCacheEntry {
+        final com.smboutique.api.service.dto.DashboardPayload payload;
+        final long createdAt;
+
+        DashboardCacheEntry(com.smboutique.api.service.dto.DashboardPayload payload, long createdAt) {
+            this.payload = payload;
+            this.createdAt = createdAt;
+        }
+    }
+
+    private final Map<String, DashboardCacheEntry> dashboardCache = new ConcurrentHashMap<>();
 
     private final ProduitService produitService;
     private final ClientGrossisteService clientGrossisteService;
@@ -277,6 +291,13 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public com.smboutique.api.service.dto.DashboardPayload getDashboardFor(com.smboutique.api.model.Utilisateur utilisateur, Long shopId, Long magasinId) {
+        String cacheKey = buildDashboardCacheKey(utilisateur, shopId, magasinId);
+        DashboardCacheEntry cached = dashboardCache.get(cacheKey);
+        long now = System.currentTimeMillis();
+        if (cached != null && now - cached.createdAt < DASHBOARD_CACHE_TTL_MS) {
+            return cached.payload;
+        }
+
         com.smboutique.api.service.dto.DashboardPayload payload = new com.smboutique.api.service.dto.DashboardPayload();
 
         boolean isSuperAdmin = utilisateur != null && ("SUPERADMIN".equalsIgnoreCase(utilisateur.getTypeUtilisateur()) || (utilisateur.getRoles()!=null && utilisateur.getRoles().stream().anyMatch(r->"SUPERADMIN".equalsIgnoreCase(r.getName())||"ROLE_SUPERADMIN".equalsIgnoreCase(r.getName()))));
@@ -301,6 +322,7 @@ public class DashboardServiceImpl implements DashboardService {
                 // user requested a shop but has no access: return minimal payload with error role
                 payload.role = "UNAUTHORIZED";
                 payload.widgets = Map.of("error", "Accès à la boutique refusé");
+                dashboardCache.put(cacheKey, new DashboardCacheEntry(payload, now));
                 return payload;
             }
         }
@@ -486,7 +508,15 @@ public class DashboardServiceImpl implements DashboardService {
         payload.sections = sections;
         if (utilisateur != null && utilisateur.getBoutique() != null) payload.currentBoutique = new com.smboutique.api.service.dto.DashboardPayload.Shop(utilisateur.getBoutique().getId(), utilisateur.getBoutique().getNom());
 
+        dashboardCache.put(cacheKey, new DashboardCacheEntry(payload, now));
         return payload;
+    }
+
+    private String buildDashboardCacheKey(com.smboutique.api.model.Utilisateur utilisateur, Long shopId, Long magasinId) {
+        Long userId = utilisateur != null ? utilisateur.getId() : null;
+        Long userBoutiqueId = utilisateur != null && utilisateur.getBoutique() != null ? utilisateur.getBoutique().getId() : null;
+        String role = utilisateur != null && utilisateur.getTypeUtilisateur() != null ? utilisateur.getTypeUtilisateur() : "UNKNOWN";
+        return userId + ":" + role + ":" + userBoutiqueId + ":" + shopId + ":" + magasinId;
     }
 
     // helper: personal sales by user for a boutique (moved from controller)

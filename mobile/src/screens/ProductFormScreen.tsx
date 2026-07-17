@@ -3,7 +3,7 @@ import { View, Text, TextInput, ScrollView, Pressable, Image, SafeAreaView, Keyb
 // dynamic import of expo-image-picker to avoid runtime crash when not installed
 let ImagePicker: any = null;
 import { useApp } from '../store/AppContext';
-import { createProduit, fetchProduit, updateProduit, fetchConfigurationMarge } from '../services/produit';
+import { createProduit, fetchProduit, updateProduit, fetchConfigurationMarge, createEmballage, updateEmballage, deleteEmballage } from '../services/produit';
 import { useTheme } from '../theme';
 import { showSuccess, showError, showInfo } from '../utils/notify';
 import { useAccess } from '../utils/access';
@@ -18,6 +18,23 @@ const Field = React.memo(function Field({ label, children, help, error, theme }:
     </View>
   );
 });
+
+type EmballageRow = {
+  tempId: string;
+  id?: number;
+  uniteId: string;
+  nombreUnites: string;
+  estParDefaut: boolean;
+};
+
+function newEmballageRow(isDefault: boolean): EmballageRow {
+  return {
+    tempId: `new-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    uniteId: '',
+    nombreUnites: '',
+    estParDefaut: isDefault,
+  };
+}
 
 export default function ProductFormScreen({ route, navigation }: any) {
   const { token, boutiqueId } = useApp();
@@ -41,7 +58,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
 
   const canEditThis = mode === 'create' ? access.produitsCreate : access.produitsEdit;
   const [margeLoading, setMargeLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState(0); // 0: Produit, 1: Conditionnement, 2: Prix & CMP
+  const [activeTab, setActiveTab] = useState(0); // 0: Produit, 1: Emballages, 2: Prix & CMP
 
   const loadMargeConfig = async () => {
     if (!boutiqueId || !token) {
@@ -90,11 +107,12 @@ export default function ProductFormScreen({ route, navigation }: any) {
   const [recomputeStatus, setRecomputeStatus] = useState<string | null>(null);
   const recomputeTimer = React.useRef<any>(null);
 
-  // Units and conditionnement
+  // Units and emballages
   const [unites, setUnites] = useState<any[]>([]);
   const [selectedUniteId, setSelectedUniteId] = useState<number | null>(null);
   const [nombreUnitesParConditionnement, setNombreUnitesParConditionnement] = useState<string>('1');
-  const [showUnitsModal, setShowUnitsModal] = useState(false);
+  const [emballageRows, setEmballageRows] = useState<EmballageRow[]>([]);
+  const [originalEmballageIds, setOriginalEmballageIds] = useState<number[]>([]);
 
   const fetchUnits = async () => {
     try {
@@ -111,18 +129,15 @@ export default function ProductFormScreen({ route, navigation }: any) {
   useEffect(() => { fetchUnits(); }, [token]);
 
   useEffect(() => {
-    if (selectedUniteId && unites.length > 0) {
-      const unit = unites.find(u => u.id === selectedUniteId);
-      if (unit) {
-        const lib = unit.libelle.toLowerCase();
-        if (lib.includes('carton')) {
-          setNombreUnitesParConditionnement('12');
-        } else {
-          setNombreUnitesParConditionnement('1');
-        }
-      }
+    const def = emballageRows.find((r) => r.estParDefaut) || emballageRows[0];
+    if (def) {
+      setSelectedUniteId(def.uniteId ? Number(def.uniteId) : null);
+      setNombreUnitesParConditionnement(def.nombreUnites || '1');
+    } else {
+      setSelectedUniteId(null);
+      setNombreUnitesParConditionnement('1');
     }
-  }, [selectedUniteId, unites]);
+  }, [emballageRows]);
 
   useEffect(() => {
     // load margin config on mount or when boutiqueId/token change
@@ -143,9 +158,22 @@ export default function ProductFormScreen({ route, navigation }: any) {
           setPrixAchat(p.prixAchat ? String(p.prixAchat) : '');
           setAlerteStock(p.alerteStock ? String(p.alerteStock) : '');
           setQuantite(p.quantiteInitialeConditionnements ? String(p.quantiteInitialeConditionnements) : '0');
-          // unit and conditionnement
-          setSelectedUniteId(p.unite ? p.unite.id : null);
-          setNombreUnitesParConditionnement(p.nombreUnitesParConditionnement ? String(p.nombreUnitesParConditionnement) : '1');
+          const existingEmballages: EmballageRow[] = Array.isArray(p.emballages) && p.emballages.length > 0
+            ? p.emballages.map((e: any) => ({
+                tempId: `existing-${e.id}`,
+                id: e.id,
+                uniteId: String(e.uniteId ?? e.unite?.id ?? ''),
+                nombreUnites: e.nombreUnites != null ? String(e.nombreUnites) : '',
+                estParDefaut: !!e.estParDefaut,
+              }))
+            : (p.unite ? [{
+                tempId: 'legacy-default',
+                uniteId: String(p.unite.id),
+                nombreUnites: p.nombreUnitesParConditionnement ? String(p.nombreUnitesParConditionnement) : '1',
+                estParDefaut: true,
+              }] : []);
+          setEmballageRows(existingEmballages);
+          setOriginalEmballageIds(existingEmballages.map((e) => e.id).filter((emballageId): emballageId is number => emballageId != null));
           // image handling: if productImage looks like a URL, use URL mode; otherwise keep file mode
           if (p.productImage) {
             const isUrl = typeof p.productImage === 'string' && p.productImage.includes('://');
@@ -283,29 +311,58 @@ export default function ProductFormScreen({ route, navigation }: any) {
       fd.append('alerteStock', alerteStock);
       fd.append('quantiteInitiale', quantite);
 
-      // unit and conditionnement
-      if (selectedUniteId != null) fd.append('uniteConditionnementId', String(selectedUniteId));
-      if (nombreUnitesParConditionnement) fd.append('nombreUnitesParConditionnement', nombreUnitesParConditionnement);
-
-      // Validate conditionnement numeric sanity before sending
-      if (selectedUniteId != null) {
-        const nb = Number(nombreUnitesParConditionnement || '0');
-        if (!Number.isFinite(nb) || nb < 1) {
-          showError('Erreur', 'Le nombre d\'unités par conditionnement doit être ≥ 1');
-          setCreating(false); return;
-        }
+      const cleanedEmballages = emballageRows.filter((r) => r.uniteId || r.nombreUnites);
+      if (cleanedEmballages.some((r) => !r.uniteId || !r.nombreUnites || Number(r.nombreUnites) < 1)) {
+        showError('Erreur', "Veuillez compléter chaque emballage (unité + nombre d'unités) ou le retirer.");
+        setCreating(false); return;
+      }
+      const uniteIdsUsed = cleanedEmballages.map((r) => r.uniteId);
+      if (new Set(uniteIdsUsed).size !== uniteIdsUsed.length) {
+        showError('Erreur', 'Chaque emballage doit utiliser une unité différente.');
+        setCreating(false); return;
+      }
+      const defaultEmballage = cleanedEmballages.find((r) => r.estParDefaut) || cleanedEmballages[0];
+      if (defaultEmballage) {
+        fd.append('uniteConditionnementId', defaultEmballage.uniteId);
+        fd.append('nombreUnitesParConditionnement', defaultEmballage.nombreUnites);
       }
 
       if (mode === 'create') {
         const saved = await createProduit(fd, token as string);
         console.log('PRODUCT_CREATE', { nom, prixDetail, computed: computeMargins, saved });
+        const ordered = [...cleanedEmballages].sort((a, b) => Number(b.estParDefaut) - Number(a.estParDefaut));
+        for (const row of ordered) {
+          await createEmballage(saved.id, {
+            uniteId: Number(row.uniteId),
+            nombreUnites: Number(row.nombreUnites),
+            estParDefaut: row.estParDefaut,
+          }, token as string);
+        }
         // Success alert with actions
-        const totalUnits = Number(quantite || '0') * Number(nombreUnitesParConditionnement || '1');
-        showSuccess('Produit créé', `${saved.nomProduit} a été créé avec succès. Quantité initiale: ${quantite} ${selectedUniteId ? (unites.find(u=>u.id===selectedUniteId)?.libelle || '') + '(s)' : 'unités'} (= ${totalUnits} unités)`);
+        const totalUnits = Number(quantite || '0') * Number(defaultEmballage?.nombreUnites || '1');
+        const unitName = defaultEmballage ? (unites.find(u=>String(u.id)===defaultEmballage.uniteId)?.libelle || '') : '';
+        showSuccess('Produit créé', `${saved.nomProduit} a été créé avec succès. Quantité initiale: ${quantite} ${unitName ? unitName + '(s)' : 'unités'} (= ${totalUnits} unités)`);
         navigation.navigate('ProductDetail', { id: saved.id });
       } else {
         const saved = await updateProduit(id, fd, token as string);
         console.log('PRODUCT_UPDATE', { id, nom, saved });
+        const deletedIds = originalEmballageIds.filter((emballageId) => !cleanedEmballages.some((r) => r.id === emballageId));
+        for (const emballageId of deletedIds) {
+          await deleteEmballage(id, emballageId, token as string);
+        }
+        const ordered = [...cleanedEmballages].sort((a, b) => Number(b.estParDefaut) - Number(a.estParDefaut));
+        for (const row of ordered) {
+          const payload = {
+            uniteId: Number(row.uniteId),
+            nombreUnites: Number(row.nombreUnites),
+            estParDefaut: row.estParDefaut,
+          };
+          if (row.id != null) {
+            await updateEmballage(id, row.id, payload, token as string);
+          } else {
+            await createEmballage(id, payload, token as string);
+          }
+        }
         showSuccess('Produit mis à jour', `${nom} a été mis à jour avec succès.`);
         navigation.goBack();
       }
@@ -317,6 +374,14 @@ export default function ProductFormScreen({ route, navigation }: any) {
   };
 
   const inputStyle = { backgroundColor: theme.surface, padding: 12, borderRadius: 10, color: theme.text, borderWidth: 1, borderColor: theme.surface } as any;
+  const mobileBorder = theme.isDark ? '#1f2937' : '#dbeafe';
+  const mutedBorder = theme.isDark ? '#1f2937' : '#e5e7eb';
+  const inputBackground = theme.isDark ? '#0f1724' : '#f8fbff';
+  const softPrimary = theme.isDark ? '#0b3b57' : '#d9f3ff';
+  const selectedUnit = selectedUniteId ? unites.find((u) => u.id === selectedUniteId) : null;
+  const packUnits = Number(nombreUnitesParConditionnement || '1') || 1;
+  const initialPacks = Number(quantite || '0') || 0;
+  const initialUnits = selectedUniteId ? initialPacks * packUnits : initialPacks;
 
   if (!canEditThis) {
     return (
@@ -341,7 +406,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           {[
             { id: 0, number: '1', label: 'Produit' },
-            { id: 1, number: '2', label: 'Emballage' },
+            { id: 1, number: '2', label: 'Emballages' },
             { id: 2, number: '3', label: 'Prix & Stock' }
           ].map((tab) => (
             <TouchableOpacity
@@ -523,109 +588,142 @@ export default function ProductFormScreen({ route, navigation }: any) {
                   alignItems: 'center'
                 }}
               >
-                <Text style={{ color: '#fff', fontWeight: '800' }}>Suivant: Emballage</Text>
+                <Text style={{ color: '#fff', fontWeight: '800' }}>Suivant: Emballages</Text>
               </TouchableOpacity>
             </View>
           )}
 
           {activeTab === 1 && (
             <View>
+              <View
+                style={{
+                  backgroundColor: theme.card,
+                  borderRadius: 18,
+                  padding: 14,
+                  borderWidth: 1,
+                  borderColor: mobileBorder,
+                  shadowColor: '#0f172a',
+                  shadowOpacity: theme.isDark ? 0 : 0.08,
+                  shadowRadius: 10,
+                  shadowOffset: { width: 0, height: 4 },
+                  elevation: 2,
+                }}
+              >
+                <Text style={{ color: theme.text, fontSize: 17, fontWeight: '900' }}>Emballages</Text>
+                <Text style={{ color: theme.muted, marginTop: 4 }}>
+                  Le même produit peut se vendre de plusieurs façons (carton, sac, casier...).
+                </Text>
 
               <Field theme={theme} label="Ça se vend aussi comment ? (ex: carton, sac, casier)">
-                <TouchableOpacity 
-                  onPress={() => setShowUnitsModal(s => !s)} 
-                  style={{ 
-                    padding: 14, 
-                    backgroundColor: theme.surface, 
-                    borderRadius: 10,
-                    borderWidth: 1,
-                    borderColor: theme.muted + '30',
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}
-                >
-                  <Text style={{ color: theme.text, fontSize: 16 }}>
-                    {selectedUniteId ? 
-                      unites.find(u=>u.id===selectedUniteId)?.libelle || String(selectedUniteId) 
-                      : 'Sélectionner une unité'
-                    }
-                  </Text>
-                  <Text style={{ color: theme.muted, fontSize: 20 }}>▼</Text>
-                </TouchableOpacity>
-                {showUnitsModal && (
-                  <View style={{ 
-                    backgroundColor: theme.surface, 
-                    marginTop: 8, 
-                    borderRadius: 10, 
-                    padding: 4,
-                    borderWidth: 1,
-                    borderColor: theme.muted + '30',
-                    maxHeight: 200,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
-                    elevation: 3
-                  }}>
-                    <ScrollView style={{ maxHeight: 192 }}>
-                      {unites.length === 0 ? (
-                        <Text style={{ color: theme.muted, padding: 16, textAlign: 'center' }}>Aucune unité disponible</Text>
-                      ) : unites.map(u => (
-                        <TouchableOpacity 
-                          key={u.id} 
-                          onPress={() => { 
-                            setSelectedUniteId(u.id); 
-                            setShowUnitsModal(false); 
-                          }} 
-                          style={{ 
-                            padding: 12, 
-                            borderBottomWidth: 1, 
-                            borderBottomColor: theme.muted + '20',
-                            backgroundColor: selectedUniteId === u.id ? theme.primary + '20' : 'transparent'
-                          }}
-                        >
-                          <Text style={{ 
-                            color: selectedUniteId === u.id ? theme.primary : theme.text,
-                            fontWeight: selectedUniteId === u.id ? '600' : '400'
-                          }}>
-                            {u.libelle}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
+                {emballageRows.length === 0 ? (
+                  <View style={{ backgroundColor: inputBackground, borderRadius: 14, borderWidth: 1, borderColor: mutedBorder, padding: 14 }}>
+                    <Text style={{ color: theme.muted, fontWeight: '800' }}>Non, juste à l'unité.</Text>
                   </View>
-                )}
-              </Field>
+                ) : null}
 
-              <Field theme={theme} label="Combien d'unités dans un emballage ?">
-                <TextInput
-                  placeholder={selectedUniteId ?
-                    `Ex: 12 pour 1 carton = 12 unités` :
-                    'Ex: 12 (1 emballage = 12 unités)'
-                  }
-                  keyboardType="numeric" 
-                  placeholderTextColor={theme.muted} 
-                  value={nombreUnitesParConditionnement} 
-                  onChangeText={setNombreUnitesParConditionnement} 
-                  style={{ ...inputStyle, marginTop: 0 }} 
-                  autoCorrect={false} 
-                />
-                {selectedUniteId && nombreUnitesParConditionnement && (
-                  <View style={{ 
-                    marginTop: 8, 
-                    padding: 10, 
-                    backgroundColor: theme.primary + '10', 
-                    borderRadius: 8,
-                    borderLeftWidth: 3,
-                    borderLeftColor: theme.primary
-                  }}>
-                    <Text style={{ color: theme.text, fontWeight: '500' }}>
-                      1 {unites.find(u=>u.id===selectedUniteId)?.libelle} = {nombreUnitesParConditionnement} unités
-                    </Text>
-                  </View>
-                )}
+                {emballageRows.map((row, idx) => {
+                  const rowUnit = unites.find((u) => String(u.id) === row.uniteId);
+                  return (
+                    <View key={row.tempId} style={{ backgroundColor: inputBackground, borderRadius: 16, borderWidth: 1, borderColor: mutedBorder, padding: 12, marginBottom: 10 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <Text style={{ color: theme.text, fontWeight: '900' }}>Emballage {idx + 1}</Text>
+                        <TouchableOpacity
+                          onPress={() => setEmballageRows((rows) => {
+                            const next = rows.filter((_, i) => i !== idx);
+                            if (next.length > 0 && !next.some((r) => r.estParDefaut)) next[0] = { ...next[0], estParDefaut: true };
+                            return next;
+                          })}
+                          style={{ width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.isDark ? '#2a1620' : '#fff1f2' }}
+                        >
+                          <Text style={{ color: theme.danger, fontWeight: '900', fontSize: 18 }}>×</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      <Text style={{ color: theme.muted, fontWeight: '800', marginBottom: 6 }}>Unité</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          {unites.length === 0 ? (
+                            <Text style={{ color: theme.muted, paddingVertical: 8 }}>Aucune unité disponible</Text>
+                          ) : unites.map((u) => {
+                            const selected = row.uniteId === String(u.id);
+                            return (
+                              <TouchableOpacity
+                                key={u.id}
+                                onPress={() => {
+                                  const lib = String(u.libelle || '').toLowerCase();
+                                  setEmballageRows((rows) => rows.map((r, i) => {
+                                    if (i !== idx) return r;
+                                    return {
+                                      ...r,
+                                      uniteId: String(u.id),
+                                      nombreUnites: r.nombreUnites || (lib.includes('carton') ? '12' : ''),
+                                    };
+                                  }));
+                                }}
+                                style={{
+                                  paddingHorizontal: 12,
+                                  paddingVertical: 9,
+                                  borderRadius: 999,
+                                  borderWidth: 1,
+                                  borderColor: selected ? theme.primary : mutedBorder,
+                                  backgroundColor: selected ? theme.primary : theme.surface,
+                                }}
+                              >
+                                <Text style={{ color: selected ? '#fff' : theme.text, fontWeight: '800' }}>{u.libelle}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </ScrollView>
+
+                      <View style={{ marginTop: 10 }}>
+                        <Text style={{ color: theme.muted, fontWeight: '800', marginBottom: 6 }}>Nombre d'unités</Text>
+                        <TextInput
+                          placeholder="Ex: 12 unités"
+                          keyboardType="numeric"
+                          placeholderTextColor={theme.muted}
+                          value={row.nombreUnites}
+                          onChangeText={(value) => setEmballageRows((rows) => rows.map((r, i) => i === idx ? { ...r, nombreUnites: value.replace(/[^0-9]/g, '') } : r))}
+                          style={{
+                            ...inputStyle,
+                            marginTop: 0,
+                            minHeight: 52,
+                            borderRadius: 14,
+                            backgroundColor: theme.surface,
+                            borderColor: mutedBorder,
+                            fontWeight: '800',
+                          }}
+                          autoCorrect={false}
+                        />
+                      </View>
+
+                      <TouchableOpacity
+                        onPress={() => setEmballageRows((rows) => rows.map((r, i) => ({ ...r, estParDefaut: i === idx })))}
+                        style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center' }}
+                      >
+                        <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: row.estParDefaut ? theme.primary : theme.muted, backgroundColor: row.estParDefaut ? theme.primary : 'transparent', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+                          {row.estParDefaut ? <Text style={{ color: '#fff', fontWeight: '900', fontSize: 12 }}>✓</Text> : null}
+                        </View>
+                        <Text style={{ color: theme.text, fontWeight: '900' }}>Par défaut</Text>
+                      </TouchableOpacity>
+
+                      {rowUnit && row.nombreUnites ? (
+                        <View style={{ marginTop: 10, padding: 10, backgroundColor: softPrimary, borderRadius: 12, borderWidth: 1, borderColor: mobileBorder }}>
+                          <Text style={{ color: theme.text, fontWeight: '900' }}>1 {rowUnit.libelle} = {row.nombreUnites} unités</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })}
+
+                <TouchableOpacity
+                  onPress={() => setEmballageRows((rows) => [...rows, newEmballageRow(rows.length === 0)])}
+                  style={{ marginTop: 2, minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: theme.primary, backgroundColor: theme.isDark ? '#0b3b57' : '#eef9ff', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Text style={{ color: theme.primary, fontWeight: '900' }}>+ Ajouter un emballage</Text>
+                </TouchableOpacity>
               </Field>
+              </View>
               
               {/* Boutons de navigation */}
               <View style={{ flexDirection: 'row', gap: 12, marginTop: 24 }}>
@@ -795,21 +893,28 @@ export default function ProductFormScreen({ route, navigation }: any) {
                   placeholderTextColor={theme.muted} 
                   value={quantite} 
                   onChangeText={setQuantite} 
-                  style={inputStyle} 
+                  style={{
+                    ...inputStyle,
+                    minHeight: 52,
+                    borderRadius: 14,
+                    backgroundColor: inputBackground,
+                    borderColor: mutedBorder,
+                    fontWeight: '800',
+                  }} 
                   autoCorrect={false} 
                 />
                 {selectedUniteId && (
                   <View style={{ 
                     marginTop: 8, 
-                    padding: 10, 
-                    backgroundColor: '#10b98120', 
-                    borderRadius: 8,
-                    borderLeftWidth: 3,
-                    borderLeftColor: '#10b981'
+                    padding: 12, 
+                    backgroundColor: theme.isDark ? '#063423' : '#dcfce7', 
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: theme.isDark ? '#14532d' : '#bbf7d0',
                   }}>
-                    <Text style={{ color: theme.text, fontWeight: '500' }}>
-                      Total unités: {Number(quantite || '0')} {unites.find(u=>u.id===selectedUniteId)?.libelle} × {Number(nombreUnitesParConditionnement || '1')} = 
-                      <Text style={{ color: '#10b981', fontWeight: '700' }}> {Number(quantite || '0') * Number(nombreUnitesParConditionnement || '1')} unités</Text>
+                    <Text style={{ color: theme.text, fontWeight: '900' }}>
+                      Total: {initialPacks} {selectedUnit?.libelle} × {packUnits} =
+                      <Text style={{ color: '#10b981', fontWeight: '900' }}> {initialUnits} unités</Text>
                     </Text>
                   </View>
                 )}

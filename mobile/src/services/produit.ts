@@ -37,6 +37,53 @@ export const fetchUnites = async (token: string) => {
   return res.json();
 };
 
+export const createEmballage = async (
+  produitId: number,
+  payload: { uniteId: number; nombreUnites: number; estParDefaut?: boolean },
+  token: string
+) => {
+  const res = await fetch(`${API_BASE_URL}/api/produits/${produitId}/emballages`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error("Création emballage échouée: " + txt);
+  }
+  return res.json();
+};
+
+export const updateEmballage = async (
+  produitId: number,
+  emballageId: number,
+  payload: { uniteId: number; nombreUnites: number; estParDefaut?: boolean },
+  token: string
+) => {
+  const res = await fetch(`${API_BASE_URL}/api/produits/${produitId}/emballages/${emballageId}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error("Modification emballage échouée: " + txt);
+  }
+  return res.json();
+};
+
+export const deleteEmballage = async (produitId: number, emballageId: number, token: string) => {
+  const res = await fetch(`${API_BASE_URL}/api/produits/${produitId}/emballages/${emballageId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error("Suppression emballage échouée: " + txt);
+  }
+  return true;
+};
+
 export const fetchRecomputeJobStatus = async (jobId: string, token: string) => {
   const res = await fetch(`${API_BASE_URL}/api/configuration-marge/job/${jobId}`, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) {

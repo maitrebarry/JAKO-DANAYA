@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Ionicons } from '@expo/vector-icons';
@@ -313,30 +313,43 @@ export default function StockTransferScreen() {
           renderItem={({ item }) => {
             const checked = !!selected[item.produitId];
             const cond = !!isCond[item.produitId];
+            const lineBorder = theme.isDark ? '#1f2937' : '#dbeafe';
+            const mutedBorder = theme.isDark ? '#1f2937' : '#e5e7eb';
+            const inputBackground = theme.isDark ? '#0f1724' : '#f8fbff';
+            const softPrimary = theme.isDark ? '#0b3b57' : '#d9f3ff';
             return (
-              <View style={{ backgroundColor: theme.card, borderRadius: 14, padding: 12, borderWidth: 1, borderColor, marginBottom: 10 }}>
+              <View style={{ backgroundColor: theme.card, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: lineBorder, marginBottom: 12, shadowColor: '#0f172a', shadowOpacity: theme.isDark ? 0 : 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 }}>
                 <Pressable onPress={() => toggleSelected(item.produitId)} style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Ionicons name={checked ? 'checkbox' : 'square-outline'} size={20} color={checked ? theme.primary : theme.muted} />
                   <View style={{ marginLeft: 10, flex: 1 }}>
-                    <Text style={{ color: theme.text, fontWeight: '900' }}>{item.nomProduit}</Text>
-                    <Text style={{ color: theme.muted, marginTop: 2 }}>Disponible: {item.quantiteDisponible}{item.uniteCondLibelle ? ` • ${item.uniteCondLibelle}` : ''}</Text>
+                    <Text style={{ color: theme.text, fontWeight: '900', fontSize: 16 }}>{item.nomProduit}</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                      <View style={{ backgroundColor: softPrimary, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                        <Text style={{ color: theme.isDark ? '#bae6fd' : '#0369a1', fontWeight: '800', fontSize: 12 }}>Disponible: {item.quantiteDisponible}</Text>
+                      </View>
+                      {item.multiplicateur > 1 ? (
+                        <View style={{ backgroundColor: theme.isDark ? '#172033' : '#f1f5f9', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                          <Text style={{ color: theme.text, fontWeight: '800', fontSize: 12 }}>1 emballage = {item.multiplicateur} U</Text>
+                        </View>
+                      ) : null}
+                    </View>
                   </View>
                 </Pressable>
 
                 {checked ? (
                   <View style={{ marginTop: 10 }}>
-                    <View style={{ flexDirection: 'row', gap: 10 as any, marginBottom: 8 }}>
-                      <Pressable onPress={() => setIsCond((p) => ({ ...p, [item.produitId]: false }))} style={{ flex: 1, backgroundColor: !cond ? theme.primary : theme.surface, borderWidth: 1, borderColor, paddingVertical: 8, borderRadius: 10, alignItems: 'center' }}>
-                        <Text style={{ color: theme.text }}>Unités</Text>
+                    <View style={{ flexDirection: 'row', gap: 8 as any, marginBottom: 10 }}>
+                      <Pressable onPress={() => setIsCond((p) => ({ ...p, [item.produitId]: false }))} style={{ flex: 1, minHeight: 48, backgroundColor: !cond ? theme.primary : inputBackground, borderWidth: 1, borderColor: !cond ? theme.primary : mutedBorder, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ color: !cond ? '#fff' : theme.text, fontWeight: '900' }}>Unités</Text>
                       </Pressable>
                       <Pressable
                         onPress={() => {
                           setIsCond((p) => ({ ...p, [item.produitId]: true }));
                           setEmballageChoice((p) => (p[item.produitId] != null ? p : { ...p, [item.produitId]: defaultEmballageId(item) as number }));
                         }}
-                        style={{ flex: 1, backgroundColor: cond ? theme.primary : theme.surface, borderWidth: 1, borderColor, paddingVertical: 8, borderRadius: 10, alignItems: 'center' }}
+                        style={{ flex: 1, minHeight: 48, backgroundColor: cond ? theme.primary : inputBackground, borderWidth: 1, borderColor: cond ? theme.primary : mutedBorder, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }}
                       >
-                        <Text style={{ color: theme.text }}>Par cond.</Text>
+                        <Text style={{ color: cond ? '#fff' : theme.text, fontWeight: '900' }}>Emballage</Text>
                       </Pressable>
                     </View>
                     {cond && item.emballages.length > 1 ? (
@@ -353,10 +366,10 @@ export default function StockTransferScreen() {
                                 borderRadius: 10,
                                 backgroundColor: selected ? theme.primary : theme.surface,
                                 borderWidth: 1,
-                                borderColor: selected ? theme.primary : borderColor,
+                                borderColor: selected ? theme.primary : mutedBorder,
                               }}
                             >
-                              <Text style={{ color: theme.text, fontWeight: '700' }}>
+                              <Text style={{ color: selected ? '#fff' : theme.text, fontWeight: '700' }}>
                                 {e.uniteLibelle} ({e.nombreUnites}u)
                               </Text>
                             </Pressable>
@@ -371,7 +384,7 @@ export default function StockTransferScreen() {
                         keyboardType="numeric"
                         placeholder="Qté emballages"
                         placeholderTextColor={theme.muted}
-                        style={{ backgroundColor: theme.surface, borderRadius: 10, padding: 10, color: theme.text, borderWidth: 1, borderColor }}
+                        style={{ backgroundColor: inputBackground, borderRadius: 14, paddingHorizontal: 12, paddingVertical: Platform.OS === 'android' ? 8 : 10, minHeight: 50, color: theme.text, borderWidth: 1, borderColor: mutedBorder, fontWeight: '800' }}
                       />
                     ) : (
                       <TextInput
@@ -380,7 +393,7 @@ export default function StockTransferScreen() {
                         keyboardType="numeric"
                         placeholder={`Quantité (max ${item.quantiteDisponible})`}
                         placeholderTextColor={theme.muted}
-                        style={{ backgroundColor: theme.surface, borderRadius: 10, padding: 10, color: theme.text, borderWidth: 1, borderColor }}
+                        style={{ backgroundColor: inputBackground, borderRadius: 14, paddingHorizontal: 12, paddingVertical: Platform.OS === 'android' ? 8 : 10, minHeight: 50, color: theme.text, borderWidth: 1, borderColor: mutedBorder, fontWeight: '800' }}
                       />
                     )}
                   </View>

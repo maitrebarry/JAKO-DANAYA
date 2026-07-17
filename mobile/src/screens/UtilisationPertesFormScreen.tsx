@@ -90,13 +90,15 @@ const ProductPickerModal = React.memo(function ProductPickerModal({
             placeholder="Rechercher un produit..."
             placeholderTextColor={theme.muted}
             style={{
-              backgroundColor: theme.surface,
+              backgroundColor: theme.isDark ? '#0f1724' : '#f8fbff',
               color: theme.text,
-              borderRadius: 12,
+              borderRadius: 14,
               paddingHorizontal: 12,
-              paddingVertical: 10,
+              paddingVertical: Platform.OS === 'android' ? 8 : 10,
+              minHeight: 50,
               borderWidth: 1,
               borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+              fontWeight: '800',
             }}
             autoFocus
           />
@@ -110,24 +112,35 @@ const ProductPickerModal = React.memo(function ProductPickerModal({
           renderItem={({ item }) => {
             const name = productNameFromStock(item);
             const available = Number(item?.quantiteDisponible) || 0;
+            const lineBorder = theme.isDark ? '#1f2937' : '#dbeafe';
+            const softPrimary = theme.isDark ? '#0b3b57' : '#d9f3ff';
             return (
               <Pressable
                 onPress={() => onPick(item)}
                 style={{
                   backgroundColor: theme.card,
-                  borderRadius: 14,
-                  padding: 12,
-                  marginBottom: 10,
+                  borderRadius: 18,
+                  padding: 14,
+                  marginBottom: 12,
                   borderWidth: 1,
-                  borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+                  borderColor: lineBorder,
+                  shadowColor: '#0f172a',
+                  shadowOpacity: theme.isDark ? 0 : 0.08,
+                  shadowRadius: 10,
+                  shadowOffset: { width: 0, height: 4 },
+                  elevation: 2,
                 }}
               >
-                <Text style={{ color: theme.text, fontWeight: '800' }} numberOfLines={1}>
+                <Text style={{ color: theme.text, fontWeight: '900', fontSize: 16 }} numberOfLines={1}>
                   {name}
                 </Text>
-                <Text style={{ color: theme.muted, marginTop: 2 }} numberOfLines={1}>
-                  Stock actuel: {available}
-                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                  <View style={{ backgroundColor: softPrimary, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                    <Text style={{ color: theme.isDark ? '#bae6fd' : '#0369a1', fontWeight: '800', fontSize: 12 }}>
+                      Stock actuel: {available}
+                    </Text>
+                  </View>
+                </View>
               </Pressable>
             );
           }}
@@ -401,6 +414,22 @@ export default function UtilisationPertesFormScreen({ route, navigation }: Props
     );
   }
 
+  const borderColor = theme.isDark ? '#1f2937' : '#dbeafe';
+  const mutedBorder = theme.isDark ? '#1f2937' : '#e5e7eb';
+  const inputBackground = theme.isDark ? '#0f1724' : '#f8fbff';
+  const softPrimary = theme.isDark ? '#0b3b57' : '#d9f3ff';
+  const fieldStyle = {
+    backgroundColor: inputBackground,
+    color: theme.text,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'android' ? 8 : 10,
+    minHeight: 50,
+    borderWidth: 1,
+    borderColor: mutedBorder,
+    fontWeight: '800' as const,
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -408,7 +437,7 @@ export default function UtilisationPertesFormScreen({ route, navigation }: Props
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ padding: 16, paddingBottom: 28 }}
         >
-          <Text style={{ color: theme.text, fontSize: 18, fontWeight: '900' }}>{title}</Text>
+          <Text style={{ color: theme.text, fontSize: 20, fontWeight: '900' }}>{title}</Text>
 
           {loading ? (
             <View style={{ paddingVertical: 16 }}>
@@ -418,47 +447,49 @@ export default function UtilisationPertesFormScreen({ route, navigation }: Props
 
           {!loading ? (
             <View>
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
             <Pressable
               onPress={() => setType('UTILISATION')}
               style={{
                 flex: 1,
-                backgroundColor: type === 'UTILISATION' ? '#2563eb' : theme.surface,
-                paddingVertical: 10,
-                borderRadius: 12,
+                minHeight: 48,
+                backgroundColor: type === 'UTILISATION' ? '#2563eb' : inputBackground,
+                borderRadius: 14,
                 alignItems: 'center',
+                justifyContent: 'center',
                 borderWidth: 1,
-                borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+                borderColor: type === 'UTILISATION' ? '#2563eb' : mutedBorder,
               }}
             >
-              <Text style={{ color: type === 'UTILISATION' ? '#fff' : theme.text, fontWeight: '900' }}>UTILISATION</Text>
+              <Text style={{ color: type === 'UTILISATION' ? '#fff' : theme.text, fontWeight: '900' }}>Utilisation</Text>
             </Pressable>
             <Pressable
               onPress={() => setType('PERTE')}
               style={{
                 flex: 1,
-                backgroundColor: type === 'PERTE' ? '#dc2626' : theme.surface,
-                paddingVertical: 10,
-                borderRadius: 12,
+                minHeight: 48,
+                backgroundColor: type === 'PERTE' ? '#dc2626' : inputBackground,
+                borderRadius: 14,
                 alignItems: 'center',
+                justifyContent: 'center',
                 borderWidth: 1,
-                borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+                borderColor: type === 'PERTE' ? '#dc2626' : mutedBorder,
               }}
             >
-              <Text style={{ color: type === 'PERTE' ? '#fff' : theme.text, fontWeight: '900' }}>PERTE</Text>
+              <Text style={{ color: type === 'PERTE' ? '#fff' : theme.text, fontWeight: '900' }}>Perte</Text>
             </Pressable>
           </View>
 
+          <View style={{ backgroundColor: theme.card, borderRadius: 18, padding: 14, marginTop: 12, borderWidth: 1, borderColor, shadowColor: '#0f172a', shadowOpacity: theme.isDark ? 0 : 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 }}>
           <Pressable
             onPress={() => setShowMagasinPicker(true)}
             style={{
-              marginTop: 12,
-              backgroundColor: theme.surface,
+              backgroundColor: inputBackground,
               paddingVertical: 12,
               paddingHorizontal: 12,
-              borderRadius: 12,
+              borderRadius: 14,
               borderWidth: 1,
-              borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+              borderColor: mutedBorder,
             }}
           >
             <Text style={{ color: theme.muted, fontSize: 12 }}>Magasin</Text>
@@ -471,12 +502,12 @@ export default function UtilisationPertesFormScreen({ route, navigation }: Props
             onPress={() => setShowProductPicker(true)}
             style={{
               marginTop: 12,
-              backgroundColor: theme.surface,
+              backgroundColor: inputBackground,
               paddingVertical: 12,
               paddingHorizontal: 12,
-              borderRadius: 12,
+              borderRadius: 14,
               borderWidth: 1,
-              borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+              borderColor: mutedBorder,
             }}
           >
             <Text style={{ color: theme.muted, fontSize: 12 }}>Produit</Text>
@@ -493,18 +524,12 @@ export default function UtilisationPertesFormScreen({ route, navigation }: Props
               placeholder="0"
               placeholderTextColor={theme.muted}
               keyboardType="numeric"
-              style={{
-                backgroundColor: theme.surface,
-                color: theme.text,
-                borderRadius: 12,
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-                borderWidth: 1,
-                borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
-              }}
+              style={fieldStyle}
             />
             {selectedStock?.quantiteDisponible != null ? (
-              <Text style={{ color: theme.muted, marginTop: 6 }}>Disponible: {String(selectedStock.quantiteDisponible)}</Text>
+              <View style={{ alignSelf: 'flex-start', marginTop: 8, backgroundColor: softPrimary, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                <Text style={{ color: theme.isDark ? '#bae6fd' : '#0369a1', fontWeight: '800', fontSize: 12 }}>Disponible: {String(selectedStock.quantiteDisponible)}</Text>
+              </View>
             ) : null}
           </View>
 
@@ -517,17 +542,18 @@ export default function UtilisationPertesFormScreen({ route, navigation }: Props
               placeholderTextColor={theme.muted}
               multiline
               style={{
-                backgroundColor: theme.surface,
+                backgroundColor: inputBackground,
                 color: theme.text,
-                borderRadius: 12,
+                borderRadius: 14,
                 paddingHorizontal: 12,
                 paddingVertical: 10,
                 minHeight: 90,
                 borderWidth: 1,
-                borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+                borderColor: mutedBorder,
                 textAlignVertical: 'top',
               }}
             />
+          </View>
           </View>
 
           <Pressable

@@ -270,30 +270,36 @@ export default function AchatDetailScreen() {
               <Text style={{ color: theme.muted }}>Aucune ligne.</Text>
             </View>
           ) : (
-            lines.map((l) => (
-              <View key={String(l.id)} style={{ backgroundColor: theme.card, borderRadius: 16, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: theme.isDark ? '#1f2937' : '#e5e7eb' }}>
-                <Text style={{ color: theme.text, fontWeight: '900' }} numberOfLines={2}>
-                  {l.nom || `Ligne #${l.id}`}
-                </Text>
-                {!!l.depot && (
-                  <Text style={{ color: theme.muted, marginTop: 2 }} numberOfLines={1}>
-                    Dépôt: {l.depot}
+            lines.map((l) => {
+              const lineBorder = theme.isDark ? '#1f2937' : '#dbeafe';
+              const softPrimary = theme.isDark ? '#0b3b57' : '#d9f3ff';
+              const qty = Number(l.quantite) || 0;
+              const price = Number(l.prix) || 0;
+              const amount = Number(l.montant) || qty * price;
+              return (
+                <View key={String(l.id)} style={{ backgroundColor: theme.card, borderRadius: 18, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: lineBorder, shadowColor: '#0f172a', shadowOpacity: theme.isDark ? 0 : 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 }}>
+                  <Text style={{ color: theme.text, fontWeight: '900', fontSize: 16 }} numberOfLines={2}>
+                    {l.nom || `Ligne #${l.id}`}
                   </Text>
-                )}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
-                  <Text style={{ color: theme.muted, fontWeight: '700' }}>Qté</Text>
-                  <Text style={{ color: theme.text, fontWeight: '900' }}>{Number(l.quantite) || 0}</Text>
+                  {!!l.depot && (
+                    <Text style={{ color: theme.muted, marginTop: 4 }} numberOfLines={1}>
+                      Dépôt: {l.depot}
+                    </Text>
+                  )}
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                    <View style={{ backgroundColor: softPrimary, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                      <Text style={{ color: theme.isDark ? '#bae6fd' : '#0369a1', fontWeight: '800', fontSize: 12 }}>Qté: {qty}</Text>
+                    </View>
+                    <View style={{ backgroundColor: theme.isDark ? '#172033' : '#f1f5f9', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                      <Text style={{ color: theme.text, fontWeight: '800', fontSize: 12 }}>Prix U: {formatThousands(price)}</Text>
+                    </View>
+                    <View style={{ backgroundColor: theme.isDark ? '#063423' : '#dcfce7', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                      <Text style={{ color: '#16a34a', fontWeight: '800', fontSize: 12 }}>Montant: {formatThousands(amount)}</Text>
+                    </View>
+                  </View>
                 </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-                  <Text style={{ color: theme.muted, fontWeight: '700' }}>Prix U</Text>
-                  <Text style={{ color: theme.text, fontWeight: '900' }}>{formatThousands(Number(l.prix) || 0)}</Text>
-                </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-                  <Text style={{ color: theme.muted, fontWeight: '700' }}>Montant</Text>
-                  <Text style={{ color: theme.text, fontWeight: '900' }}>{formatThousands(Number(l.montant) || (Number(l.quantite) || 0) * (Number(l.prix) || 0))}</Text>
-                </View>
-              </View>
-            ))
+              );
+            })
           )}
 
           <Pressable onPress={load} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 6 }}>

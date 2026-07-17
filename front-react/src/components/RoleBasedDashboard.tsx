@@ -512,28 +512,32 @@ const RoleBasedDashboard: React.FC = () => {
       // Charger le dashboard de l'utilisateur connecté
       const p = await getDashboard(shopId, magasinId);
       setPayload(p);
+      setLastRefresh(new Date());
+      setLoading(false);
 
       if (p.role === 'SUPERADMIN') {
-        await loadSuperAdminUsers();
-        await Promise.all([loadSubscriptions(), loadSubscriptionPayments(true)]);
+        loadSuperAdminUsers().catch((err) => console.warn('Chargement utilisateurs dashboard échoué', err));
+        Promise.all([loadSubscriptions(), loadSubscriptionPayments(true)])
+          .catch((err) => console.warn('Chargement abonnements dashboard échoué', err));
       }
 
       if (p.role === 'PROPRIETAIRE' || p.role === 'GERANT' || p.role === 'GÉRANT') {
-        await maybeShowOwnerSubscriptionModal();
+        maybeShowOwnerSubscriptionModal().catch((err) => console.warn('Vérification abonnement échouée', err));
       }
 
       // Si c'est un ADMIN, charger les dashboards des subalternes
       if (p.role === 'ADMIN' || p.role === 'PROPRIETAIRE') {
-        const subs = await getSubordinatesDashboards();
-        setSubordinates(subs);
+        getSubordinatesDashboards()
+          .then(setSubordinates)
+          .catch((err) => console.warn('Chargement dashboards subalternes échoué', err));
       }
-
-      setLastRefresh(new Date());
     } catch (e) {
       const error = e as Error;
       setError(error?.message || 'Erreur lors du chargement du dashboard');
-    } finally {
       setLoading(false);
+    } finally {
+      // Le chargement principal est arrêté juste après getDashboard pour éviter
+      // que les données secondaires bloquent l'affichage.
     }
   };
 
@@ -1723,10 +1727,30 @@ const RoleBasedDashboard: React.FC = () => {
   };
 
   if (loading) return (
-    <div className="d-flex justify-content-center align-items-center" style={{ height: '50vh' }}>
-      <div className="text-center">
-        <div className="spinner-border text-primary mb-3" role="status"></div>
-        <p>Chargement du tableau de bord...</p>
+    <div className="dashboard-loading-scene" role="status" aria-live="polite">
+      <div className="dashboard-loader">
+        <div className="dashboard-loader-orbit">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div className="dashboard-loader-card">
+          <div className="dashboard-loader-icon">
+            <i className="bi bi-speedometer2"></i>
+          </div>
+          <h5>Préparation du tableau de bord</h5>
+          <p>On rassemble les ventes, le stock et la caisse...</p>
+          <div className="dashboard-loader-bars">
+            <i></i>
+            <i></i>
+            <i></i>
+          </div>
+        </div>
+        <div className="dashboard-loader-mini-cards">
+          <div></div>
+          <div></div>
+          <div></div>
+        </div>
       </div>
     </div>
   );

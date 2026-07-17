@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -73,6 +74,12 @@ function emballageList(stock: any): any[] {
 function defaultEmballageId(stock: any): number | undefined {
   const def = emballageList(stock).find((e: any) => e.estParDefaut);
   return def ? def.id : undefined;
+}
+
+function emballageLabel(stock: any, idEmballage?: number) {
+  const list = emballageList(stock);
+  const chosen = idEmballage != null ? list.find((e: any) => e.id === idEmballage) : list.find((e: any) => e.estParDefaut);
+  return String(chosen?.uniteLibelle || stock?.produit?.unite?.libelle || 'emballage');
 }
 
 function productNameFromStock(s: any) {
@@ -463,7 +470,7 @@ const ProductPickerModal = React.memo(function ProductPickerModal({
                       {name}
                     </Text>
                     <Text style={{ color: theme.muted, marginTop: 2 }} numberOfLines={1}>
-                      Stock actuel: {available} U{mult > 1 ? ` • ${mult} U/carton` : ''}
+                      Stock actuel: {available} U{mult > 1 ? ` • ${mult} U/emballage` : ''}
                     </Text>
                   </View>
                   <View
@@ -573,15 +580,18 @@ export default function AchatScreen() {
       const produit = s?.produit || {};
       const prixAchat = Number(produit?.prixAchat);
       const defaultPrix = Number.isFinite(prixAchat) && prixAchat > 0 ? String(Math.trunc(prixAchat)) : '';
+      const idEmballage = defaultEmballageId(s);
+      const mult = packMultiplier(s, idEmballage);
+      const defaultByEmballage = mult > 1;
       return [
         {
           stockId,
           produit,
           designation: productNameFromStock(s),
-          achatParConditionnement: false,
-          quantite: '1',
-          quantiteConditionnement: '',
-          idEmballage: defaultEmballageId(s),
+          achatParConditionnement: defaultByEmballage,
+          quantite: defaultByEmballage ? String(mult) : '1',
+          quantiteConditionnement: defaultByEmballage ? '1' : '',
+          idEmballage,
           prixUnit: defaultPrix,
         },
         ...prev,
@@ -661,7 +671,7 @@ export default function AchatScreen() {
       if (line.achatParConditionnement) {
         const cartons = parseIntFromDigits(line.quantiteConditionnement);
         if (cartons <= 0) {
-          showError('Quantité', `Quantité carton invalide pour ${line.designation}`);
+          showError('Quantité', `Quantité emballage invalide pour ${line.designation}`);
           return;
         }
         if (emballageList(stock).length > 1 && line.idEmballage == null) {
@@ -881,54 +891,99 @@ export default function AchatScreen() {
                 const stock = stockById.get(line.stockId);
                 const mult = packMultiplier(stock || { produit: line.produit }, line.idEmballage);
                 const embList = emballageList(stock || { produit: line.produit });
+                const borderColor = theme.isDark ? '#1f2937' : '#dbeafe';
+                const mutedBorder = theme.isDark ? '#1f2937' : '#e5e7eb';
+                const softPrimary = theme.isDark ? '#0b3b57' : '#d9f3ff';
+                const inputBackground = theme.isDark ? '#0f1724' : '#f8fbff';
+                const selectedEmbLabel = emballageLabel(stock || { produit: line.produit }, line.idEmballage);
+                const qCond = parseIntFromDigits(line.quantiteConditionnement);
+                const realQ = line.achatParConditionnement ? qCond * mult : parseIntFromDigits(line.quantite);
+                const quantityLabel = line.achatParConditionnement ? `Quantité (${selectedEmbLabel})` : 'Quantité (unités)';
+                const quantityPlaceholder = line.achatParConditionnement ? selectedEmbLabel : 'Unités';
                 return (
                   <View
                     key={String(line.stockId)}
                     style={{
                       backgroundColor: theme.card,
-                      borderRadius: 14,
-                      padding: 12,
-                      marginBottom: 10,
+                      borderRadius: 18,
+                      padding: 14,
+                      marginBottom: 12,
                       borderWidth: 1,
-                      borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+                      borderColor,
+                      shadowColor: '#0f172a',
+                      shadowOpacity: theme.isDark ? 0 : 0.08,
+                      shadowRadius: 10,
+                      shadowOffset: { width: 0, height: 4 },
+                      elevation: 2,
                     }}
                   >
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <View style={{ flex: 1, paddingRight: 10 }}>
-                        <Text style={{ color: theme.text, fontWeight: '900' }} numberOfLines={2}>
+                        <Text style={{ color: theme.text, fontWeight: '900', fontSize: 16 }} numberOfLines={2}>
                           {line.designation}
                         </Text>
-                        <Text style={{ color: theme.muted, marginTop: 2 }} numberOfLines={1}>
-                          Stock actuel: {Number(stock?.quantiteDisponible) || 0} U{mult > 1 ? ` • ${mult} U/carton` : ''}
-                        </Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                          <View style={{ backgroundColor: softPrimary, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                            <Text style={{ color: theme.isDark ? '#bae6fd' : '#0369a1', fontWeight: '800', fontSize: 12 }}>
+                              Stock: {Number(stock?.quantiteDisponible) || 0} U
+                            </Text>
+                          </View>
+                          {mult > 1 ? (
+                            <View style={{ backgroundColor: theme.isDark ? '#172033' : '#f1f5f9', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                              <Text style={{ color: theme.text, fontWeight: '800', fontSize: 12 }}>1 {selectedEmbLabel} = {mult} U</Text>
+                            </View>
+                          ) : null}
+                        </View>
                       </View>
-                      <Pressable onPress={() => removeLine(line.stockId)} hitSlop={12}>
+                      <Pressable
+                        onPress={() => removeLine(line.stockId)}
+                        hitSlop={12}
+                        style={{
+                          width: 42,
+                          height: 42,
+                          borderRadius: 14,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: theme.isDark ? '#2a1620' : '#fff1f2',
+                        }}
+                      >
                         <Ionicons name="trash-outline" size={20} color={theme.danger} />
                       </Pressable>
                     </View>
 
                     {mult > 1 && (
-                      <Pressable
-                        onPress={() => toggleConditionnement(line.stockId, !line.achatParConditionnement)}
-                        style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}
-                      >
-                        <View
+                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+                        <Pressable
+                          onPress={() => toggleConditionnement(line.stockId, false)}
                           style={{
-                            width: 22,
-                            height: 22,
-                            borderRadius: 6,
-                            backgroundColor: line.achatParConditionnement ? theme.primary : theme.surface,
-                            borderWidth: 1,
-                            borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+                            flex: 1,
+                            minHeight: 48,
+                            borderRadius: 14,
                             alignItems: 'center',
                             justifyContent: 'center',
-                            marginRight: 8,
+                            backgroundColor: !line.achatParConditionnement ? theme.primary : inputBackground,
+                            borderWidth: 1,
+                            borderColor: !line.achatParConditionnement ? theme.primary : mutedBorder,
                           }}
                         >
-                          {line.achatParConditionnement && <Ionicons name="checkmark" size={16} color="white" />}
-                        </View>
-                        <Text style={{ color: theme.text, fontWeight: '800' }}>Saisir par emballage</Text>
-                      </Pressable>
+                          <Text style={{ color: !line.achatParConditionnement ? '#fff' : theme.text, fontWeight: '900' }}>Unités</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => toggleConditionnement(line.stockId, true)}
+                          style={{
+                            flex: 1,
+                            minHeight: 48,
+                            borderRadius: 14,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: line.achatParConditionnement ? theme.primary : inputBackground,
+                            borderWidth: 1,
+                            borderColor: line.achatParConditionnement ? theme.primary : mutedBorder,
+                          }}
+                        >
+                          <Text style={{ color: line.achatParConditionnement ? '#fff' : theme.text, fontWeight: '900' }}>{selectedEmbLabel}</Text>
+                        </Pressable>
+                      </View>
                     )}
 
                     {line.achatParConditionnement && embList.length > 1 && (
@@ -945,7 +1000,7 @@ export default function AchatScreen() {
                                 borderRadius: 12,
                                 backgroundColor: selected ? theme.primary : theme.surface,
                                 borderWidth: 1,
-                                borderColor: selected ? theme.primary : (theme.isDark ? '#1f2937' : '#e5e7eb'),
+                                borderColor: selected ? theme.primary : mutedBorder,
                               }}
                             >
                               <Text style={{ color: selected ? 'white' : theme.text, fontWeight: '700' }}>
@@ -959,7 +1014,7 @@ export default function AchatScreen() {
 
                     <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ color: theme.muted, marginBottom: 6 }}>Quantité</Text>
+                        <Text style={{ color: theme.muted, marginBottom: 6, fontWeight: '700' }}>{quantityLabel}</Text>
                         <TextInput
                           value={line.achatParConditionnement ? line.quantiteConditionnement : line.quantite}
                           onChangeText={(v) =>
@@ -967,22 +1022,29 @@ export default function AchatScreen() {
                               ? changeQtyCond(line.stockId, v)
                               : changeQty(line.stockId, v)
                           }
-                          placeholder={line.achatParConditionnement ? 'Cartons' : 'Unités'}
+                          placeholder={quantityPlaceholder}
                           placeholderTextColor={theme.muted}
                           keyboardType="numeric"
                           style={{
-                            backgroundColor: theme.surface,
+                            backgroundColor: inputBackground,
                             color: theme.text,
-                            borderRadius: 12,
+                            borderRadius: 14,
                             paddingHorizontal: 12,
-                            paddingVertical: 10,
+                            paddingVertical: Platform.OS === 'android' ? 8 : 10,
+                            minHeight: 50,
                             borderWidth: 1,
-                            borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+                            borderColor: mutedBorder,
+                            fontWeight: '800',
                           }}
                         />
+                        {line.achatParConditionnement ? (
+                          <Text style={{ color: theme.muted, marginTop: 6 }}>
+                            Équivalent: {realQ || 0} unité(s)
+                          </Text>
+                        ) : null}
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ color: theme.muted, marginBottom: 6 }}>Prix unité (achat)</Text>
+                        <Text style={{ color: theme.muted, marginBottom: 6, fontWeight: '700' }}>Prix unité</Text>
                         <TextInput
                           value={formatThousandsFromDigits(line.prixUnit)}
                           onChangeText={(v) => changePrixUnit(line.stockId, v)}
@@ -990,13 +1052,15 @@ export default function AchatScreen() {
                           placeholderTextColor={theme.muted}
                           keyboardType="numeric"
                           style={{
-                            backgroundColor: theme.surface,
+                            backgroundColor: inputBackground,
                             color: theme.text,
-                            borderRadius: 12,
+                            borderRadius: 14,
                             paddingHorizontal: 12,
-                            paddingVertical: 10,
+                            paddingVertical: Platform.OS === 'android' ? 8 : 10,
+                            minHeight: 50,
                             borderWidth: 1,
-                            borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+                            borderColor: mutedBorder,
+                            fontWeight: '800',
                           }}
                         />
                       </View>

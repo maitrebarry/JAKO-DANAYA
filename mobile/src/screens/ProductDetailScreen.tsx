@@ -14,6 +14,9 @@ export default function ProductDetailScreen({ route, navigation }: any) {
   const id = route.params?.id;
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<any>(null);
+  const borderColor = theme.isDark ? '#1f2937' : '#dbeafe';
+  const mutedBorder = theme.isDark ? '#1f2937' : '#e5e7eb';
+  const softPrimary = theme.isDark ? '#0b3b57' : '#d9f3ff';
 
   // header back
   const BackHeader = require('../components/BackHeader').default;
@@ -77,29 +80,36 @@ export default function ProductDetailScreen({ route, navigation }: any) {
       ) : null}
 
       <View style={{ padding: 16 }}>
-        {product?.productImage ? (() => { const imgUrl = resolveMediaUrl(product.productImage); console.debug('Product detail image URL:', imgUrl); return <Image source={{ uri: imgUrl }} style={{ width: '100%', height: 220, borderRadius: 8, marginBottom: 12 }} /> })() : null}
-        <Text style={{ color: theme.text, fontSize: 20, fontWeight: '800' }}>{product?.nomProduit}</Text>
+        {product?.productImage ? (() => { const imgUrl = resolveMediaUrl(product.productImage); console.debug('Product detail image URL:', imgUrl); return <Image source={{ uri: imgUrl }} style={{ width: '100%', height: 220, borderRadius: 18, marginBottom: 12 }} /> })() : null}
+        <Text style={{ color: theme.text, fontSize: 22, fontWeight: '900' }}>{product?.nomProduit}</Text>
       <Text style={{ color: theme.muted, marginTop: 6 }}>{product?.caracteristique}</Text>
 
-      <View style={{ marginTop: 14 }}>
-        <Text style={{ color: theme.muted }}>Prix détail</Text>
-        <Text style={{ color: theme.text, fontWeight: '700' }}>{fmtMoney(product?.prixDetail)}</Text>
+      <View style={{ marginTop: 14, backgroundColor: theme.card, borderRadius: 18, padding: 14, borderWidth: 1, borderColor }}>
+        <Text style={{ color: theme.muted, fontWeight: '800' }}>Prix détail</Text>
+        <Text style={{ color: theme.text, fontWeight: '900', fontSize: 20, marginTop: 4 }}>{fmtMoney(product?.prixDetail)}</Text>
       </View>
 
-      <View style={{ marginTop: 12 }}>
-        <Text style={{ color: theme.muted }}>Vendu aussi en</Text>
+      <View style={{ marginTop: 12, backgroundColor: theme.card, borderRadius: 18, padding: 14, borderWidth: 1, borderColor }}>
+        <Text style={{ color: theme.text, fontWeight: '900', fontSize: 16 }}>Emballages</Text>
+        <Text style={{ color: theme.muted, marginTop: 6 }}>Vendu aussi en</Text>
         {Array.isArray(product?.emballages) && product.emballages.length > 1 ? (
-          product.emballages.map((e: any) => (
-            <Text key={e.id} style={{ color: theme.text, fontWeight: '700' }}>
-              {e.uniteLibelle} ({e.nombreUnites} unités){e.estParDefaut ? ' — par défaut' : ''}
-            </Text>
-          ))
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+            {product.emballages.map((e: any) => (
+              <View key={e.id} style={{ backgroundColor: e.estParDefaut ? theme.primary : softPrimary, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: e.estParDefaut ? theme.primary : mutedBorder }}>
+                <Text style={{ color: e.estParDefaut ? '#fff' : theme.text, fontWeight: '900' }}>
+                  {e.uniteLibelle} ({e.nombreUnites} U)
+                </Text>
+              </View>
+            ))}
+          </View>
         ) : (
-          <Text style={{ color: theme.text, fontWeight: '700' }}>{product?.unite?.libelle ? `${product.unite.libelle} (${product.nombreUnitesParConditionnement ?? 1} unités)` : 'Juste à l\'unité'}</Text>
+          <View style={{ backgroundColor: softPrimary, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 8 }}>
+            <Text style={{ color: theme.text, fontWeight: '900' }}>{product?.unite?.libelle ? `${product.unite.libelle} (${product.nombreUnitesParConditionnement ?? 1} unités)` : 'Juste à l\'unité'}</Text>
+          </View>
         )}
 
-        <Text style={{ color: theme.muted, marginTop: 8 }}>Quantité initiale</Text>
-        <Text style={{ color: theme.text, fontWeight: '700' }}>
+        <Text style={{ color: theme.muted, marginTop: 12, fontWeight: '800' }}>Quantité initiale</Text>
+        <Text style={{ color: theme.text, fontWeight: '900', marginTop: 4 }}>
           {product?.quantiteInitialeConditionnements ?? '—'} {product?.unite?.libelle ? `${product.unite.libelle.toLowerCase()}(s)` : ''}
           {product?.unite?.libelle ? ` (= ${ (Number(product.quantiteInitialeConditionnements || 0) * Number(product.nombreUnitesParConditionnement || 1)) } unités)` : ` (= ${product?.quantiteInitialeConditionnements ?? '—'} unités)`}
         </Text>

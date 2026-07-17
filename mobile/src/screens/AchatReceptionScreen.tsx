@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -303,15 +304,27 @@ export default function AchatReceptionScreen() {
             viewLines.map((l) => {
               const hasCond = l.multiplicateur > 1;
               const inp = inputs[l.produitId] || { units: '', cartons: '' };
+              const lineBorder = theme.isDark ? '#1f2937' : '#dbeafe';
+              const mutedBorder = theme.isDark ? '#1f2937' : '#e5e7eb';
+              const inputBackground = theme.isDark ? '#0f1724' : '#f8fbff';
+              const softPrimary = theme.isDark ? '#0b3b57' : '#d9f3ff';
               return (
-                <View key={String(l.produitId)} style={{ backgroundColor: theme.card, borderRadius: 16, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: theme.isDark ? '#1f2937' : '#e5e7eb' }}>
-                  <Text style={{ color: theme.text, fontWeight: '900' }} numberOfLines={2}>
+                <View key={String(l.produitId)} style={{ backgroundColor: theme.card, borderRadius: 18, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: lineBorder, shadowColor: '#0f172a', shadowOpacity: theme.isDark ? 0 : 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 }}>
+                  <Text style={{ color: theme.text, fontWeight: '900', fontSize: 16 }} numberOfLines={2}>
                     {l.designation || `Produit #${l.produitId}`}
                   </Text>
-                  <Text style={{ color: theme.muted, marginTop: 2 }} numberOfLines={1}>
-                    Restant: {l.remainingUnits} {l.unitLabel}
-                    {hasCond ? ` • ${l.multiplicateur} u/carton` : ''}
-                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                    <View style={{ backgroundColor: softPrimary, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                      <Text style={{ color: theme.isDark ? '#bae6fd' : '#0369a1', fontWeight: '800', fontSize: 12 }}>
+                        Restant: {l.remainingUnits} {l.unitLabel}
+                      </Text>
+                    </View>
+                    {hasCond ? (
+                      <View style={{ backgroundColor: theme.isDark ? '#172033' : '#f1f5f9', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                        <Text style={{ color: theme.text, fontWeight: '800', fontSize: 12 }}>1 emballage = {l.multiplicateur} U</Text>
+                      </View>
+                    ) : null}
+                  </View>
                   {!!l.depot && (
                     <Text style={{ color: theme.muted, marginTop: 2 }} numberOfLines={1}>
                       Dépôt: {l.depot}
@@ -320,18 +333,18 @@ export default function AchatReceptionScreen() {
 
                   <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: theme.muted, marginBottom: 6 }}>Reçu (unités)</Text>
+                      <Text style={{ color: theme.muted, marginBottom: 6, fontWeight: '700' }}>Reçu (unités)</Text>
                       <TextInput
                         value={inp.units}
                         onChangeText={(v) => setLineInput(l.produitId, { units: digitsOnly(v) })}
                         placeholder="0"
                         placeholderTextColor={theme.muted}
                         keyboardType="numeric"
-                        style={{ backgroundColor: theme.surface, color: theme.text, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: theme.isDark ? '#1f2937' : '#e5e7eb' }}
+                        style={{ backgroundColor: inputBackground, color: theme.text, borderRadius: 14, paddingHorizontal: 12, paddingVertical: Platform.OS === 'android' ? 8 : 10, minHeight: 50, borderWidth: 1, borderColor: mutedBorder, fontWeight: '800' }}
                       />
                     </View>
                     <View style={{ flex: 1, opacity: hasCond ? 1 : 0.5 }}>
-                      <Text style={{ color: theme.muted, marginBottom: 6 }}>Reçu (cartons)</Text>
+                      <Text style={{ color: theme.muted, marginBottom: 6, fontWeight: '700' }}>Reçu (emballages)</Text>
                       <TextInput
                         value={inp.cartons}
                         onChangeText={(v) => setLineInput(l.produitId, { cartons: digitsOnly(v) })}
@@ -339,7 +352,7 @@ export default function AchatReceptionScreen() {
                         placeholderTextColor={theme.muted}
                         keyboardType="numeric"
                         editable={hasCond}
-                        style={{ backgroundColor: theme.surface, color: theme.text, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: theme.isDark ? '#1f2937' : '#e5e7eb' }}
+                        style={{ backgroundColor: inputBackground, color: theme.text, borderRadius: 14, paddingHorizontal: 12, paddingVertical: Platform.OS === 'android' ? 8 : 10, minHeight: 50, borderWidth: 1, borderColor: mutedBorder, fontWeight: '800' }}
                       />
                     </View>
                   </View>

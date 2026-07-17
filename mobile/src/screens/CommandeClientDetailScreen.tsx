@@ -261,20 +261,21 @@ export default function CommandeClientDetailScreen() {
                 const qInt = Number(qte ?? 0) || 0;
                 const lInt = Number(livre ?? 0) || 0;
                 const remaining = Math.max(0, qInt - lInt);
+                const mutedBorder = theme.isDark ? '#1f2937' : '#e5e7eb';
+                const softPrimary = theme.isDark ? '#0b3b57' : '#d9f3ff';
                 return (
-                  <View key={String(l?.id || idx)} style={{ backgroundColor: theme.surface, padding: 12, borderRadius: 14, marginBottom: 10 }}>
-                    <Text style={{ color: theme.text, fontWeight: '800' }}>{produit || `Ligne ${idx + 1}`}</Text>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
-                      <Text style={{ color: theme.muted }}>Qté</Text>
-                      <Text style={{ color: theme.text, fontWeight: '800' }}>{qte ?? '—'}</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-                      <Text style={{ color: theme.muted }}>Livré</Text>
-                      <Text style={{ color: theme.text, fontWeight: '800' }}>{livre ?? 0}</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-                      <Text style={{ color: theme.muted }}>Reste</Text>
-                      <Text style={{ color: theme.text, fontWeight: '800' }}>{Number.isFinite(remaining) ? remaining : '—'}</Text>
+                  <View key={String(l?.id || idx)} style={{ backgroundColor: theme.surface, padding: 12, borderRadius: 16, marginBottom: 10, borderWidth: 1, borderColor: mutedBorder }}>
+                    <Text style={{ color: theme.text, fontWeight: '900' }}>{produit || `Ligne ${idx + 1}`}</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                      <View style={{ backgroundColor: theme.isDark ? '#172033' : '#f1f5f9', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                        <Text style={{ color: theme.text, fontWeight: '800', fontSize: 12 }}>Qté: {qte ?? '—'}</Text>
+                      </View>
+                      <View style={{ backgroundColor: theme.isDark ? '#172033' : '#f1f5f9', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                        <Text style={{ color: theme.text, fontWeight: '800', fontSize: 12 }}>Livré: {livre ?? 0}</Text>
+                      </View>
+                      <View style={{ backgroundColor: softPrimary, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                        <Text style={{ color: theme.isDark ? '#bae6fd' : '#0369a1', fontWeight: '800', fontSize: 12 }}>Reste: {Number.isFinite(remaining) ? remaining : '—'}</Text>
+                      </View>
                     </View>
                     {prix != null ? (
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>

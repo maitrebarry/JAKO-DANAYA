@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Pressable, FlatList, Image, RefreshControl, Animated, Alert } from 'react-native';
+import { View, Text, ScrollView, Pressable, RefreshControl, Animated } from 'react-native';
 import { useApp } from '../store/AppContext';
 import { fetchCurrentUser } from '../services/auth';
 import { API_BASE_URL } from '../utils/env';
@@ -10,6 +10,147 @@ import { useAccess } from '../utils/access';
 import { mergeAuthMeResponse } from '../utils/profile';
 import { useFormatMoney } from '../utils/currency';
 import { useResponsiveLayout } from '../utils/responsive';
+
+function DashboardLoadingScene({ theme, responsive }: { theme: any; responsive: any }) {
+  const pulse = useRef(new Animated.Value(0)).current;
+  const float = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    const floatLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(float, { toValue: 1, duration: 1350, useNativeDriver: true }),
+        Animated.timing(float, { toValue: 0, duration: 1350, useNativeDriver: true }),
+      ])
+    );
+    pulseLoop.start();
+    floatLoop.start();
+    return () => {
+      pulseLoop.stop();
+      floatLoop.stop();
+    };
+  }, [float, pulse]);
+
+  const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1.04] });
+  const opacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.58, 1] });
+  const translateY = float.interpolate({ inputRange: [0, 1], outputRange: [0, -8] });
+  const bubbleTranslate = float.interpolate({ inputRange: [0, 1], outputRange: [0, -14] });
+  const isDark = Boolean(theme.isDark);
+  const soft = isDark ? '#0b3b57' : '#e0f2fe';
+  const greenSoft = isDark ? '#083129' : '#dcfce7';
+
+  return (
+    <View
+      style={{
+        minHeight: Math.max(420, responsive.height * 0.64),
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: responsive.horizontalPadding,
+      }}
+    >
+      <View style={{ width: '100%', maxWidth: 380, alignItems: 'center' }}>
+        <Animated.View
+          style={{
+            position: 'absolute',
+            left: 10,
+            top: 26,
+            width: 48,
+            height: 48,
+            borderRadius: 16,
+            backgroundColor: soft,
+            opacity,
+            transform: [{ translateY: bubbleTranslate }],
+          }}
+        />
+        <Animated.View
+          style={{
+            position: 'absolute',
+            right: 20,
+            top: 0,
+            width: 42,
+            height: 42,
+            borderRadius: 15,
+            backgroundColor: greenSoft,
+            opacity,
+            transform: [{ translateY }],
+          }}
+        />
+        <Animated.View
+          style={{
+            width: '88%',
+            borderRadius: 24,
+            padding: 20,
+            backgroundColor: theme.card,
+            borderWidth: 1,
+            borderColor: isDark ? '#1f2937' : '#dbeafe',
+            shadowColor: '#0f172a',
+            shadowOpacity: isDark ? 0 : 0.12,
+            shadowRadius: 22,
+            shadowOffset: { width: 0, height: 12 },
+            elevation: 5,
+            transform: [{ translateY }],
+          }}
+        >
+          <Animated.View
+            style={{
+              alignSelf: 'center',
+              width: 66,
+              height: 66,
+              borderRadius: 22,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: theme.primary,
+              transform: [{ scale }],
+            }}
+          >
+            <MaterialCommunityIcons name="view-dashboard" size={34} color="#fff" />
+          </Animated.View>
+          <Text style={{ color: theme.text, fontSize: 18, fontWeight: '900', textAlign: 'center', marginTop: 14 }}>
+            Préparation du tableau de bord
+          </Text>
+          <Text style={{ color: theme.muted, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
+            On rassemble les ventes, le stock et la caisse...
+          </Text>
+          <View style={{ marginTop: 18, gap: 9 }}>
+            {[1, 2, 3].map((item) => (
+              <Animated.View
+                key={item}
+                style={{
+                  height: 11,
+                  width: item === 1 ? '100%' : item === 2 ? '76%' : '56%',
+                  alignSelf: 'center',
+                  borderRadius: 999,
+                  backgroundColor: item === 2 ? greenSoft : soft,
+                  opacity,
+                }}
+              />
+            ))}
+          </View>
+        </Animated.View>
+        <View style={{ flexDirection: 'row', width: '92%', gap: 10, marginTop: 14 }}>
+          {[1, 2, 3].map((item) => (
+            <Animated.View
+              key={item}
+              style={{
+                flex: 1,
+                height: 56,
+                borderRadius: 18,
+                backgroundColor: item === 2 ? greenSoft : soft,
+                opacity,
+                transform: [{ scale }],
+              }}
+            />
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
 
 export default function DashboardScreen({ navigation }: any) {
   const { token, boutiqueId, profile, setProfile } = useApp();
@@ -78,18 +219,12 @@ export default function DashboardScreen({ navigation }: any) {
         setStockValue(null);
       }
 
-      // debug: log raw responses to console so we can compare mobile vs web
-      try {
-        console.log('DASHBOARD_RAW', { boutiqueId, overview: ov, movements: mv, cashier: ct, stock: sv });
-      } catch (e) { /* ignore */ }
-
       // Also try the web-owned endpoint used by the web app (/dashboard/shops/:id/overview)
       try {
         // Always call the role-aware dashboard payload endpoint (without shopId for superadmin/global view, with shopId when provided)
         const dashUrl = boutiqueId != null ? `${API_BASE_URL}/api/dashboard?shopId=${boutiqueId}` : `${API_BASE_URL}/api/dashboard`;
         const dashRes = await fetch(dashUrl, { headers: { Authorization: `Bearer ${token}` } });
         const dashPayload = dashRes.ok ? await dashRes.json() : null;
-        try { console.log('DASHBOARD_PAYLOAD', { dashUrl, dashPayload }); } catch (e) {}
 
         // store payload globally for role-specific rendering
         if (dashPayload) setDashPayload(dashPayload);
@@ -136,17 +271,15 @@ export default function DashboardScreen({ navigation }: any) {
           if (dashPayload.widgets['evolution_ventes'] && dashPayload.widgets['evolution_ventes'].sales7d) mapped.sales7d = dashPayload.widgets['evolution_ventes'].sales7d;
           if (Object.keys(mapped).length > 0 && !ov) setOverview(mapped);
 
-          try { console.log('DASHBOARD_MAPPED', { salesTodayVal, widgets: Object.keys(dashPayload.widgets) }); } catch (e) {}
         }
 
         // Backwards-compatible owner overview endpoint (older web code) if boutiqueId provided
         if (boutiqueId != null) {
           const ownerRes = await fetch(`${API_BASE_URL}/api/dashboard/shops/${boutiqueId}/overview`, { headers: { Authorization: `Bearer ${token}` } });
           const ownerOverview = ownerRes.ok ? await ownerRes.json() : null;
-          try { console.log('DASHBOARD_OWNER_OVERVIEW', ownerOverview); } catch (e) {}
           if (!ov && ownerOverview) setOverview(ownerOverview as any);
         }
-      } catch (e) { console.warn('dashboard payload fetch failed', e); }
+      } catch (e) { /* keep the dashboard usable even if optional payloads fail */ }
 
       // animate cards in
       Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }).start();
@@ -270,7 +403,7 @@ export default function DashboardScreen({ navigation }: any) {
         }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.primary]} />}
       >
-        {loading && <ActivityIndicator style={{ marginTop: 12 }} color={theme.primary} />}
+        {loading && !overview && !dashPayload ? <DashboardLoadingScene theme={theme} responsive={responsive} /> : null}
         {error ? <Text style={{ color: theme.danger }}>{error}</Text> : null}
 
 
@@ -362,11 +495,8 @@ export default function DashboardScreen({ navigation }: any) {
           {filteredRecent.length === 0 ? (
             <Text style={{ color: theme.muted }}>Aucune activité récente</Text>
           ) : (
-            <FlatList
-              data={filteredRecent}
-              keyExtractor={(it:any) => String(it.id)}
-              renderItem={({ item }) => (
-                <View style={{ backgroundColor: theme.card, padding: 12, borderRadius: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center' }}>
+            filteredRecent.map((item: any) => (
+                <View key={String(item.id)} style={{ backgroundColor: theme.card, padding: 12, borderRadius: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center' }}>
                   <View style={{ width: 42, height: 42, backgroundColor: theme.surface, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
                     <MaterialCommunityIcons name={movementIcon(item) as any} size={20} color={theme.primary} />
                   </View>
@@ -379,8 +509,7 @@ export default function DashboardScreen({ navigation }: any) {
                     {item.produit ? <Text style={{ color: theme.muted, marginTop: 6 }}>{item.produit.nomProduit}</Text> : null}
                   </View>
                 </View>
-              )}
-            />
+            ))
           )}
         </View>
 

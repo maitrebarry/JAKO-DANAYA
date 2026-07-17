@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -82,6 +83,12 @@ function emballageList(stock: any): any[] {
 function defaultEmballageId(stock: any): number | undefined {
   const def = emballageList(stock).find((e: any) => e.estParDefaut);
   return def ? def.id : undefined;
+}
+
+function emballageLabel(stock: any, idEmballage?: number) {
+  const list = emballageList(stock);
+  const chosen = idEmballage != null ? list.find((e: any) => e.id === idEmballage) : list.find((e: any) => e.estParDefaut);
+  return String(chosen?.uniteLibelle || stock?.produit?.unite?.libelle || 'emballage');
 }
 
 function stockLabel(s: any) {
@@ -996,7 +1003,7 @@ export default function CommandeClientCreateScreen() {
                         {stockLabel(s)}
                       </Text>
                       <Text style={{ color: theme.muted, marginTop: 2 }} numberOfLines={1}>
-                        Stock dispo: {available} U{mult > 1 ? ` • ${mult} U/carton` : ''}
+                        Stock dispo: {available} U{mult > 1 ? ` • ${mult} U/emballage` : ''}
                       </Text>
                     </View>
 
@@ -1054,66 +1061,87 @@ export default function CommandeClientCreateScreen() {
               const realQ = l.venteParConditionnement ? qCond * mult : qUnits;
               const price = parseIntFromDigits(l.prixUnit);
               const montant = Math.max(0, realQ) * Math.max(0, price);
+              const selectedEmbLabel = emballageLabel(stock, l.idEmballage);
+              const selectedEmbLabelPlural = qCond > 1 && !selectedEmbLabel.toLowerCase().endsWith('s') ? `${selectedEmbLabel}s` : selectedEmbLabel;
+              const lineBorder = theme.isDark ? '#1f2937' : '#dbeafe';
+              const mutedBorder = theme.isDark ? '#1f2937' : '#e5e7eb';
+              const inputBackground = theme.isDark ? '#0f1724' : '#f8fbff';
+              const softPrimary = theme.isDark ? '#0b3b57' : '#d9f3ff';
               return (
                 <View
                   key={String(l.stockId)}
                   style={{
                     backgroundColor: theme.card,
-                    padding: 12,
-                    borderRadius: 16,
-                    marginBottom: 10,
+                    padding: 14,
+                    borderRadius: 18,
+                    marginBottom: 12,
                     borderWidth: 1,
-                    borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+                    borderColor: lineBorder,
+                    shadowColor: '#0f172a',
+                    shadowOpacity: theme.isDark ? 0 : 0.08,
+                    shadowRadius: 10,
+                    shadowOffset: { width: 0, height: 4 },
+                    elevation: 2,
                   }}
                 >
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <View style={{ flex: 1, paddingRight: 10 }}>
-                      <Text style={{ color: theme.text, fontWeight: '900' }} numberOfLines={2}>
+                      <Text style={{ color: theme.text, fontWeight: '900', fontSize: 16 }} numberOfLines={2}>
                         {stockLabel(stock)}
                       </Text>
-                      <Text style={{ color: theme.muted, marginTop: 4 }} numberOfLines={1}>
-                        {available != null ? `Stock dispo: ${available}` : `Stock ID: ${String(l.stockId)}`}
-                        {mult > 1 ? ` • ${mult} unités / carton` : ''}
-                      </Text>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                        <View style={{ backgroundColor: softPrimary, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                          <Text style={{ color: theme.isDark ? '#bae6fd' : '#0369a1', fontWeight: '800', fontSize: 12 }}>
+                            {available != null ? `Stock: ${available} U` : `Stock ID: ${String(l.stockId)}`}
+                          </Text>
+                        </View>
+                        {mult > 1 ? (
+                          <View style={{ backgroundColor: theme.isDark ? '#172033' : '#f1f5f9', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                            <Text style={{ color: theme.text, fontWeight: '800', fontSize: 12 }}>1 {selectedEmbLabel} = {mult} U</Text>
+                          </View>
+                        ) : null}
+                      </View>
                     </View>
-                    <Pressable onPress={() => removeLine(l.stockId)} hitSlop={10}>
+                    <Pressable
+                      onPress={() => removeLine(l.stockId)}
+                      hitSlop={10}
+                      style={{ width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.isDark ? '#2a1620' : '#fff1f2' }}
+                    >
                       <Ionicons name="trash-outline" size={18} color={theme.danger} />
                     </Pressable>
                   </View>
 
                   {mult > 1 ? (
-                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
                       <Pressable
                         onPress={() => updateLine(l.stockId, { venteParConditionnement: false })}
                         style={{
                           flex: 1,
-                          backgroundColor: !l.venteParConditionnement ? theme.primary : theme.surface,
-                          paddingVertical: 10,
-                          borderRadius: 12,
+                          minHeight: 48,
+                          backgroundColor: !l.venteParConditionnement ? theme.primary : inputBackground,
+                          borderRadius: 14,
                           alignItems: 'center',
+                          justifyContent: 'center',
                           borderWidth: 1,
-                          borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+                          borderColor: !l.venteParConditionnement ? theme.primary : mutedBorder,
                         }}
                       >
-                        <Text style={{ color: !l.venteParConditionnement ? '#fff' : theme.text, fontWeight: '900' }}>
-                          UNITÉS
-                        </Text>
+                        <Text style={{ color: !l.venteParConditionnement ? '#fff' : theme.text, fontWeight: '900' }}>Unités</Text>
                       </Pressable>
                       <Pressable
                         onPress={() => updateLine(l.stockId, { venteParConditionnement: true, idEmballage: l.idEmballage ?? defaultEmballageId(stock) })}
                         style={{
                           flex: 1,
-                          backgroundColor: l.venteParConditionnement ? theme.primary : theme.surface,
-                          paddingVertical: 10,
-                          borderRadius: 12,
+                          minHeight: 48,
+                          backgroundColor: l.venteParConditionnement ? theme.primary : inputBackground,
+                          borderRadius: 14,
                           alignItems: 'center',
+                          justifyContent: 'center',
                           borderWidth: 1,
-                          borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+                          borderColor: l.venteParConditionnement ? theme.primary : mutedBorder,
                         }}
                       >
-                        <Text style={{ color: l.venteParConditionnement ? '#fff' : theme.text, fontWeight: '900' }}>
-                          CARTONS
-                        </Text>
+                        <Text style={{ color: l.venteParConditionnement ? '#fff' : theme.text, fontWeight: '900' }}>{selectedEmbLabel}</Text>
                       </Pressable>
                     </View>
                   ) : null}
@@ -1132,7 +1160,7 @@ export default function CommandeClientCreateScreen() {
                               borderRadius: 12,
                               backgroundColor: selected ? theme.primary : theme.surface,
                               borderWidth: 1,
-                              borderColor: selected ? theme.primary : (theme.isDark ? '#1f2937' : '#e5e7eb'),
+                              borderColor: selected ? theme.primary : mutedBorder,
                             }}
                           >
                             <Text style={{ color: selected ? '#fff' : theme.text, fontWeight: '700' }}>
@@ -1147,7 +1175,7 @@ export default function CommandeClientCreateScreen() {
                   <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
                     <View style={{ flex: 1 }}>
                       <Text style={{ color: theme.muted, marginBottom: 6 }}>
-                        {l.venteParConditionnement ? 'Quantité (cartons)' : 'Quantité (unités)'}
+                        {l.venteParConditionnement ? `Quantité (${selectedEmbLabel})` : 'Quantité (unités)'}
                       </Text>
                       <TextInput
                         value={l.venteParConditionnement ? l.quantiteConditionnement : l.quantite}
@@ -1162,18 +1190,20 @@ export default function CommandeClientCreateScreen() {
                         placeholder="0"
                         placeholderTextColor={theme.muted}
                         style={{
-                          backgroundColor: theme.surface,
+                          backgroundColor: inputBackground,
                           color: theme.text,
-                          borderRadius: 12,
+                          borderRadius: 14,
                           paddingHorizontal: 12,
-                          paddingVertical: 10,
+                          paddingVertical: Platform.OS === 'android' ? 8 : 10,
+                          minHeight: 50,
                           borderWidth: 1,
-                          borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+                          borderColor: mutedBorder,
+                          fontWeight: '800',
                         }}
                       />
                       {l.venteParConditionnement ? (
                         <Text style={{ color: theme.muted, marginTop: 6 }}>
-                          Équivalent: {realQ || 0} unité(s)
+                          {qCond || 0} {selectedEmbLabelPlural} ≈ {realQ || 0} unité(s)
                         </Text>
                       ) : null}
                     </View>
@@ -1186,13 +1216,15 @@ export default function CommandeClientCreateScreen() {
                         placeholder="0"
                         placeholderTextColor={theme.muted}
                         style={{
-                          backgroundColor: theme.surface,
+                          backgroundColor: inputBackground,
                           color: theme.text,
-                          borderRadius: 12,
+                          borderRadius: 14,
                           paddingHorizontal: 12,
-                          paddingVertical: 10,
+                          paddingVertical: Platform.OS === 'android' ? 8 : 10,
+                          minHeight: 50,
                           borderWidth: 1,
-                          borderColor: theme.isDark ? '#1f2937' : '#e5e7eb',
+                          borderColor: mutedBorder,
+                          fontWeight: '800',
                         }}
                       />
                     </View>
