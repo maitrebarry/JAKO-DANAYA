@@ -887,52 +887,10 @@ public class ReceptionController {
             config = configurationMargeService.findByBoutiqueId(boutiqueId).orElse(null);
         }
 
-        BigDecimal prixGrosBD;
-        BigDecimal prixDetailBD;
-
-        if (config == null) {
-            // If no config, just keep prix en gros/detail equal to CMP
-            prixGrosBD = costAverage;
-            prixDetailBD = costAverage;
-        } else {
-            BigDecimal valGros = config.getValeurGros() != null ? config.getValeurGros() : BigDecimal.ZERO;
-            BigDecimal valDetail = config.getValeurDetail() != null ? config.getValeurDetail() : BigDecimal.ZERO;
-            if (config.getTypeMarge() == com.smboutique.api.model.ConfigurationMarge.TypeMarge.FIXE) {
-                prixGrosBD = costAverage.add(valGros);
-                prixDetailBD = costAverage.add(valDetail);
-            } else {
-                // POURCENTAGE
-                prixGrosBD = costAverage.multiply(BigDecimal.ONE.add(valGros.divide(BigDecimal.valueOf(100), 6, RoundingMode.HALF_UP)));
-                prixDetailBD = costAverage.multiply(BigDecimal.ONE.add(valDetail.divide(BigDecimal.valueOf(100), 6, RoundingMode.HALF_UP)));
-            }
-            // Enforce minimum fixed margins if configured
-            BigDecimal minGros = config.getMargeMinimaleGros() != null ? config.getMargeMinimaleGros() : BigDecimal.ZERO;
-            BigDecimal minDetail = config.getMargeMinimaleDetail() != null ? config.getMargeMinimaleDetail() : BigDecimal.ZERO;
-            // actual margin = prix - CMP
-            BigDecimal actualMarginGros = prixGrosBD.subtract(costAverage);
-            BigDecimal actualMarginDetail = prixDetailBD.subtract(costAverage);
-            boolean enforced = false;
-            if (actualMarginGros.compareTo(minGros) < 0) {
-                prixGrosBD = costAverage.add(minGros);
-                enforced = true;
-            }
-            if (actualMarginDetail.compareTo(minDetail) < 0) {
-                prixDetailBD = costAverage.add(minDetail);
-                enforced = true;
-            }
-            if (enforced) {
-                logger.info("Marge minimale appliquée pour produit {}: marge_gros_min={}, marge_detail_min={}", produit.getId(), minGros, minDetail);
-            }
-        }
-
-        produit.setPrixEnGros(prixGrosBD.setScale(0, RoundingMode.HALF_UP).intValue());
-        produit.setPrixDetail(prixDetailBD.setScale(0, RoundingMode.HALF_UP).intValue());
-
-        // Recalculate and store margin fields (marge_gros and marge_detail)
-        java.math.BigDecimal margeGrosValue = prixGrosBD.subtract(costAverage);
-        java.math.BigDecimal margeDetailValue = prixDetailBD.subtract(costAverage);
-        produit.setMargeGros(margeGrosValue);
-        produit.setMargeDetail(margeDetailValue);
+        // Délègue au même calculateur que le reste de l'app (création produit, recalcul manuel) :
+        // il respecte le mode MANUEL (ne touche pas aux prix saisis à la main) et n'écrase pas
+        // prixEnGros/prixDetail vers le CMP quand aucune config de marge n'existe pour la boutique.
+        com.smboutique.api.service.impl.MargeCalculator.apply(config, produit);
 
         produitService.save(produit);
     }
