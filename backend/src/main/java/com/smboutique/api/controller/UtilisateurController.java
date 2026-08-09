@@ -40,6 +40,9 @@ public class UtilisateurController {
     @Autowired
     private com.smboutique.api.repository.PermissionRepository permissionRepository;
 
+    @Autowired
+    private com.smboutique.api.service.UserPurgeService userPurgeService;
+
     // Rôles pour lesquels toutes les permissions sont accordées par défaut à la création,
     // à l'exception de celles listées dans DEFAULT_FULL_ACCESS_EXCLUSIONS.
     private static final java.util.Set<String> DEFAULT_FULL_ACCESS_ROLE_TYPES =
@@ -379,19 +382,35 @@ public class UtilisateurController {
         return ResponseEntity.ok(utilisateurService.save(existing));
     }
 
+    // Suppression DÉFINITIVE en cascade : efface l'utilisateur ET toutes ses données
+    // (ventes, commandes, réceptions, livraisons, inventaires, transferts, mouvements,
+    // caisse, notifications, rôles/permissions). Opération destructive et irréversible
+    // -> réservée au SuperAdmin. NB: le stock et la caisse de la boutique ne sont PAS
+    // recalculés (choix assumé).
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+    @PreAuthorize("hasRole('SUPERADMIN')")
+    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
         Utilisateur current = getCurrentUser();
-        return utilisateurService.findById(id)
-                .map(utilisateur -> {
-                    if (!isSuperAdmin(current) && !sameBoutique(current, utilisateur.getBoutique())) {
-                        return ResponseEntity.status(403).<Void>build();
-                    }
-                    utilisateurService.deleteById(id);
-                    return ResponseEntity.ok().<Void>build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+        if (!isSuperAdmin(current)) {
+            return ResponseEntity.status(403).body(java.util.Map.of("message", "Suppression réservée au SuperAdmin"));
+        }
+        if (current.getId() != null && current.getId().equals(id)) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", "Vous ne pouvez pas supprimer votre propre compte."));
+        }
+        if (utilisateurService.findById(id).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            com.smboutique.api.service.UserPurgeService.PurgeResult result = userPurgeService.purge(id);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", ex.getMessage()));
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).body(java.util.Map.of(
+                    "message", "Échec de la suppression en cascade",
+                    "details", ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName()
+            ));
+        }
     }
 
     @PatchMapping("/{id}/statut")

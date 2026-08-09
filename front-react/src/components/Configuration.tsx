@@ -433,18 +433,20 @@ const ListeUtilisateurs = ({ onUserCreated }: { onUserCreated?: (userId: number)
   };
 
   const handleDelete = async (id: number) => {
-    const boutique = boutiques.find((item: any) => Number(item.id) === Number(id)) as any;
-    if (!boutique) {
-      setMessage('Boutique introuvable.');
-      return;
-    }
+    const target = users.find((u: any) => Number(u.id) === Number(id)) as any;
+    const label = target
+      ? (target.email || `${target.nom || ''} ${target.prenom || ''}`.trim() || `#${id}`)
+      : `#${id}`;
 
     const result = await Swal.fire({
       title: 'Suppression définitive',
-      html: `Cette action supprimera <strong>${boutique.nom}</strong> ainsi que tous ses utilisateurs, produits, stocks, commandes, ventes, paiements et historiques.<br><br>Saisissez exactement <strong>${boutique.nom}</strong> pour confirmer.`,
+      html: `Cette action supprimera <strong>${label}</strong> ET <strong>toutes ses données</strong> :`
+        + ` ventes, commandes, réceptions, livraisons, inventaires, transferts, mouvements, caisse et notifications.`
+        + `<br><br><span style="color:#d33">⚠️ Irréversible. Le stock et la caisse de la boutique ne seront pas recalculés.</span>`
+        + `<br><br>Saisissez <strong>SUPPRIMER</strong> pour confirmer.`,
       icon: 'warning',
       input: 'text',
-      inputPlaceholder: boutique.nom,
+      inputPlaceholder: 'SUPPRIMER',
       showCancelButton: true,
       confirmButtonColor: '#d33',
       cancelButtonColor: '#3085d6',
@@ -452,30 +454,33 @@ const ListeUtilisateurs = ({ onUserCreated }: { onUserCreated?: (userId: number)
       cancelButtonText: 'Annuler',
       reverseButtons: true,
       preConfirm: (value) => {
-        if (String(value || '').trim().toLowerCase() !== String(boutique.nom).trim().toLowerCase()) {
-          Swal.showValidationMessage('Le nom saisi ne correspond pas à la boutique.');
+        if (String(value || '').trim().toUpperCase() !== 'SUPPRIMER') {
+          Swal.showValidationMessage('Tapez SUPPRIMER pour confirmer.');
           return false;
         }
-        return value;
+        return true;
       },
     });
-    
+
     if (!result.isConfirmed) return;
-    
+
     try {
       const token = localStorage.getItem('smb_token');
       const res = await fetch(`${API}/users/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
-      if (!res.ok) throw new Error('Erreur lors de la suppression');
-      
-      setMessage('Utilisateur supprimé avec succès !');
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(body?.message || body?.details || 'Erreur lors de la suppression');
+
+      await Swal.fire(
+        'Supprimé',
+        `Utilisateur supprimé (${body?.totalDeleted ?? 0} enregistrement(s) effacé(s)).`,
+        'success'
+      );
       loadUsers();
-      setTimeout(() => setMessage(''), 3000);
     } catch (err: any) {
-      setMessage(err.message);
+      Swal.fire('Erreur', err.message || 'Erreur lors de la suppression', 'error');
     }
   };
 
