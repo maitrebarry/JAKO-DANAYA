@@ -97,16 +97,68 @@ public class UtilisateurController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE')")
-    public List<Utilisateur> getUsers() {
+    // Aligné sur /api/utilisateurs (écran "Assigner permission") : la liste doit être visible
+    // par tout utilisateur habilité à gérer les utilisateurs, pas seulement par 3 rôles précis.
+    // Sinon un compte ayant la permission mais un autre rôle (ex. Gérant) recevait un 403 (liste vide).
+    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMINISTRATEUR','PROPRIETAIRE') or hasAnyAuthority('UTILISATEUR_GERER','UTILISATEUR_CREER')")
+    public List<java.util.Map<String, Object>> getUsers() {
         Utilisateur current = getCurrentUser();
+        List<Utilisateur> users;
         if (isSuperAdmin(current)) {
-            return utilisateurService.findAll();
+            users = utilisateurService.findAll();
+        } else if (current.getBoutique() != null) {
+            users = utilisateurService.findAllByBoutiqueId(current.getBoutique().getId());
+        } else {
+            users = List.of();
         }
-        if (current.getBoutique() == null) {
-            return List.of();
+        // On renvoie un DTO compact (et non l'entité brute) : pour un superadmin, findAll() dragge
+        // roles+permissions EAGER de tous les utilisateurs -> réponse volumineuse/fragile qui pouvait
+        // être tronquée en prod (JSON invalide -> liste vide côté front). Le DTO force aussi
+        // l'initialisation de boutique/roles ici, évitant tout souci de lazy-loading à la sérialisation.
+        return users.stream().map(this::toUserListDto).toList();
+    }
+
+    private java.util.Map<String, Object> toUserListDto(Utilisateur u) {
+        java.util.Map<String, Object> dto = new java.util.LinkedHashMap<>();
+        dto.put("id", u.getId());
+        dto.put("nom", u.getNom());
+        dto.put("prenom", u.getPrenom());
+        dto.put("email", u.getEmail());
+        dto.put("pseudo", u.getPseudo());
+        dto.put("contact", u.getContact());
+        dto.put("codePays", u.getCodePays());
+        dto.put("adresse", u.getAdresse());
+        dto.put("avatar", u.getAvatar());
+        dto.put("typeUtilisateur", u.getTypeUtilisateur());
+        dto.put("statut", u.getStatut());
+        dto.put("creeParId", u.getCreeParId());
+
+        if (u.getBoutique() != null) {
+            java.util.Map<String, Object> b = new java.util.LinkedHashMap<>();
+            b.put("id", u.getBoutique().getId());
+            b.put("nom", u.getBoutique().getNom());
+            if (u.getBoutique().getPays() != null) {
+                java.util.Map<String, Object> pays = new java.util.LinkedHashMap<>();
+                pays.put("id", u.getBoutique().getPays().getId());
+                pays.put("codeIso", u.getBoutique().getPays().getCodeIso());
+                b.put("pays", pays);
+            }
+            dto.put("boutique", b);
+        } else {
+            dto.put("boutique", null);
         }
-        return utilisateurService.findAllByBoutiqueId(current.getBoutique().getId());
+
+        java.util.List<java.util.Map<String, Object>> roles = new java.util.ArrayList<>();
+        if (u.getRoles() != null) {
+            for (com.smboutique.api.model.Role r : u.getRoles()) {
+                java.util.Map<String, Object> rm = new java.util.LinkedHashMap<>();
+                rm.put("id", r.getId());
+                rm.put("name", r.getName());
+                roles.add(rm);
+            }
+        }
+        dto.put("roles", roles);
+        return dto;
     }
 
     /** Return the authenticated user details for client-side defaulting and permission checks */
