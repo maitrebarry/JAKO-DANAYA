@@ -9,7 +9,9 @@ import { API_BASE_URL } from '../utils/env';
 import { resolveMediaUrl } from '../utils/urls';
 
 export default function TopBar({ showBack = false }: { showBack?: boolean }) {
-  const { profile, token, boutiqueId, themePref, setThemePref, setToken, setBoutiqueId } = useApp();
+  const { profile, token, boutiqueId, themePref, setThemePref, setToken, setBoutiqueId, subscriptionStatus } = useApp();
+  // Licence à vie (plan ACHAT) : la boutique n'a pas à gérer d'abonnement => on masque l'entrée de menu.
+  const hasLifetimeSubscription = !!subscriptionStatus?.perpetual;
   const navigation = useNavigation<any>();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -289,7 +291,7 @@ export default function TopBar({ showBack = false }: { showBack?: boolean }) {
                 },
               })}
 
-              {menuItem({
+              {!hasLifetimeSubscription && menuItem({
                 label: 'Abonnement',
                 icon: 'card-outline',
                 onPress: () => {
