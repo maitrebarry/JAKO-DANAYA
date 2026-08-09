@@ -604,6 +604,14 @@ public class DataInitializer implements CommandLineRunner {
      * will set date_fin = NULL and the boutique is never blocked by SubscriptionAccessFilter.
      */
     private void ensureLifetimePlan() {
+        // Certaines bases ont une contrainte CHECK (duree_mois > 0) qui empêche le plan
+        // ACHAT (durée 0 = à vie). On la remplace par (duree_mois >= 0) pour l'autoriser.
+        try {
+            jdbcTemplate.execute("ALTER TABLE abonnement_plan DROP CONSTRAINT IF EXISTS abonnement_plan_duree_mois_check");
+            jdbcTemplate.execute("ALTER TABLE abonnement_plan ADD CONSTRAINT abonnement_plan_duree_mois_check CHECK (duree_mois >= 0)");
+        } catch (Exception ex) {
+            logger.warn("Could not relax duree_mois check constraint: {}", ex.getMessage());
+        }
         try {
             jdbcTemplate.update(
                     "INSERT INTO abonnement_plan (code, libelle, duree_mois, prix, devise, actif, created_at) " +
