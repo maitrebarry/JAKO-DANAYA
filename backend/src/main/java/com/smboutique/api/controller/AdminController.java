@@ -395,15 +395,18 @@ public class AdminController {
             if (planRows.isEmpty()) return ResponseEntity.badRequest().body("Plan introuvable ou inactif: " + planCode);
 
             Long planId = ((Number) planRows.get(0).get("id")).longValue();
-            Integer dureeMois = ((Number) planRows.get(0).get("duree_mois")).intValue();
-            LocalDateTime endAt = startAt.plusMonths(dureeMois);
+            Object dureeObj = planRows.get(0).get("duree_mois");
+            Integer dureeMois = dureeObj != null ? ((Number) dureeObj).intValue() : null;
+            // duree_mois <= 0 (ex: plan ACHAT) => licence à vie : pas de date de fin.
+            boolean lifetime = dureeMois == null || dureeMois <= 0;
+            Object dateFinParam = lifetime ? null : Timestamp.valueOf(startAt.plusMonths(dureeMois));
 
             int inserted = jdbcTemplate.update(
                     "INSERT INTO abonnement_boutique (boutique_id, plan_id, statut, date_debut, date_fin, grace_end_at, auto_renew, created_at, updated_at) VALUES (?, ?, 'ACTIVE', ?, ?, NULL, FALSE, now(), now())",
                     boutiqueId,
                     planId,
                     Timestamp.valueOf(startAt),
-                    Timestamp.valueOf(endAt)
+                    dateFinParam
             );
             if (inserted == 0) return ResponseEntity.status(500).body("Impossible d'activer l'abonnement");
 

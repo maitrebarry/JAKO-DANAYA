@@ -98,10 +98,14 @@ export default function SubscriptionScreen() {
         fetchMySubscriptionPayments(token).catch(() => []),
       ]);
       setCurrent(sub || null);
-      const list = Array.isArray(planRows) ? planRows : [];
+      // La licence achetée (ACHAT) est attribuée par le SuperAdmin uniquement : pas d'auto-achat.
+      const list = (Array.isArray(planRows) ? planRows : []).filter(
+        (p) => String(p.code).toUpperCase() !== 'ACHAT'
+      );
       setPlans(list);
       setPayments(Array.isArray(paymentRows) ? paymentRows : []);
-      const defaultCode = (sub?.planCode || list[0]?.code || 'MENSUEL') as string;
+      const subCode = list.find((p) => String(p.code).toUpperCase() === String(sub?.planCode).toUpperCase())?.code;
+      const defaultCode = (subCode || list[0]?.code || 'MENSUEL') as string;
       setPlanCode(defaultCode);
     } catch (e: any) {
       setError(e?.message || 'Impossible de charger les informations abonnement');
@@ -244,6 +248,7 @@ export default function SubscriptionScreen() {
 
       {!superAdmin && (
       <>
+      {!current?.perpetual && (
       <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
         <Pressable
           onPress={() => scrollRef.current?.scrollTo({ y: submitY, animated: true })}
@@ -253,21 +258,29 @@ export default function SubscriptionScreen() {
           <Text style={{ marginLeft: 6, color: '#2563eb', fontWeight: '700' }}>Retour soumission</Text>
         </Pressable>
       </View>
+      )}
 
       <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#eee' }}>
         <Text style={{ fontSize: 16, fontWeight: '700', marginBottom: 10 }}>État actuel</Text>
         {current ? (
           <View style={{ gap: 6 }}>
+            {current.perpetual && (
+              <View style={{ backgroundColor: '#dcfce7', borderColor: '#86efac', borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 4 }}>
+                <Text style={{ color: '#166534', fontWeight: '700' }}>Licence achetée (à vie)</Text>
+                <Text style={{ color: '#166534' }}>Accès illimité — aucun renouvellement requis.</Text>
+              </View>
+            )}
             <Text><Text style={{ fontWeight: '700' }}>Boutique:</Text> {current.boutiqueNom || '—'}</Text>
             <Text><Text style={{ fontWeight: '700' }}>Plan:</Text> {current.planLibelle || current.planCode || '—'}</Text>
             <Text><Text style={{ fontWeight: '700' }}>Statut:</Text> {subscriptionStatusLabel(current.status)}</Text>
-            <Text><Text style={{ fontWeight: '700' }}>Fin:</Text> {current.dateFin ? new Date(current.dateFin).toLocaleDateString('fr-FR') : '—'}</Text>
+            <Text><Text style={{ fontWeight: '700' }}>Fin:</Text> {current.perpetual ? 'Illimité' : (current.dateFin ? new Date(current.dateFin).toLocaleDateString('fr-FR') : '—')}</Text>
           </View>
         ) : (
           <Text style={{ color: '#6b7280' }}>Aucune donnée</Text>
         )}
       </View>
 
+      {!current?.perpetual && (
       <View
         onLayout={(e) => setSubmitY(e.nativeEvent.layout.y)}
         style={{ backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#eee' }}
@@ -372,6 +385,7 @@ export default function SubscriptionScreen() {
           </Pressable>
         </View>
       </View>
+      )}
 
       <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#eee' }}>
         <Text style={{ fontSize: 16, fontWeight: '700', marginBottom: 10 }}>Historique des paiements</Text>

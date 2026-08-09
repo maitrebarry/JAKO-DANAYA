@@ -144,6 +144,7 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) throws Exception {
         logger.info("Starting data initialization...");
         ensureSubscriptionTables();
+        ensureLifetimePlan();
         if (resetDb) {
             resetDatabase();
         }
@@ -597,6 +598,23 @@ public class DataInitializer implements CommandLineRunner {
     /**
      * Ensure subscription tables exist; if not, execute bundled SQL migration.
      */
+    /**
+     * Ensure the "lifetime purchase" plan (code ACHAT) exists so a SuperAdmin can grant
+     * a perpetual license to any boutique. duree_mois = 0 signals no expiry: activation
+     * will set date_fin = NULL and the boutique is never blocked by SubscriptionAccessFilter.
+     */
+    private void ensureLifetimePlan() {
+        try {
+            jdbcTemplate.update(
+                    "INSERT INTO abonnement_plan (code, libelle, duree_mois, prix, devise, actif, created_at) " +
+                            "SELECT 'ACHAT','Licence achetée (à vie)',0,0,'XOF',TRUE,now() " +
+                            "WHERE NOT EXISTS (SELECT 1 FROM abonnement_plan WHERE code = 'ACHAT')"
+            );
+        } catch (Exception ex) {
+            logger.warn("Could not ensure lifetime plan (ACHAT): {}", ex.getMessage());
+        }
+    }
+
     private void ensureSubscriptionTables() {
         try {
             jdbcTemplate.queryForList("SELECT 1 FROM abonnement_plan LIMIT 1");

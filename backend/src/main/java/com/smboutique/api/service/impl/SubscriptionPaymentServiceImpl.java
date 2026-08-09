@@ -330,8 +330,11 @@ public class SubscriptionPaymentServiceImpl implements SubscriptionPaymentServic
         if (plans.isEmpty()) throw new IllegalArgumentException("Plan introuvable: " + planCode);
 
         Long planId = ((Number) plans.get(0).get("id")).longValue();
-        Integer dureeMois = ((Number) plans.get(0).get("duree_mois")).intValue();
+        Object dureeObj = plans.get(0).get("duree_mois");
+        Integer dureeMois = dureeObj != null ? ((Number) dureeObj).intValue() : null;
         String planLibelle = String.valueOf(plans.get(0).get("libelle"));
+        // duree_mois <= 0 (ex: plan ACHAT) => licence à vie : pas de date de fin.
+        boolean lifetime = dureeMois == null || dureeMois <= 0;
 
         Timestamp latestActiveFinTs = jdbcTemplate.queryForObject(
                 "SELECT MAX(date_fin) FROM abonnement_boutique WHERE boutique_id = ? AND statut = 'ACTIVE'",
@@ -345,7 +348,7 @@ public class SubscriptionPaymentServiceImpl implements SubscriptionPaymentServic
             LocalDateTime latestFin = latestActiveFinTs.toLocalDateTime();
             if (latestFin.isAfter(now)) startAt = latestFin;
         }
-        LocalDateTime endAt = startAt.plusMonths(dureeMois);
+        LocalDateTime endAt = lifetime ? null : startAt.plusMonths(dureeMois);
 
         Number newAbonnementIdN = jdbcTemplate.queryForObject(
                 "INSERT INTO abonnement_boutique (boutique_id, plan_id, statut, date_debut, date_fin, grace_end_at, auto_renew, created_at, updated_at) " +
@@ -354,13 +357,15 @@ public class SubscriptionPaymentServiceImpl implements SubscriptionPaymentServic
                 boutiqueId,
                 planId,
                 Timestamp.valueOf(startAt),
-                Timestamp.valueOf(endAt)
+                lifetime ? null : Timestamp.valueOf(endAt)
         );
 
         // Notification cloche pour les utilisateurs de la boutique (au minimum propriétaires)
         var users = utilisateurRepository.findByBoutiqueId(boutiqueId);
         for (var u : users) {
-            String msg = "Paiement abonnement confirmé (" + planLibelle + ") - échéance au " + endAt.toLocalDate();
+            String msg = lifetime
+                    ? "Paiement abonnement confirmé (" + planLibelle + ") - accès illimité (licence achetée)"
+                    : "Paiement abonnement confirmé (" + planLibelle + ") - échéance au " + endAt.toLocalDate();
             notificationService.createForUser(u.getId(), boutiqueId, "ABONNEMENT", msg);
         }
 

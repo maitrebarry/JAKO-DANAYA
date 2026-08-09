@@ -47,6 +47,7 @@ export type CurrentSubscriptionDTO = {
   dateFin?: string | null;
   daysRemaining?: number | null;
   blocked?: boolean;
+  perpetual?: boolean;
   shouldShowModal?: boolean;
   message?: string | null;
 };

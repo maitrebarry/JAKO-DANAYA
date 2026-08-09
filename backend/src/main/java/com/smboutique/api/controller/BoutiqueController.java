@@ -66,6 +66,12 @@ public class BoutiqueController {
             "SELECT 'ANNUEL','Annuel',12,0,'XOF',TRUE,now() " +
             "WHERE NOT EXISTS (SELECT 1 FROM abonnement_plan WHERE code = 'ANNUEL')"
         );
+        // Licence achetée (à vie) : duree_mois = 0 => l'activation posera date_fin = NULL (jamais expiré).
+        jdbcTemplate.update(
+            "INSERT INTO abonnement_plan (code, libelle, duree_mois, prix, devise, actif, created_at) " +
+            "SELECT 'ACHAT','Licence achetée (à vie)',0,0,'XOF',TRUE,now() " +
+            "WHERE NOT EXISTS (SELECT 1 FROM abonnement_plan WHERE code = 'ACHAT')"
+        );
     }
 
     private void createInitialSubscriptionIfPossible(Long boutiqueId, String requestedPlanCode) {

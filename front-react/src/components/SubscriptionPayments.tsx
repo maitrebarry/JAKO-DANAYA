@@ -61,11 +61,13 @@ const SubscriptionPayments: React.FC = () => {
         fetchMySubscriptionPayments(),
         fetchCurrentSubscriptionStatus(),
       ]);
-      setPlans(p);
+      // La licence achetée (ACHAT) est attribuée par le SuperAdmin uniquement : pas d'auto-achat.
+      const selectablePlans = p.filter((x) => x.code !== 'ACHAT');
+      setPlans(selectablePlans);
       setPayments(list);
       setCurrent(cur);
-      if (p.length > 0 && !p.find((x) => x.code === selectedPlan)) {
-        setSelectedPlan(p[0].code);
+      if (selectablePlans.length > 0 && !selectablePlans.find((x) => x.code === selectedPlan)) {
+        setSelectedPlan(selectablePlans[0].code);
       }
     } catch (e: any) {
       setError(e?.message || 'Erreur chargement abonnement');
@@ -119,6 +121,7 @@ const SubscriptionPayments: React.FC = () => {
 
       {error && <div className="alert alert-warning">{error}</div>}
 
+      {!current?.perpetual && (
       <div className="card mb-3">
         <div className="card-body">
           <div className="row g-3 align-items-end">
@@ -197,17 +200,26 @@ const SubscriptionPayments: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
       <div className="card mb-3">
         <div className="card-header">État actuel</div>
         <div className="card-body">
           {current ? (
-            <div className="row g-2">
-              <div className="col-md-3"><strong>Boutique:</strong> {current.boutiqueNom || '—'}</div>
-              <div className="col-md-3"><strong>Plan:</strong> {current.planLibelle || current.planCode || '—'}</div>
-              <div className="col-md-3"><strong>Statut:</strong> {subscriptionStatusLabel(current.status)}</div>
-              <div className="col-md-3"><strong>Fin:</strong> {current.dateFin ? new Date(current.dateFin).toLocaleDateString('fr-FR') : '—'}</div>
-            </div>
+            <>
+              {current.perpetual && (
+                <div className="alert alert-success d-flex align-items-center mb-3" role="alert">
+                  <i className="bi bi-patch-check-fill me-2" />
+                  <span><strong>Licence achetée (à vie).</strong> Accès illimité — aucun renouvellement requis.</span>
+                </div>
+              )}
+              <div className="row g-2">
+                <div className="col-md-3"><strong>Boutique:</strong> {current.boutiqueNom || '—'}</div>
+                <div className="col-md-3"><strong>Plan:</strong> {current.planLibelle || current.planCode || '—'}</div>
+                <div className="col-md-3"><strong>Statut:</strong> {subscriptionStatusLabel(current.status)}</div>
+                <div className="col-md-3"><strong>Fin:</strong> {current.perpetual ? 'Illimité' : (current.dateFin ? new Date(current.dateFin).toLocaleDateString('fr-FR') : '—')}</div>
+              </div>
+            </>
           ) : (
             <span className="text-muted">Aucune donnée</span>
           )}

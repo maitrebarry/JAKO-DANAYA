@@ -952,7 +952,7 @@ const Boutique = () => {
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState('');
   const [search, setSearch] = useState('');
-  const [selectedPlanCode, setSelectedPlanCode] = useState<'MENSUEL' | 'TRIMESTRIEL' | 'SEMESTRIEL' | 'ANNUEL'>('MENSUEL');
+  const [selectedPlanCode, setSelectedPlanCode] = useState<'MENSUEL' | 'TRIMESTRIEL' | 'SEMESTRIEL' | 'ANNUEL' | 'ACHAT'>('MENSUEL');
   const [initialPlanCodeForEdit, setInitialPlanCodeForEdit] = useState<string | null>(null);
 
   // Load countries for boutique creation (flags + symbole monnaie). If backend has few seeds, enrich from restcountries.com
@@ -1234,7 +1234,7 @@ const Boutique = () => {
         if (!r.ok) return;
         const d = await r.json();
         const code = (d?.plan_code || 'MENSUEL').toUpperCase();
-        if (['MENSUEL','TRIMESTRIEL','SEMESTRIEL','ANNUEL'].includes(code)) {
+        if (['MENSUEL','TRIMESTRIEL','SEMESTRIEL','ANNUEL','ACHAT'].includes(code)) {
           setSelectedPlanCode(code as any);
           setInitialPlanCodeForEdit(code);
         }
@@ -1462,6 +1462,7 @@ const Boutique = () => {
                       <option value="TRIMESTRIEL">Trimestriel</option>
                       <option value="SEMESTRIEL">Semestriel</option>
                       <option value="ANNUEL">Annuel</option>
+                      <option value="ACHAT">Licence achetée (à vie)</option>
                     </select>
                     <small className="text-muted">
                       {newBoutique.id

@@ -125,6 +125,12 @@ public class SubscriptionController {
 
             boolean shouldShowModal = !blocked && fin != null && daysRemaining <= 7 && daysRemaining >= 0;
 
+            // Licence achetée (à vie) : plan ACHAT, ou abonnement ACTIVE sans date de fin.
+            // Ces boutiques ne sont jamais bloquées et n'ont pas de rappel de renouvellement.
+            String planCode = row.get("plan_code") != null ? String.valueOf(row.get("plan_code")) : null;
+            boolean perpetual = "ACHAT".equalsIgnoreCase(planCode)
+                    || (!blocked && fin == null && statut != null && "ACTIVE".equalsIgnoreCase(statut));
+
             Map<String, Object> out = new HashMap<>();
             out.put("configured", statut != null || fin != null);
             out.put("boutiqueId", row.get("boutique_id"));
@@ -133,14 +139,17 @@ public class SubscriptionController {
             out.put("planLibelle", row.get("plan_libelle"));
             out.put("status", statut);
             out.put("dateFin", row.get("date_fin"));
-            out.put("daysRemaining", fin != null ? daysRemaining : null);
+            out.put("daysRemaining", (perpetual || fin == null) ? null : daysRemaining);
             out.put("blocked", blocked);
-            out.put("shouldShowModal", shouldShowModal);
-            out.put("message", blocked
-                    ? "Votre abonnement est expiré. Veuillez renouveler pour continuer."
-                    : (shouldShowModal
-                        ? "Votre abonnement arrive à échéance dans " + daysRemaining + " jour(s)."
-                        : null));
+            out.put("perpetual", perpetual);
+            out.put("shouldShowModal", !perpetual && shouldShowModal);
+            out.put("message", perpetual
+                    ? "Application achetée — accès illimité"
+                    : (blocked
+                        ? "Votre abonnement est expiré. Veuillez renouveler pour continuer."
+                        : (shouldShowModal
+                            ? "Votre abonnement arrive à échéance dans " + daysRemaining + " jour(s)."
+                            : null)));
 
             Long userId = row.get("user_id") instanceof Number ? ((Number) row.get("user_id")).longValue() : null;
             Long boutiqueId = row.get("boutique_id") instanceof Number ? ((Number) row.get("boutique_id")).longValue() : null;
