@@ -239,8 +239,8 @@ public class AdminController {
 
         if (code.isBlank()) return ResponseEntity.badRequest().body("Le code est obligatoire");
         if (libelle.isBlank()) return ResponseEntity.badRequest().body("Le libellé est obligatoire");
-        if (duree == null || duree <= 0) return ResponseEntity.badRequest().body("La durée (mois) doit être positive");
-        if (prix == null || prix.compareTo(java.math.BigDecimal.ZERO) <= 0) return ResponseEntity.badRequest().body("Le prix doit être positif");
+        if (duree == null || duree < 0) return ResponseEntity.badRequest().body("La durée (mois) ne peut pas être négative (0 = licence à vie)");
+        if (prix == null || prix.compareTo(java.math.BigDecimal.ZERO) < 0) return ResponseEntity.badRequest().body("Le prix ne peut pas être négatif");
 
         try {
             Boolean exists = jdbcTemplate.queryForObject(

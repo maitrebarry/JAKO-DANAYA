@@ -3166,12 +3166,12 @@ const ConfigurationAbonnementTarifs = () => {
       setError('Le libellé est obligatoire');
       return;
     }
-    if (!Number.isFinite(dureeNum) || dureeNum <= 0) {
-      setError('La durée (mois) doit être un nombre positif');
+    if (!Number.isFinite(dureeNum) || dureeNum < 0) {
+      setError('La durée (mois) ne peut pas être négative (0 = licence à vie)');
       return;
     }
-    if (!Number.isFinite(prixNum) || prixNum <= 0) {
-      setError('Le prix doit être un nombre positif');
+    if (!Number.isFinite(prixNum) || prixNum < 0) {
+      setError('Le prix ne peut pas être négatif');
       return;
     }
 
@@ -3214,8 +3214,8 @@ const ConfigurationAbonnementTarifs = () => {
 
     if (!code) return setError('Le code est obligatoire');
     if (!libelle) return setError('Le libellé est obligatoire');
-    if (!Number.isFinite(dureeNum) || dureeNum <= 0) return setError('Durée invalide');
-    if (!Number.isFinite(prixNum) || prixNum <= 0) return setError('Prix invalide');
+    if (!Number.isFinite(dureeNum) || dureeNum < 0) return setError('Durée invalide (0 = licence à vie)');
+    if (!Number.isFinite(prixNum) || prixNum < 0) return setError('Prix invalide');
 
     setError('');
     setMessage('');
@@ -3305,10 +3305,10 @@ const ConfigurationAbonnementTarifs = () => {
               <input className="form-control form-control-sm" placeholder="Libellé" value={newPlan.libelle} onChange={(e) => setNewPlan(prev => ({ ...prev, libelle: e.target.value }))} />
             </div>
             <div className="col-md-2">
-              <input type="number" min={1} className="form-control form-control-sm" placeholder="Durée" value={newPlan.dureeMois} onChange={(e) => setNewPlan(prev => ({ ...prev, dureeMois: e.target.value }))} />
+              <input type="number" min={0} className="form-control form-control-sm" placeholder="Durée (0 = à vie)" value={newPlan.dureeMois} onChange={(e) => setNewPlan(prev => ({ ...prev, dureeMois: e.target.value }))} />
             </div>
             <div className="col-md-2">
-              <input type="number" min={1} className="form-control form-control-sm" placeholder="Montant" value={newPlan.prix} onChange={(e) => setNewPlan(prev => ({ ...prev, prix: e.target.value }))} />
+              <input type="number" min={0} className="form-control form-control-sm" placeholder="Montant" value={newPlan.prix} onChange={(e) => setNewPlan(prev => ({ ...prev, prix: e.target.value }))} />
             </div>
             <div className="col-md-1">
               <input className="form-control form-control-sm" placeholder="Devise" value={newPlan.devise} onChange={(e) => setNewPlan(prev => ({ ...prev, devise: e.target.value }))} />
@@ -3322,6 +3322,9 @@ const ConfigurationAbonnementTarifs = () => {
               <button className="btn btn-sm btn-primary w-100" onClick={onCreate}>Créer</button>
             </div>
           </div>
+          <small className="text-muted d-block mt-2">
+            Astuce : mettez <strong>Durée = 0</strong> pour une <strong>licence à vie</strong> (plan acheté, ex. code <code>ACHAT</code>) — la boutique ne sera jamais bloquée. Le <strong>Montant</strong> = prix de vente unique.
+          </small>
         </div>
 
         {loading ? (
@@ -3361,7 +3364,7 @@ const ConfigurationAbonnementTarifs = () => {
                       <td>
                         <input
                           type="number"
-                          min={1}
+                          min={0}
                           step="1"
                           className="form-control form-control-sm"
                           value={row.dureeMois}
@@ -3374,7 +3377,7 @@ const ConfigurationAbonnementTarifs = () => {
                       <td>
                         <input
                           type="number"
-                          min={1}
+                          min={0}
                           step="1"
                           className="form-control form-control-sm"
                           value={row.prix}
