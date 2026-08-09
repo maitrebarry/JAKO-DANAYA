@@ -83,8 +83,10 @@ public class BoutiqueController {
                 planCode
             );
             if (plans.isEmpty()) {
+            // Fallback : on exclut les plans à durée 0 (ex: ACHAT) pour ne jamais attribuer
+            // une licence à vie gratuite par accident quand le plan demandé est introuvable.
             plans = jdbcTemplate.queryForList(
-                "SELECT id, duree_mois FROM abonnement_plan WHERE actif = TRUE ORDER BY duree_mois ASC LIMIT 1"
+                "SELECT id, duree_mois FROM abonnement_plan WHERE actif = TRUE AND duree_mois > 0 ORDER BY duree_mois ASC LIMIT 1"
             );
             }
             if (plans.isEmpty()) {
@@ -107,14 +109,16 @@ public class BoutiqueController {
             if (!existing.isEmpty()) return;
 
             LocalDateTime startAt = LocalDateTime.now();
-            LocalDateTime endAt = startAt.plusMonths(dureeMois);
+            // duree_mois <= 0 (ex: plan ACHAT) => licence à vie : pas de date de fin.
+            boolean lifetime = dureeMois <= 0;
+            Object dateFinParam = lifetime ? null : Timestamp.valueOf(startAt.plusMonths(dureeMois));
 
             int inserted = jdbcTemplate.update(
                 "INSERT INTO abonnement_boutique (boutique_id, plan_id, statut, date_debut, date_fin, grace_end_at, auto_renew, created_at, updated_at) VALUES (?, ?, 'ACTIVE', ?, ?, NULL, FALSE, now(), now())",
                 boutiqueId,
                 planId,
                 Timestamp.valueOf(startAt),
-                Timestamp.valueOf(endAt)
+                dateFinParam
             );
             if (inserted > 0) {
                 org.slf4j.LoggerFactory.getLogger(BoutiqueController.class)
