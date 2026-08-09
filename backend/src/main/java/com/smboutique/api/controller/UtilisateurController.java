@@ -43,6 +43,9 @@ public class UtilisateurController {
     @Autowired
     private com.smboutique.api.service.UserPurgeService userPurgeService;
 
+    @Autowired
+    private com.smboutique.api.service.BoutiquePurgeService boutiquePurgeService;
+
     // Rôles pour lesquels toutes les permissions sont accordées par défaut à la création,
     // à l'exception de celles listées dans DEFAULT_FULL_ACCESS_EXCLUSIONS.
     private static final java.util.Set<String> DEFAULT_FULL_ACCESS_ROLE_TYPES =
@@ -382,11 +385,14 @@ public class UtilisateurController {
         return ResponseEntity.ok(utilisateurService.save(existing));
     }
 
-    // Suppression DÉFINITIVE en cascade : efface l'utilisateur ET toutes ses données
-    // (ventes, commandes, réceptions, livraisons, inventaires, transferts, mouvements,
-    // caisse, notifications, rôles/permissions). Opération destructive et irréversible
-    // -> réservée au SuperAdmin. NB: le stock et la caisse de la boutique ne sont PAS
-    // recalculés (choix assumé).
+    // Suppression DÉFINITIVE en cascade (SuperAdmin uniquement) :
+    //  - si la cible est un PROPRIETAIRE de boutique -> purge TOTALE de sa boutique
+    //    (tous les utilisateurs, produits, stock, ventes, caisse, historiques) : aucun
+    //    souci de cohérence stock/caisse puisque tout disparaît.
+    //  - sinon (employé : caissier/gérant/magasinier) -> supprime uniquement cet
+    //    utilisateur et ses données (le stock/caisse de la boutique restante n'est pas
+    //    recalculé, choix assumé).
+    // Opération destructive et irréversible.
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('SUPERADMIN')")
     public ResponseEntity<?> deleteUser(@PathVariable Long id) {
@@ -397,12 +403,17 @@ public class UtilisateurController {
         if (current.getId() != null && current.getId().equals(id)) {
             return ResponseEntity.badRequest().body(java.util.Map.of("message", "Vous ne pouvez pas supprimer votre propre compte."));
         }
-        if (utilisateurService.findById(id).isEmpty()) {
+        Optional<Utilisateur> targetOpt = utilisateurService.findById(id);
+        if (targetOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
+        Utilisateur target = targetOpt.get();
         try {
-            com.smboutique.api.service.UserPurgeService.PurgeResult result = userPurgeService.purge(id);
-            return ResponseEntity.ok(result);
+            if (isBoutiqueOwner(target) && target.getBoutique() != null) {
+                // Suppression d'un propriétaire => purge de toute sa boutique.
+                return ResponseEntity.ok(boutiquePurgeService.purge(target.getBoutique().getId()));
+            }
+            return ResponseEntity.ok(userPurgeService.purge(id));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(java.util.Map.of("message", ex.getMessage()));
         } catch (Exception ex) {
@@ -411,6 +422,17 @@ public class UtilisateurController {
                     "details", ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName()
             ));
         }
+    }
+
+    /** Un "propriétaire" (owner) de boutique : type ou rôle PROPRIETAIRE/OWNER. */
+    private boolean isBoutiqueOwner(Utilisateur u) {
+        if (u == null) return false;
+        String type = u.getTypeUtilisateur() == null ? "" : u.getTypeUtilisateur().trim().toUpperCase();
+        if (type.equals("PROPRIETAIRE") || type.equals("OWNER")) return true;
+        return u.getRoles() != null && u.getRoles().stream().anyMatch(r -> {
+            String n = r.getName() == null ? "" : r.getName().trim().toUpperCase();
+            return n.equals("PROPRIETAIRE") || n.equals("OWNER");
+        });
     }
 
     @PatchMapping("/{id}/statut")

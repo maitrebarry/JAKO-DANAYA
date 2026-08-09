@@ -438,12 +438,32 @@ const ListeUtilisateurs = ({ onUserCreated }: { onUserCreated?: (userId: number)
       ? (target.email || `${target.nom || ''} ${target.prenom || ''}`.trim() || `#${id}`)
       : `#${id}`;
 
-    const result = await Swal.fire({
-      title: 'Suppression définitive',
-      html: `Cette action supprimera <strong>${label}</strong> ET <strong>toutes ses données</strong> :`
+    // Un propriétaire supprimé => purge de TOUTE sa boutique (côté backend).
+    const isOwner = (() => {
+      if (!target) return false;
+      const type = String(target.typeUtilisateur || '').trim().toUpperCase();
+      if (type === 'PROPRIETAIRE' || type === 'OWNER') return true;
+      return Array.isArray(target.roles) && target.roles.some((r: any) => {
+        const n = String(r?.name || '').trim().toUpperCase();
+        return n === 'PROPRIETAIRE' || n === 'OWNER';
+      });
+    })();
+    const boutiqueNom = target?.boutique?.nom ? ` « ${target.boutique.nom} »` : '';
+
+    const html = isOwner
+      ? `<strong>${label}</strong> est <strong>propriétaire</strong>.`
+        + ` Cette action supprimera <strong>TOUTE sa boutique${boutiqueNom}</strong> :`
+        + ` tous les utilisateurs, produits, stock, ventes, commandes, réceptions, caisse et historiques.`
+        + `<br><br><span style="color:#d33">⚠️ Irréversible. Tout le client disparaît.</span>`
+        + `<br><br>Saisissez <strong>SUPPRIMER</strong> pour confirmer.`
+      : `Cette action supprimera <strong>${label}</strong> ET <strong>toutes ses données</strong> :`
         + ` ventes, commandes, réceptions, livraisons, inventaires, transferts, mouvements, caisse et notifications.`
         + `<br><br><span style="color:#d33">⚠️ Irréversible. Le stock et la caisse de la boutique ne seront pas recalculés.</span>`
-        + `<br><br>Saisissez <strong>SUPPRIMER</strong> pour confirmer.`,
+        + `<br><br>Saisissez <strong>SUPPRIMER</strong> pour confirmer.`;
+
+    const result = await Swal.fire({
+      title: 'Suppression définitive',
+      html,
       icon: 'warning',
       input: 'text',
       inputPlaceholder: 'SUPPRIMER',
