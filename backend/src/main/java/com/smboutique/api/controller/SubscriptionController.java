@@ -175,8 +175,11 @@ public class SubscriptionController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> plans() {
         try {
+            // Plans self-service pour le client (réabonnement). On exclut les plans à vie
+            // (duree_mois = 0, ex: ACHAT) : la licence achetée est attribuée par le SuperAdmin,
+            // le client ne doit jamais pouvoir la choisir ici.
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                    "SELECT id, code, libelle, duree_mois, prix, devise FROM abonnement_plan WHERE actif = TRUE ORDER BY duree_mois ASC"
+                    "SELECT id, code, libelle, duree_mois, prix, devise FROM abonnement_plan WHERE actif = TRUE AND duree_mois > 0 ORDER BY duree_mois ASC"
             );
             return ResponseEntity.ok(rows);
         } catch (DataAccessException ex) {
