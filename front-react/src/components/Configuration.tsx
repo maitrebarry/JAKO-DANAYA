@@ -5,6 +5,7 @@ import Swal from 'sweetalert2';
 import useHasPermission from '../contexts/useHasPermission';
 import RequirePermission from './RequirePermission';
 import PhoneWithDial from './PhoneWithDial';
+import SignaturePad from './SignaturePad';
 import { withApi, API, API_BASE } from '../config/api';
 
 const Configuration = () => {
@@ -971,9 +972,13 @@ const Boutique = () => {
     quartier: '',
     adresse: '',
     logo: null as File | null,
+    cachet: null as File | null,
+    signature: null as File | null,
     optionRevendeur: false as boolean,
   });
   const [boutiqueCodePays, setBoutiqueCodePays] = useState<string | null>(null);
+  // Mode de saisie de la signature : upload d'un fichier ou tracé à l'écran.
+  const [signatureMode, setSignatureMode] = useState<'upload' | 'draw'>('upload');
   const [paysList, setPaysList] = useState<any[]>([]);
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState('');
@@ -1103,6 +1108,13 @@ const Boutique = () => {
       if (newBoutique.logo) {
         formData.append('logo', newBoutique.logo);
       }
+      // Cachet + signature électronique : apparaîtront automatiquement sur tous les reçus/documents.
+      if (newBoutique.cachet) {
+        formData.append('cachet', newBoutique.cachet);
+      }
+      if (newBoutique.signature) {
+        formData.append('signature', newBoutique.signature);
+      }
       // Option "revendeur" (SuperAdmin) : prix revendeur sur le reçu sans toucher aux prix réels.
       formData.append('optionRevendeur', String(!!newBoutique.optionRevendeur));
 
@@ -1146,7 +1158,7 @@ const Boutique = () => {
       }
 
       setShowModal(false);
-      setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null, optionRevendeur: false });
+      setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null, cachet: null, signature: null, optionRevendeur: false });
       setSelectedPlanCode('MENSUEL');
       setInitialPlanCodeForEdit(null);
       await Swal.fire('Succès', `Boutique ${isEdit ? 'modifiée' : 'créée'} avec succès !`, 'success');
@@ -1246,6 +1258,8 @@ const Boutique = () => {
       quartier: boutique.quartier || '',
       adresse: boutique.adresse || '',
       logo: null,
+      cachet: null,
+      signature: null,
       optionRevendeur: !!boutique.optionRevendeur,
     });
     setBoutiqueCodePays(boutique?.pays?.codeIso || 'ML');
@@ -1309,7 +1323,7 @@ const Boutique = () => {
             <button 
               className="btn btn-light" 
               onClick={() => { 
-                setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null, optionRevendeur: false }); 
+                setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null, cachet: null, signature: null, optionRevendeur: false }); 
                 setBoutiqueCodePays('ML'); // default country
                 setSelectedPlanCode('MENSUEL');
                 setInitialPlanCodeForEdit(null);
@@ -1392,7 +1406,7 @@ const Boutique = () => {
       {showModal && (
         <>
           <div className="modal fade show" style={{ display: 'block' }} tabIndex={-1}>
-            <div className="modal-dialog">
+            <div className="modal-dialog modal-lg modal-fullscreen-sm-down">
               <div className="modal-content">
                 <div className="modal-header">
                   <h5 className="modal-title">
@@ -1403,7 +1417,7 @@ const Boutique = () => {
                     className="btn-close" 
                     onClick={() => { 
                       setShowModal(false); 
-                      setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null, optionRevendeur: false }); 
+                      setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null, cachet: null, signature: null, optionRevendeur: false }); 
                       setSelectedPlanCode('MENSUEL');
                       setInitialPlanCodeForEdit(null);
                     }}
@@ -1411,7 +1425,8 @@ const Boutique = () => {
                 </div>
                 
                 <div className="modal-body">
-                  <div className="mb-3">
+                  <div className="row">
+                  <div className="col-md-6 mb-3">
                     <label className="form-label">Nom *</label>
                     <input
                       type="text"
@@ -1423,7 +1438,7 @@ const Boutique = () => {
                     />
                   </div>
                   
-                  <div className="mb-3">
+                  <div className="col-md-6 mb-3">
                     <label className="form-label">Quartier</label>
                     <input
                       type="text"
@@ -1434,7 +1449,7 @@ const Boutique = () => {
                     />
                   </div>
                   
-                  <div className="mb-3">
+                  <div className="col-md-6 mb-3">
                     <label className="form-label">Adresse *</label>
                     <input
                       type="text"
@@ -1446,7 +1461,7 @@ const Boutique = () => {
                     />
                   </div>
                   
-                  <div className="mb-3">
+                  <div className="col-md-6 mb-3">
                     <label className="form-label">Pays</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span className={`iti__flag iti__${(boutiqueCodePays || 'ML').toLowerCase()}`} style={{ width: 28, height: 20, display: 'inline-block' }} />
@@ -1467,7 +1482,7 @@ const Boutique = () => {
                     </div>
                   </div>
 
-                  <div className="mb-3">
+                  <div className="col-md-6 mb-3">
                     <label className="form-label">Logo</label>
                     <input
                       type="file"
@@ -1480,7 +1495,51 @@ const Boutique = () => {
                     </small>
                   </div>
 
-                  <div className="mb-3">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Cachet (tampon)</label>
+                    <input
+                      type="file"
+                      className="form-control"
+                      accept="image/*"
+                      onChange={(e) => setNewBoutique({ ...newBoutique, cachet: e.target.files ? e.target.files[0] : null })}
+                    />
+                    <small className="text-muted">
+                      Apparaîtra automatiquement en bas de tous les reçus/documents. PNG transparent conseillé.
+                      {newBoutique.id ? ' Laissez vide pour conserver le cachet actuel.' : ''}
+                    </small>
+                  </div>
+
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label d-block">Signature électronique</label>
+                    <div className="btn-group btn-group-sm mb-2" role="group">
+                      <button
+                        type="button"
+                        className={`btn ${signatureMode === 'upload' ? 'btn-primary' : 'btn-outline-primary'}`}
+                        onClick={() => { setSignatureMode('upload'); setNewBoutique(prev => ({ ...prev, signature: null })); }}
+                      >Uploader</button>
+                      <button
+                        type="button"
+                        className={`btn ${signatureMode === 'draw' ? 'btn-primary' : 'btn-outline-primary'}`}
+                        onClick={() => { setSignatureMode('draw'); setNewBoutique(prev => ({ ...prev, signature: null })); }}
+                      >Signer à l'écran</button>
+                    </div>
+                    {signatureMode === 'upload' ? (
+                      <input
+                        type="file"
+                        className="form-control"
+                        accept="image/*"
+                        onChange={(e) => setNewBoutique({ ...newBoutique, signature: e.target.files ? e.target.files[0] : null })}
+                      />
+                    ) : (
+                      <SignaturePad onChange={(file) => setNewBoutique(prev => ({ ...prev, signature: file }))} />
+                    )}
+                    <small className="text-muted d-block mt-1">
+                      Apparaîtra automatiquement en bas de tous les reçus/documents. PNG transparent conseillé.
+                      {newBoutique.id ? ' Laissez vide pour conserver la signature actuelle.' : ''}
+                    </small>
+                  </div>
+
+                  <div className="col-md-6 mb-3">
                     <label className="form-label">Plan d'abonnement {newBoutique.id ? '(modification)' : 'initial'}</label>
                     <select
                       className="form-select"
@@ -1500,7 +1559,7 @@ const Boutique = () => {
                     </small>
                   </div>
 
-                  <div className="mb-3">
+                  <div className="col-12 mb-3">
                     <div className="form-check form-switch">
                       <input
                         className="form-check-input"
@@ -1516,15 +1575,16 @@ const Boutique = () => {
                       affiché sur le reçu. Ce prix ne modifie ni les prix des produits, ni la caisse, ni les rapports.
                     </small>
                   </div>
+                  </div>
                 </div>
-                
+
                 <div className="modal-footer">
                   <button 
                     type="button" 
                     className="btn btn-secondary" 
                     onClick={() => { 
                       setShowModal(false); 
-                      setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null, optionRevendeur: false }); 
+                      setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null, cachet: null, signature: null, optionRevendeur: false }); 
                       setSelectedPlanCode('MENSUEL');
                       setInitialPlanCodeForEdit(null);
                     }}

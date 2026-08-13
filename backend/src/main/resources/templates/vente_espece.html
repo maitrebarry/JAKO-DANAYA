@@ -100,9 +100,12 @@
   </tbody>
 </table>
 
-<div class="signature" style="margin-top:18px;">Signature: __________________________</div>
+<div class="signature" style="margin-top:18px;">Signature:
+              <span th:if="${signatureBase64 != null}"><img th:src="${signatureBase64}" style="height:48px;vertical-align:middle;margin-left:6px;" /></span>
+              <span th:if="${signatureBase64 == null}">__________________________</span></div>
 
 <div style="margin-top:6px; font-size:11px; color:#555;">Établi par: <span th:text="${vente.utilisateur != null ? (vente.utilisateur.nom + ' ' + vente.utilisateur.prenom) : '-'}"></span></div>
+<div th:if="${cachetBase64 != null}" style="margin-top:6px;"><img th:src="${cachetBase64}" style="height:72px;max-width:230px;" /></div>
 
 <footer th:text="${boutiqueNom != null and boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
 </body>

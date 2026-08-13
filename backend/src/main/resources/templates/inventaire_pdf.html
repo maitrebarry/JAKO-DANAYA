@@ -85,7 +85,10 @@
     </tfoot>
   </table>
   
-  <div class="signature">Signature: __________________________</div>
+  <div class="signature">Signature:
+              <span th:if="${signatureBase64 != null}"><img th:src="${signatureBase64}" style="height:48px;vertical-align:middle;margin-left:6px;" /></span>
+              <span th:if="${signatureBase64 == null}">__________________________</span></div>
+<div th:if="${cachetBase64 != null}" style="margin-top:6px;"><img th:src="${cachetBase64}" style="height:72px;max-width:230px;" /></div>
   <footer>Merci d'avoir choisi notre boutique. Pour toute réclamation, contactez-nous au <span th:text="${boutiqueTelephone}"></span>.</footer>
 
 </body>

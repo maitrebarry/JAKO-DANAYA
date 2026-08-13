@@ -74,6 +74,32 @@ public class PdfServiceImpl implements PdfService {
     @Autowired
     private com.smboutique.api.service.RapportService rapportService;
 
+    /** Lit un fichier image de branding (logo/cachet/signature) et renvoie un data URI base64, ou null. */
+    private String brandingDataUri(String path) {
+        try {
+            if (path == null || path.isBlank()) return null;
+            String p = path.startsWith("/") ? path.substring(1) : path;
+            java.io.File f = new java.io.File(p);
+            if (!f.exists()) return null;
+            byte[] bytes = java.nio.file.Files.readAllBytes(f.toPath());
+            String base64 = java.util.Base64.getEncoder().encodeToString(bytes);
+            String lower = p.toLowerCase();
+            String mime = (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) ? "image/jpeg"
+                    : lower.endsWith(".gif") ? "image/gif"
+                    : lower.endsWith(".webp") ? "image/webp"
+                    : "image/png";
+            return "data:" + mime + ";base64," + base64;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Expose cachet + signature de la boutique aux templates (bas de page). Null-safe. */
+    private void applyCachetSignature(Context ctx, com.smboutique.api.model.Boutique b) {
+        ctx.setVariable("cachetBase64", b != null ? brandingDataUri(b.getCachet()) : null);
+        ctx.setVariable("signatureBase64", b != null ? brandingDataUri(b.getSignature()) : null);
+    }
+
     @Override
     public void writeCommandePdf(Long commandeId, HttpServletResponse response) throws IOException {
         org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PdfServiceImpl.class);
@@ -121,6 +147,7 @@ public class PdfServiceImpl implements PdfService {
                 // ignore
             }
             ctx.setVariable("logoBase64", logoData);
+            applyCachetSignature(ctx, commande.getBoutique());
 
             // Build a normalized representation of lines and ensure qteCommandeLabel is present for the template
             java.util.List<java.util.Map<String,Object>> lignesNorm = new java.util.ArrayList<>();
@@ -422,6 +449,7 @@ public class PdfServiceImpl implements PdfService {
                 // ignore
             }
             ctx.setVariable("logoBase64", logoData);
+            applyCachetSignature(ctx, b);
             ctx.setVariable("boutiqueNom", boutiqueNom);
             ctx.setVariable("boutiqueTelephone", boutiqueTelephone);
             ctx.setVariable("boutiqueAdresse", boutiqueAdresse);
@@ -467,6 +495,7 @@ public class PdfServiceImpl implements PdfService {
             }
             ctx.setVariable("logoBase64", logoData);
         }
+        applyCachetSignature(ctx, b);
 
         String html = templateEngine.process("rapport_stock", ctx);
         writeHtmlPdf(filename, html, response);
@@ -506,6 +535,7 @@ public class PdfServiceImpl implements PdfService {
                 // ignore
             }
             ctx.setVariable("logoBase64", logoData);
+            applyCachetSignature(ctx, b);
 
             String boutiqueNom = "";
             String boutiqueTelephone = "";
@@ -563,6 +593,7 @@ public class PdfServiceImpl implements PdfService {
             }
             ctx.setVariable("logoBase64", logoData);
         }
+        applyCachetSignature(ctx, b);
 
         String html = templateEngine.process("rapport_top_produits", ctx);
         writeHtmlPdf(filename, html, response);
@@ -652,6 +683,7 @@ public class PdfServiceImpl implements PdfService {
                 ctx.setVariable("montantTotalLabel", "0 FCFA");
             }
 
+            applyCachetSignature(ctx, b);
             String html = templateEngine.process("inventaire_pdf", ctx);
 
             try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
@@ -717,6 +749,7 @@ public class PdfServiceImpl implements PdfService {
                 log.warn("Failed to read boutique logo for reception {}: {}", receptionId, ex.getMessage());
             }
             ctx.setVariable("logoBase64", logoData);
+            applyCachetSignature(ctx, reception.getCommandeFournisseur() != null ? reception.getCommandeFournisseur().getBoutique() : null);
 
             // Format date using stored LocalDateTime but normalize to UTC instant for consistent printed time
             try {
@@ -1038,6 +1071,7 @@ public class PdfServiceImpl implements PdfService {
                 // ignore
             }
             ctx.setVariable("logoBase64", logoData);
+            applyCachetSignature(ctx, commande.getBoutique());
 
             // Prepare formatted date string to avoid OGNL LocalDateTime -> Date conversion errors
             try {
@@ -1311,6 +1345,7 @@ public class PdfServiceImpl implements PdfService {
                 // ignore
             }
             ctx.setVariable("logoBase64", logoData);
+            applyCachetSignature(ctx, b);
             if (b != null) {
                 ctx.setVariable("boutique", b);
                 // safe variables for footer
@@ -1465,6 +1500,7 @@ public class PdfServiceImpl implements PdfService {
                 }
             } catch (Exception e) { ctx.setVariable("dateCreatedFormatted", ""); }
 
+            applyCachetSignature(ctx, b);
             String html = templateEngine.process("depense_pdf", ctx);
             try {
                 java.nio.file.Files.write(java.nio.file.Paths.get("/tmp/depense_" + depenseId + "_debug.html"), html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -1556,6 +1592,7 @@ public class PdfServiceImpl implements PdfService {
                 ctx.setVariable("deviseSymbole", "FCFA");
                 ctx.setVariable("logoBase64", null);
             }
+            applyCachetSignature(ctx, b);
 
             // Build normalized lignes for template with qte label
             java.util.List<java.util.Map<String,Object>> lignesNorm = new java.util.ArrayList<>();
@@ -1865,6 +1902,7 @@ public class PdfServiceImpl implements PdfService {
                 // ignore
             }
             ctx.setVariable("logoBase64", logoData);
+            applyCachetSignature(ctx, paiement.getCommandeFournisseur() != null ? paiement.getCommandeFournisseur().getBoutique() : null);
 
             // Format date using stored LocalDateTime (no timezone conversion) and include seconds for consistency
             try {
@@ -2043,6 +2081,7 @@ public class PdfServiceImpl implements PdfService {
                 // ignore
             }
             ctx.setVariable("logoBase64", logoData);
+            applyCachetSignature(ctx, paiement.getCommandeClient() != null ? paiement.getCommandeClient().getBoutique() : null);
 
             try {
                 if (paiement.getDatePaie() != null) {
@@ -2196,6 +2235,7 @@ public class PdfServiceImpl implements PdfService {
                 // ignore
             }
             ctx.setVariable("logoBase64", logoData);
+            applyCachetSignature(ctx, livraison.getCommandeClient() != null ? livraison.getCommandeClient().getBoutique() : null);
 
             // Format date
             try {

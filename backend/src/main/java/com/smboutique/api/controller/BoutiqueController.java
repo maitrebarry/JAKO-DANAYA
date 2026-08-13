@@ -178,6 +178,18 @@ public class BoutiqueController {
     @Autowired
     private com.smboutique.api.service.PaysSyncService paysSyncService;
 
+    /** Enregistre un fichier uploadé (logo/cachet/signature) et renvoie son chemin public, ou null si absent. */
+    private String storeBoutiqueFile(MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) return null;
+        String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+        Path uploadPath = Paths.get(UPLOAD_DIR);
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath);
+        }
+        Files.write(uploadPath.resolve(fileName), file.getBytes());
+        return "/" + UPLOAD_DIR + fileName;
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('SUPERADMIN')")
     public ResponseEntity<?> createBoutique(@RequestParam(value = "nom", required = false) String nom,
@@ -187,7 +199,9 @@ public class BoutiqueController {
                                    @RequestParam(value = "codePays", required = false) String codePays,
                                    @RequestParam(value = "planCode", required = false) String planCode,
                                    @RequestParam(value = "optionRevendeur", required = false) Boolean optionRevendeur,
-                                   @RequestParam(value = "logo", required = false) MultipartFile logo) throws IOException {
+                                   @RequestParam(value = "logo", required = false) MultipartFile logo,
+                                   @RequestParam(value = "cachet", required = false) MultipartFile cachet,
+                                   @RequestParam(value = "signature", required = false) MultipartFile signature) throws IOException {
         // Ensure minimal required fields are present
         if (nom == null || nom.trim().isEmpty() || adresse == null || adresse.trim().isEmpty()) {
             return ResponseEntity.badRequest().body("Veuillez remplir au moins le nom et l'adresse.");
@@ -214,6 +228,10 @@ public class BoutiqueController {
             Files.write(uploadPath.resolve(fileName), logo.getBytes());
             boutique.setLogo("/" + UPLOAD_DIR + fileName);
         }
+        String cachetPath = storeBoutiqueFile(cachet);
+        if (cachetPath != null) boutique.setCachet(cachetPath);
+        String signaturePath = storeBoutiqueFile(signature);
+        if (signaturePath != null) boutique.setSignature(signaturePath);
 
         // if codePays provided, associate it (create if unknown)
         if (codePays != null && !codePays.isEmpty()) {
@@ -237,7 +255,9 @@ public class BoutiqueController {
     @RequestParam(value = "codePays", required = false) String codePays,
     @RequestParam(value = "planCode", required = false) String planCode,
     @RequestParam(value = "optionRevendeur", required = false) Boolean optionRevendeur,
-    @RequestParam(value = "logo", required = false) MultipartFile logo) throws IOException {
+    @RequestParam(value = "logo", required = false) MultipartFile logo,
+    @RequestParam(value = "cachet", required = false) MultipartFile cachet,
+    @RequestParam(value = "signature", required = false) MultipartFile signature) throws IOException {
         return boutiqueService.findById(id)
                 .map(boutique -> {
                     boutique.setNom(nom);
@@ -265,6 +285,15 @@ public class BoutiqueController {
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
+                    }
+                    // Cachet / signature : ne remplacer que si un nouveau fichier est fourni.
+                    try {
+                        String cachetPath = storeBoutiqueFile(cachet);
+                        if (cachetPath != null) boutique.setCachet(cachetPath);
+                        String signaturePath = storeBoutiqueFile(signature);
+                        if (signaturePath != null) boutique.setSignature(signaturePath);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
                     }
 
                     if (codePays != null && !codePays.isEmpty()) {

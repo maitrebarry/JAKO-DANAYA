@@ -72,7 +72,10 @@
 <div class="meta">Reference caisse: <strong th:text="${reference}"></strong></div>
 <div class="meta">Montant: <strong th:text="${montantLabel}"></strong></div>
 <div class="meta">Date: <strong th:text="${dateTransactionFormatted}"></strong></div>
-<div class="signature">Signature: __________________________</div>
+<div class="signature">Signature:
+              <span th:if="${signatureBase64 != null}"><img th:src="${signatureBase64}" style="height:48px;vertical-align:middle;margin-left:6px;" /></span>
+              <span th:if="${signatureBase64 == null}">__________________________</span></div>
+<div th:if="${cachetBase64 != null}" style="margin-top:6px;"><img th:src="${cachetBase64}" style="height:72px;max-width:230px;" /></div>
 <footer th:text="${boutiqueNom != null and boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
 </body>
 </html>

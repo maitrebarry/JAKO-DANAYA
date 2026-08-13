@@ -48,5 +48,20 @@
     </tbody>
 </table>
 <footer>Produits les plus vendus</footer>
+      <!-- CACHET_SIGNATURE_FOOTER -->
+      <div th:if="${cachetBase64 != null or signatureBase64 != null}" style="margin-top:24px;width:100%;">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="width:50%;text-align:center;vertical-align:bottom;padding:6px;">
+              <div th:if="${cachetBase64 != null}"><img th:src="${cachetBase64}" style="max-height:90px;max-width:220px;" /></div>
+              <div th:if="${cachetBase64 != null}" style="font-size:11px;color:#555;margin-top:4px;">Cachet</div>
+            </td>
+            <td style="width:50%;text-align:center;vertical-align:bottom;padding:6px;">
+              <div th:if="${signatureBase64 != null}"><img th:src="${signatureBase64}" style="max-height:90px;max-width:220px;" /></div>
+              <div th:if="${signatureBase64 != null}" style="font-size:11px;color:#555;margin-top:4px;">Signature</div>
+            </td>
+          </tr>
+        </table>
+      </div>
 </body>
 </html>

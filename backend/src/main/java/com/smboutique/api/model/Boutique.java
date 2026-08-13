@@ -22,6 +22,11 @@ public class Boutique {
     private String telephoneLocal;
     private String logo;
 
+    // Cachet (tampon) et signature électronique de la boutique : si présents, ils s'affichent
+    // automatiquement en bas de tous les documents PDF (reçus, bons, rapports...).
+    private String cachet;
+    private String signature;
+
     // Option "Revendeur" : quand activée, on peut saisir un prix revendeur par ligne de vente
     // (affiché sur le reçu uniquement) sans modifier les prix réels. Activée par le SuperAdmin.
     @Column(name = "option_revendeur")
