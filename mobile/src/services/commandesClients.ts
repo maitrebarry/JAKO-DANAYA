@@ -26,6 +26,7 @@ export type CommandeClientLinePayload = {
   quantiteConditionnement?: number | null;
   id_emballage?: number | null;
   prix: number;
+  prixRevendeur?: number | null; // prix affiché sur le reçu (option revendeur) ; n'affecte pas le prix réel
   priceMode?: 'DETAIL' | 'GROS';
 };
 

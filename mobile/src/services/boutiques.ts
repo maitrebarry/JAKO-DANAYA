@@ -24,6 +24,7 @@ export type BoutiqueDTO = {
   adresse?: string | null;
   indicatif?: string | null;
   logo?: string | null;
+  optionRevendeur?: boolean | null;
   pays?: {
     id?: number;
     codeIso?: string | null;

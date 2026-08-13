@@ -22,6 +22,11 @@ public class Boutique {
     private String telephoneLocal;
     private String logo;
 
+    // Option "Revendeur" : quand activée, on peut saisir un prix revendeur par ligne de vente
+    // (affiché sur le reçu uniquement) sans modifier les prix réels. Activée par le SuperAdmin.
+    @Column(name = "option_revendeur")
+    private Boolean optionRevendeur;
+
     @ManyToOne
     @JoinColumn(name = "id_pays")
     private Pays pays;

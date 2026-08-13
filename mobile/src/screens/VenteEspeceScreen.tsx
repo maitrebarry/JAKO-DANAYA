@@ -31,6 +31,7 @@ type CartLine = {
   quantiteConditionnement: string; // nombre de cartons/conditionnements
   idEmballage?: number; // which emballage (carton, sac...) was picked, when the product has 2+
   prixUnit: number;
+  prixRevendeur?: number | null; // prix affiché sur le reçu (option revendeur) ; n'affecte pas le prix réel
   priceMode: PriceMode;
 };
 
@@ -234,6 +235,8 @@ const CartLineItem = React.memo(function CartLineItem({
   onChangeQuantite,
   onChangeQuantiteConditionnement,
   onChangeEmballage,
+  optionRevendeur,
+  onChangePrixRevendeur,
 }: {
   line: CartLine;
   stock: StockItem | undefined;
@@ -243,6 +246,8 @@ const CartLineItem = React.memo(function CartLineItem({
   onChangeQuantite: (stockId: number, v: string) => void;
   onChangeQuantiteConditionnement: (stockId: number, v: string) => void;
   onChangeEmballage: (stockId: number, idEmballage: number) => void;
+  optionRevendeur?: boolean;
+  onChangePrixRevendeur?: (stockId: number, v: string) => void;
 }) {
   const name = line.designation;
   const stockOrProduit = stock || { produit: line.produit };
@@ -290,6 +295,19 @@ const CartLineItem = React.memo(function CartLineItem({
               <Text style={{ color: theme.text, fontWeight: '800', fontSize: 12 }}>Prix: {formatThousandsFromDigits(String(line.prixUnit))}</Text>
             </View>
           </View>
+          {optionRevendeur && (
+            <View style={{ marginTop: 10 }}>
+              <Text style={{ color: theme.muted, fontWeight: '700', fontSize: 12, marginBottom: 4 }}>Prix revendeur (reçu)</Text>
+              <TextInput
+                keyboardType="numeric"
+                value={line.prixRevendeur != null ? String(line.prixRevendeur) : ''}
+                onChangeText={(t) => onChangePrixRevendeur && onChangePrixRevendeur(line.stockId, digitsOnly(t))}
+                placeholder="Optionnel — affiché sur le reçu"
+                placeholderTextColor={theme.muted}
+                style={{ borderWidth: 1, borderColor: mutedBorder, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, color: theme.text, backgroundColor: inputBackground }}
+              />
+            </View>
+          )}
         </View>
         <Pressable
           onPress={() => onRemove(line.stockId)}
@@ -437,7 +455,9 @@ const CartLineItem = React.memo(function CartLineItem({
 
 export default function VenteEspeceScreen() {
   const theme = useTheme();
-  const { token } = useApp();
+  const { token, currentBoutique } = useApp();
+  // Option revendeur : permet de saisir un prix revendeur (reçu) par ligne, sans toucher au prix réel.
+  const optionRevendeur = !!currentBoutique?.optionRevendeur;
   const access = useAccess();
   const navigation = useNavigation<any>();
 
@@ -523,6 +543,10 @@ export default function VenteEspeceScreen() {
 
   const removeLine = useCallback((stockId: number) => {
     setLines((prev) => prev.filter((l) => l.stockId !== stockId));
+  }, []);
+
+  const changePrixRevendeur = useCallback((stockId: number, v: string) => {
+    setLines((prev) => prev.map((l) => (l.stockId === stockId ? { ...l, prixRevendeur: v === '' ? null : (parseIntFromDigits(v) || 0) } : l)));
   }, []);
 
   const toggleConditionnement = useCallback((stockId: number, enabled: boolean) => {
@@ -663,6 +687,7 @@ export default function VenteEspeceScreen() {
             quantiteConditionnement: l.venteParConditionnement ? packs : null,
             id_emballage: l.venteParConditionnement ? l.idEmballage : undefined,
             prix: Number(l.prixUnit) || 0,
+            prixRevendeur: (optionRevendeur && l.prixRevendeur != null) ? l.prixRevendeur : undefined,
             priceMode: l.priceMode,
           };
         }),
@@ -816,6 +841,8 @@ export default function VenteEspeceScreen() {
                   onChangeQuantite={changeQuantite}
                   onChangeQuantiteConditionnement={changeQuantiteConditionnement}
                   onChangeEmballage={changeEmballage}
+                  optionRevendeur={optionRevendeur}
+                  onChangePrixRevendeur={changePrixRevendeur}
                 />
               ))
             )}

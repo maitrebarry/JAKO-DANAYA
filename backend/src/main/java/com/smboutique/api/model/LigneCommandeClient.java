@@ -34,6 +34,11 @@ public class LigneCommandeClient {
     @Column(name = "new_price_cmndClient")
     private Integer newPrice;
 
+    // Prix "revendeur" saisi pour le reçu (option boutique). N'affecte PAS le prix réel (newPrice),
+    // ni la caisse, ni le stock, ni les rapports : sert uniquement à l'affichage sur le reçu + trace.
+    @Column(name = "prix_revendeur")
+    private Integer prixRevendeur;
+
     // Which specific emballage (carton, sac...) was ordered, when the product has 2+ and the
     // caller disambiguated. Null for unit orders, single/zero-emballage products, and lines
     // predating this feature.

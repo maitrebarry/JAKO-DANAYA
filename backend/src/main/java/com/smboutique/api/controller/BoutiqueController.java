@@ -186,6 +186,7 @@ public class BoutiqueController {
                                    @RequestParam(value = "indicatif", required = false) String indicatif,
                                    @RequestParam(value = "codePays", required = false) String codePays,
                                    @RequestParam(value = "planCode", required = false) String planCode,
+                                   @RequestParam(value = "optionRevendeur", required = false) Boolean optionRevendeur,
                                    @RequestParam(value = "logo", required = false) MultipartFile logo) throws IOException {
         // Ensure minimal required fields are present
         if (nom == null || nom.trim().isEmpty() || adresse == null || adresse.trim().isEmpty()) {
@@ -196,6 +197,7 @@ public class BoutiqueController {
         boutique.setNom(nom);
         boutique.setQuartier(quartier);
         boutique.setAdresse(adresse);
+        boutique.setOptionRevendeur(Boolean.TRUE.equals(optionRevendeur));
 
         // Set indicatif if provided
         if (indicatif != null && !indicatif.trim().isEmpty()) {
@@ -234,12 +236,14 @@ public class BoutiqueController {
     @RequestParam(value = "indicatif", required = false) String indicatif,
     @RequestParam(value = "codePays", required = false) String codePays,
     @RequestParam(value = "planCode", required = false) String planCode,
+    @RequestParam(value = "optionRevendeur", required = false) Boolean optionRevendeur,
     @RequestParam(value = "logo", required = false) MultipartFile logo) throws IOException {
         return boutiqueService.findById(id)
                 .map(boutique -> {
                     boutique.setNom(nom);
                     boutique.setQuartier(quartier);
                     boutique.setAdresse(adresse);
+                    boutique.setOptionRevendeur(Boolean.TRUE.equals(optionRevendeur));
 
                     // Set indicatif if provided
                     if (indicatif != null && !indicatif.trim().isEmpty()) {

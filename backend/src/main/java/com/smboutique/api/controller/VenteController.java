@@ -158,6 +158,7 @@ public class VenteController {
         public Integer quantiteConditionnement;
         public Long id_emballage; // which emballage (carton, sac...) was ordered; required only when the product has 2+
         public Integer prix;
+        public Integer prixRevendeur; // optionnel : prix affiché sur le reçu (option revendeur) ; n'affecte pas le prix réel
         public String priceMode; // DETAIL or GROS
     }
 
@@ -221,6 +222,10 @@ public class VenteController {
                 cc.setUtilisateur(user);
             }
 
+            // Option "revendeur" de la boutique : autorise la saisie d'un prix revendeur (reçu).
+            boolean optionRevendeur = user != null && user.getBoutique() != null
+                    && Boolean.TRUE.equals(user.getBoutique().getOptionRevendeur());
+
             java.util.List<LigneCommandeClient> lignes = new java.util.ArrayList<>();
             long computedTotal = 0;
             for (VenteLineRequest pl : request.produitsSelectionnes) {
@@ -260,6 +265,10 @@ public class VenteController {
                 lcc.setEmballage(chosenEmballageCC);
                 lcc.setQuantiteLivre(0);
                 lcc.setNewPrice(pl.prix == null ? 0 : pl.prix);
+                // Prix revendeur (reçu) : uniquement si l'option est active. N'affecte pas newPrice ni les totaux réels.
+                if (optionRevendeur && pl.prixRevendeur != null && pl.prixRevendeur >= 0) {
+                    lcc.setPrixRevendeur(pl.prixRevendeur);
+                }
                 // set price mode if provided
                 if (pl.priceMode != null) {
                     try {
@@ -300,6 +309,7 @@ public class VenteController {
         public Integer quantiteConditionnement;
         public Long id_emballage; // which emballage (carton, sac...) was sold; required only when the product has 2+
         public Integer prix;
+        public Integer prixRevendeur; // optionnel : prix affiché sur le reçu (option revendeur) ; n'affecte pas le prix réel
         public String priceMode; // DETAIL or GROS
     }
 
@@ -358,6 +368,9 @@ public class VenteController {
         try {
             Long boutiqueId = user != null && user.getBoutique() != null ? user.getBoutique().getId() : null;
             if (boutiqueId == null) return ResponseEntity.badRequest().body(java.util.Map.of("error", "Boutique introuvable pour l'utilisateur"));
+
+            // Option "revendeur" de la boutique : autorise la saisie d'un prix revendeur (reçu).
+            boolean optionRevendeur = user.getBoutique() != null && Boolean.TRUE.equals(user.getBoutique().getOptionRevendeur());
 
             // Block ventes when an active inventory exists for this boutique
             if (inventaireService.existsActiveInventoryForBoutique(boutiqueId)) {
@@ -520,6 +533,10 @@ public class VenteController {
                 lv.setEmballage(chosenEmballage);
                 lv.setQuantiteLivre(quantiteReelle);
                 lv.setNewPrice(pl.prix == null ? 0 : pl.prix);
+                // Prix revendeur (reçu) : uniquement si l'option est active. N'affecte pas newPrice ni la caisse.
+                if (optionRevendeur && pl.prixRevendeur != null && pl.prixRevendeur >= 0) {
+                    lv.setPrixRevendeur(pl.prixRevendeur);
+                }
                 if (pl.priceMode != null) {
                     try { lv.setPriceMode(com.smboutique.api.model.PriceMode.valueOf(pl.priceMode)); } catch (Exception e) { }
                 }

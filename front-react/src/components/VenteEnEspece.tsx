@@ -16,6 +16,7 @@ interface Line {
   quantiteConditionnement?: number; // number of packs
   id_emballage?: number; // which emballage (carton, sac...) was picked, when the product has 2+
   prix?: number;
+  prixRevendeur?: number | null; // prix affiché sur le reçu (option revendeur) ; n'affecte pas le prix réel
   priceMode?: string;
   quantiteReelle?: number; // computed
 }
@@ -50,6 +51,8 @@ const VenteEnEspece: React.FC = () => {
   const [locationLocked, setLocationLocked] = useState<boolean>(true);
 
   const { currentBoutique } = useUser();
+  // Option revendeur : permet de saisir un prix revendeur (reçu) par ligne, sans toucher au prix réel.
+  const optionRevendeur = !!(currentBoutique as any)?.optionRevendeur;
 
   const fetchMagasins = async () => {
     try {
@@ -321,6 +324,7 @@ const VenteEnEspece: React.FC = () => {
           quantiteConditionnement: l.venteParConditionnement ? l.quantiteConditionnement : undefined,
           id_emballage: l.venteParConditionnement ? l.id_emballage : undefined,
           prix: l.prix || 0,
+          prixRevendeur: (optionRevendeur && l.prixRevendeur != null && l.prixRevendeur !== undefined) ? l.prixRevendeur : undefined,
           priceMode: l.priceMode || priceModeDefault
         };
       })
@@ -541,6 +545,7 @@ const VenteEnEspece: React.FC = () => {
                                 <th>Emballage</th>
                                 <th>Quantité</th>
                                 <th>Prix (unité)</th>
+                                {optionRevendeur && <th title="Prix affiché sur le reçu — ne modifie pas le prix réel">Prix revendeur (reçu)</th>}
                                 <th>Montant</th>
                                 <th></th>
                               </tr>
@@ -655,6 +660,18 @@ const VenteEnEspece: React.FC = () => {
                                         <span className="input-group-text" title="Prix automatique"><i className="bx bx-lock"></i></span>
                                       </div>
                                     </td>
+                                    {optionRevendeur && (
+                                      <td>
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          className="form-control"
+                                          placeholder="Prix reçu (optionnel)"
+                                          value={l.prixRevendeur ?? ''}
+                                          onChange={e => handleLineChange(idx, 'prixRevendeur', e.target.value === '' ? null : Number(e.target.value))}
+                                        />
+                                      </td>
+                                    )}
                                     <td>{formatFCFA(montant)}</td>
                                     <td>
                                       <button type="button" className="btn btn-danger btn-sm" onClick={() => removeLine(idx)} title="Supprimer"><i className="bx bx-trash"></i></button>

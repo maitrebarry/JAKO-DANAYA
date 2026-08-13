@@ -53,13 +53,16 @@ interface CartItem {
   id_emballage?: number; // which emballage (carton, sac...) was picked, when the product has 2+
   multiplicateur?: number; // cached nombre d'unités par conditionnement
   prix: number;
+  prixRevendeur?: number | null; // prix affiché sur le reçu (option revendeur) ; n'affecte pas le prix réel
   montant: number;
-} 
+}
 
 const CommandeClient: React.FC = () => {
   const isVente = true;
   const navigate = useNavigate();
   const { currentBoutique } = useUser();
+  // Option revendeur : permet de saisir un prix revendeur (reçu) par ligne, sans toucher au prix réel.
+  const optionRevendeur = !!(currentBoutique as any)?.optionRevendeur;
   const fmt = useFormatMoney();
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -735,6 +738,7 @@ const CommandeClient: React.FC = () => {
         produitId: item.produitId || undefined,
         ligneId: item.ligneId || undefined,
         prix: item.prix,
+        prixRevendeur: (optionRevendeur && item.prixRevendeur != null) ? item.prixRevendeur : undefined,
         priceMode: priceModeDefault
       };
 
@@ -1213,6 +1217,7 @@ const CommandeClient: React.FC = () => {
                             <th>Produit</th>
                             <th>Qté</th>
                             <th>Prix</th>
+                            {optionRevendeur && <th title="Prix affiché sur le reçu — ne modifie pas le prix réel">Prix revendeur (reçu)</th>}
                             <th>Montant</th>
                             <th>Action</th>
                           </tr>
@@ -1319,6 +1324,22 @@ const CommandeClient: React.FC = () => {
                                     })()}
                                   </div>
                                 </td>
+                                {optionRevendeur && (
+                                  <td>
+                                    <input
+                                      type="number"
+                                      className="form-control"
+                                      placeholder="Prix reçu (optionnel)"
+                                      value={item.prixRevendeur ?? ''}
+                                      min="0"
+                                      style={{ width: 160, fontSize: '1rem' }}
+                                      onChange={(e) => {
+                                        const v = e.target.value === '' ? null : (parseFloat(e.target.value) || 0);
+                                        setCart(prev => prev.map(it => it.uid === item.uid ? { ...it, prixRevendeur: v } : it));
+                                      }}
+                                    />
+                                  </td>
+                                )}
                                 <td>{fmt(montant)}</td>
                                 <td>
                                   <div className="d-flex">

@@ -1077,6 +1077,18 @@ public class PdfServiceImpl implements PdfService {
             // Prepare a preformatted total label used by the template to avoid inline expression errors
             try {
                 long totalVal = commande.getTotal() != null ? commande.getTotal() : 0L;
+                // Reçu revendeur : total en prix revendeur si au moins une ligne en a un (affichage uniquement).
+                try {
+                    long revTotal = 0L; boolean hasRev = false;
+                    if (commande.getLignes() != null) {
+                        for (com.smboutique.api.model.LigneCommandeClient lx : commande.getLignes()) {
+                            int qx = lx.getQuantite() != null ? lx.getQuantite() : 0;
+                            if (lx.getPrixRevendeur() != null) { hasRev = true; revTotal += (long) lx.getPrixRevendeur() * qx; }
+                            else { revTotal += (long) (lx.getNewPrice() != null ? lx.getNewPrice() : 0) * qx; }
+                        }
+                    }
+                    if (hasRev) totalVal = revTotal;
+                } catch (Exception __e) { /* fallback: total réel */ }
                 java.text.NumberFormat nf = java.text.NumberFormat.getIntegerInstance(java.util.Locale.FRENCH);
                 String totalLabel = nf.format(totalVal) + " " + deviseSymbole;
                 ctx.setVariable("commandeTotalLabel", totalLabel);
@@ -1109,7 +1121,9 @@ public class PdfServiceImpl implements PdfService {
                         // Use newPrice as the effective unit price when present; fall back to product prixDetail/prixEnGros if available
                         Integer unitPrice = 0;
                         try {
-                            if (l.getNewPrice() != null) unitPrice = l.getNewPrice();
+                            // Reçu revendeur : le prix revendeur (si saisi) remplace le prix réel à l'AFFICHAGE.
+                            if (l.getPrixRevendeur() != null) unitPrice = l.getPrixRevendeur();
+                            else if (l.getNewPrice() != null) unitPrice = l.getNewPrice();
                             else if (l.getProduit() != null && l.getProduit().getPrixDetail() != null) unitPrice = l.getProduit().getPrixDetail();
                             else if (l.getProduit() != null && l.getProduit().getPrixEnGros() != null) unitPrice = l.getProduit().getPrixEnGros();
                         } catch (Exception ex) {
@@ -1117,7 +1131,7 @@ public class PdfServiceImpl implements PdfService {
                             unitPrice = 0;
                         }
                         m.put("price", unitPrice);
-                        m.put("newPrice", l.getNewPrice());
+                        m.put("newPrice", unitPrice);
 
                         // Compute line montant = unitPrice * quantity (quantity in units)
                         int qty = l.getQuantite() != null ? l.getQuantite() : 0;
@@ -1619,7 +1633,9 @@ public class PdfServiceImpl implements PdfService {
                         // Ensure numeric defaults for prices to avoid nulls in templates
                         long priceVal = 0L;
                         try {
-                            if (lv.getNewPrice() != null) priceVal = lv.getNewPrice();
+                            // Reçu revendeur : le prix revendeur (si saisi) remplace le prix réel à l'AFFICHAGE uniquement.
+                            if (lv.getPrixRevendeur() != null) priceVal = lv.getPrixRevendeur();
+                            else if (lv.getNewPrice() != null) priceVal = lv.getNewPrice();
                             else if (lv.getProduit() != null && lv.getProduit().getPrixAchat() != null) priceVal = lv.getProduit().getPrixAchat();
                         } catch (Exception __e) { priceVal = 0L; }
                         long prixAchatVal = 0L;
@@ -1713,6 +1729,26 @@ public class PdfServiceImpl implements PdfService {
                 long netAPayerVal = vente.getNetAPayer() != null ? vente.getNetAPayer() : montantTotalVal;
                 long montantRecuVal = vente.getMontantRecu() != null ? vente.getMontantRecu() : 0L;
                 long monnaieRembourseVal = vente.getMonnaieRembourse() != null ? vente.getMonnaieRembourse() : 0L;
+
+                // Reçu revendeur : si au moins une ligne a un prix revendeur, le reçu affiche le TOTAL
+                // en prix revendeur (somme des prix revendeur, sans remise). Les valeurs réelles en base
+                // (caisse, net à payer réel) ne sont PAS modifiées : seul l'affichage du reçu change.
+                try {
+                    long revendeurTotal = 0L; boolean hasRevendeur = false;
+                    for (com.smboutique.api.model.LigneVente lvx : ligneVenteService.findAll()) {
+                        if (lvx.getVente() == null || lvx.getVente().getId() == null || !lvx.getVente().getId().equals(venteId)) continue;
+                        int qx = lvx.getQuantite() != null ? lvx.getQuantite() : 0;
+                        if (lvx.getPrixRevendeur() != null) { hasRevendeur = true; revendeurTotal += (long) lvx.getPrixRevendeur() * qx; }
+                        else { revendeurTotal += (long) (lvx.getNewPrice() != null ? lvx.getNewPrice() : 0) * qx; }
+                    }
+                    if (hasRevendeur) {
+                        montantTotalVal = revendeurTotal;
+                        remiseVal = 0L;
+                        netAPayerVal = revendeurTotal;
+                        montantRecuVal = revendeurTotal;
+                        monnaieRembourseVal = 0L;
+                    }
+                } catch (Exception __e) { /* fallback: totaux réels */ }
 
                 ctx.setVariable("venteMontantTotalLabel", nf.format(montantTotalVal) + " " + labelSuffix);
                 ctx.setVariable("venteRemiseLabel", nf.format(remiseVal) + " " + labelSuffix);

@@ -967,10 +967,11 @@ const Boutique = () => {
   const [showModal, setShowModal] = useState(false);
   const [newBoutique, setNewBoutique] = useState({
     id: null as number | null,
-    nom: '', 
-    quartier: '', 
-    adresse: '', 
-    logo: null as File | null 
+    nom: '',
+    quartier: '',
+    adresse: '',
+    logo: null as File | null,
+    optionRevendeur: false as boolean,
   });
   const [boutiqueCodePays, setBoutiqueCodePays] = useState<string | null>(null);
   const [paysList, setPaysList] = useState<any[]>([]);
@@ -1102,6 +1103,8 @@ const Boutique = () => {
       if (newBoutique.logo) {
         formData.append('logo', newBoutique.logo);
       }
+      // Option "revendeur" (SuperAdmin) : prix revendeur sur le reçu sans toucher aux prix réels.
+      formData.append('optionRevendeur', String(!!newBoutique.optionRevendeur));
 
       const res = await fetch(url, {
         method,
@@ -1143,7 +1146,7 @@ const Boutique = () => {
       }
 
       setShowModal(false);
-      setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null });
+      setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null, optionRevendeur: false });
       setSelectedPlanCode('MENSUEL');
       setInitialPlanCodeForEdit(null);
       await Swal.fire('Succès', `Boutique ${isEdit ? 'modifiée' : 'créée'} avec succès !`, 'success');
@@ -1242,7 +1245,8 @@ const Boutique = () => {
       nom: boutique.nom || '',
       quartier: boutique.quartier || '',
       adresse: boutique.adresse || '',
-      logo: null
+      logo: null,
+      optionRevendeur: !!boutique.optionRevendeur,
     });
     setBoutiqueCodePays(boutique?.pays?.codeIso || 'ML');
     setSelectedPlanCode('MENSUEL');
@@ -1305,7 +1309,7 @@ const Boutique = () => {
             <button 
               className="btn btn-light" 
               onClick={() => { 
-                setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null }); 
+                setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null, optionRevendeur: false }); 
                 setBoutiqueCodePays('ML'); // default country
                 setSelectedPlanCode('MENSUEL');
                 setInitialPlanCodeForEdit(null);
@@ -1399,7 +1403,7 @@ const Boutique = () => {
                     className="btn-close" 
                     onClick={() => { 
                       setShowModal(false); 
-                      setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null }); 
+                      setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null, optionRevendeur: false }); 
                       setSelectedPlanCode('MENSUEL');
                       setInitialPlanCodeForEdit(null);
                     }}
@@ -1495,6 +1499,23 @@ const Boutique = () => {
                         : 'Ce plan sera activé automatiquement à la création de la boutique.'}
                     </small>
                   </div>
+
+                  <div className="mb-3">
+                    <div className="form-check form-switch">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        id="optionRevendeur"
+                        checked={!!newBoutique.optionRevendeur}
+                        onChange={(e) => setNewBoutique({ ...newBoutique, optionRevendeur: e.target.checked })}
+                      />
+                      <label className="form-check-label" htmlFor="optionRevendeur">Option revendeur</label>
+                    </div>
+                    <small className="text-muted">
+                      Autorise, en vente espèce et commande client, la saisie d'un « prix revendeur » par ligne,
+                      affiché sur le reçu. Ce prix ne modifie ni les prix des produits, ni la caisse, ni les rapports.
+                    </small>
+                  </div>
                 </div>
                 
                 <div className="modal-footer">
@@ -1503,7 +1524,7 @@ const Boutique = () => {
                     className="btn btn-secondary" 
                     onClick={() => { 
                       setShowModal(false); 
-                      setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null }); 
+                      setNewBoutique({ id: null, nom: '', quartier: '', adresse: '', logo: null, optionRevendeur: false }); 
                       setSelectedPlanCode('MENSUEL');
                       setInitialPlanCodeForEdit(null);
                     }}

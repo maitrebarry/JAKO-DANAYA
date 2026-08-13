@@ -30,6 +30,11 @@ public class LigneVente {
     @Column(name = "new_price_vente")
     private Integer newPrice;
 
+    // Prix "revendeur" saisi pour le reçu (option boutique). N'affecte PAS le prix réel (newPrice),
+    // ni la caisse, ni le stock, ni les rapports : sert uniquement à l'affichage sur le reçu + trace.
+    @Column(name = "prix_revendeur")
+    private Integer prixRevendeur;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "price_mode")
     @Setter(AccessLevel.NONE)

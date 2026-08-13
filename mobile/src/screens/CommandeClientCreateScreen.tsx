@@ -40,6 +40,7 @@ type CartLine = {
   quantiteConditionnement: string; // cartons
   idEmballage?: number; // which emballage (carton, sac...) was picked, when the product has 2+
   prixUnit: string; // digits-only string
+  prixRevendeur?: string; // prix affiché sur le reçu (option revendeur), digits-only ; n'affecte pas le prix réel
   priceMode: 'DETAIL' | 'GROS';
 };
 
@@ -537,7 +538,9 @@ export default function CommandeClientCreateScreen() {
   const theme = useTheme();
   const access = useAccess();
   const navigation = useNavigation<any>();
-  const { token } = useApp();
+  const { token, currentBoutique } = useApp();
+  // Option revendeur : permet de saisir un prix revendeur (reçu) par ligne, sans toucher au prix réel.
+  const optionRevendeur = !!currentBoutique?.optionRevendeur;
   const currencySymbol = useCurrencySymbol();
 
   const [loading, setLoading] = useState(true);
@@ -662,7 +665,7 @@ export default function CommandeClientCreateScreen() {
   const updateLine = useCallback(
     (
       stockId: number,
-      patch: Partial<Pick<CartLine, 'quantite' | 'quantiteConditionnement' | 'prixUnit' | 'venteParConditionnement' | 'priceMode' | 'idEmballage'>>
+      patch: Partial<Pick<CartLine, 'quantite' | 'quantiteConditionnement' | 'prixUnit' | 'prixRevendeur' | 'venteParConditionnement' | 'priceMode' | 'idEmballage'>>
     ) => {
       setLines((prev) => (prev || []).map((l) => (l.stockId === stockId ? { ...l, ...patch } : l)));
     },
@@ -728,6 +731,7 @@ export default function CommandeClientCreateScreen() {
         quantiteConditionnement: l.venteParConditionnement ? qCond : null,
         id_emballage: l.venteParConditionnement ? l.idEmballage : undefined,
         prix: parseIntFromDigits(l.prixUnit),
+        prixRevendeur: (optionRevendeur && l.prixRevendeur != null && l.prixRevendeur !== '') ? parseIntFromDigits(l.prixRevendeur) : undefined,
         priceMode: l.priceMode,
       };
     });
@@ -1229,6 +1233,30 @@ export default function CommandeClientCreateScreen() {
                       />
                     </View>
                   </View>
+
+                  {optionRevendeur && (
+                    <View style={{ marginTop: 10 }}>
+                      <Text style={{ color: theme.muted, marginBottom: 6 }}>Prix revendeur (reçu)</Text>
+                      <TextInput
+                        value={l.prixRevendeur ? formatThousandsFromDigits(l.prixRevendeur) : ''}
+                        onChangeText={(t) => updateLine(l.stockId, { prixRevendeur: digitsOnly(t) })}
+                        keyboardType="numeric"
+                        placeholder="Optionnel — affiché sur le reçu"
+                        placeholderTextColor={theme.muted}
+                        style={{
+                          backgroundColor: inputBackground,
+                          color: theme.text,
+                          borderRadius: 14,
+                          paddingHorizontal: 12,
+                          paddingVertical: Platform.OS === 'android' ? 8 : 10,
+                          minHeight: 50,
+                          borderWidth: 1,
+                          borderColor: mutedBorder,
+                          fontWeight: '800',
+                        }}
+                      />
+                    </View>
+                  )}
 
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
                     <Text style={{ color: theme.muted }}>Montant ligne</Text>
