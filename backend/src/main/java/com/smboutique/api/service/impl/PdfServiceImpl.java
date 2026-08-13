@@ -494,8 +494,8 @@ public class PdfServiceImpl implements PdfService {
                 // ignore
             }
             ctx.setVariable("logoBase64", logoData);
+            applyCachetSignature(ctx, b);
         }
-        applyCachetSignature(ctx, b);
 
         String html = templateEngine.process("rapport_stock", ctx);
         writeHtmlPdf(filename, html, response);
@@ -592,8 +592,8 @@ public class PdfServiceImpl implements PdfService {
                 // ignore
             }
             ctx.setVariable("logoBase64", logoData);
+            applyCachetSignature(ctx, b);
         }
-        applyCachetSignature(ctx, b);
 
         String html = templateEngine.process("rapport_top_produits", ctx);
         writeHtmlPdf(filename, html, response);
@@ -656,6 +656,7 @@ public class PdfServiceImpl implements PdfService {
                 ctx.setVariable("boutiqueTelephone", boutiqueTelephone);
                 ctx.setVariable("boutiqueAdresse", boutiqueAdresse);
                 ctx.setVariable("deviseSymbole", deviseSymbole);
+                applyCachetSignature(ctx, b);
             } catch (Exception ignore) {}
 
             // Compute the total montant across all inventory lines and expose to the template (and a preformatted label like in commande_pdf)
@@ -683,7 +684,6 @@ public class PdfServiceImpl implements PdfService {
                 ctx.setVariable("montantTotalLabel", "0 FCFA");
             }
 
-            applyCachetSignature(ctx, b);
             String html = templateEngine.process("inventaire_pdf", ctx);
 
             try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
