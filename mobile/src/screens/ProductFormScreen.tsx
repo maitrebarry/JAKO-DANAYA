@@ -201,18 +201,15 @@ export default function ProductFormScreen({ route, navigation }: any) {
   const pickImage = async () => {
     try {
       if (!ImagePicker) ImagePicker = require('expo-image-picker');
-      // Request camera permissions
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        showError('Permission refusée', 'L\'accès à la caméra est requis pour prendre une photo.');
-        return;
-      }
       // Use the new MediaType API when available to avoid deprecation warnings
       const mediaTypes = ImagePicker.MediaType?.Images || ImagePicker.MediaTypeOptions?.Images || ImagePicker.MediaType?.All || ImagePicker.MediaTypeOptions?.All;
-      const res = await ImagePicker.launchCameraAsync({ mediaTypes, quality: 0.7, base64: false });
-      if (!res.cancelled) setImage(res);
+      const res: any = await ImagePicker.launchImageLibraryAsync({ mediaTypes, quality: 0.7, base64: false });
+      // expo-image-picker SDK 48+ returns { canceled, assets: [{ uri }] } instead of the old { cancelled, uri }
+      const cancelled = res.cancelled ?? res.canceled ?? false;
+      const uri = res.uri || (res.assets && res.assets[0] && res.assets[0].uri);
+      if (!cancelled && uri) setImage({ uri });
     } catch (e:any) {
-      showError('Fonctionnalité non disponible', "Le module d'accès à la caméra n'est pas installé. Exécutez 'expo install expo-image-picker'");
+      showError('Fonctionnalité non disponible', "Le module d'accès à la galerie n'est pas installé. Exécutez 'expo install expo-image-picker'");
     }
   };
 
