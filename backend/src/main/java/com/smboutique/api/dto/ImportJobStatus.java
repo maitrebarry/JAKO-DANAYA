@@ -12,6 +12,8 @@ public class ImportJobStatus {
     private State state = State.PENDING;
     private int processedCount;
     private Integer totalRows;
+    private Integer imagesTotal;
+    private Integer imagesDone;
     private List<String> errors = new ArrayList<>();
 
     public String getJobId() { return jobId; }
@@ -26,6 +28,10 @@ public class ImportJobStatus {
     public void setProcessedCount(int processedCount) { this.processedCount = processedCount; }
     public Integer getTotalRows() { return totalRows; }
     public void setTotalRows(Integer totalRows) { this.totalRows = totalRows; }
+    public Integer getImagesTotal() { return imagesTotal; }
+    public void setImagesTotal(Integer imagesTotal) { this.imagesTotal = imagesTotal; }
+    public Integer getImagesDone() { return imagesDone; }
+    public void setImagesDone(Integer imagesDone) { this.imagesDone = imagesDone; }
     public List<String> getErrors() { return errors; }
     public void setErrors(List<String> errors) { this.errors = errors; }
     public void addError(String e) { this.errors.add(e); }

@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
+// Accent-insensitive match (ex: "cote" doit trouver "Côte d'Ivoire", "senegal" doit trouver "Sénégal").
+const normalize = (s: string): string =>
+  s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
 export interface Option {
   value: string | number;
   label: string;
@@ -25,9 +29,9 @@ const SearchableSelect: React.FC<Props> = ({ options, value, onChange, placehold
   const selected = useMemo(() => options.find(o => String(o.value) === String(value)), [options, value]);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = normalize(query);
     if (!q) return options;
-    return options.filter(o => o.label.toLowerCase().includes(q));
+    return options.filter(o => normalize(o.label).includes(q));
   }, [options, query]);
 
   useEffect(() => setHighlight(0), [filtered]);

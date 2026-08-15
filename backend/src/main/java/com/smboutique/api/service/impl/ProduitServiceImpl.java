@@ -316,6 +316,12 @@ public class ProduitServiceImpl implements ProduitService {
         return importFromExcelInternal(file, currentUser, createMissingUnits, null);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ImportResult importFromExcel(MultipartFile file, com.smboutique.api.model.Utilisateur currentUser, boolean createMissingUnits, String jobId) throws Exception {
+        return importFromExcelInternal(file, currentUser, createMissingUnits, jobId);
+    }
+
     // Internal implementation that optionally updates an in-memory job status when jobId != null
     @Transactional(rollbackFor = Exception.class)
     protected ImportResult importFromExcelInternal(MultipartFile file, com.smboutique.api.model.Utilisateur currentUser, boolean createMissingUnits, String jobId) throws Exception {
@@ -361,17 +367,25 @@ public class ProduitServiceImpl implements ProduitService {
             // Détecter si c'est un fichier exporté (contient colonne ID) pour ajuster la validation
             boolean isExportedFile = colIndex.containsKey("id");
 
+            // Télécharger toutes les images distinctes (colonne productImage) EN PARALLÈLE avant de
+            // traiter les lignes une à une : avec un import de 100 produits, ça évite ~100 téléchargements
+            // séquentiels (potentiellement plusieurs minutes) et fait chuter le temps réel à la durée du
+            // téléchargement le plus lent, pas à leur somme. Occupe 2-60% de la barre de progression.
+            Map<String, String> prefetchedImages = prefetchProductImages(sheet, colIndex, jobId);
+
             for (int r = 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
                 if (row == null) continue;
                 try {
-                    // mettre à jour la progression du parsing
+                    // mettre à jour la progression de l'enregistrement (60-99% ; 2-60% déjà consommés par
+                    // le téléchargement des images ci-dessus)
                     if (jobId != null) {
                         com.smboutique.api.dto.ImportJobStatus s = importJobs.get(jobId);
                         if (s != null && totalRows != null && totalRows > 0) {
-                            int pct = Math.min(99, Math.round((processed * 100f) / totalRows));
+                            int pct = 60 + Math.min(39, Math.round((processed * 39f) / totalRows));
                             s.setProgress(pct);
-                            s.setPhase("parsing");
+                            s.setPhase("enregistrement");
+                            s.setProcessedCount(processed);
                         }
                     }
 
@@ -406,49 +420,18 @@ public class ProduitServiceImpl implements ProduitService {
                         produit.setCaracteristique(caracteristique);
                     }
                     if (productImageUrl != null && !productImageUrl.isEmpty()) {
-                        // Si la valeur est une URL HTTP, tenter de télécharger et sauvegarder l'image
-                        try {
-                            if (productImageUrl.startsWith("http://") || productImageUrl.startsWith("https://")) {
-                                String uploadDir = "uploads/products/";
-                                java.nio.file.Path uploadPath = java.nio.file.Paths.get(uploadDir);
-                                if (!java.nio.file.Files.exists(uploadPath)) {
-                                    java.nio.file.Files.createDirectories(uploadPath);
-                                }
-                                java.net.URL url = new java.net.URL(productImageUrl);
-                                java.net.URLConnection conn = url.openConnection();
-                                conn.setConnectTimeout(10000);
-                                conn.setReadTimeout(10000);
-                                String contentType = conn.getContentType();
-                                String extension = null;
-                                if (contentType != null) {
-                                    if (contentType.equalsIgnoreCase("image/jpeg") || contentType.equalsIgnoreCase("image/jpg")) extension = ".jpg";
-                                    else if (contentType.equalsIgnoreCase("image/png")) extension = ".png";
-                                    else if (contentType.equalsIgnoreCase("image/gif")) extension = ".gif";
-                                    else if (contentType.equalsIgnoreCase("image/webp")) extension = ".webp";
-                                }
-                                if (extension == null) {
-                                    // essayer de localiser une extension à partir du chemin de l'URL
-                                    String path = url.getPath();
-                                    int idx = path.lastIndexOf('.');
-                                    if (idx > 0) {
-                                        extension = path.substring(idx);
-                                    } else {
-                                        extension = ".jpg";
-                                    }
-                                }
-                                String fileName = java.util.UUID.randomUUID().toString() + extension;
-                                java.nio.file.Path filePath = uploadPath.resolve(fileName);
-                                try (java.io.InputStream in = conn.getInputStream()) {
-                                    java.nio.file.Files.copy(in, filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                                }
-                                produit.setProductImage("/uploads/products/" + fileName);
-                            } else {
-                                // Pas une URL - traiter comme un nom de fichier existant ou un chemin relatif
-                                produit.setProductImage(productImageUrl);
+                        if (productImageUrl.startsWith("http://") || productImageUrl.startsWith("https://")) {
+                            // Déjà téléchargée en parallèle par prefetchProductImages() ci-dessus : on ne
+                            // refait pas d'appel réseau ici, on lit juste le résultat.
+                            String localPath = prefetchedImages.get(productImageUrl);
+                            if (localPath == null) {
+                                errors.add("Ligne " + (r+1) + ": impossible de télécharger ou sauvegarder l'image depuis " + productImageUrl);
+                                throw new com.smboutique.api.exception.ImportValidationException(errors);
                             }
-                        } catch (Exception ex) {
-                            errors.add("Ligne " + (r+1) + ": impossible de télécharger ou sauvegarder l'image depuis " + productImageUrl + " -> " + ex.getMessage());
-                            throw new com.smboutique.api.exception.ImportValidationException(errors);
+                            produit.setProductImage(localPath);
+                        } else {
+                            // Pas une URL - traiter comme un nom de fichier existant ou un chemin relatif
+                            produit.setProductImage(productImageUrl);
                         }
                     }
                     produit.setPrixAchat(prixAchat);
@@ -611,6 +594,119 @@ public class ProduitServiceImpl implements ProduitService {
         return new ImportResult(processed, errors);
     }
 
+    // Télécharge une seule image (URL http/https) et la sauvegarde sous uploads/products/,
+    // en retournant le chemin public ("/uploads/products/xxx.jpg"). Utilisé en parallèle par
+    // prefetchProductImages() ; ne touche à aucune entité JPA (sûr à appeler hors transaction/
+    // depuis plusieurs threads en même temps).
+    private String downloadImageToLocalPath(String imageUrl) throws Exception {
+        String uploadDir = "uploads/products/";
+        java.nio.file.Path uploadPath = java.nio.file.Paths.get(uploadDir);
+        if (!java.nio.file.Files.exists(uploadPath)) {
+            java.nio.file.Files.createDirectories(uploadPath);
+        }
+        java.net.URL url = new java.net.URL(imageUrl);
+        java.net.URLConnection conn = url.openConnection();
+        conn.setConnectTimeout(10000);
+        conn.setReadTimeout(10000);
+        // Beaucoup d'hébergeurs d'images (Wikimedia, certains CDN anti-bot...) renvoient un 403
+        // au user-agent par défaut de Java ("Java/21...") sans jamais l'indiquer autrement qu'en
+        // échec de lecture du flux : un user-agent de navigateur standard passe partout.
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36");
+        String contentType = conn.getContentType();
+        String extension = null;
+        if (contentType != null) {
+            if (contentType.equalsIgnoreCase("image/jpeg") || contentType.equalsIgnoreCase("image/jpg")) extension = ".jpg";
+            else if (contentType.equalsIgnoreCase("image/png")) extension = ".png";
+            else if (contentType.equalsIgnoreCase("image/gif")) extension = ".gif";
+            else if (contentType.equalsIgnoreCase("image/webp")) extension = ".webp";
+        }
+        if (extension == null) {
+            // essayer de localiser une extension à partir du chemin de l'URL
+            String path = url.getPath();
+            int idx = path.lastIndexOf('.');
+            extension = idx > 0 ? path.substring(idx) : ".jpg";
+        }
+        String fileName = java.util.UUID.randomUUID().toString() + extension;
+        java.nio.file.Path filePath = uploadPath.resolve(fileName);
+        try (java.io.InputStream in = conn.getInputStream()) {
+            java.nio.file.Files.copy(in, filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
+        return "/uploads/products/" + fileName;
+    }
+
+    // Scanne toute la colonne productImage, déduplique les URL http(s) distinctes, et les télécharge
+    // TOUTES EN PARALLÈLE (pool dédié, jusqu'à 12 téléchargements simultanés) avant que la boucle
+    // ligne-par-ligne ne commence. Sans ça, importer 100 produits avec image = jusqu'à 100
+    // téléchargements séquentiels (potentiellement plusieurs minutes) ; en parallèle, le temps total
+    // se rapproche de la durée du téléchargement le plus lent plutôt que de leur somme.
+    // Met à jour le statut du job (phase "images", progression 2-60%) si jobId != null.
+    private Map<String, String> prefetchProductImages(Sheet sheet, Map<String, Integer> colIndex, String jobId) {
+        Integer imgCol = colIndex.get("productImage");
+        Map<String, String> result = new java.util.concurrent.ConcurrentHashMap<>();
+        if (imgCol == null || imgCol < 0) {
+            return result;
+        }
+
+        java.util.LinkedHashSet<String> distinctUrls = new java.util.LinkedHashSet<>();
+        for (int r = 1; r <= sheet.getLastRowNum(); r++) {
+            Row row = sheet.getRow(r);
+            if (row == null) continue;
+            String v = getStringCell(row, imgCol);
+            if (v != null && (v.startsWith("http://") || v.startsWith("https://"))) {
+                distinctUrls.add(v);
+            }
+        }
+
+        if (jobId != null) {
+            com.smboutique.api.dto.ImportJobStatus s = importJobs.get(jobId);
+            if (s != null) {
+                s.setPhase("images");
+                s.setImagesTotal(distinctUrls.size());
+                s.setImagesDone(0);
+                s.setProgress(distinctUrls.isEmpty() ? 60 : 2);
+            }
+        }
+
+        if (distinctUrls.isEmpty()) {
+            return result;
+        }
+
+        int poolSize = Math.max(1, Math.min(12, distinctUrls.size()));
+        java.util.concurrent.ExecutorService imagePool = java.util.concurrent.Executors.newFixedThreadPool(poolSize);
+        java.util.concurrent.atomic.AtomicInteger done = new java.util.concurrent.atomic.AtomicInteger(0);
+        int total = distinctUrls.size();
+        try {
+            List<java.util.concurrent.Future<?>> futures = new java.util.ArrayList<>();
+            for (String imageUrl : distinctUrls) {
+                futures.add(imagePool.submit(() -> {
+                    try {
+                        result.put(imageUrl, downloadImageToLocalPath(imageUrl));
+                    } catch (Exception ex) {
+                        // pas de valeur -> la ligne concernée sera signalée en erreur lors du traitement
+                        org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class)
+                                .warn("Échec du téléchargement de l'image {} pendant l'import : {}", imageUrl, ex.getMessage());
+                    } finally {
+                        int nowDone = done.incrementAndGet();
+                        if (jobId != null) {
+                            com.smboutique.api.dto.ImportJobStatus s = importJobs.get(jobId);
+                            if (s != null) {
+                                s.setImagesDone(nowDone);
+                                s.setProgress(2 + Math.min(58, Math.round((nowDone * 58f) / total)));
+                            }
+                        }
+                    }
+                }));
+            }
+            for (java.util.concurrent.Future<?> f : futures) {
+                try { f.get(); } catch (Exception ignored) { /* déjà journalisé ci-dessus */ }
+            }
+        } finally {
+            imagePool.shutdown();
+        }
+
+        return result;
+    }
+
     private String getStringCell(Row row, Integer idx) {
         if (idx == null || idx < 0) return null;
         Cell c = row.getCell(idx);
@@ -764,8 +860,9 @@ public class ProduitServiceImpl implements ProduitService {
                 if (applicationContext != null) {
                     try {
                         ProduitService svc = applicationContext.getBean(ProduitService.class);
-                        // appeler le service proxifié afin que la sémantique @Transactional reste valide
-                        res = svc.importFromExcel(stableFile, currentUser, createMissingUnits);
+                        // appeler le service proxifié (sémantique @Transactional) en lui passant le jobId
+                        // pour que la progression par ligne/par image remonte réellement au statut du job.
+                        res = svc.importFromExcel(stableFile, currentUser, createMissingUnits, jobId);
                     } catch (Exception ex) {
                         // revenir à l'implémentation interne en dernier recours (conserve jobId pour le suivi du statut)
                         res = importFromExcelInternal(stableFile, currentUser, createMissingUnits, jobId);
@@ -788,7 +885,14 @@ public class ProduitServiceImpl implements ProduitService {
                     s4.setState(com.smboutique.api.dto.ImportJobStatus.State.FAILED);
                     s4.setPhase("failed");
                     s4.setProgress(100);
-                    s4.addError(ex.getMessage() == null ? ex.toString() : ex.getMessage());
+                    if (ex instanceof com.smboutique.api.exception.ImportValidationException ive && ive.getErrors() != null && !ive.getErrors().isEmpty()) {
+                        // ImportValidationException.getMessage() est toujours le texte générique
+                        // "Import validation failed" ; le détail utile (numéro de ligne, cause) est
+                        // dans getErrors() - sans ça l'utilisateur ne voit jamais pourquoi ça échoue.
+                        for (String e : ive.getErrors()) s4.addError(e);
+                    } else {
+                        s4.addError(ex.getMessage() == null ? ex.toString() : ex.getMessage());
+                    }
                 }
                 // journaliser avec jobId pour faciliter le débogage
                 org.slf4j.LoggerFactory.getLogger(ProduitServiceImpl.class).error("Async import job {} failed: {}", jobId, ex.getMessage(), ex);
@@ -833,18 +937,18 @@ public class ProduitServiceImpl implements ProduitService {
             headerFont.setBold(true);
             headerStyle.setFont(headerFont);
 
+            // Mêmes 9 colonnes, mêmes noms, même ordre que le modèle d'import (produits_template.xlsx) :
+            // un fichier exporté doit pouvoir être réimporté tel quel sans réédition manuelle des en-têtes.
             String[] headers = new String[] {
-                    "ID",
-                    "Nom",
-                    "Unité",
-                    "Unités/cond.",
-                    "Prix achat",
-                    "Prix gros",
-                    "Prix détail",
-                    "Stock total (u.)",
-                    "Stock boutique (u.)",
-                    "Stocks magasins",
-                    "Alerte stock"
+                    "nomProduit",
+                    "prixAchat",
+                    "prixDetail",
+                    "prixEnGros",
+                    "alerteStock",
+                    "quantiteInitiale",
+                    "emballages",
+                    "productImage",
+                    "caracteristique"
             };
 
             Row header = sheet.createRow(0);
@@ -869,30 +973,38 @@ public class ProduitServiceImpl implements ProduitService {
                 int totalStock = scopedStocks.stream()
                         .mapToInt(stock -> stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0)
                         .sum();
-                int boutiqueStock = scopedStocks.stream()
-                        .filter(stock -> stock.getMagasin() == null)
-                        .mapToInt(stock -> stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0)
-                        .sum();
-                String magasinDetails = scopedStocks.stream()
-                        .filter(stock -> stock.getMagasin() != null)
-                        .map(stock -> {
-                            String magasinName = stock.getMagasin().getNom() != null ? stock.getMagasin().getNom() : ("Magasin #" + stock.getMagasin().getId());
-                            int qty = stock.getQuantiteDisponible() != null ? stock.getQuantiteDisponible() : 0;
-                            return magasinName + ": " + qty;
-                        })
-                        .collect(Collectors.joining(" | "));
 
-                row.createCell(0).setCellValue(produit.getId() != null ? produit.getId() : 0);
-                row.createCell(1).setCellValue(produit.getNomProduit() != null ? produit.getNomProduit() : "");
-                row.createCell(2).setCellValue(produit.getUnite() != null && produit.getUnite().getLibelle() != null ? produit.getUnite().getLibelle() : "");
-                row.createCell(3).setCellValue(produit.getNombreUnitesParConditionnement() != null ? produit.getNombreUnitesParConditionnement() : 0);
-                row.createCell(4).setCellValue(produit.getPrixAchat() != null ? produit.getPrixAchat() : 0);
-                row.createCell(5).setCellValue(produit.getPrixEnGros() != null ? produit.getPrixEnGros() : 0);
-                row.createCell(6).setCellValue(produit.getPrixDetail() != null ? produit.getPrixDetail() : 0);
-                row.createCell(7).setCellValue(totalStock);
-                row.createCell(8).setCellValue(boutiqueStock);
-                row.createCell(9).setCellValue(magasinDetails);
-                row.createCell(10).setCellValue(produit.getAlerteStock() != null ? produit.getAlerteStock() : 0);
+                List<com.smboutique.api.model.ProduitEmballage> emballages = produit.getEmballages() == null
+                        ? Collections.emptyList()
+                        : produit.getEmballages().stream()
+                            .sorted((a, b) -> Boolean.compare(
+                                    !Boolean.TRUE.equals(a.getEstParDefaut()),
+                                    !Boolean.TRUE.equals(b.getEstParDefaut())))
+                            .collect(Collectors.toList());
+
+                String emballagesColumn = emballages.stream()
+                        .filter(e -> e.getUnite() != null && e.getUnite().getLibelle() != null && e.getNombreUnites() != null)
+                        .map(e -> e.getUnite().getLibelle() + ":" + e.getNombreUnites())
+                        .collect(Collectors.joining(";"));
+
+                // quantiteInitiale s'exprime dans l'unité de l'emballage par défaut (comme à l'import) :
+                // on convertit donc le stock réel (en unités de base) en nombre de "paquets" par défaut.
+                Integer defaultMultiplier = !emballages.isEmpty() && emballages.get(0).getNombreUnites() != null
+                        ? emballages.get(0).getNombreUnites()
+                        : produit.getNombreUnitesParConditionnement();
+                int quantiteInitiale = (defaultMultiplier != null && defaultMultiplier > 0)
+                        ? totalStock / defaultMultiplier
+                        : totalStock;
+
+                row.createCell(0).setCellValue(produit.getNomProduit() != null ? produit.getNomProduit() : "");
+                row.createCell(1).setCellValue(produit.getPrixAchat() != null ? produit.getPrixAchat() : 0);
+                row.createCell(2).setCellValue(produit.getPrixDetail() != null ? produit.getPrixDetail() : 0);
+                row.createCell(3).setCellValue(produit.getPrixEnGros() != null ? produit.getPrixEnGros() : 0);
+                row.createCell(4).setCellValue(produit.getAlerteStock() != null ? produit.getAlerteStock() : 0);
+                row.createCell(5).setCellValue(quantiteInitiale);
+                row.createCell(6).setCellValue(emballagesColumn);
+                row.createCell(7).setCellValue(produit.getProductImage() != null ? produit.getProductImage() : "");
+                row.createCell(8).setCellValue(produit.getCaracteristique() != null ? produit.getCaracteristique() : "");
             }
 
             for (int i = 0; i < headers.length; i++) {

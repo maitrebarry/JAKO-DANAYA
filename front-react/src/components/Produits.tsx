@@ -62,6 +62,11 @@ const Produits: React.FC = () => {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importProgress, setImportProgress] = useState<number>(0);
+  const [importPhase, setImportPhase] = useState<string>('');
+  const [importImagesDone, setImportImagesDone] = useState<number | null>(null);
+  const [importImagesTotal, setImportImagesTotal] = useState<number | null>(null);
+  const [importProcessedCount, setImportProcessedCount] = useState<number | null>(null);
+  const [importTotalRows, setImportTotalRows] = useState<number | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
@@ -859,15 +864,78 @@ const Produits: React.FC = () => {
                     <label htmlFor="createMissingUnits" className="form-check-label small">Créer les unités manquantes (réservé aux utilisateurs autorisés)</label>
                   </div>
                 )}
-                {isImporting && <div className="mb-3">Traitement en cours, veuillez patienter...</div>}
                 {renderMargeHint()}
-                {importProgress > 0 && (
-                  <div className="mb-3">
-                    <div className="progress">
-                      <div className="progress-bar" role="progressbar" style={{ width: `${importProgress}%` }}>{importProgress}%</div>
+                {isImporting && importProgress > 0 && (() => {
+                  const steps = [
+                    { key: 'send', icon: 'bx-upload', label: 'Envoi' },
+                    { key: 'images', icon: 'bx-image-alt', label: 'Images' },
+                    { key: 'save', icon: 'bx-save', label: 'Enregistrement' },
+                  ];
+                  const stepIndex = importPhase === 'images' ? 1 : (importPhase === 'enregistrement' ? 2 : 0);
+                  let subCount: string | null = null;
+                  if (importPhase === 'images' && importImagesTotal) {
+                    subCount = `${importImagesDone ?? 0} / ${importImagesTotal} images téléchargées`;
+                  } else if (importPhase === 'enregistrement' && importTotalRows) {
+                    subCount = `${importProcessedCount ?? 0} / ${importTotalRows} produits enregistrés`;
+                  }
+                  const phaseText = importPhase === 'images'
+                    ? 'Téléchargement des images'
+                    : importPhase === 'enregistrement'
+                      ? 'Enregistrement des produits'
+                      : importPhase === 'parsing'
+                        ? 'Lecture du fichier'
+                        : 'Envoi du fichier';
+                  return (
+                    <div className="jd-import-progress mb-3">
+                      <style>{`
+                        .jd-import-progress { border: 1px solid #e3e8ee; border-radius: 14px; padding: 18px 20px 16px; background: linear-gradient(180deg,#f5f9fd 0%, #ffffff 100%); }
+                        .jd-import-steps { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+                        .jd-import-step { display:flex; flex-direction:column; align-items:center; gap:6px; flex:1; }
+                        .jd-import-step .jd-step-circle {
+                          width: 38px; height: 38px; border-radius: 50%; display:flex; align-items:center; justify-content:center;
+                          background:#eef1f5; color:#9aa5b1; font-size: 19px; transition: all .35s ease; border: 2px solid #e3e8ee;
+                        }
+                        .jd-import-step.active .jd-step-circle { background:#2C5F8A; color:#fff; border-color:#2C5F8A; box-shadow: 0 0 0 6px rgba(44,95,138,.15); animation: jd-pulse 1.4s ease-in-out infinite; }
+                        .jd-import-step.done .jd-step-circle { background:#2f7a4f; color:#fff; border-color:#2f7a4f; }
+                        .jd-import-step .jd-step-label { font-size: 11px; font-weight:700; color:#8b95a1; text-transform:uppercase; letter-spacing:.04em; }
+                        .jd-import-step.active .jd-step-label { color:#2C5F8A; }
+                        .jd-import-step.done .jd-step-label { color:#2f7a4f; }
+                        .jd-import-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+                        .jd-import-head .jd-phase-text { font-weight:700; color:#1c3f5c; display:flex; align-items:center; gap:8px; font-size:14.5px; }
+                        .jd-import-head .jd-phase-text i { font-size:18px; animation: jd-bounce 1s ease-in-out infinite; color:#2C5F8A; }
+                        .jd-import-head .jd-percent { font-weight:800; font-size:20px; color:#2C5F8A; font-variant-numeric: tabular-nums; }
+                        .jd-import-bar-wrap { height: 22px; border-radius: 999px; background:#eef1f5; overflow:hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,.06); }
+                        .jd-import-bar-fill {
+                          height:100%; border-radius:999px;
+                          background: linear-gradient(90deg,#2C5F8A,#4a9fd8 45%,#2C5F8A);
+                          background-size: 200% 100%;
+                          animation: jd-bar-shine 2.2s linear infinite;
+                          transition: width .5s ease;
+                        }
+                        .jd-import-sub-count { margin-top:8px; text-align:right; color:#6b7684; font-size:12.5px; font-variant-numeric: tabular-nums; }
+                        @keyframes jd-pulse { 0%,100% { box-shadow: 0 0 0 6px rgba(44,95,138,.15);} 50% { box-shadow: 0 0 0 10px rgba(44,95,138,.05);} }
+                        @keyframes jd-bar-shine { from { background-position: 200% 0; } to { background-position: 0 0; } }
+                        @keyframes jd-bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+                      `}</style>
+                      <div className="jd-import-steps">
+                        {steps.map((s, i) => (
+                          <div key={s.key} className={`jd-import-step ${i < stepIndex ? 'done' : i === stepIndex ? 'active' : ''}`}>
+                            <div className="jd-step-circle"><i className={`bx ${i < stepIndex ? 'bx-check' : s.icon}`}></i></div>
+                            <div className="jd-step-label">{s.label}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="jd-import-head">
+                        <div className="jd-phase-text"><i className='bx bx-package'></i> {phaseText}...</div>
+                        <div className="jd-percent">{importProgress}%</div>
+                      </div>
+                      <div className="jd-import-bar-wrap">
+                        <div className="jd-import-bar-fill" style={{ width: `${Math.max(4, importProgress)}%` }} />
+                      </div>
+                      {subCount && <div className="jd-import-sub-count">{subCount}</div>}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
                 {importErrors.length > 0 && (
                   <div className="alert alert-danger">
                     <ul>
@@ -883,6 +951,11 @@ const Produits: React.FC = () => {
                   if (!canImport) { setImportErrors(['Accès refusé : vous n\'avez pas les droits pour importer des produits.']); return; }
                   if (!importFile) { setMessage('Sélectionnez un fichier à importer'); return; }
                   setImportProgress(0);
+                  setImportPhase('upload');
+                  setImportImagesDone(null);
+                  setImportImagesTotal(null);
+                  setImportProcessedCount(null);
+                  setImportTotalRows(null);
                   setImportErrors([]);
                   setIsImporting(true);
                   try {
@@ -908,13 +981,18 @@ const Produits: React.FC = () => {
                         const res = JSON.parse(xhr.responseText);
                         const jobId = res.jobId;
                         setImportProgress(2);
+                        setImportPhase('parsing');
                         const poll = setInterval(async () => {
                           try {
                             const stRes = await fetch(`${API}/produits/import/${jobId}/status`, { headers: { Authorization: `Bearer ${token}` } });
                             if (stRes.status === 200) {
                               const js = await stRes.json();
                               if (js.progress != null) setImportProgress(js.progress);
-                              if (js.phase) setMessage(`Import — étape: ${js.phase}`);
+                              if (js.phase) setImportPhase(js.phase);
+                              if (js.imagesDone != null) setImportImagesDone(js.imagesDone);
+                              if (js.imagesTotal != null) setImportImagesTotal(js.imagesTotal);
+                              if (js.processedCount != null) setImportProcessedCount(js.processedCount);
+                              if (js.totalRows != null) setImportTotalRows(js.totalRows);
                               if (js.state === 'COMPLETED') {
                                 clearInterval(poll);
                                 setIsImporting(false);

@@ -17,6 +17,10 @@ public interface ProduitService {
     /* New: explicit flag to allow creating missing unités during import (must be authorized). */
     com.smboutique.api.dto.ImportResult importFromExcel(org.springframework.web.multipart.MultipartFile file, com.smboutique.api.model.Utilisateur currentUser, boolean createMissingUnits) throws Exception;
 
+    /* Same as above, but threads a jobId through so the async job's ImportJobStatus gets real
+     * per-row/per-image progress updates instead of jumping straight from "parsing" to "completed". */
+    com.smboutique.api.dto.ImportResult importFromExcel(org.springframework.web.multipart.MultipartFile file, com.smboutique.api.model.Utilisateur currentUser, boolean createMissingUnits, String jobId) throws Exception;
+
     /* Async import job support */
     String startAsyncImport(org.springframework.web.multipart.MultipartFile file, com.smboutique.api.model.Utilisateur currentUser, boolean createMissingUnits);
 

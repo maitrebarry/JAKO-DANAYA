@@ -6,6 +6,7 @@ import useHasPermission from '../contexts/useHasPermission';
 import RequirePermission from './RequirePermission';
 import PhoneWithDial from './PhoneWithDial';
 import SignaturePad from './SignaturePad';
+import SearchableSelect from './SearchableSelect';
 import { withApi, API, API_BASE } from '../config/api';
 
 const Configuration = () => {
@@ -1464,18 +1465,26 @@ const Boutique = () => {
                   <div className="col-md-6 mb-3">
                     <label className="form-label">Pays</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span className={`iti__flag iti__${(boutiqueCodePays || 'ML').toLowerCase()}`} style={{ width: 28, height: 20, display: 'inline-block' }} />
-                      <select className="form-select" value={boutiqueCodePays || ''} onChange={(e) => {
-                        const code = e.target.value;
-                        setBoutiqueCodePays(code);
-                        // When a country is selected, clear the telephone field so the user enters the full number
-                        // and mark it as invalid until a real number is entered/validated. Keep the indicatif separately.
-                      }} style={{ maxWidth: 360 }}>
-                        <option value="">Sélectionnez un pays</option>
-                        {paysList.map(p => (
-                          <option key={p.codeIso} value={p.codeIso}>{`${p.nom} (${p.deviseSymbole || ''})`}</option>
-                        ))}
-                      </select>
+                      <span className={`iti__flag iti__${(boutiqueCodePays || 'ML').toLowerCase()}`} style={{ width: 28, height: 20, flex: '0 0 auto' }} />
+                      <div style={{ maxWidth: 360, width: '100%' }}>
+                        <SearchableSelect
+                          options={[...paysList]
+                            .sort((a, b) => (a.nom || '').localeCompare(b.nom || '', 'fr'))
+                            .map(p => ({
+                              value: p.codeIso,
+                              label: (p.deviseSymbole || p.deviseCode) ? `${p.nom} (${p.deviseSymbole || p.deviseCode})` : p.nom,
+                            }))}
+                          value={boutiqueCodePays || ''}
+                          onChange={(v) => {
+                            const code = v ? String(v) : null;
+                            setBoutiqueCodePays(code);
+                            // When a country is selected, clear the telephone field so the user enters the full number
+                            // and mark it as invalid until a real number is entered/validated. Keep the indicatif separately.
+                          }}
+                          placeholder="Rechercher un pays..."
+                          allowClear={false}
+                        />
+                      </div>
                       <div style={{ marginLeft: 8 }}>
                         <small className="text-muted">Devise: {(paysList.find(p => p.codeIso === (boutiqueCodePays || 'ML')) || { deviseSymbole: 'FCFA' }).deviseSymbole}</small>
                       </div>
