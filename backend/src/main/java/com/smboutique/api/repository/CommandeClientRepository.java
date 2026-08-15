@@ -11,7 +11,12 @@ import jakarta.persistence.LockModeType;
 
 @Repository
 public interface CommandeClientRepository extends JpaRepository<CommandeClient, Long> {
-    java.util.List<CommandeClient> findAllByBoutiqueId(Long boutiqueId);
+    // lignes est déclaré FetchType.EAGER sur l'entité, mais sans JOIN FETCH explicite Hibernate
+    // exécute quand même une requête séparée par commande pour les charger (N+1) ; le tableau de
+    // bord appelle cette méthode plusieurs fois par requête et devenait très lent dès que la
+    // boutique avait plus qu'une poignée de commandes. Un seul JOIN FETCH regroupe tout en une requête.
+    @Query("SELECT DISTINCT c FROM CommandeClient c LEFT JOIN FETCH c.lignes l LEFT JOIN FETCH l.produit WHERE c.boutique.id = :boutiqueId")
+    java.util.List<CommandeClient> findAllByBoutiqueId(@Param("boutiqueId") Long boutiqueId);
     java.util.Optional<CommandeClient> findByIdAndBoutiqueId(Long id, Long boutiqueId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

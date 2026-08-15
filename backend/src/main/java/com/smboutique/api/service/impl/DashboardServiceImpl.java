@@ -111,9 +111,7 @@ public class DashboardServiceImpl implements DashboardService {
         }
 
         List<Vente> ventes = (boutiqueId == null) ? venteService.findAll() : venteService.findByBoutiqueId(boutiqueId);
-        List<LigneVente> ligneVentes = ligneVenteService.findAll().stream()
-                .filter(lv -> lv.getVente() != null && lv.getVente().getBoutique() != null && (boutiqueId == null || lv.getVente().getBoutique().getId().equals(boutiqueId)))
-                .collect(java.util.stream.Collectors.toList());
+        List<LigneVente> ligneVentes = ligneVenteService.findAllForDashboard(boutiqueId);
 
         long salesTotal = commandes.stream().mapToLong(c -> c.getTotal() == null ? 0L : c.getTotal().longValue()).sum()
                 + ventes.stream().mapToLong(v -> v.getMontantTotal() == null ? 0L : v.getMontantTotal().longValue()).sum();
@@ -347,9 +345,13 @@ public class DashboardServiceImpl implements DashboardService {
             widgets.put("etat_services", java.util.Map.of("api","OK","db","OK"));
         } else if (isOwner) {
             role = "PROPRIETAIRE";
-            System.out.println("DEBUG: User is PROPRIETAIRE, adding commande_client widget");
+            // Chargées une seule fois et réutilisées ci-dessous : ces deux appels étaient répétés
+            // (jusqu'à 4x pour les commandes, 2x pour les stocks) dans ce seul bloc, chacun un
+            // aller-retour BDD, ce qui rendait le premier chargement du tableau de bord très lent.
+            List<CommandeClient> commandes = commandeClientService.findAllByBoutiqueId(finalTargetBoutiqueId);
+            List<Stock> allStocks = stockService.getAllStocks();
             widgets.put("chiffre_affaires_total", dto.getSalesTotal());
-            widgets.put("valeur_stock", stockService.getAllStocks().stream()
+            widgets.put("valeur_stock", allStocks.stream()
                     .filter(s -> s.getBoutique() != null && s.getBoutique().getId().equals(finalTargetBoutiqueId))
                     .filter(s -> finalTargetMagasinId == null || (s.getMagasin() != null && s.getMagasin().getId().equals(finalTargetMagasinId)))
                     .map(s -> {
@@ -359,11 +361,11 @@ public class DashboardServiceImpl implements DashboardService {
                         return price.multiply(q);
                     }).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add).doubleValue());
             widgets.put("top_products", dto.getTopProducts());
-            widgets.put("resume_caisse", calculateResumeCaisse(commandeClientService.findAllByBoutiqueId(finalTargetBoutiqueId), finalTargetBoutiqueId));
+            widgets.put("resume_caisse", calculateResumeCaisse(commandes, finalTargetBoutiqueId));
             widgets.put("evolution_ventes", java.util.Map.of("trend", calculateSalesTrend(dto.getSales7d())));
             if (finalTargetMagasinId != null) {
                 // Count products that have stock in the selected magasin
-                long count = stockService.getAllStocks().stream()
+                long count = allStocks.stream()
                         .filter(s -> s.getMagasin() != null && s.getMagasin().getId().equals(finalTargetMagasinId))
                         .map(s -> s.getProduit())
                         .filter(java.util.Objects::nonNull)
@@ -375,13 +377,12 @@ public class DashboardServiceImpl implements DashboardService {
             }
             widgets.put("alerte_stock", dto.getLowStockCount());
             widgets.put("commande_fournisseur", commandeFournisseurService.findAllByBoutiqueId(finalTargetBoutiqueId).size());
-            widgets.put("commande_client", commandeClientService.findAllByBoutiqueId(finalTargetBoutiqueId).size());
-            widgets.put("vente_credit", commandeClientService.findAllByBoutiqueId(finalTargetBoutiqueId).stream()
+            widgets.put("commande_client", commandes.size());
+            widgets.put("vente_credit", commandes.stream()
                     .filter(c -> c.getPaie() == null || (c.getTotal() != null && c.getPaie().compareTo(c.getTotal()) < 0))
                     .count());
 
             // Calculs détaillés pour bilan des ventes
-            List<CommandeClient> commandes = commandeClientService.findAllByBoutiqueId(finalTargetBoutiqueId);
             widgets.put("bilan_ventes", calculateBilanVentes(commandes, ventes));
             widgets.put("bilan_trimestriel", calculateBilanTrimestriel(commandes, ventes));
         } else if (isManager) {

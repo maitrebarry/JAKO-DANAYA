@@ -242,8 +242,6 @@ const Produits: React.FC = () => {
       }
     } catch (err: any) {
       setError(err.message || 'Erreur inconnue');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -688,7 +686,14 @@ const Produits: React.FC = () => {
 
   const isSuccessMessage = assignSuccess || /succès/i.test(message) || /réussi/i.test(message) || /reussi/i.test(message) || /import terminé/i.test(message);
 
-  if (loading) return <div>Chargement...</div>;
+  if (loading) return (
+    <div className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '60vh' }}>
+      <div className="spinner-border text-primary" role="status" style={{ width: 48, height: 48 }}>
+        <span className="visually-hidden">Chargement...</span>
+      </div>
+      <div className="text-muted mt-3">Chargement des produits...</div>
+    </div>
+  );
   if (error) return <div className="alert alert-danger">{error}</div>;
 
   return (

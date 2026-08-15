@@ -20,4 +20,12 @@ public interface LigneVenteRepository extends JpaRepository<LigneVente, Long> {
     List<LigneVente> findByVenteDateRangeAndBoutique(@Param("fromDate") LocalDateTime fromDate,
                                                      @Param("toDate") LocalDateTime toDate,
                                                      @Param("boutiqueId") Long boutiqueId);
+
+    // Le tableau de bord filtrait auparavant findAll() (TOUTES les lignes de vente du système,
+    // toutes boutiques confondues) en Java via lv.getVente().getBoutique() - un aller-retour BDD
+    // par ligne pour charger vente puis boutique en lazy (N+1), en plus de ramener des données
+    // inutiles pour les autres boutiques. Ici le filtrage se fait en SQL et produit+vente sont
+    // chargés en une seule requête.
+    @Query("SELECT l FROM LigneVente l JOIN FETCH l.vente v LEFT JOIN FETCH l.produit WHERE :boutiqueId IS NULL OR v.boutique.id = :boutiqueId")
+    List<LigneVente> findAllForDashboard(@Param("boutiqueId") Long boutiqueId);
 }

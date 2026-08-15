@@ -26,6 +26,11 @@ public class LigneVenteServiceImpl implements LigneVenteService {
     }
 
     @Override
+    public List<LigneVente> findAllForDashboard(Long boutiqueId) {
+        return ligneVenteRepository.findAllForDashboard(boutiqueId);
+    }
+
+    @Override
     public LigneVente save(LigneVente ligneVente) {
         // Prevent priceMode modification after creation
         if (ligneVente.getId() != null) {
