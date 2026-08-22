@@ -48,15 +48,12 @@
         border-collapse:collapse; overflow:hidden; }
     .total-banner td { padding: 10px 16px; box-sizing:border-box; vertical-align:middle; }
     .total-banner .tb-accent { width:44px; text-align:center; border-right:1px solid #c9dcf5; }
-    /* Icône panier dessinée en CSS pur : les émojis ne s'affichent pas dans ce moteur PDF
-       (aucune police couleur embarquée), un pictogramme en formes simples est fiable partout.
-       Pas de transform:rotate ici : mal supporté par ce moteur (rendu illisible en pratique). */
-    .tb-cart { display:inline-block; width:26px; height:20px; position:relative; vertical-align:middle; }
-    .tb-cart-basket { position:absolute; top:0; left:2px; width:20px; height:14px; box-sizing:border-box;
-        border:2.5px solid #154c96; border-top:none; }
-    .tb-cart-wheel { position:absolute; bottom:-5px; width:5px; height:5px; border-radius:50%; background:#154c96; }
-    .tb-cart-wheel.left { left:4px; }
-    .tb-cart-wheel.right { right:4px; }
+    /* Icône panier : image réelle (PNG), pas un emoji — ce moteur PDF n'a pas de police couleur
+       et n'affiche aucun emoji (rendu en "#"). Image intégrée directement (pas de fichier externe :
+       openhtmltopdf convertit le HTML sans URL de base, seules les data URI sont garanties de marcher). */
+    .tb-cart { display:inline-block; width:26px; height:26px; vertical-align:middle;
+        background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAACtWK6eAAAELklEQVR4nO3c63UbRwwGUNjHLaSrVOKCUkm6ShHxHyvRg4J4yNldAHNvATo0Zj8AO5IZAQAAAAAAAAAAAAAAAAAAAAAAAEBp31b/wD/+/Ovf1T/zln/+/rn8s8N736/+AFCZgEBCQCAhIJAQEEj8WPFDzrq5grM9HBChYAdWLEg8HBC/qGMHJggkngqIKcJ0S26xHiFcdGDFgsTTATEJmOyyCeL3KHSwJCCmCFNd+g5iilCdl3RILAuINYuJLp8g1iwqWxoQU4RpLp8gEaYIdZUICFR1yEpUaSJY+3jG+IAw29EN8JAVS9dmCu8gkBAQSBwWEGsWE5ggkDi8y7+/0XqZLG66WO2IreWU/5Nu3eIMr5vuqmfu8BVLOOjMOwjjrGzKAgKJUeuPF38i1k6Qy744rgLvR7U90vBWn+nWK5aJw1e2Dgh1VWleowJiZdrbEec/KiCwmoBQTpX1KkJAGOKo9Xr7gFTqVtSzfUCopVrDGhcQN1n7OfLMxwUEVhIQyqi2XkUICM21/F6sbip2LmoQEEqo2qRGBsRN1h7OOOeRAYFVBITLVV2vIgTkP5UPiY/OWqMFBBJjA+JFvYfqk3tsQJjrzOYnIJAQEC5Tfb2KEJA3OhzY7s5+txQQSIwOiJusurpM69EBYZYrGp6AQEJAOF2X9SpCQD7odHg7uep9UkAgMT4gbrJq6TahxweE/q5scgICCQHhNN3WqwgBuanjQU519TukgEBii4Bc3YXoO5W3CAg9VWhsAgIJAeFwXderCAH5VOdDnaDCehUhIJDaJiBVOtJuuk/ibQJCH5WamYBAQkAS3deDq02on4BQSqX1KmKzgFQrPvVtFRDOM2G9ihAQCqk44QUEEgLyhSmrwpkm1UxAKKHiehWxYUCqHgQ1bRcQjjVpvYoQEAqoPNUFBBICcodpa8NRJtZJQLhU5fUqYtOAVD8U6tgyIKw3cb2KiNi2k0490E46THITBBICAgkB4RId1quIjQPS5YC41rYBgXv8uPoDXO39JHG7tc5Lbd/XtNP03jognQ6qs9d17taArFicqltTEhBICAgkBASAx7R6YbpKdvPS7aXzGTvWYeQ/aoVHriMnPiS718E7yA2P3tV3u+P/ijqYIG+sPNjOXVQd/meC/La663XtourwloDEcYfY7eFQh48EBBLbB+To7tale6rDbVsH5KxDq/5wqMPntg4IfEVAILFtQM4e91XXC3XIbRsQuIeAQEJAICEgkBAQSAgIJLYNyNl/hl31z77VIbdtQOAeAgKJrQNy1rivvlaow+e2DkjE8YfW5aFQh9u2DwhkBCSO627duqY6fCQgv60+xK4PhTq81frDH+WZP8nu/kC8pg4myE2PHu6Uh+KFOpggd9nxO2lvUQcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOMkvrSJnm9IwUEMAAAAASUVORK5CYII=);
+        background-size:contain; background-repeat:no-repeat; background-position:center; }
     .total-banner .tb-label { font-weight:800; font-size:14px; text-transform:uppercase; letter-spacing:0.5px; color:#123a73; white-space:nowrap; }
     .total-banner .tb-value { background:#154c96; color:#fff; font-weight:800; font-size:16px; text-align:right; white-space:nowrap; }
 
@@ -84,8 +81,7 @@
         border-collapse:collapse; overflow:hidden; page-break-inside: avoid; }
     .sign-row td { padding:16px 14px 22px; box-sizing:border-box; vertical-align:top; font-size:12px; }
     .sign-col.right-col { text-align:right; border-left:1px solid #dce7f7; }
-    .sign-stamp-col { width:24%; text-align:center; padding:16px 6px;
-        border-left:1px solid #dce7f7; border-right:1px solid #dce7f7; }
+    .sign-stamp-col { width:24%; text-align:center; padding:16px 6px; }
     .sign-stamp-col .stamp-circle { display:inline-block; width:70px; height:70px; border-radius:50%;
         border:2px solid #154c96; margin-top:10px; }
     .sign-label { font-weight:700; color:#154c96; margin-bottom:10px; }
