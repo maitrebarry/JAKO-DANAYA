@@ -4,32 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Bon de Réception</title>
-    <style>
-        body { font-family: 'Helvetica', Arial, sans-serif; color: #2b2b2b; margin: 16px; }
-        /* Header without visible border; fill with background-image when logo present */
-        .header { width: 100%; height: 160px; margin-bottom: 12px; border: none; padding: 0; box-sizing: border-box; position:relative; }
-        .logo { display:block; width:100%; max-height: 150px; height:auto; }
-        .header.bg-logo { background-size: cover; background-position:center; background-repeat:no-repeat; }
-        .logo { display:block; width:100%; max-height: 110px; height:auto; }
-        .no-logo-info { display:block; text-align:center; height: 100%; font-size: 16px; font-weight: bold; color: #2b2b2b; line-height: 1.5; background:#f6f6f6; padding:14px; box-sizing:border-box; }
-        .footer-info { width:100%; overflow:hidden; margin-bottom: 12px; }
-        .boutique-info { float:left; width:50%; font-size: 12px; line-height:1.4; }
-        .meta-info { float:right; width:48%; text-align:right; font-size: 12px; line-height:1.4; }
-        /* Table grid: full borders and centered content */
-        .table { width:100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
-        .table th, .table td { border: 1px solid #ddd; padding: 6px 8px; text-align:center; vertical-align: middle; }
-        .table .right { text-align:center; }
-        .table th { background: #fafafa; font-weight: 700; font-size: 12px; text-transform: uppercase; }
-        .meta { margin-bottom: 4px; }
-        .title { text-align:center; font-size: 20px; font-weight: 800; padding: 8px; color: #222; }
-        .table { width:100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
-        .table th, .table td { border-bottom: 1px solid #ddd; padding: 8px 10px; }
-        .table th { background: #fafafa; font-weight: 700; font-size: 12px; text-transform: uppercase; }
-        .table tbody tr:nth-child(even) { background: #fbfbfb; }
-        .right { text-align:right; }
-        .signature { margin-top: 28px; font-size: 12px; }
-        footer { margin-top: 20px; font-size: 11px; color: #666; text-align: center; }
-    </style>
+    <th:block th:replace="fragments/receipt_style :: styles"></th:block>
 </head>
 <body>
 <div th:if="${logoBase64 != null}" class="header bg-logo" th:style="'background-image: url(' + ${logoBase64} + ');'">
@@ -42,52 +17,50 @@
         <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
 </div>
-<div class="footer-info">
-    <div th:if="${logoBase64 == null}" class="boutique-info">
-        <div><strong th:text="${boutiqueNom}"></strong></div>
-        <div><span th:text="${boutiqueTelephone}"></span></div>
-        <div><span th:text="${boutiqueAdresse}"></span></div>
-    </div>
-    <div class="meta-info">
-        <div class="meta">Réf: <span th:text="${reception.reference}"></span></div>
-        <div class="meta">Date: <span th:text="${dateReceptionFormatted}"></span></div>
-        <div class="meta">Commande: <span th:text="${reception.commandeFournisseur != null ? reception.commandeFournisseur.reference : ''}"></span></div>
-    </div>
+
+<div class="doc-title-wrap">
+    <span class="title-line"></span><span class="title-dot"></span>
+    <span class="doc-title-text" th:text="${docTitle != null ? docTitle : 'BON DE RÉCEPTION'}">BON DE RÉCEPTION</span>
+    <span class="title-dot"></span><span class="title-line"></span>
 </div>
 
-<!-- Boxed reception number like PHP -->
-<div style="text-align:center;margin-top:8px;">
-    <div style="display:inline-block;border:1px solid #2b2b2b;padding:6px 8px;font-weight:700;">BON DE RECEPTION N : <span th:text="${reception.reference}"></span></div>
-</div>
+<table class="parties-row">
+    <tr>
+    <td class="party-box">
+        <span class="party-label">Fournisseur : </span>
+        <span class="party-name" th:text="${fournisseurNom}"></span>
+    </td>
+    <td class="party-box">
+        <span class="party-label">Reçu par : </span>
+        <span class="party-name" th:text="${clientNom}"></span>
+    </td>
+    <td class="party-box">
+        <span class="party-label">Réf : </span><span th:text="${reception.reference}"></span><br/>
+        <span class="party-label">Date : </span><span th:text="${dateReceptionFormatted}"></span>
+    </td>
+    </tr>
+</table>
 
-<div style="text-align:center;margin-top:6px;font-weight:700;">
-    FOURNISSEUR: 
-    <span th:text="|${reception.commandeFournisseur != null and reception.commandeFournisseur.fournisseur != null ? reception.commandeFournisseur.fournisseur.nom : ''} ${reception.commandeFournisseur != null and reception.commandeFournisseur.fournisseur != null ? reception.commandeFournisseur.fournisseur.prenom : ''}|"></span>
-    RECU le: <span th:text="${dateReceptionFormatted}"></span>
-</div>
-<div class="title" style="margin-top:6px;"> </div>
-
-<table class="table">
+<table class="doc-table">
     <colgroup>
-        <col style="width:50%" />
-        <col style="width:16%" />
-        <col style="width:17%" />
-        <col style="width:17%" />
+        <col class="num-col" /><col style="width:42%" /><col style="width:18%" /><col style="width:18%" /><col style="width:18%" />
     </colgroup>
     <thead>
     <tr>
-        <th>Désignation</th>
-        <th class="right">Qté Commande</th>
-        <th class="right">Qté Reçue</th>
-        <th class="right">Qté Restante</th>
+        <th>N°</th>
+        <th class="left">Désignation</th>
+        <th>Qté Commande</th>
+        <th>Qté Reçue</th>
+        <th>Qté Restante</th>
     </tr>
     </thead>
     <tbody>
-    <tr th:each="v : ${lignesView}">
-        <td>
+    <tr th:each="v, vStat : ${lignesView}">
+        <td th:text="${vStat.count}"></td>
+        <td class="left">
             <span th:text="${v.designation != null ? (v.designation + (v.uniteConditionnementLibelle != null ? ' (' + v.uniteConditionnementLibelle + ')' : '')) : (v.stock != null and v.stock.produit != null ? (v.stock.produit.nomProduit + (v.stock.produit.unite != null ? ' (' + v.stock.produit.unite.libelle + ')' : '')) : 'Produit')}"></span>
         </td>
-        <td class="right">
+        <td>
             <span th:if="${v.quantiteConditionnementCommande != null}">
                 <span th:text="${#numbers.formatInteger(v.quantiteConditionnementCommande,0)}"></span> <span th:text="${v.uniteConditionnementLibelle}"></span>
             </span>
@@ -98,14 +71,14 @@
                 <span th:unless="${v.nombreUnitesParConditionnement != null and v.nombreUnitesParConditionnement > 1 and v.qteCommande != null and v.qteCommande % v.nombreUnitesParConditionnement == 0}" th:text="${v.qteCommandeLabel}">0</span>
             </span>
         </td>
-        <td class="right">
+        <td>
             <span th:if="${v.quantiteConditionnementRecueThis != null}">
                 <span th:text="${v.quantiteConditionnementRecueThis}"></span> <span th:text="${v.uniteConditionnementLibelle}"></span>
                 <br/><small>(≈ <span th:text="${v.qteRecueThis}"></span> u)</small>
             </span>
             <span th:unless="${v.quantiteConditionnementRecueThis != null}" th:text="${v.qteRecueThisLabel}"></span>
         </td>
-        <td class="right">
+        <td>
             <span th:if="${v.quantiteConditionnementRestante != null}">
                 <span th:text="${v.quantiteConditionnementRestante}"></span> <span th:text="${v.uniteConditionnementLibelle}"></span>
             </span>
@@ -113,13 +86,57 @@
         </td>
     </tr>
     </tbody>
-</table> 
+</table>
 
-<div class="signature">Signature:
-              <span th:if="${signatureBase64 != null}"><img th:src="${signatureBase64}" style="height:48px;vertical-align:middle;margin-left:6px;" /></span>
-              <span th:if="${signatureBase64 == null}">__________________________</span></div>
-<div th:if="${cachetBase64 != null}" style="margin-top:6px;"><img th:src="${cachetBase64}" style="height:72px;max-width:230px;" /></div>
+<table class="total-banner">
+    <tr>
+        <td class="tb-accent"><div class="tb-cart"><div class="tb-cart-basket"><span class="tb-cart-wheel left"></span><span class="tb-cart-wheel right"></span></div></div></td>
+        <td class="tb-label">Total reçu :</td>
+        <td class="tb-value" th:text="${totalArticlesLabel}"></td>
+    </tr>
+</table>
 
-<footer th:text="${boutiqueNom != null and boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
+<table class="info-cards">
+    <tr>
+    <td class="info-cards-cell">
+        <div class="info-card">
+            <div class="info-card-title"><span class="info-card-badge">B</span>Informations de la boutique</div>
+            <div class="info-card-name" th:text="${clientNom}"></div>
+            <div th:if="${clientContact != null and !clientContact.isEmpty()}" th:text="${clientContact}"></div>
+            <div th:if="${clientLieu != null and !clientLieu.isEmpty()}" th:text="${clientLieu}"></div>
+        </div>
+    </td>
+    <td class="info-cards-spacer"></td>
+    <td class="info-cards-cell">
+        <div class="info-card">
+            <div class="info-card-title"><span class="info-card-badge">F</span>Informations du fournisseur</div>
+            <div class="info-card-name" th:text="${fournisseurNom}"></div>
+            <div th:if="${fournisseurContact != null and !fournisseurContact.isEmpty()}" th:text="${fournisseurContact}"></div>
+            <div th:if="${fournisseurLieu != null and !fournisseurLieu.isEmpty()}" th:text="${fournisseurLieu}"></div>
+        </div>
+    </td>
+    </tr>
+</table>
+
+<div class="signatures-heading">Signatures</div>
+<table class="sign-row">
+    <tr>
+    <td class="sign-col">
+        <div class="sign-label">Le Fournisseur :</div>
+        __________________________
+    </td>
+    <td class="sign-stamp-col">
+        <img th:if="${cachetBase64 != null}" th:src="${cachetBase64}" style="height:72px;max-width:140px;" />
+        <span th:if="${cachetBase64 == null}" class="stamp-circle"></span>
+    </td>
+    <td class="sign-col right-col">
+        <div class="sign-label">Reçu par :</div>
+        <span th:if="${signatureBase64 != null}"><img th:src="${signatureBase64}" style="height:48px;" /></span>
+        <span th:if="${signatureBase64 == null}">__________________________</span>
+    </td>
+    </tr>
+</table>
+
+<div class="thanks-banner">La satisfaction de nos clients, notre priorité !</div>
 </body>
 </html>

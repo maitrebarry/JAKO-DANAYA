@@ -4,26 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Reçu de Caisse</title>
-    <style>
-        body { font-family: 'Helvetica', Arial, sans-serif; color: #2b2b2b; margin: 16px; }
-        .header { width: 100%; height: 160px; margin-bottom: 12px; border: none; padding:0; box-sizing:border-box; }
-        .logo { display:block; width:100%; max-height: 150px; height:auto; }
-        .header.bg-logo { background-size: cover; background-position:center; background-repeat:no-repeat; }
-        .logo { display:block; width:100%; max-height: 110px; height:auto; }
-        .no-logo-info { display:block; text-align:center; height: 100%; font-size: 16px; font-weight: bold; color: #2b2b2b; line-height: 1.5; background:#f6f6f6; padding:14px; box-sizing:border-box; }
-        .footer-info { width:100%; overflow:hidden; margin-bottom: 12px; }
-        .boutique-info { float:left; width:50%; font-size: 12px; line-height:1.4; }
-        .meta-info { float:right; width:48%; text-align:right; font-size: 12px; line-height:1.4; }
-        .table { width:100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
-        .table th, .table td { border: 1px solid #ddd; padding: 6px 8px; text-align:center; vertical-align: middle; }
-        .table .right { text-align:center; }
-        .table th { background: #fafafa; font-weight: 700; font-size: 12px; text-transform: uppercase; }
-        .meta { margin-bottom: 4px; }
-        .title { text-align:center; font-size: 20px; font-weight: 800; padding: 8px; color: #222; }
-        .right { text-align:right; }
-        .signature { margin-top: 28px; font-size: 12px; }
-        footer { margin-top: 20px; font-size: 11px; color: #666; text-align: center; }
-    </style>
+    <th:block th:replace="fragments/receipt_style :: styles"></th:block>
 </head>
 <body>
 <div th:if="${logoBase64 != null}" class="header bg-logo" th:style="'background-image: url(' + ${logoBase64} + ');'">
@@ -36,46 +17,72 @@
         <div><span th:text="${boutiqueAdresse}"></span></div>
     </div>
 </div>
-<div class="footer-info">
-    <div th:if="${logoBase64 == null}" class="boutique-info">
-        <div><strong th:text="${boutiqueNom}"></strong></div>
-        <div><span th:text="${boutiqueTelephone}"></span></div>
-        <div><span th:text="${boutiqueAdresse}"></span></div>
-    </div>
-    <div class="meta-info">
-        <div class="meta">Réf: <span th:text="${reference != null ? reference : (tx != null and tx.referenceCaisse != null ? tx.referenceCaisse : '')}"></span></div>
-        <div class="meta">Date: <span th:text="${dateTransactionFormatted}"></span></div>
-        <div class="meta">Utilisateur: <span th:text="${utilisateurLabel != null ? utilisateurLabel : (tx != null and tx.userId != null ? tx.userId : '')}"></span></div>
-    </div>
-</div>
-<div class="title">REÇU DE CAISSE</div>
 
-<table class="table">
+<div class="doc-title-wrap">
+    <span class="title-line"></span><span class="title-dot"></span>
+    <span class="doc-title-text">REÇU DE CAISSE</span>
+    <span class="title-dot"></span><span class="title-line"></span>
+</div>
+
+<table class="parties-row">
+    <tr>
+    <td class="party-box">
+        <span class="party-label">Boutique : </span>
+        <span class="party-name" th:text="${boutiqueNom}"></span>
+    </td>
+    <td class="party-box">
+        <span class="party-label">Utilisateur : </span>
+        <span class="party-name" th:text="${utilisateurLabel != null ? utilisateurLabel : (tx != null and tx.userId != null ? tx.userId : '')}"></span>
+    </td>
+    <td class="party-box">
+        <span class="party-label">Réf : </span><span th:text="${reference != null ? reference : (tx != null and tx.referenceCaisse != null ? tx.referenceCaisse : '')}"></span><br/>
+        <span class="party-label">Date : </span><span th:text="${dateTransactionFormatted}"></span>
+    </td>
+    </tr>
+</table>
+
+<table class="doc-table">
     <colgroup>
-        <col style="width:60%" />
-        <col style="width:40%" />
+        <col style="width:60%" /><col style="width:40%" />
     </colgroup>
     <thead>
     <tr>
-        <th>Description</th>
-        <th class="right">Montant</th>
+        <th class="left">Description</th>
+        <th>Montant</th>
     </tr>
     </thead>
     <tbody>
     <tr>
-        <td th:text="${raison != null ? raison : (tx != null and tx.referenceCaisse != null ? tx.referenceCaisse : 'Transaction caisse')}"></td>
-        <td class="right" th:text="${montantLabel}"></td>
+        <td class="left" th:text="${raison != null ? raison : (tx != null and tx.referenceCaisse != null ? tx.referenceCaisse : 'Transaction caisse')}"></td>
+        <td th:text="${montantLabel}"></td>
     </tr>
     </tbody>
 </table>
 
-<div class="meta">Reference caisse: <strong th:text="${reference}"></strong></div>
-<div class="meta">Montant: <strong th:text="${montantLabel}"></strong></div>
-<div class="meta">Date: <strong th:text="${dateTransactionFormatted}"></strong></div>
-<div class="signature">Signature:
-              <span th:if="${signatureBase64 != null}"><img th:src="${signatureBase64}" style="height:48px;vertical-align:middle;margin-left:6px;" /></span>
-              <span th:if="${signatureBase64 == null}">__________________________</span></div>
-<div th:if="${cachetBase64 != null}" style="margin-top:6px;"><img th:src="${cachetBase64}" style="height:72px;max-width:230px;" /></div>
-<footer th:text="${boutiqueNom != null and boutiqueNom != '' ? boutiqueNom : 'SMBOUTIQUE'}"></footer>
+<table class="total-banner">
+    <tr>
+        <td class="tb-accent"><div class="tb-cart"><div class="tb-cart-basket"><span class="tb-cart-wheel left"></span><span class="tb-cart-wheel right"></span></div></div></td>
+        <td class="tb-label">Montant :</td>
+        <td class="tb-value" th:text="${montantLabel}"></td>
+    </tr>
+</table>
+
+<div class="signatures-heading">Signature</div>
+<table class="sign-row">
+    <tr>
+    <td class="sign-col">
+        <div class="sign-label">Signature :</div>
+        <span th:if="${signatureBase64 != null}"><img th:src="${signatureBase64}" style="height:48px;" /></span>
+        <span th:if="${signatureBase64 == null}">__________________________</span>
+    </td>
+    <td class="sign-stamp-col">
+        <img th:if="${cachetBase64 != null}" th:src="${cachetBase64}" style="height:72px;max-width:140px;" />
+        <span th:if="${cachetBase64 == null}" class="stamp-circle"></span>
+    </td>
+    <td class="sign-col right-col"></td>
+    </tr>
+</table>
+
+<div class="thanks-banner">La satisfaction de nos clients, notre priorité !</div>
 </body>
 </html>

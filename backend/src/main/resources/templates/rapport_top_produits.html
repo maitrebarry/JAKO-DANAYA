@@ -3,65 +3,68 @@
 <head>
     <meta charset="utf-8" />
     <title>Top Produits</title>
-    <style>
-        body { font-family: 'Helvetica', Arial, sans-serif; color: #2b2b2b; margin: 16px; }
-        .header { width: 100%; height: 100px; margin-bottom: 8px; border: none; padding: 0; box-sizing: border-box; position: relative; }
-        .header.bg-logo { background-size: cover; background-position: center; background-repeat: no-repeat; }
-        .no-logo-info { display:block; text-align:center; height: 100%; font-size: 16px; font-weight: bold; color: #2b2b2b; line-height: 1.5; background:#f6f6f6; padding: 14px; box-sizing:border-box; }
-        .footer-info { width:100%; overflow:hidden; margin-bottom: 16px; }
-        .boutique-info { float:left; width:50%; font-size: 12px; line-height:1.4; }
-        .meta-info { float:right; width:48%; text-align: right; font-size: 12px; line-height:1.4; }
-        .title { text-align:center; font-size: 20px; font-weight: 800; padding: 8px; color: #222; }
-        table{border-collapse:collapse;width:100%; margin-top: 16px; font-size: 12px}
-        th,td{border-bottom:1px solid #ddd;padding:8px 10px}
-        th{background:#fafafa;font-weight:700;text-transform:uppercase}
-        .right{ text-align:right }
-        footer{margin-top:20px;font-size:11px;color:#666;text-align:center}
-    </style>
+    <th:block th:replace="fragments/receipt_style :: styles"></th:block>
 </head>
 <body>
 <div th:if="${logoBase64 != null}" class="header bg-logo" th:style="'background-image: url(' + ${logoBase64} + ');'"></div>
 <div th:if="${logoBase64 == null}" class="header"><div class="no-logo-info"><strong th:text="${boutiqueNom}"></strong></div></div>
-<div class="footer-info">
-    <div th:if="${logoBase64 == null}" class="boutique-info">
-        <div><strong th:text="${boutiqueNom}"></strong></div>
-        <div><span th:text="${boutiqueTelephone}"></span></div>
-        <div><span th:text="${boutiqueAdresse}"></span></div>
-    </div>
-    <div class="meta-info">
-        <div class="meta">Période: <span th:text="${from}"></span> → <span th:text="${to}"></span></div>
-        <div class="meta">Généré le: <span th:text="${#dates.format(#dates.createNow(), 'dd/MM/yyyy HH:mm')}"></span></div>
-    </div>
-</div>
-<div class="title">Produits les plus vendus</div>
 
-<table>
+<div class="doc-title-wrap">
+    <span class="title-line"></span><span class="title-dot"></span>
+    <span class="doc-title-text">PRODUITS LES PLUS VENDUS</span>
+    <span class="title-dot"></span><span class="title-line"></span>
+</div>
+
+<table class="parties-row">
+    <tr>
+    <td class="party-box">
+        <span class="party-label">Boutique : </span>
+        <span class="party-name" th:text="${boutiqueNom}"></span>
+    </td>
+    <td class="party-box">
+        <span class="party-label">Période : </span>
+        <span th:text="${from}"></span> au <span th:text="${to}"></span>
+    </td>
+    <td class="party-box">
+        <span class="party-label">Généré le : </span>
+        <span th:text="${#dates.format(#dates.createNow(), 'dd/MM/yyyy HH:mm')}"></span>
+    </td>
+    </tr>
+</table>
+
+<table class="doc-table">
+    <colgroup>
+        <col class="num-col" /><col /><col /><col />
+    </colgroup>
     <thead>
-      <tr><th>Produit</th><th class="right">Quantité vendue</th><th class="right">Montant total</th></tr>
+      <tr><th>N°</th><th class="left">Produit</th><th>Quantité vendue</th><th>Montant total</th></tr>
     </thead>
     <tbody>
-      <tr th:each="row : ${data}">
-        <td th:text="${row.produitName}"></td>
-        <td class="right" th:text="${row.quantiteVendue}"></td>
-        <td class="right" th:text="${#numbers.formatInteger(row.montantTotal,0)} + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA')"></td>
+      <tr th:each="row, rowStat : ${data}">
+        <td th:text="${rowStat.count}"></td>
+        <td class="left" th:text="${row.produitName}"></td>
+        <td th:text="${row.quantiteVendue}"></td>
+        <td th:text="${#numbers.formatInteger(row.montantTotal,0) + ' ' + (deviseSymbole != null ? deviseSymbole : 'FCFA')}"></td>
       </tr>
     </tbody>
 </table>
-<footer>Produits les plus vendus</footer>
-      <!-- CACHET_SIGNATURE_FOOTER -->
-      <div th:if="${cachetBase64 != null or signatureBase64 != null}" style="margin-top:24px;width:100%;">
-        <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="width:50%;text-align:center;vertical-align:bottom;padding:6px;">
-              <div th:if="${cachetBase64 != null}"><img th:src="${cachetBase64}" style="max-height:90px;max-width:220px;" /></div>
-              <div th:if="${cachetBase64 != null}" style="font-size:11px;color:#555;margin-top:4px;">Cachet</div>
-            </td>
-            <td style="width:50%;text-align:center;vertical-align:bottom;padding:6px;">
-              <div th:if="${signatureBase64 != null}"><img th:src="${signatureBase64}" style="max-height:90px;max-width:220px;" /></div>
-              <div th:if="${signatureBase64 != null}" style="font-size:11px;color:#555;margin-top:4px;">Signature</div>
-            </td>
-          </tr>
-        </table>
-      </div>
+
+<div class="signatures-heading">Signature</div>
+<table class="sign-row">
+    <tr>
+    <td class="sign-col">
+        <div class="sign-label">Signature :</div>
+        <span th:if="${signatureBase64 != null}"><img th:src="${signatureBase64}" style="height:48px;" /></span>
+        <span th:if="${signatureBase64 == null}">__________________________</span>
+    </td>
+    <td class="sign-stamp-col">
+        <img th:if="${cachetBase64 != null}" th:src="${cachetBase64}" style="height:72px;max-width:140px;" />
+        <span th:if="${cachetBase64 == null}" class="stamp-circle"></span>
+    </td>
+    <td class="sign-col right-col"></td>
+    </tr>
+</table>
+
+<div class="thanks-banner">La satisfaction de nos clients, notre priorité !</div>
 </body>
 </html>

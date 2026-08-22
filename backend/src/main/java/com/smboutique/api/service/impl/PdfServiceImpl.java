@@ -277,6 +277,23 @@ public class PdfServiceImpl implements PdfService {
             ctx.setVariable("boutiqueAdresse", boutiqueAdresse);
             ctx.setVariable("deviseSymbole", deviseSymbole);
 
+            // Commande fournisseur : le fournisseur externe fournit, la boutique est le client.
+            ctx.setVariable("docTitle", "FACTURE DE COMMANDE");
+            // La boutique est le client ici (elle achète) : sa signature va du côté "Client".
+            ctx.setVariable("boutiqueSignatureOnLeft", false);
+            try {
+                com.smboutique.api.model.Fournisseur f = commande.getFournisseur();
+                String fNom = f != null ? (((f.getPrenom() != null ? f.getPrenom() + " " : "") + (f.getNom() != null ? f.getNom() : "")).trim()) : "";
+                ctx.setVariable("fournisseurNom", !fNom.isEmpty() ? fNom : "Fournisseur");
+                ctx.setVariable("fournisseurContact", f != null ? f.getContact() : null);
+                ctx.setVariable("fournisseurLieu", f != null ? f.getVille() : null);
+            } catch (Exception ignore) {
+                ctx.setVariable("fournisseurNom", "Fournisseur");
+            }
+            ctx.setVariable("clientNom", !boutiqueNom.isEmpty() ? boutiqueNom : "Boutique");
+            ctx.setVariable("clientContact", boutiqueTelephone);
+            ctx.setVariable("clientLieu", boutiqueAdresse);
+
             // Prepare a preformatted total label used by the template to avoid inline expression errors
             try {
                 long totalVal = commande.getTotal() != null ? commande.getTotal() : 0L;
@@ -781,6 +798,20 @@ public class PdfServiceImpl implements PdfService {
             ctx.setVariable("boutiqueTelephone", boutiqueTelephone);
             ctx.setVariable("boutiqueAdresse", boutiqueAdresse);
 
+            ctx.setVariable("docTitle", "BON DE RÉCEPTION");
+            try {
+                com.smboutique.api.model.Fournisseur f = reception.getCommandeFournisseur() != null ? reception.getCommandeFournisseur().getFournisseur() : null;
+                String fNom = f != null ? (((f.getPrenom() != null ? f.getPrenom() + " " : "") + (f.getNom() != null ? f.getNom() : "")).trim()) : "";
+                ctx.setVariable("fournisseurNom", !fNom.isEmpty() ? fNom : "Fournisseur");
+                ctx.setVariable("fournisseurContact", f != null ? f.getContact() : null);
+                ctx.setVariable("fournisseurLieu", f != null ? f.getVille() : null);
+            } catch (Exception ignore) {
+                ctx.setVariable("fournisseurNom", "Fournisseur");
+            }
+            ctx.setVariable("clientNom", !boutiqueNom.isEmpty() ? boutiqueNom : "Boutique");
+            ctx.setVariable("clientContact", boutiqueTelephone);
+            ctx.setVariable("clientLieu", boutiqueAdresse);
+
             // Build a view model for table lines so we show per-reception quantities (Qté Reçue) and remaining
             try {
                 java.util.List<java.util.Map<String, Object>> lignesView = new java.util.ArrayList<>();
@@ -959,6 +990,16 @@ public class PdfServiceImpl implements PdfService {
                     lignesView.add(m);
                 }
                 ctx.setVariable("lignesView", lignesView);
+                try {
+                    int totalArticles = 0;
+                    for (java.util.Map<String, Object> mm : lignesView) {
+                        Object q = mm.get("qteRecueThis");
+                        if (q instanceof Number) totalArticles += ((Number) q).intValue();
+                    }
+                    ctx.setVariable("totalArticlesLabel", totalArticles + (totalArticles > 1 ? " articles" : " article"));
+                } catch (Exception ignore) {
+                    ctx.setVariable("totalArticlesLabel", "");
+                }
                 // Debug: persist lignesView as JSON for inspection and a simple text summary
                 try {
                     String j = new com.fasterxml.jackson.databind.ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(lignesView);
@@ -1107,6 +1148,23 @@ public class PdfServiceImpl implements PdfService {
             ctx.setVariable("boutiqueTelephone", boutiqueTelephone);
             ctx.setVariable("boutiqueAdresse", boutiqueAdresse);
             ctx.setVariable("deviseSymbole", deviseSymbole);
+
+            // Commande client : la boutique est le fournisseur, le client externe est le client.
+            ctx.setVariable("docTitle", "FACTURE DE COMMANDE");
+            // La boutique est le fournisseur ici (elle vend) : sa signature va du côté "Fournisseur".
+            ctx.setVariable("boutiqueSignatureOnLeft", true);
+            ctx.setVariable("fournisseurNom", !boutiqueNom.isEmpty() ? boutiqueNom : "Boutique");
+            ctx.setVariable("fournisseurContact", boutiqueTelephone);
+            ctx.setVariable("fournisseurLieu", boutiqueAdresse);
+            try {
+                com.smboutique.api.model.ClientGrossiste c = commande.getClient();
+                String cNom = c != null ? (((c.getPrenom() != null ? c.getPrenom() + " " : "") + (c.getNom() != null ? c.getNom() : "")).trim()) : "";
+                ctx.setVariable("clientNom", !cNom.isEmpty() ? cNom : "Client");
+                ctx.setVariable("clientContact", c != null ? c.getContact() : null);
+                ctx.setVariable("clientLieu", c != null ? c.getVille() : null);
+            } catch (Exception ignore) {
+                ctx.setVariable("clientNom", "Client");
+            }
 
             // Prepare a preformatted total label used by the template to avoid inline expression errors
             try {
@@ -1489,6 +1547,22 @@ public class PdfServiceImpl implements PdfService {
                 ctx.setVariable("deviseSymbole", "FCFA");
                 ctx.setVariable("montantLabel", (dep.getMontant() != null ? dep.getMontant() : 0) + " FCFA");
             }
+
+            // Logo boutique pour l'en-tête (absent jusqu'ici sur ce type de document : même
+            // logique que les autres reçus, pour que l'en-tête ne soit plus vide).
+            String logoData = null;
+            try {
+                if (b != null && b.getLogo() != null) {
+                    String logoPath = b.getLogo().startsWith("/") ? b.getLogo().substring(1) : b.getLogo();
+                    java.io.File f = new java.io.File(logoPath);
+                    if (f.exists()) {
+                        byte[] bytes = java.nio.file.Files.readAllBytes(f.toPath());
+                        logoData = "data:image/png;base64," + java.util.Base64.getEncoder().encodeToString(bytes);
+                    }
+                }
+            } catch (Exception ignore) {}
+            ctx.setVariable("logoBase64", logoData);
+            ctx.setVariable("docTitle", "BON DE DÉPENSE");
 
             try {
                 if (dep.getCreatedAt() != null) {
@@ -2002,6 +2076,21 @@ public class PdfServiceImpl implements PdfService {
                     }
                 } catch (Exception ignore) {}
                 ctx.setVariable("paiementPar", paiementPar);
+
+                // La boutique paie le fournisseur : boutique = client de ce paiement, fournisseur = bénéficiaire.
+                ctx.setVariable("docTitle", "REÇU DE PAIEMENT");
+                try {
+                    com.smboutique.api.model.Fournisseur f = paiement.getCommandeFournisseur() != null ? paiement.getCommandeFournisseur().getFournisseur() : null;
+                    String fNom = f != null ? (((f.getPrenom() != null ? f.getPrenom() + " " : "") + (f.getNom() != null ? f.getNom() : "")).trim()) : "";
+                    ctx.setVariable("fournisseurNom", !fNom.isEmpty() ? fNom : "Fournisseur");
+                    ctx.setVariable("fournisseurContact", f != null ? f.getContact() : null);
+                    ctx.setVariable("fournisseurLieu", f != null ? f.getVille() : null);
+                } catch (Exception ignore) {
+                    ctx.setVariable("fournisseurNom", "Fournisseur");
+                }
+                ctx.setVariable("clientNom", !boutiqueNom.isEmpty() ? boutiqueNom : "Boutique");
+                ctx.setVariable("clientContact", boutiqueTelephone);
+                ctx.setVariable("clientLieu", boutiqueAdresse);
             } catch (Exception ex) {
                 // ignore
             }
@@ -2151,6 +2240,27 @@ public class PdfServiceImpl implements PdfService {
                 }
             } catch (Exception ex) {}
 
+            // Le client externe paie la boutique : boutique = fournisseur/bénéficiaire, client = payeur.
+            ctx.setVariable("docTitle", "REÇU DE PAIEMENT");
+            ctx.setVariable("fournisseurNom", b != null && b.getNom() != null && !b.getNom().isEmpty() ? b.getNom() : "Boutique");
+            ctx.setVariable("fournisseurContact", b != null ? b.getTelephoneLocal() : null);
+            ctx.setVariable("fournisseurLieu", b != null ? b.getAdresse() : null);
+            String paiementClientPar = "";
+            try {
+                com.smboutique.api.model.ClientGrossiste c = paiement.getCommandeClient() != null ? paiement.getCommandeClient().getClient() : null;
+                String cNom = c != null ? (((c.getNom() != null ? c.getNom() + " " : "") + (c.getPrenom() != null ? c.getPrenom() : "")).trim()) : "";
+                ctx.setVariable("clientNom", !cNom.isEmpty() ? cNom : "Client");
+                ctx.setVariable("clientContact", c != null ? c.getContact() : null);
+                ctx.setVariable("clientLieu", c != null ? c.getVille() : null);
+                if (paiement.getCommandeClient() != null && paiement.getCommandeClient().getUtilisateur() != null) {
+                    com.smboutique.api.model.Utilisateur u = paiement.getCommandeClient().getUtilisateur();
+                    paiementClientPar = (u.getNom() != null ? u.getNom() : "") + (u.getPrenom() != null && !u.getPrenom().isEmpty() ? " " + u.getPrenom() : "");
+                }
+            } catch (Exception ignore) {
+                ctx.setVariable("clientNom", "Client");
+            }
+            ctx.setVariable("paiementPar", paiementClientPar);
+
             String html = templateEngine.process("paiement_client_pdf", ctx);
             // write debug HTML for inspection and log result
             try {
@@ -2217,6 +2327,21 @@ public class PdfServiceImpl implements PdfService {
                 ctx.setVariable("boutiqueTelephone", "");
                 ctx.setVariable("boutiqueAdresse", "");
                 ctx.setVariable("deviseSymbole", "FCFA");
+            }
+
+            // La boutique livre : elle est le fournisseur de ce document, le client externe est le destinataire.
+            ctx.setVariable("docTitle", "BON DE LIVRAISON");
+            ctx.setVariable("fournisseurNom", b != null && b.getNom() != null && !b.getNom().isEmpty() ? b.getNom() : "Boutique");
+            ctx.setVariable("fournisseurContact", b != null ? b.getTelephoneLocal() : null);
+            ctx.setVariable("fournisseurLieu", b != null ? b.getAdresse() : null);
+            try {
+                com.smboutique.api.model.ClientGrossiste c = livraison.getCommandeClient() != null ? livraison.getCommandeClient().getClient() : null;
+                String cNom = c != null ? (((c.getNom() != null ? c.getNom() + " " : "") + (c.getPrenom() != null ? c.getPrenom() : "")).trim()) : "";
+                ctx.setVariable("clientNom", !cNom.isEmpty() ? cNom : "Client");
+                ctx.setVariable("clientContact", c != null ? c.getContact() : null);
+                ctx.setVariable("clientLieu", c != null ? c.getVille() : null);
+            } catch (Exception ignore) {
+                ctx.setVariable("clientNom", "Client");
             }
 
             // Prepare boutique logo (if any) similar to other templates
@@ -2382,6 +2507,16 @@ public class PdfServiceImpl implements PdfService {
                 }
             }
             ctx.setVariable("lignesView", lignesView);
+            try {
+                int totalArticles = 0;
+                for (java.util.Map<String, Object> mm : lignesView) {
+                    Object q = mm.get("qteLivreeThis");
+                    if (q instanceof Number) totalArticles += ((Number) q).intValue();
+                }
+                ctx.setVariable("totalArticlesLabel", totalArticles + (totalArticles > 1 ? " articles" : " article"));
+            } catch (Exception ignore) {
+                ctx.setVariable("totalArticlesLabel", "");
+            }
             // Debug: persist lignesView as JSON for inspection
             try {
                 String j = new com.fasterxml.jackson.databind.ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(lignesView);
