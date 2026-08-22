@@ -137,10 +137,14 @@ const VenteLivraison: React.FC = () => {
       // secondes dès qu'il y a un historique conséquent — bloquer dessus empêchait la
       // commande demandée via venteId de s'afficher avant la fin de ce peuplement.
       fetchVentesToDeliver();
-      // Si un param venteId est fourni, sélectionner et charger ses lignes immédiatement
+      // Si un param venteId est fourni, sélectionner et charger ses lignes immédiatement.
+      // Cette page n'est accessible que depuis "Liste commandes clients" -> Livraison,
+      // l'id est donc toujours une commande-client : on la charge directement au lieu
+      // de tester d'abord /ventes/{id} (qui pouvait matcher par coïncidence l'id d'une
+      // vente comptant sans rapport et afficher les libellés/tableau "commande fournisseur").
       if (venteId) {
         setSelectedVenteId(venteId);
-        fetchVenteAndLines(venteId);
+        fetchCommandeClientAndLines(venteId);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -565,8 +569,6 @@ const VenteLivraison: React.FC = () => {
       setSubmitting(false);
     }
   };
-
-  if (loading) return <div>Chargement...</div>
 
   return (
     <div className="container-fluid reception-page">

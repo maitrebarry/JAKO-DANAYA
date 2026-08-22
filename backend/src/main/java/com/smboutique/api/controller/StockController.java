@@ -63,7 +63,7 @@ public class StockController {
         return user.getPermissions().stream().anyMatch(p -> p.getName().equals(permissionName));
     }
 
-    private StockDTO convertToDTO(Stock stock) {
+    private StockDTO convertToDTO(Stock stock, java.util.Map<Long, java.util.List<com.smboutique.api.model.ProduitEmballage>> embsByProduitId) {
         StockDTO dto = new StockDTO();
         dto.setId(stock.getId());
         dto.setQuantiteDisponible(stock.getQuantiteDisponible());
@@ -85,7 +85,7 @@ public class StockController {
                 u.setCode(stock.getProduit().getUnite().getCode());
                 produitDTO.setUnite(u);
             }
-            java.util.List<com.smboutique.api.model.ProduitEmballage> embs = produitEmballageRepository.findByProduitId(stock.getProduit().getId());
+            java.util.List<com.smboutique.api.model.ProduitEmballage> embs = embsByProduitId.getOrDefault(stock.getProduit().getId(), java.util.List.of());
             produitDTO.setEmballages(embs.stream().map(pe -> {
                 com.smboutique.api.dto.ProduitEmballageDTO d = new com.smboutique.api.dto.ProduitEmballageDTO();
                 d.setId(pe.getId());
@@ -146,7 +146,19 @@ public class StockController {
         } else {
             stocks = List.of();
         }
-        return stocks.stream().map(this::convertToDTO).collect(java.util.stream.Collectors.toList());
+        // convertToDTO appelait produitEmballageRepository.findByProduitId(...) par ligne de stock,
+        // soit une requête SQL supplémentaire par article -> plusieurs dizaines de secondes dès que
+        // la boutique a un catalogue conséquent. Une seule requête groupée par produit distinct.
+        java.util.List<Long> produitIds = stocks.stream()
+                .filter(s -> s.getProduit() != null)
+                .map(s -> s.getProduit().getId())
+                .distinct()
+                .collect(java.util.stream.Collectors.toList());
+        java.util.Map<Long, java.util.List<com.smboutique.api.model.ProduitEmballage>> embsByProduitId =
+                produitEmballageRepository.findByProduitIdIn(produitIds).stream()
+                        .collect(java.util.stream.Collectors.groupingBy(pe -> pe.getProduit().getId()));
+
+        return stocks.stream().map(s -> convertToDTO(s, embsByProduitId)).collect(java.util.stream.Collectors.toList());
     }
 
     @GetMapping("/{id}")

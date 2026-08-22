@@ -11,6 +11,8 @@ import java.util.Optional;
 public interface ProduitEmballageRepository extends JpaRepository<ProduitEmballage, Long> {
     List<ProduitEmballage> findByProduitId(Long produitId);
 
+    List<ProduitEmballage> findByProduitIdIn(java.util.Collection<Long> produitIds);
+
     Optional<ProduitEmballage> findByIdAndProduitId(Long id, Long produitId);
 
     Optional<ProduitEmballage> findFirstByProduitIdAndEstParDefautTrue(Long produitId);
