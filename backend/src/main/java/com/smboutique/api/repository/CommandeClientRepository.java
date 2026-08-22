@@ -15,7 +15,9 @@ public interface CommandeClientRepository extends JpaRepository<CommandeClient, 
     // exécute quand même une requête séparée par commande pour les charger (N+1) ; le tableau de
     // bord appelle cette méthode plusieurs fois par requête et devenait très lent dès que la
     // boutique avait plus qu'une poignée de commandes. Un seul JOIN FETCH regroupe tout en une requête.
-    @Query("SELECT DISTINCT c FROM CommandeClient c LEFT JOIN FETCH c.lignes l LEFT JOIN FETCH l.produit WHERE c.boutique.id = :boutiqueId")
+    // c.client (ClientGrossiste) est lazy par défaut et était lu par la liste "commandes clients"
+    // pour chaque ligne -> une requête par client distinct ; ajouté au JOIN FETCH pour l'éviter.
+    @Query("SELECT DISTINCT c FROM CommandeClient c LEFT JOIN FETCH c.lignes l LEFT JOIN FETCH l.produit LEFT JOIN FETCH c.client WHERE c.boutique.id = :boutiqueId")
     java.util.List<CommandeClient> findAllByBoutiqueId(@Param("boutiqueId") Long boutiqueId);
     java.util.Optional<CommandeClient> findByIdAndBoutiqueId(Long id, Long boutiqueId);
 

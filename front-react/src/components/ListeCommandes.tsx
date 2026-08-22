@@ -86,6 +86,16 @@ interface CommandeData {
 }
 
 const ListeCommandes: React.FC = () => {
+  const location = useLocation();
+  const isVenteModeOuter = new URLSearchParams(location.search || '').get('mode') === 'vente'
+    || (location.pathname && location.pathname.includes('/ventes'));
+  // Remonter entièrement le composant quand on bascule fournisseur <-> client :
+  // ça réinitialise loading/commandes instantanément (dès le premier rendu), au lieu
+  // d'attendre un cycle d'effet qui laissait apparaître l'ancienne liste un court instant.
+  return <ListeCommandesInner key={isVenteModeOuter ? 'vente' : 'fournisseur'} />;
+};
+
+const ListeCommandesInner: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentBoutique, logout } = useUser();
