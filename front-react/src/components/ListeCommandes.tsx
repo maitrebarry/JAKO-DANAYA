@@ -127,6 +127,11 @@ const ListeCommandes: React.FC = () => {
       setLoading(false);
       return;
     }
+    // Le changement de mode (fournisseur <-> client) réutilise le même composant
+    // sans remontage : il faut repasser en chargement pour éviter d'afficher/cliquer
+    // des lignes de l'ancienne liste encore marquées avec l'ancien isVente.
+    setLoading(true);
+    setCommandes([]);
     fetchCommandes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentBoutique?.id, isVenteMode]);
