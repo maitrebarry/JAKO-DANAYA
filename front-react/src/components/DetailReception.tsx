@@ -151,10 +151,12 @@ const DetailReception: React.FC = () => {
                   </div>
                   <div className="col-6 text-end">
                     <button className="btn btn-outline-secondary me-2" onClick={async () => {
+                      Swal.fire({ title: 'Génération PDF...', didOpen: () => Swal.showLoading() });
                       try {
                         const token = localStorage.getItem('smb_token');
                         const res = await fetch(`${API}/receptions/${id}/pdf`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
                         if (res.status === 401) {
+                          Swal.close();
                           await Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la page de connexion.', 'error');
                           try { logout(); } catch (e) {}
                           return;
@@ -163,8 +165,10 @@ const DetailReception: React.FC = () => {
                         const blob = await res.blob();
                         const url = URL.createObjectURL(blob);
                         window.open(url, '_blank');
+                        Swal.close();
                       } catch (e) {
-                        alert('Erreur lors du téléchargement du PDF');
+                        Swal.close();
+                        Swal.fire('Erreur', 'Erreur lors du téléchargement du PDF', 'error');
                       }
                     }} title="PDF Réception">
                       <i className="ri-file-pdf-line"></i>

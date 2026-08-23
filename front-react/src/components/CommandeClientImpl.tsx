@@ -915,6 +915,8 @@ const CommandeClient: React.FC = () => {
         return;
       }
 
+      Swal.fire({ title: 'Génération PDF...', didOpen: () => Swal.showLoading() });
+
       // Séparation stricte : ce composant sert la vente au comptoir -> endpoint ventes uniquement
       const tryEndpoints = [
         { path: `${API}/ventes/${idToOpen}/pdf`, label: 'ventes' }
@@ -934,6 +936,7 @@ const CommandeClient: React.FC = () => {
               const check = await fetch(`${API}/users`, { headers: { Authorization: `Bearer ${token}` } });
               console.debug('auth check /api/users status:', check.status);
               if (check.status === 401) {
+                Swal.close();
                 Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la page de connexion.', 'warning');
                 try { logout(); } catch (e) {}
                 navigate('/login');
@@ -953,6 +956,7 @@ const CommandeClient: React.FC = () => {
             const blob = await blobRes.blob();
             const url = URL.createObjectURL(blob);
             window.open(url, '_blank');
+            Swal.close();
             return;
           }
           lastError = `Endpoint ${ep.label} returned ${res.status} ${res.statusText}: ${text}`;
@@ -962,6 +966,7 @@ const CommandeClient: React.FC = () => {
           console.debug('openPdfPrint:', lastError);
         }
       }
+      Swal.close();
       Swal.fire('Erreur', `Impossible de charger le PDF. Détails: ${lastError}`, 'error');
       return;
 
@@ -987,6 +992,7 @@ const CommandeClient: React.FC = () => {
         Swal.fire('Erreur', `Impossible de charger le PDF: ${e.message || e}`, 'error');
       }
     } catch (err: any) {
+      Swal.close();
       Swal.fire('Erreur', err.message || 'Erreur lors de l\'ouverture du PDF', 'error');
     }
   };

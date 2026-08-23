@@ -81,6 +81,8 @@ const ApercuCommandeClient: React.FC = () => {
       const token = localStorage.getItem('smb_token');
       if (!token) { Swal.fire('Erreur', 'Authentification nécessaire. Connectez-vous.', 'error'); return; }
 
+      Swal.fire({ title: 'Génération PDF...', didOpen: () => Swal.showLoading() });
+
       // Séparation stricte : commande client uniquement
       const tryPaths = [
         `${API}/commandes-clients/${commandeId}/pdf`
@@ -91,11 +93,12 @@ const ApercuCommandeClient: React.FC = () => {
           const r = await fetch(p, { headers: { Authorization: `Bearer ${token}` } });
           if (r.status === 401) {
             await r.text().catch(() => '');
+            Swal.close();
             Swal.fire('Session expirée', 'Authentification requise. Veuillez vous reconnecter.', 'warning');
             navigate('/login');
             return;
           }
-          if (r.ok) { const blob = await r.blob(); const url = URL.createObjectURL(blob); window.open(url, '_blank'); return; }
+          if (r.ok) { const blob = await r.blob(); const url = URL.createObjectURL(blob); window.open(url, '_blank'); Swal.close(); return; }
           const txt = await r.text().catch(() => '');
           lastErr = `${p} -> ${r.status} ${r.statusText}: ${txt}`;
           console.debug('openPdfPrint (apercu client):', lastErr);
@@ -104,8 +107,10 @@ const ApercuCommandeClient: React.FC = () => {
           console.debug('openPdfPrint (apercu client) fetch error:', lastErr);
         }
       }
+      Swal.close();
       Swal.fire('Erreur', `Impossible de charger le PDF. Détails: ${lastErr}`, 'error');
     } catch (err: any) {
+      Swal.close();
       Swal.fire('Erreur', err.message || 'Erreur lors de l\'ouverture du PDF', 'error');
     }
   };

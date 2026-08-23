@@ -9,4 +9,8 @@ public interface LigneCommandeClientService {
     Optional<LigneCommandeClient> findById(Long id);
     LigneCommandeClient save(LigneCommandeClient ligneCommandeClient);
     void deleteById(Long id);
+
+    /** Lignes d'une commande client précise - à utiliser à la place de findAll() + filtrage
+     * Java (coûteux dès que l'historique des commandes grossit). */
+    List<LigneCommandeClient> findByCommandeClientId(Long commandeClientId);
 }

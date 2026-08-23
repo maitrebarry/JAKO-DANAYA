@@ -334,7 +334,7 @@ public class CommandeClientController {
                             }
 
                             // reload lignes onto commande client
-                            commandeClient.setLignes(ligneCommandeClientService.findAll().stream().filter(l -> l.getCommandeClient() != null && l.getCommandeClient().getId().equals(commandeClient.getId())).collect(java.util.stream.Collectors.toList()));
+                            commandeClient.setLignes(ligneCommandeClientService.findByCommandeClientId(commandeClient.getId()));
                         }
 
                         com.smboutique.api.model.CommandeClient saved = commandeClientService.save(commandeClient);

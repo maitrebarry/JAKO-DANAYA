@@ -110,11 +110,20 @@ public class LivraisonController {
         try {
             // revert stocks and ligne commande quantiteLivre
             java.util.List<com.smboutique.api.model.LigneLivraison> lignes = ligneLivraisonService.findByLivraisonId(livraison.getId());
+            // Chargées une seule fois avant la boucle : rechargeaient auparavant TOUT le stock et
+            // TOUTES les lignes de commande client du système, à CHAQUE ligne de livraison annulée.
+            Long boutiqueId = livraison.getCommandeClient() != null && livraison.getCommandeClient().getBoutique() != null
+                    ? livraison.getCommandeClient().getBoutique().getId() : null;
+            java.util.List<com.smboutique.api.model.LigneCommandeClient> commandeClientLignes =
+                    livraison.getCommandeClient() != null
+                            ? ligneCommandeClientService.findByCommandeClientId(livraison.getCommandeClient().getId())
+                            : java.util.Collections.emptyList();
             for (com.smboutique.api.model.LigneLivraison ll : lignes) {
                 // revert stock (add back)
                 if (ll.getProduit() != null && ll.getProduit().getId() != null && ll.getQuantiteRecu() != null && ll.getQuantiteRecu() > 0) {
-                    // try to find stock by produit and boutique - use stockRepository findAll as fallback
-                    java.util.Optional<com.smboutique.api.model.Stock> sOpt = stockService.getAllStocks().stream().filter(s -> s.getProduit() != null && s.getProduit().getId() != null && s.getProduit().getId().equals(ll.getProduit().getId())).findFirst();
+                    java.util.Optional<com.smboutique.api.model.Stock> sOpt = boutiqueId != null
+                            ? stockService.getStocksByProduitAndBoutique(ll.getProduit().getId(), boutiqueId).stream().findFirst()
+                            : stockService.getStocksByProduit(ll.getProduit().getId()).stream().findFirst();
                     if (sOpt.isPresent()) {
                         com.smboutique.api.model.Stock s = sOpt.get();
                         if (s.getId() != null) {
@@ -127,11 +136,9 @@ public class LivraisonController {
                 }
                 // reduce quantiteLivre on related commande ligne
                 try {
-                    if (livraison.getCommandeClient() != null && ll.getProduit() != null) {
-                        // find ligneCommande by produit and commande
-                        java.util.List<com.smboutique.api.model.LigneCommandeClient> lcs = ligneCommandeClientService.findAll();
-                        for (com.smboutique.api.model.LigneCommandeClient lcc : lcs) {
-                            if (lcc.getCommandeClient() != null && lcc.getCommandeClient().getId() != null && lcc.getCommandeClient().getId().equals(livraison.getCommandeClient().getId()) && lcc.getProduit() != null && lcc.getProduit().getId() != null && lcc.getProduit().getId().equals(ll.getProduit().getId())) {
+                    if (ll.getProduit() != null) {
+                        for (com.smboutique.api.model.LigneCommandeClient lcc : commandeClientLignes) {
+                            if (lcc.getProduit() != null && lcc.getProduit().getId() != null && lcc.getProduit().getId().equals(ll.getProduit().getId())) {
                                 Integer cur = lcc.getQuantiteLivre() != null ? lcc.getQuantiteLivre() : 0;
                                 lcc.setQuantiteLivre(Math.max(0, cur - (ll.getQuantiteRecu() != null ? ll.getQuantiteRecu() : 0)));
                                 ligneCommandeClientService.save(lcc);

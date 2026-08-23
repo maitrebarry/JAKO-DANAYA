@@ -33,4 +33,9 @@ public class LigneCommandeClientServiceImpl implements LigneCommandeClientServic
     public void deleteById(Long id) {
         ligneCommandeClientRepository.deleteById(id);
     }
+
+    @Override
+    public List<LigneCommandeClient> findByCommandeClientId(Long commandeClientId) {
+        return ligneCommandeClientRepository.findByCommandeClientId(commandeClientId);
+    }
 }

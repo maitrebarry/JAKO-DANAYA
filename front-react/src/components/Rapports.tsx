@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import useHasPermission from '../contexts/useHasPermission';
 import { useUser } from '../contexts/UserContext';
 import { formatMoney } from '../utils/currency';
@@ -94,6 +95,7 @@ const Rapports: React.FC = () => {
   };
 
   const exportFile = async (format: 'csv'|'pdf') => {
+    if (format === 'pdf') Swal.fire({ title: 'Génération PDF...', didOpen: () => Swal.showLoading() });
     try {
       const params = new URLSearchParams();
       if (boutique) params.set('boutique', boutique);
@@ -116,8 +118,10 @@ const Rapports: React.FC = () => {
       a.click();
       a.remove();
       URL.revokeObjectURL(urlObj);
+      if (format === 'pdf') Swal.close();
     } catch (e: any) {
-      alert('Erreur export: ' + (e.message || e));
+      if (format === 'pdf') { Swal.close(); Swal.fire('Erreur', 'Erreur export: ' + (e.message || e), 'error'); }
+      else alert('Erreur export: ' + (e.message || e));
     }
   };
 

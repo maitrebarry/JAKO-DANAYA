@@ -368,6 +368,8 @@ const ListeCommandesInner: React.FC = () => {
         return;
       }
 
+      Swal.fire({ title: 'Génération PDF...', didOpen: () => Swal.showLoading() });
+
       // Séparation stricte :
       // - Mode liste vente/commande client -> commandes-clients uniquement
       // - Mode liste commande fournisseur -> commandes-fournisseurs uniquement
@@ -387,6 +389,7 @@ const ListeCommandesInner: React.FC = () => {
           if (res.status === 401) {
             const body = await res.text().catch(() => '');
             console.debug('openCommandePdf unauthorized', { status: res.status, body });
+            Swal.close();
             Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la page de connexion.', 'error');
             try { logout(); } catch(e) {}
             return;
@@ -396,6 +399,7 @@ const ListeCommandesInner: React.FC = () => {
             const blob = await res.blob();
             const url = URL.createObjectURL(blob);
             window.open(url, '_blank');
+            Swal.close();
             return;
           } else {
             const text = await res.text().catch(() => '');
@@ -408,8 +412,10 @@ const ListeCommandesInner: React.FC = () => {
         }
       }
 
+      Swal.close();
       Swal.fire('Erreur', `Impossible de charger le PDF. Détails: ${lastErr}`, 'error');
     } catch (err: any) {
+      Swal.close();
       Swal.fire('Erreur', err.message || 'Erreur lors du téléchargement du PDF', 'error');
     }
   };

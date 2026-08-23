@@ -133,6 +133,7 @@ const Documents: React.FC = () => {
     }
   }, [location, magasins]);
   const openPdf = async (url: string) => {
+    Swal.fire({ title: 'Génération PDF...', didOpen: () => Swal.showLoading() });
     try {
       let full = url.startsWith('http') ? url : `${API_BASE}${url}`;
       if (magasinFilter) full = `${full}&magasin=${magasinFilter}`;
@@ -141,12 +142,15 @@ const Documents: React.FC = () => {
       const blob = await res.blob();
       const bUrl = URL.createObjectURL(blob);
       window.open(bUrl, '_blank');
+      Swal.close();
     } catch (e: any) {
+      Swal.close();
       Swal.fire('Erreur', e && e.message ? e.message : 'Erreur ouverture PDF', 'error');
     }
   };
 
   const downloadFile = async (url: string, filename?: string) => {
+    Swal.fire({ title: 'Génération PDF...', didOpen: () => Swal.showLoading() });
     try {
       let full = url.startsWith('http') ? url : `${API_BASE}${url}`;
       if (magasinFilter) full = `${full}&magasin=${magasinFilter}`;
@@ -159,7 +163,9 @@ const Documents: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      Swal.close();
     } catch (e: any) {
+      Swal.close();
       Swal.fire('Erreur', e && e.message ? e.message : 'Erreur téléchargement', 'error');
     }
   };

@@ -104,12 +104,15 @@ const DepenseDetail: React.FC = () => {
     try {
       const token = localStorage.getItem('smb_token');
       if (!token) { Swal.fire('Erreur', 'Authentification nécessaire pour imprimer. Connectez-vous.', 'error'); return; }
+      Swal.fire({ title: 'Génération PDF...', didOpen: () => Swal.showLoading() });
       const res = await fetch(`${API}/depenses/${depense.id}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error('Erreur lors de la récupération du PDF');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
+      Swal.close();
     } catch (err: any) {
+      Swal.close();
       Swal.fire('Erreur', err.message || 'Erreur lors de l\'ouverture du PDF', 'error');
     }
   };

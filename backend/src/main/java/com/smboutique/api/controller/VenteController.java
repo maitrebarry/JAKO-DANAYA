@@ -119,14 +119,9 @@ public class VenteController {
     @GetMapping("/{id}/lignes")
     public ResponseEntity<java.util.List<com.smboutique.api.model.LigneVente>> getLignesByVenteId(@PathVariable Long id) {
         try {
-            java.util.List<com.smboutique.api.model.LigneVente> lignes = ligneVenteService.findAll();
-            java.util.List<com.smboutique.api.model.LigneVente> filtered = new java.util.ArrayList<>();
-            if (lignes != null) {
-                for (com.smboutique.api.model.LigneVente lv : lignes) {
-                    if (lv.getVente() != null && lv.getVente().getId() != null && lv.getVente().getId().equals(id)) filtered.add(lv);
-                }
-            }
-            return ResponseEntity.ok(filtered);
+            // findAll() chargeait TOUTES les lignes de vente du système avant de filtrer en Java :
+            // de plus en plus lent à mesure que l'historique des ventes grossit.
+            return ResponseEntity.ok(ligneVenteService.findByVenteId(id));
         } catch (Exception e) {
             return ResponseEntity.status(500).build();
         }

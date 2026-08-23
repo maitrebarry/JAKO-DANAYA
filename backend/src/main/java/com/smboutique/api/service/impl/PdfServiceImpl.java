@@ -1848,8 +1848,7 @@ public class PdfServiceImpl implements PdfService {
                 // (caisse, net à payer réel) ne sont PAS modifiées : seul l'affichage du reçu change.
                 try {
                     long revendeurTotal = 0L; boolean hasRevendeur = false;
-                    for (com.smboutique.api.model.LigneVente lvx : ligneVenteService.findAll()) {
-                        if (lvx.getVente() == null || lvx.getVente().getId() == null || !lvx.getVente().getId().equals(venteId)) continue;
+                    for (com.smboutique.api.model.LigneVente lvx : ligneVenteService.findByVenteId(venteId)) {
                         int qx = lvx.getQuantite() != null ? lvx.getQuantite() : 0;
                         if (lvx.getPrixRevendeur() != null) { hasRevendeur = true; revendeurTotal += (long) lvx.getPrixRevendeur() * qx; }
                         else { revendeurTotal += (long) (lvx.getNewPrice() != null ? lvx.getNewPrice() : 0) * qx; }

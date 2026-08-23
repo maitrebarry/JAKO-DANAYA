@@ -765,6 +765,8 @@ const CommandeFournisseur: React.FC = () => {
       }
 
 
+      Swal.fire({ title: 'Génération PDF...', didOpen: () => Swal.showLoading() });
+
       // Default: commande fournisseur
       try {
         const res = await fetch(`${API}/commandes-fournisseurs/${idToOpen}/pdf`, {
@@ -772,6 +774,7 @@ const CommandeFournisseur: React.FC = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.status === 401) {
+          Swal.close();
           await Swal.fire('Session expirée', 'Authentification requise. Vous allez être redirigé vers la page de connexion.', 'warning');
           navigate('/login');
           return;
@@ -783,10 +786,13 @@ const CommandeFournisseur: React.FC = () => {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         window.open(url, '_blank');
+        Swal.close();
       } catch (e: any) {
+        Swal.close();
         Swal.fire('Erreur', `Impossible de charger le PDF: ${e.message || e}`, 'error');
       }
     } catch (err: any) {
+      Swal.close();
       Swal.fire('Erreur', err.message || 'Erreur lors de l\'ouverture du PDF', 'error');
     }
   };
