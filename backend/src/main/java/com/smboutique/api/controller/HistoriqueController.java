@@ -419,7 +419,11 @@ public class HistoriqueController {
             // PaiementClient are payments on orders, not direct cash sales
                 try {
                     java.util.List<com.smboutique.api.model.Vente> ventes = venteService.findByBoutiqueId(boutiqueId);
-                    java.util.List<com.smboutique.api.model.LigneVente> allLignes = ligneVenteService.findAll();
+                    // findAll() chargeait TOUTES les lignes de vente du système (toutes boutiques,
+                    // tout l'historique) avant de filtrer en Java : de plus en plus lent à mesure que
+                    // l'historique des ventes grossit. findAllForDashboard filtre en SQL sur la
+                    // boutique demandée et charge vente+produit en une seule requête.
+                    java.util.List<com.smboutique.api.model.LigneVente> allLignes = ligneVenteService.findAllForDashboard(boutiqueId);
                     java.util.Map<Long, java.util.List<com.smboutique.api.model.LigneVente>> lignesByVente = new java.util.HashMap<>();
                     if (allLignes != null) {
                         for (com.smboutique.api.model.LigneVente lv : allLignes) {

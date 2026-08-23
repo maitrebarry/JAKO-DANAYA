@@ -1671,8 +1671,10 @@ public class PdfServiceImpl implements PdfService {
             // Build normalized lignes for template with qte label
             java.util.List<java.util.Map<String,Object>> lignesNorm = new java.util.ArrayList<>();
             try {
-                java.util.List<com.smboutique.api.model.LigneVente> lignes = ligneVenteService.findAll();
-                lignes.removeIf(lv -> lv.getVente() == null || lv.getVente().getId() == null || !lv.getVente().getId().equals(venteId));
+                // findAll() chargeait TOUTES les lignes de vente du système avant de filtrer en Java :
+                // de plus en plus lent à mesure que l'historique des ventes grossit. findByVenteId
+                // filtre en SQL et charge le produit en une seule requête.
+                java.util.List<com.smboutique.api.model.LigneVente> lignes = ligneVenteService.findByVenteId(venteId);
                 for (com.smboutique.api.model.LigneVente lv : lignes) {
                     java.util.Map<String,Object> m = new java.util.HashMap<>();
                     try {

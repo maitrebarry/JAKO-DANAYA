@@ -13,4 +13,8 @@ public interface LigneVenteService {
     /** Lignes de vente pour une boutique (ou toutes si boutiqueId est null), vente et produit
      * déjà chargés en une seule requête - à utiliser à la place de findAll() + filtrage Java. */
     List<LigneVente> findAllForDashboard(Long boutiqueId);
+
+    /** Lignes d'une vente précise, produit déjà chargé - à utiliser à la place de
+     * findAll() + filtrage Java (coûteux dès que l'historique des ventes grossit). */
+    List<LigneVente> findByVenteId(Long venteId);
 }

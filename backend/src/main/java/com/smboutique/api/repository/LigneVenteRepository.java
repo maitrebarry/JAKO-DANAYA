@@ -12,7 +12,12 @@ import org.springframework.data.repository.query.Param;
 
 @Repository
 public interface LigneVenteRepository extends JpaRepository<LigneVente, Long> {
-    List<LigneVente> findByVenteId(Long venteId);
+    // Le reçu PDF d'une vente chargeait auparavant findAll() (TOUTES les lignes de vente du
+    // système, toutes boutiques et toute l'historique confondus) puis filtrait en Java pour ne
+    // garder que celles de la vente demandée - de plus en plus lent à mesure que l'historique
+    // grossit. Filtrage en SQL + produit chargé en une seule requête.
+    @Query("SELECT l FROM LigneVente l LEFT JOIN FETCH l.produit WHERE l.vente.id = :venteId")
+    List<LigneVente> findByVenteId(@Param("venteId") Long venteId);
 
     boolean existsByEmballageId(Long emballageId);
 
