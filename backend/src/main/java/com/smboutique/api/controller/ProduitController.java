@@ -235,7 +235,11 @@ public class ProduitController {
                     if (cfg == null) {
                         org.slf4j.LoggerFactory.getLogger(ProduitController.class).info("No configuration marge found for boutique {}", boutiqueId);
                     }
-                    if (cfg != null) {
+                    // En mode MANUEL, les prix sont saisis à la main : ne jamais les dériver d'une
+                    // formule (ce bloc ne calculait que FIXE/POURCENTAGE via if/else, MANUEL tombait
+                    // par défaut dans la branche POURCENTAGE et se voyait appliquer un pourcentage
+                    // non pertinent pour ce mode).
+                    if (cfg != null && cfg.getTypeMarge() != com.smboutique.api.model.ConfigurationMarge.TypeMarge.MANUEL) {
                         int prixAchatVal = produit.getPrixAchat();
                         int prixGrosComputed = prixAchatVal;
                         int prixDetailComputed = prixAchatVal;
