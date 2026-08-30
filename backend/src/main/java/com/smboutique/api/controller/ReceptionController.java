@@ -849,10 +849,12 @@ public class ReceptionController {
         stockService.saveStock(stock);
 
         // Update product CMP and selling prices (and margins)
-        updateProductPricing(stock.getProduit(), updatedCostAverage, ligneCommande.getNewPrice(), stock);
+        com.smboutique.api.model.ConfigurationMarge.TypeMarge margeMode = updateProductPricing(stock.getProduit(), updatedCostAverage, ligneCommande.getNewPrice(), stock);
 
-        // Validate produit.prix_achat equals stock.cost_average rounded
-        if (stock.getProduit() != null) {
+        // Validate produit.prix_achat equals stock.cost_average rounded — sauf en mode MANUEL, où
+        // prix_achat reflète volontairement le dernier prix fournisseur payé plutôt que le CMP
+        // (l'utilisateur veut des valeurs exactes et prévisibles, pas une moyenne pondérée).
+        if (stock.getProduit() != null && margeMode != com.smboutique.api.model.ConfigurationMarge.TypeMarge.MANUEL) {
             Integer produitPrixAchat = stock.getProduit().getPrixAchat();
             Integer rounded = updatedCostAverage.setScale(0, java.math.RoundingMode.HALF_UP).intValue();
             if (produitPrixAchat == null || !produitPrixAchat.equals(rounded)) {
@@ -863,11 +865,8 @@ public class ReceptionController {
         return updatedCostAverage;
     }
 
-    private void updateProductPricing(Produit produit, BigDecimal costAverage, Integer supplierPrice, Stock stock) {
-        if (produit == null || costAverage == null) return;
-
-        // Update produit.prix_achat with CMP (rounded to integer)
-        produit.setPrixAchat(costAverage.setScale(0, RoundingMode.HALF_UP).intValue());
+    private com.smboutique.api.model.ConfigurationMarge.TypeMarge updateProductPricing(Produit produit, BigDecimal costAverage, Integer supplierPrice, Stock stock) {
+        if (produit == null || costAverage == null) return null;
 
         // Find margin config for boutique. Most receptions target boutique-level stock
         // (stock.magasin == null, stock.boutique set directly) — that case was previously
@@ -886,6 +885,19 @@ public class ReceptionController {
         if (boutiqueId != null) {
             config = configurationMargeService.findByBoutiqueId(boutiqueId).orElse(null);
         }
+        com.smboutique.api.model.ConfigurationMarge.TypeMarge mode = config != null ? config.getTypeMarge() : null;
+
+        // Update produit.prix_achat. En Fixe/Pourcentage, la marge se calcule à partir du coût
+        // réel : prix_achat doit rester le CMP (stock.cost_average), sinon la marge affichée ne
+        // correspondrait plus à ce qui a réellement été payé. En Manuel, la marge n'est pas dérivée
+        // du coût — l'utilisateur veut voir le dernier prix fournisseur payé, pas une moyenne.
+        if (mode == com.smboutique.api.model.ConfigurationMarge.TypeMarge.MANUEL) {
+            if (supplierPrice != null) {
+                produit.setPrixAchat(supplierPrice);
+            }
+        } else {
+            produit.setPrixAchat(costAverage.setScale(0, RoundingMode.HALF_UP).intValue());
+        }
 
         // Délègue au même calculateur que le reste de l'app (création produit, recalcul manuel) :
         // il respecte le mode MANUEL (ne touche pas aux prix saisis à la main) et n'écrase pas
@@ -893,6 +905,7 @@ public class ReceptionController {
         com.smboutique.api.service.impl.MargeCalculator.apply(config, produit);
 
         produitService.save(produit);
+        return mode;
     }
 
     private BigDecimal computePriceWithMargin(BigDecimal base, BigDecimal margePercent) {
