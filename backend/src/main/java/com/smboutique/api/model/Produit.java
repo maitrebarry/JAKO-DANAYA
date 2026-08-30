@@ -81,4 +81,11 @@ public class Produit {
 
     @Transient
     private List<Map<String, Object>> magasinStocks;
+
+    // Coût moyen pondéré du stock actuellement disponible (moyenne des costAverage de chaque
+    // stock, pondérée par leur quantité) — à utiliser pour toute estimation financière (valeur
+    // du stock, bénéfice) à la place de prixAchat, qui en mode de marge MANUEL reflète le
+    // dernier prix fournisseur payé plutôt qu'une moyenne.
+    @Transient
+    private java.math.BigDecimal coutMoyenStock;
 }

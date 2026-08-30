@@ -355,8 +355,11 @@ public class DashboardServiceImpl implements DashboardService {
                     .filter(s -> s.getBoutique() != null && s.getBoutique().getId().equals(finalTargetBoutiqueId))
                     .filter(s -> finalTargetMagasinId == null || (s.getMagasin() != null && s.getMagasin().getId().equals(finalTargetMagasinId)))
                     .map(s -> {
-                        Integer prixAchat = s.getProduit() != null && s.getProduit().getPrixAchat() != null ? s.getProduit().getPrixAchat() : 0;
-                        java.math.BigDecimal price = java.math.BigDecimal.valueOf(prixAchat);
+                        // Coût moyen pondéré du stock, pas produit.prixAchat : en mode de marge
+                        // MANUEL ce dernier reflète le dernier prix fournisseur payé (pas une
+                        // moyenne), ce qui fausserait la valeur du stock si des unités en stock
+                        // ont été achetées à des prix différents.
+                        java.math.BigDecimal price = s.getCostAverage() != null ? s.getCostAverage() : java.math.BigDecimal.ZERO;
                         java.math.BigDecimal q = s.getQuantiteDisponible() != null ? java.math.BigDecimal.valueOf(s.getQuantiteDisponible()) : java.math.BigDecimal.ZERO;
                         return price.multiply(q);
                     }).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add).doubleValue());
@@ -395,8 +398,11 @@ public class DashboardServiceImpl implements DashboardService {
                     .filter(s -> s.getBoutique() != null && s.getBoutique().getId().equals(finalTargetBoutiqueId))
                     .filter(s -> finalTargetMagasinId == null || (s.getMagasin() != null && s.getMagasin().getId().equals(finalTargetMagasinId)))
                     .map(s -> {
-                        Integer prixAchat = s.getProduit() != null && s.getProduit().getPrixAchat() != null ? s.getProduit().getPrixAchat() : 0;
-                        java.math.BigDecimal price = java.math.BigDecimal.valueOf(prixAchat);
+                        // Coût moyen pondéré du stock, pas produit.prixAchat : en mode de marge
+                        // MANUEL ce dernier reflète le dernier prix fournisseur payé (pas une
+                        // moyenne), ce qui fausserait la valeur du stock si des unités en stock
+                        // ont été achetées à des prix différents.
+                        java.math.BigDecimal price = s.getCostAverage() != null ? s.getCostAverage() : java.math.BigDecimal.ZERO;
                         java.math.BigDecimal q = s.getQuantiteDisponible() != null ? java.math.BigDecimal.valueOf(s.getQuantiteDisponible()) : java.math.BigDecimal.ZERO;
                         return price.multiply(q);
                     }).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add).doubleValue());
@@ -412,8 +418,11 @@ public class DashboardServiceImpl implements DashboardService {
                     .filter(s -> s.getBoutique() != null && s.getBoutique().getId().equals(finalTargetBoutiqueId))
                     .filter(s -> finalTargetMagasinId == null || (s.getMagasin() != null && s.getMagasin().getId().equals(finalTargetMagasinId)))
                     .map(s -> {
-                        Integer prixAchat = s.getProduit() != null && s.getProduit().getPrixAchat() != null ? s.getProduit().getPrixAchat() : 0;
-                        java.math.BigDecimal price = java.math.BigDecimal.valueOf(prixAchat);
+                        // Coût moyen pondéré du stock, pas produit.prixAchat : en mode de marge
+                        // MANUEL ce dernier reflète le dernier prix fournisseur payé (pas une
+                        // moyenne), ce qui fausserait la valeur du stock si des unités en stock
+                        // ont été achetées à des prix différents.
+                        java.math.BigDecimal price = s.getCostAverage() != null ? s.getCostAverage() : java.math.BigDecimal.ZERO;
                         java.math.BigDecimal q = s.getQuantiteDisponible() != null ? java.math.BigDecimal.valueOf(s.getQuantiteDisponible()) : java.math.BigDecimal.ZERO;
                         return price.multiply(q);
                     }).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add).doubleValue());

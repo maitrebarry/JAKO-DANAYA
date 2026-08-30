@@ -49,7 +49,11 @@ const Produits: React.FC = () => {
         ? (p.quantiteInitialeConditionnements * (p.nombreUnitesParConditionnement || 1))
         : (p.quantiteInitiale || 0);
       if (!qty || qty <= 0) continue;
-      tA += qty * (p.prixAchat || 0);
+      // coutMoyenStock (coût moyen pondéré du stock réel) plutôt que prixAchat : en mode de
+      // marge Manuel, prixAchat reflète le dernier prix fournisseur payé, pas une moyenne —
+      // l'utiliser ici fausserait le bénéfice dès que des unités en stock viennent d'achats
+      // à des prix différents.
+      tA += qty * (p.coutMoyenStock ?? p.prixAchat ?? 0);
       tD += qty * (p.prixDetail || 0);
       tG += qty * (p.prixEnGros || p.prixGros || 0);
     }

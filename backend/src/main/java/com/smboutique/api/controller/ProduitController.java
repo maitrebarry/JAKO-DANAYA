@@ -653,6 +653,23 @@ public class ProduitController {
                     produit.setQuantiteInitialeConditionnements(quantiteDisponible);
                 }
             }
+
+            // Coût moyen pondéré sur l'ensemble des stocks du produit (pondéré par la quantité
+            // de chaque stock) : reflète le vrai coût de ce qui est physiquement en stock, même
+            // si les stocks ont des costAverage différents (magasins réapprovisionnés à des
+            // moments différents) ou si produit.prixAchat s'en écarte (mode de marge MANUEL).
+            java.math.BigDecimal valeurTotale = java.math.BigDecimal.ZERO;
+            long quantiteTotale = 0L;
+            for (Stock stock : produit.getStocks()) {
+                if (stock.getCostAverage() == null || stock.getQuantiteDisponible() == null || stock.getQuantiteDisponible() <= 0) continue;
+                valeurTotale = valeurTotale.add(stock.getCostAverage().multiply(java.math.BigDecimal.valueOf(stock.getQuantiteDisponible())));
+                quantiteTotale += stock.getQuantiteDisponible();
+            }
+            if (quantiteTotale > 0) {
+                produit.setCoutMoyenStock(valeurTotale.divide(java.math.BigDecimal.valueOf(quantiteTotale), 2, java.math.RoundingMode.HALF_UP));
+            } else if (produit.getPrixAchat() != null) {
+                produit.setCoutMoyenStock(java.math.BigDecimal.valueOf(produit.getPrixAchat()));
+            }
         }
     }
 }
