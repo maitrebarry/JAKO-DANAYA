@@ -119,6 +119,14 @@ public class MouvementController {
             if (userId == null && boutiqueId == null && currentUser.getBoutique() != null && !isSuperAdmin(currentUser)) {
                 boutiqueId = currentUser.getBoutique().getId();
             }
+            // Le superadmin n'a pas de boutique à qui appliquer ce filtre par défaut : sans borne,
+            // une recherche sans aucun critère scanne la table mouvements en entier (toutes
+            // boutiques, tout l'historique), ce qui peut dépasser le délai d'attente et échouer
+            // côté client avec une erreur réseau générique. Borne par défaut aux 30 derniers jours
+            // quand rien n'a été précisé ; l'utilisateur reste libre d'élargir via les filtres de date.
+            if (isSuperAdmin(currentUser) && userId == null && boutiqueId == null && from == null && to == null) {
+                from = java.time.LocalDateTime.now().minusDays(30);
+            }
         }
 
         // If pagination requested, return paginated result
